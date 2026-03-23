@@ -1,0 +1,3 @@
+{"type":"server-started","port":63757,"host":"127.0.0.1","url_host":"localhost","url":"http://localhost:63757","screen_dir":"/Users/priyayadav/Documents/Raftlabs/CeolX/.superpowers/brainstorm/9410-1773644748"}
+{"type":"screen-added","file":"/Users/priyayadav/Documents/Raftlabs/CeolX/.superpowers/brainstorm/9410-1773644748/welcome.html"}
+{"type":"server-stopped","reason":"owner process exited"}
