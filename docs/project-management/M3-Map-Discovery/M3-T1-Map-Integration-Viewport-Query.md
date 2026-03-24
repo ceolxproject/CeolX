@@ -158,7 +158,7 @@ Fetch active upcoming events within a map viewport bounding box.
 The core query uses SQL `BETWEEN` with the GIST index:
 
 ```typescript
-// apps/api/src/routes/events.ts
+// apps/server/src/routes/events.ts
 
 import { drizzle } from "drizzle-orm/postgres-js";
 import { events } from "@ceolx/shared/schema";
@@ -325,7 +325,7 @@ The plan should show `Index Scan using events_lat_lng_gist_idx` — not `Seq Sca
 ### Environment Variables Required
 
 ```
-# apps/api/.env.local
+# apps/server/.env.local
 DATABASE_URL=postgresql://user:password@ep-xxxxx.neon.tech/ceolx_db
 
 # apps/mobile/.env

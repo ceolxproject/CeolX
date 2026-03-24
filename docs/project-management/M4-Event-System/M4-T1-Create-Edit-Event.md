@@ -245,7 +245,7 @@ Get a presigned S3 URL for uploading cover image.
 ### S3 Presigned URL Generation (Hono Backend)
 
 ```typescript
-// apps/api/src/routes/events.ts
+// apps/server/src/routes/events.ts
 
 import { Hono } from "hono";
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
@@ -296,7 +296,7 @@ app.get("/events/presigned-url", async (c) => {
 ### Create Event Handler (Hono)
 
 ```typescript
-// apps/api/src/routes/events.ts
+// apps/server/src/routes/events.ts
 
 import { z } from "zod";
 import { zValidator } from "@hono/zod-validator";

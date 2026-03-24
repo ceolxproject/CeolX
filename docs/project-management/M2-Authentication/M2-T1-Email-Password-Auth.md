@@ -278,7 +278,7 @@ Terminate user session and invalidate token.
 ### BetterAuth Configuration
 
 ```typescript
-// apps/api/src/lib/auth.ts
+// apps/server/src/lib/auth.ts
 
 import { betterAuth } from "better-auth";
 import { postmark } from "better-auth/providers";
@@ -311,7 +311,7 @@ export const auth = betterAuth({
 ### Sign-Up Endpoint
 
 ```typescript
-// apps/api/src/routes/auth.ts (sign-up)
+// apps/server/src/routes/auth.ts (sign-up)
 
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
@@ -401,7 +401,7 @@ app.post("/sign-up", zValidator("json", signUpSchema), async (c) => {
 ### Email Verification Endpoint
 
 ```typescript
-// apps/api/src/routes/auth.ts (verify-email)
+// apps/server/src/routes/auth.ts (verify-email)
 
 app.get("/verify-email", async (c) => {
   const token = c.req.query("token");
@@ -451,7 +451,7 @@ app.get("/verify-email", async (c) => {
 ### Sign-In Endpoint
 
 ```typescript
-// apps/api/src/routes/auth.ts (sign-in)
+// apps/server/src/routes/auth.ts (sign-in)
 
 const signInSchema = z.object({
   email: z.string().email(),

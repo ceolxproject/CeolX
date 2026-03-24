@@ -51,7 +51,7 @@ const session = await stripe.checkout.sessions.create({
 
 ### Step 3: Webhook handling — store trial dates
 
-In the Stripe webhook handler (`apps/api/src/routers/webhooks.ts` or similar):
+In the Stripe webhook handler (`apps/server/src/routers/webhooks.ts` or similar):
 
 - On `customer.subscription.created` event: read `trial_start` / `trial_end` from Stripe subscription object
 - Store in `userSubscription.trialStart` and `userSubscription.trialEnd`

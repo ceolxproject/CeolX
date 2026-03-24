@@ -143,7 +143,7 @@ Consistent across all routes:
 ## File Structure
 
 ```
-apps/api/src/
+apps/server/src/
   index.ts          <- Hono app + node server entry point
   routes/
     auth.ts

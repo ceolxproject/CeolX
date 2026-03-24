@@ -289,7 +289,7 @@ jobs:
           # Use AWS SAM, Serverless, or AWS CLI to deploy
           aws lambda update-function-code \
             --function-name ceolx-api-prod \
-            --zip-file fileb://apps/api/dist.zip \
+            --zip-file fileb://apps/server/dist.zip \
             --region eu-west-1
 
       - name: Deploy Admin Dashboard

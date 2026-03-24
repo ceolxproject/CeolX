@@ -314,7 +314,7 @@ export default function SubscribePage() {
 ### Hono Checkout Session Endpoint
 
 ```typescript
-// apps/api/routes/v1/stripe.ts
+// apps/server/routes/v1/stripe.ts
 import { Hono } from "hono";
 import Stripe from "stripe";
 import { db } from "@/db";
@@ -380,7 +380,7 @@ export default router;
 ### Stripe Webhook Handler (Checkout Completion)
 
 ```typescript
-// apps/api/routes/webhooks/stripe.ts
+// apps/server/routes/webhooks/stripe.ts
 import { Hono } from "hono";
 import Stripe from "stripe";
 import { db } from "@/db";

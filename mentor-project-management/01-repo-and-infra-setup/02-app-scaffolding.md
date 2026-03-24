@@ -196,7 +196,7 @@ body {
 #### Directory Structure
 
 ```
-apps/api/
+apps/server/
 ├── src/
 │   ├── index.ts
 │   ├── middleware/

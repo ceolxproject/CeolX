@@ -218,7 +218,7 @@ Siobhán Ní Dhubhda,siobhan@example.com,artist,2026-02-15 10:30:00,2026-03-23 0
 
 ### Super Admin Account Seeding
 
-Create a one-time seed script at `/apps/api/src/seed-admin.ts`:
+Create a one-time seed script at `/apps/server/src/seed-admin.ts`:
 
 ```typescript
 import { db } from "./db";

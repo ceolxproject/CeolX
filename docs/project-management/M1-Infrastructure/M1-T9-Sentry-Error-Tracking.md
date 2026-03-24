@@ -45,7 +45,7 @@ Three separate Sentry projects are created (one per app surface), all under a si
 ### 2. Hono API (AWS Lambda)
 
 - Install `@sentry/node` and `@sentry/serverless`
-- Initialize Sentry in `apps/api/src/instrumentation.ts` — import this file first in `src/index.ts` (before any other imports)
+- Initialize Sentry in `apps/server/src/instrumentation.ts` — import this file first in `src/index.ts` (before any other imports)
 - Wrap the Lambda handler with `Sentry.AWSLambda.wrapHandler()`
 - Capture unhandled errors from Hono's `onError` handler via `Sentry.captureException(err)`
 - Set `tracesSampleRate: 0.1` (10% of transactions in production to stay in free tier)
@@ -124,7 +124,7 @@ Configure `ignoreErrors` in Sentry config to filter known noise.
 ### Hono API Sentry Initialization
 
 ```typescript
-// apps/api/src/instrumentation.ts — import FIRST in src/index.ts
+// apps/server/src/instrumentation.ts — import FIRST in src/index.ts
 
 import * as Sentry from "@sentry/node";
 
@@ -144,7 +144,7 @@ Sentry.init({
 ### Capture in Hono Error Handler
 
 ```typescript
-// apps/api/src/middleware/errorHandler.ts
+// apps/server/src/middleware/errorHandler.ts
 
 import * as Sentry from "@sentry/node";
 import { Context } from "hono";
@@ -168,7 +168,7 @@ export const errorHandler = (err: Error, c: Context) => {
 ### Set User Context on Authenticated Requests
 
 ```typescript
-// apps/api/src/middleware/auth.ts — after verifying token
+// apps/server/src/middleware/auth.ts — after verifying token
 
 import * as Sentry from "@sentry/node";
 

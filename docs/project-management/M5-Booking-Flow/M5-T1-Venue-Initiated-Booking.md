@@ -209,7 +209,7 @@ Each role sees different booking views:
 
 ## Technical Notes
 
-### Drizzle Schema (apps/api/src/db/schema.ts)
+### Drizzle Schema (apps/server/src/db/schema.ts)
 
 ```typescript
 import {
@@ -264,7 +264,7 @@ export const bookings = pgTable(
 );
 ```
 
-### Hono Handler (apps/api/src/routes/bookings.ts)
+### Hono Handler (apps/server/src/routes/bookings.ts)
 
 ```typescript
 import { Hono } from "hono";

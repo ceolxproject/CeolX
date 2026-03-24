@@ -181,11 +181,11 @@
 
 ### M1.5-T1 · Drizzle ORM Setup + Enum Definitions
 
-**What**: Create the `apps/api/src/db/schema/` directory structure and declare all PostgreSQL enum types before any tables are defined. Mirror enums in `packages/shared` for use across mobile and admin.
+**What**: Create the `apps/server/src/db/schema/` directory structure and declare all PostgreSQL enum types before any tables are defined. Mirror enums in `packages/shared` for use across mobile and admin.
 
 | Sub-task         | Details                                                                                                                      |
 | ---------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| Schema directory | `apps/api/src/db/schema/` with `enums.ts`, `index.ts` barrel                                                                 |
+| Schema directory | `apps/server/src/db/schema/` with `enums.ts`, `index.ts` barrel                                                              |
 | PostgreSQL enums | 7 enums: `user_role`, `event_status`, `booking_status`, `booking_direction`, `subscription_status`, `media_type`, `platform` |
 | Shared TS enums  | `packages/shared/src/types/enums.ts` — `const` object mirrors for mobile + admin                                             |
 

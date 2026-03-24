@@ -265,7 +265,7 @@ And for `packages/shared`:
 - [ ] `pnpm format:check` from root finds no formatting violations
 - [ ] `pnpm format` reformats all `.ts`/`.tsx` files consistently (verify with `git diff`)
 - [ ] `.editorconfig` recognized by VSCode — new files created with LF line endings and 2-space indent
-- [ ] `import/order` rule enforces alphabetical import grouping — verified manually in `apps/api/src/index.ts`
+- [ ] `import/order` rule enforces alphabetical import grouping — verified manually in `apps/server/src/index.ts`
 - [ ] `@typescript-eslint/no-floating-promises` catches a deliberate test case (e.g., `fetch("...")` without `await`)
 - [ ] React hooks rules active in `apps/admin` and `apps/mobile` overrides
 - [ ] `routeTree.gen.ts` excluded from lint (TanStack Router auto-generated file)

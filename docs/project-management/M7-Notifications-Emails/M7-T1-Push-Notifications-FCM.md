@@ -271,7 +271,7 @@ export function useNotifications() {
 ### Hono Backend — Token Endpoint
 
 ```typescript
-// apps/api/routes/v1/device-tokens.ts
+// apps/server/routes/v1/device-tokens.ts
 import { Hono } from "hono";
 import { db } from "@/db";
 import { deviceTokens } from "@/db/schema";
@@ -344,7 +344,7 @@ export default router;
 ### FCM Dispatcher Service
 
 ```typescript
-// apps/api/services/fcmDispatcher.ts
+// apps/server/services/fcmDispatcher.ts
 import admin from "firebase-admin";
 import { db } from "@/db";
 import { deviceTokens, notifications } from "@/db/schema";

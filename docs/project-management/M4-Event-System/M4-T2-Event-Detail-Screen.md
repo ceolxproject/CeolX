@@ -231,7 +231,7 @@ Unsave an event.
 ### Event Detail Endpoint (Hono Backend)
 
 ```typescript
-// apps/api/src/routes/events.ts
+// apps/server/src/routes/events.ts
 
 import { Hono } from "hono";
 import { getAuth } from "hono/better-auth";
