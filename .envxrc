@@ -1,0 +1,17 @@
+{
+  "ignore": ["example", "sample", "template", "test"],
+  "environments": ["development", "staging", "production"],
+  "excludeDirs": [
+    "node_modules",
+    ".git",
+    "dist",
+    "build",
+    ".turbo",
+    ".next",
+    "coverage",
+    ".cache",
+    "tmp",
+    "temp",
+    ".expo"
+  ]
+}

@@ -9,8 +9,16 @@ build
 *.tsbuildinfo
 
 # Environment variables
+# Active/plaintext env files — never commit
 .env
-.env*.local
+.env.local
+.env.*
+.envrc
+# Encrypted files are safe to commit
+!.env.*.gpg
+# Templates are always committed
+!.env.example
+!.envrc.example
 
 # IDEs and editors
 .vscode/*

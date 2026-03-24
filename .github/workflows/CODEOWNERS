@@ -1,0 +1,11 @@
+# CODEOWNERS file
+# Learn about CODEOWNERS: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Default owners for everything in the repo
+* @PriyaYadav12
+
+# You can also specify owners for specific paths:
+# /docs/ @docs-team
+# /src/api/ @backend-team
+# /src/ui/ @frontend-team
+# *.ts @typescript-team

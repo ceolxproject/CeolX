@@ -10,23 +10,25 @@
 
 ## Milestone Summary
 
-| #   | Milestone                       | Approx. Weeks | No. of Tasks |
-| --- | ------------------------------- | ------------- | ------------ |
-| M1  | Project Setup & Infrastructure  | 1–2           | 9            |
-| M2  | Authentication & Persona System | 2–3           | 4            |
-| M3  | Map & Discovery                 | 3–5           | 4            |
-| M4  | Event System                    | 5–7           | 4            |
-| M5  | Booking Flow (Artist ↔ Venue)   | 7–8           | 3            |
-| M6  | Profiles & Social               | 8–9           | 4            |
-| M7  | Push Notifications & Emails     | 9–10          | 3            |
-| M8  | Venue Subscription & Payments   | 10–11         | 4            |
-| M9  | Super Admin Dashboard           | 9–10          | 2            |
-| M10 | Media (S3, CloudFront, Mux)     | 6–7           | 1            |
-| M11 | Analytics & GDPR                | 11–12         | 3            |
-| M12 | QA & Launch Prep                | 12–14         | 3            |
-|     | **Total**                       |               | **46 tasks** |
+| #    | Milestone                       | Approx. Weeks | No. of Tasks        |
+| ---- | ------------------------------- | ------------- | ------------------- |
+| M1   | Project Setup & Infrastructure  | 1–2           | 9 (excl. T2 schema) |
+| M1.5 | Database Schema Design          | 2             | 7                   |
+| M2   | Authentication & Persona System | 2–3           | 4                   |
+| M3   | Map & Discovery                 | 3–5           | 4                   |
+| M4   | Event System                    | 5–7           | 4                   |
+| M5   | Booking Flow (Artist ↔ Venue)   | 7–8           | 3                   |
+| M6   | Profiles & Social               | 8–9           | 4                   |
+| M7   | Push Notifications & Emails     | 9–10          | 3                   |
+| M8   | Venue Subscription & Payments   | 10–11         | 4                   |
+| M9   | Super Admin Dashboard           | 9–10          | 2                   |
+| M10  | Media (S3, CloudFront, Mux)     | 6–7           | 1                   |
+| M11  | Analytics & GDPR                | 11–12         | 3                   |
+| M12  | QA & Launch Prep                | 12–14         | 3                   |
+|      | **Total**                       |               | **51 tasks**        |
 
 > M9 and M10 run in parallel with other milestones (admin dashboard and media can be built alongside app features).
+> M1.5 must complete before M2 — all feature milestones depend on the database schema being finalised.
 
 ---
 
@@ -51,34 +53,19 @@
 
 ---
 
-### M1-T2 · Neon Database Setup + Drizzle Schema (All Tables)
+### M1-T2 · Database Infrastructure Setup (Docker Local + Neon Staging/Prod)
 
-**What**: Define all DB tables, relationships, and indexes. This must be done before any API development.
+**What**: Set up PostgreSQL across all three environments. Schema design is handled separately in M1.5.
 
-| Table                 | Key Fields                                                                                                                                                                                                                                     |
-| --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `users`               | id, email, name, avatar, current_role (enum), last_login_at, flagged_inactive, consent_at, marketing_consent, created_at                                                                                                                       |
-| `artist_profiles`     | id, user_id FK, stage_name, bio, genre, links (JSON), is_active                                                                                                                                                                                |
-| `venue_profiles`      | id, user_id FK, venue_name, address, bio, subscription_status (enum cache), stripe_customer_id (nullable), is_active                                                                                                                           |
-| `events`              | id, title, description, cover_image, date_start, date_end, lat, lng, venue_id (nullable FK), venue_address, category, ticket_link, is_gig_opportunity, collection_id (nullable FK), created_by FK, status (enum), rejection_reason, view_count |
-| `collections`         | id, name, logo, created_by (venue_profiles FK)                                                                                                                                                                                                 |
-| `saved_events`        | id, user_id FK, event_id FK, created_at — **unique `(user_id, event_id)`**                                                                                                                                                                     |
-| `bookings`            | id, artist_id FK, venue_id FK, event_id FK (nullable), status (enum), direction (enum), created_at                                                                                                                                             |
-| `posts`               | id, created_by FK, caption, media_type (enum: `image\|video\|audio\|text`), media_url (nullable), like_count, deleted_at (nullable)                                                                                                            |
-| `comments`            | id, post_id FK, user_id FK, body, deleted_at (nullable, soft delete), created_at                                                                                                                                                               |
-| `post_likes`          | id, post_id FK, user_id FK, created_at — **unique `(post_id, user_id)`**                                                                                                                                                                       |
-| `follows`             | id, follower_id FK, followee_id FK, created_at — **unique `(follower_id, followee_id)`**                                                                                                                                                       |
-| `venue_subscriptions` | id, venue_id FK, stripe_customer_id, stripe_subscription_id, plan (enum: `lite\|pro`), status (enum), period_start, period_end, created_at                                                                                                     |
-| `notifications`       | id, user_id FK, type, payload (JSON: `persona`, `route`, `action`), read (bool), created_at                                                                                                                                                    |
-| `device_tokens`       | id, user_id FK, fcm_token, platform (enum: `ios\|android`), updated_at — **unique `(user_id, fcm_token)`**                                                                                                                                     |
+| Sub-task          | Details                                                                        |
+| ----------------- | ------------------------------------------------------------------------------ |
+| Docker Compose    | PostgreSQL 16 (alpine) for local dev — `docker compose up -d`                  |
+| Neon project      | Create project, `staging` branch, `main` branch (production)                   |
+| Drizzle config    | `drizzle.config.ts` + DB client factory that switches driver by `DATABASE_URL` |
+| `.env.local`      | Local Docker connection string (gitignored); `.env.example` committed          |
+| Connection verify | `npm run db:check` — runs `SELECT 1`, prints PostgreSQL version                |
 
-**14 tables total.** No `spectator_profiles` — Spectators have no public profile by design; activity tracked via `follows`, `saved_events`, `notifications`.
-
-Additional:
-
-- GIST spatial index on `events(lat, lng)` for fast bounding box map queries
-- Indexes: `events(status, date_start)`, `bookings(artist_id, status)`, `bookings(venue_id, status)`, `notifications(user_id, read)`
-- Run and verify all migrations on Neon dev branch
+> See full task spec: `M1-Infrastructure/M1-T2-Database-Infrastructure-Setup.md`
 
 ---
 
@@ -181,6 +168,99 @@ Additional:
 | React admin (Vite) | `@sentry/react`; Sentry error boundary at root; Vite source maps uploaded via `vite-plugin-sentry` |
 | React Native       | `@sentry/react-native`; EAS symbol upload (dSYM + Proguard); `Sentry.wrap(App)`                    |
 | Environment config | Disabled in `development` (no noise); alerts to Priya's email for `production` new issues only     |
+
+---
+
+## M1.5 — Database Schema Design
+
+**Weeks 2 · 7 tasks** | **Must complete before M2**
+
+> Full task specs: `M1.5-Database-Schema/`
+
+---
+
+### M1.5-T1 · Drizzle ORM Setup + Enum Definitions
+
+**What**: Create the `apps/api/src/db/schema/` directory structure and declare all PostgreSQL enum types before any tables are defined. Mirror enums in `packages/shared` for use across mobile and admin.
+
+| Sub-task         | Details                                                                                                                      |
+| ---------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| Schema directory | `apps/api/src/db/schema/` with `enums.ts`, `index.ts` barrel                                                                 |
+| PostgreSQL enums | 7 enums: `user_role`, `event_status`, `booking_status`, `booking_direction`, `subscription_status`, `media_type`, `platform` |
+| Shared TS enums  | `packages/shared/src/types/enums.ts` — `const` object mirrors for mobile + admin                                             |
+
+---
+
+### M1.5-T2 · User & Profile Tables
+
+**What**: Define `users`, `artist_profiles`, `venue_profiles`. Foundation for all other tables.
+
+| Table             | Key Constraints                                                                            |
+| ----------------- | ------------------------------------------------------------------------------------------ |
+| `users`           | UUID PK, unique email, `current_role` enum default `spectator`, `consent_at` NOT NULL      |
+| `artist_profiles` | `user_id` UNIQUE FK → users, `is_active` bool (flipped on persona switch)                  |
+| `venue_profiles`  | `user_id` UNIQUE FK → users, `subscription_status` denormalized, `is_active` default false |
+
+---
+
+### M1.5-T3 · Event & Collection Tables
+
+**What**: Define `collections`, `events`, `saved_events` with GIST spatial index and check constraints.
+
+| Table          | Key Details                                                                      |
+| -------------- | -------------------------------------------------------------------------------- |
+| `collections`  | FK → venue_profiles; must be defined before `events`                             |
+| `events`       | GIST index on `ll_to_earth(lat, lng)` WHERE active; CHECK lat/lng within Ireland |
+| `saved_events` | UNIQUE `(user_id, event_id)` for idempotent save/unsave                          |
+
+---
+
+### M1.5-T4 · Social Tables
+
+**What**: Define `posts`, `comments`, `post_likes`, `follows` with soft-delete and idempotency constraints.
+
+| Table        | Key Details                                                  |
+| ------------ | ------------------------------------------------------------ |
+| `posts`      | `deleted_at` soft delete; `like_count` denormalized counter  |
+| `comments`   | `deleted_at` soft delete (display "Comment deleted")         |
+| `post_likes` | UNIQUE `(post_id, user_id)` — idempotent like/unlike         |
+| `follows`    | UNIQUE `(follower_id, followee_id)` — self-referencing users |
+
+---
+
+### M1.5-T5 · Bookings & Subscriptions Tables
+
+**What**: Define `bookings` and `venue_subscriptions`.
+
+| Table                 | Key Details                                                                        |
+| --------------------- | ---------------------------------------------------------------------------------- |
+| `bookings`            | `direction` enum (`venue_to_artist` / `artist_to_venue`); `event_id` nullable      |
+| `venue_subscriptions` | UNIQUE `(venue_id)`; Stripe IDs as varchar; `plan` as varchar (tier TBD by client) |
+
+---
+
+### M1.5-T6 · Notifications, Device Tokens + Final Index Audit
+
+**What**: Define `notifications` and `device_tokens`, then verify all indexes and constraints across all schema files before generating the migration.
+
+| Table           | Key Details                                                                                |
+| --------------- | ------------------------------------------------------------------------------------------ |
+| `notifications` | JSONB `payload` with `{ persona, route, action, title, body }`; index on `(user_id, read)` |
+| `device_tokens` | UNIQUE `(user_id, fcm_token)`; FCM tokens upserted on app open                             |
+
+---
+
+### M1.5-T7 · Run Migrations + Seed Data
+
+**What**: Apply the generated migration to all three environments, verify all 14 tables, and insert minimal seed data for M2 testing.
+
+| Sub-task        | Details                                                                       |
+| --------------- | ----------------------------------------------------------------------------- |
+| Generate SQL    | `npm run db:generate` → produces `drizzle/migrations/0001_initial_schema.sql` |
+| Local Docker    | Apply + verify GIST index with `EXPLAIN ANALYSE`                              |
+| Neon staging    | Apply migration via Neon staging branch                                       |
+| Neon production | Apply migration before M2 code merges to `main`                               |
+| Seed data       | 1 user per persona type + 3 sample events (active, pending, rejected)         |
 
 ---
 
