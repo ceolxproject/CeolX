@@ -1,11 +1,11 @@
-# M1-T5 · Next.js Admin Dashboard Scaffold
+# M1-T5 · React Admin Dashboard Scaffold (TanStack Router + Vite)
 
-| Field | Value |
-|-------|-------|
-| **Milestone** | M1 — Project Setup & Infrastructure |
-| **Status** | 🔲 To Do |
-| **Depends on** | M1-T1 (Turborepo), M1-T2 (Drizzle schema) |
-| **PRD Ref** | Section 10.1 (Admin Dashboard), Section 8 (Super Admin Features), Section 9.8 (Venue Subscription) |
+| Field          | Value                                                                                              |
+| -------------- | -------------------------------------------------------------------------------------------------- |
+| **Milestone**  | M1 — Project Setup & Infrastructure                                                                |
+| **Status**     | 🔲 To Do                                                                                           |
+| **Depends on** | M1-T1 (Turborepo), M1-T2 (Drizzle schema)                                                          |
+| **PRD Ref**    | Section 10.1 (Admin Dashboard), Section 8 (Super Admin Features), Section 9.8 (Venue Subscription) |
 
 ---
 
@@ -13,14 +13,16 @@
 
 Bootstrap the admin web app which serves two purposes: the Super Admin dashboard (internal tools for event moderation and user management) and the public Venue subscription page (`ceolx.ie/subscribe`). No business logic yet — just route structure, layout components, and placeholder pages. The subscription page is critical because Venues access it from their Postmark activation email; the dashboard is critical for content moderation before events go live.
 
+Built as a React SPA with Vite and TanStack Router. No SSR needed for an internal admin dashboard.
+
 ---
 
 ## Affected Apps / Packages
 
-| App / Package | Role |
-|---------------|------|
-| `apps/admin` | Entire Next.js admin application (dashboard + subscribe) |
-| `packages/shared` | Shared enums and types for typing |
+| App / Package     | Role                                                   |
+| ----------------- | ------------------------------------------------------ |
+| `apps/admin`      | Entire React admin application (dashboard + subscribe) |
+| `packages/shared` | Shared enums and types for typing                      |
 
 ---
 
@@ -34,10 +36,10 @@ None — this is a frontend scaffold task. API calls wired up in M8 (Venue Subsc
 
 ### Project Initialization
 
-- Next.js 14+ initialized in `apps/admin` with TypeScript
-- App Router (not legacy Pages Router)
+- Vite initialized in `apps/admin` with React + TypeScript template
+- TanStack Router (`@tanstack/react-router`) with file-based routing
 - Node >= 20, npm >= 10
-- Tailwind CSS configured via NativeWind or PostCSS
+- Tailwind CSS configured via PostCSS
 - ShadCN/UI installed and configured as component library
 
 ### Route Structure
@@ -52,12 +54,14 @@ None — this is a frontend scaffold task. API calls wired up in M8 (Venue Subsc
 ### Layout Structure
 
 **Admin Routes** (`/dashboard`, `/users`, `/events/pending`, `/account`):
+
 - Sidebar navigation with links: Dashboard, Users, Pending Events, Account
 - Header with admin user info (avatar, name) and Logout button
 - Main content area with proper spacing and padding
 - Logout functionality wired in M9
 
 **Public Routes** (`/login`, `/subscribe`):
+
 - No sidebar
 - No authentication required
 - `/login` uses a simple centered layout
@@ -70,7 +74,7 @@ None — this is a frontend scaffold task. API calls wired up in M8 (Venue Subsc
   - Users (icon: users)
   - Pending Events (icon: clock) — with badge showing pending count (wired in M9)
   - Account (icon: settings)
-- Active link highlighting
+- Active link highlighting via TanStack Router's `Link` `activeProps`
 - Responsive collapse on mobile (drawer instead of sidebar)
 
 ### Header Component
@@ -96,115 +100,170 @@ None — this is a frontend scaffold task. API calls wired up in M8 (Venue Subsc
 
 ### Configuration Files
 
-- `app.config.ts` or `app.config.js` for environment-specific configs
+- `vite.config.ts` with `@tanstack/router-plugin/vite` plugin for file-based routing
 - `tsconfig.json` extending root config with app-specific paths
-- `package.json` with correct scripts: `dev`, `build`, `start`, `lint`, `type-check`
-- Environment variables: `NEXT_PUBLIC_API_BASE_URL`, `NEXT_PUBLIC_STRIPE_PUBLIC_KEY` (wired in M8)
+- `package.json` with correct scripts: `dev`, `build`, `preview`, `lint`, `type-check`
+- Environment variables: `VITE_API_BASE_URL`, `VITE_STRIPE_PUBLIC_KEY` (wired in M8)
 
 ---
 
 ## Acceptance Criteria
 
 - [ ] `npm run dev` in `apps/admin` starts without errors on `http://localhost:3000`
-- [ ] All five routes accessible: `/login`, `/dashboard`, `/users`, `/events/pending`, `/subscribe`
+- [ ] All routes accessible: `/login`, `/dashboard`, `/users`, `/events/pending`, `/account`, `/subscribe`
 - [ ] `/subscribe` and `/login` are publicly accessible (no auth guard)
 - [ ] `/dashboard`, `/users`, `/events/pending`, `/account` show auth guard message (actual auth wired in M9)
 - [ ] ShadCN/UI components render correctly on at least two pages
-- [ ] Sidebar visible on `/dashboard` and other admin routes; absent on `/login` and `/subscribe`
+- [ ] Sidebar visible on admin routes; absent on `/login` and `/subscribe`
 - [ ] Header with admin info visible on admin routes; absent on public routes
 - [ ] Placeholder content visible on all pages (cards, tables, forms)
 - [ ] `packages/shared` types importable in `apps/admin`
 - [ ] TypeScript compilation passes (`npm run type-check` in `apps/admin`)
 - [ ] Responsive layout works on mobile (sidebar collapses to drawer or menu)
+- [ ] `routeTree.gen.ts` auto-generated by TanStack Router Vite plugin
 
 ---
 
 ## Technical Notes
 
-### Next.js App Router Structure
+### TanStack Router File-Based Route Structure
 
 ```
 apps/admin/
-├── app/
-│   ├── (public)/
-│   │   ├── login/
-│   │   │   └── page.tsx
-│   │   └── subscribe/
-│   │       └── page.tsx
-│   ├── (admin)/
-│   │   ├── layout.tsx          # Admin layout with sidebar
-│   │   ├── dashboard/
-│   │   │   └── page.tsx
-│   │   ├── users/
-│   │   │   └── page.tsx
-│   │   ├── events/
-│   │   │   └── pending/
-│   │   │       └── page.tsx
-│   │   └── account/
-│   │       └── page.tsx
-│   ├── layout.tsx              # Root layout
-│   └── page.tsx                # Redirect to /dashboard
-├── components/
-│   ├── Sidebar.tsx
-│   ├── Header.tsx
-│   ├── AdminLayout.tsx
-│   └── ...ShadCN components
-├── lib/
-│   └── api.ts                  # API client (wired in M8/M9)
+├── src/
+│   ├── routes/
+│   │   ├── __root.tsx              # Root layout (renders <Outlet />)
+│   │   ├── index.tsx               # Redirect to /dashboard
+│   │   ├── login.tsx               # Public login page
+│   │   ├── subscribe.tsx           # Public venue subscription page
+│   │   ├── _admin.tsx              # Admin layout route (sidebar + header)
+│   │   └── _admin/
+│   │       ├── dashboard.tsx
+│   │       ├── users.tsx
+│   │       ├── events/
+│   │       │   └── pending.tsx
+│   │       └── account.tsx
+│   ├── components/
+│   │   ├── Sidebar.tsx
+│   │   ├── Header.tsx
+│   │   └── ...ShadCN components
+│   ├── lib/
+│   │   └── api.ts                  # API client (wired in M8/M9)
+│   ├── routeTree.gen.ts            # Auto-generated — do not edit
+│   ├── router.ts                   # Router instance
+│   └── main.tsx                    # App entry point
+├── index.html
+├── vite.config.ts
 ├── tsconfig.json
-├── next.config.js
 └── package.json
 ```
 
-### Root Layout
+### Vite Config
 
 ```typescript
-// apps/admin/app/layout.tsx
+// apps/admin/vite.config.ts
 
-import type { Metadata } from 'next';
-import { Providers } from './providers';
-import './globals.css';
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
+import { TanStackRouterVite } from "@tanstack/router-plugin/vite";
+import path from "path";
 
-export const metadata: Metadata = {
-  title: 'CeolX Admin',
-  description: 'Admin dashboard for CeolX Irish music platform',
-};
+export default defineConfig({
+  plugins: [TanStackRouterVite({ routesDirectory: "./src/routes" }), react()],
+  resolve: {
+    alias: {
+      "@": path.resolve(__dirname, "./src"),
+    },
+  },
+  server: {
+    port: 3000,
+  },
+});
+```
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  return (
-    <html lang="en">
-      <body>
-        <Providers>{children}</Providers>
-      </body>
-    </html>
-  );
+### Router Instance
+
+```typescript
+// apps/admin/src/router.ts
+
+import { createRouter } from "@tanstack/react-router";
+import { routeTree } from "./routeTree.gen";
+
+export const router = createRouter({ routeTree });
+
+declare module "@tanstack/react-router" {
+  interface Register {
+    router: typeof router;
+  }
 }
 ```
 
-### Admin Layout with Sidebar
+### App Entry Point
 
 ```typescript
-// apps/admin/app/(admin)/layout.tsx
+// apps/admin/src/main.tsx
 
+import React from 'react';
+import ReactDOM from 'react-dom/client';
+import { RouterProvider } from '@tanstack/react-router';
+import { router } from './router';
+import './index.css';
+
+ReactDOM.createRoot(document.getElementById('root')!).render(
+  <React.StrictMode>
+    <RouterProvider router={router} />
+  </React.StrictMode>,
+);
+```
+
+### Root Route
+
+```typescript
+// apps/admin/src/routes/__root.tsx
+
+import { createRootRoute, Outlet } from '@tanstack/react-router';
+
+export const Route = createRootRoute({
+  component: () => <Outlet />,
+});
+```
+
+### Index Route (Redirect)
+
+```typescript
+// apps/admin/src/routes/index.tsx
+
+import { createFileRoute, redirect } from "@tanstack/react-router";
+
+export const Route = createFileRoute("/")({
+  beforeLoad: () => {
+    throw redirect({ to: "/dashboard" });
+  },
+});
+```
+
+### Admin Layout Route
+
+```typescript
+// apps/admin/src/routes/_admin.tsx
+
+import { createFileRoute, Outlet } from '@tanstack/react-router';
 import { Sidebar } from '@/components/Sidebar';
 import { Header } from '@/components/Header';
 
-export default function AdminLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export const Route = createFileRoute('/_admin')({
+  component: AdminLayout,
+});
+
+function AdminLayout() {
+  // Auth guard wired in M9 — placeholder for now
   return (
     <div className="flex h-screen bg-gray-100">
       <Sidebar />
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header />
         <main className="flex-1 overflow-auto p-6">
-          {children}
+          <Outlet />
         </main>
       </div>
     </div>
@@ -215,29 +274,19 @@ export default function AdminLayout({
 ### Sidebar Component
 
 ```typescript
-// apps/admin/components/Sidebar.tsx
+// apps/admin/src/components/Sidebar.tsx
 
-'use client';
-
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import {
-  BarChart3,
-  Users,
-  Clock,
-  Settings,
-} from 'lucide-react';
+import { Link } from '@tanstack/react-router';
+import { BarChart3, Users, Clock, Settings } from 'lucide-react';
 
 const navItems = [
-  { name: 'Dashboard', href: '/dashboard', icon: BarChart3 },
-  { name: 'Users', href: '/users', icon: Users },
-  { name: 'Pending Events', href: '/events/pending', icon: Clock },
-  { name: 'Account', href: '/account', icon: Settings },
-];
+  { name: 'Dashboard', to: '/dashboard', icon: BarChart3 },
+  { name: 'Users', to: '/users', icon: Users },
+  { name: 'Pending Events', to: '/events/pending', icon: Clock },
+  { name: 'Account', to: '/account', icon: Settings },
+] as const;
 
 export const Sidebar = () => {
-  const pathname = usePathname();
-
   return (
     <aside className="w-64 bg-white border-r border-gray-200">
       <div className="p-6">
@@ -246,16 +295,12 @@ export const Sidebar = () => {
       <nav className="px-4 space-y-2">
         {navItems.map((item) => {
           const Icon = item.icon;
-          const isActive = pathname.startsWith(item.href);
           return (
             <Link
-              key={item.href}
-              href={item.href}
-              className={`flex items-center gap-3 px-4 py-2 rounded-lg transition ${
-                isActive
-                  ? 'bg-green-100 text-green-700'
-                  : 'text-gray-700 hover:bg-gray-100'
-              }`}
+              key={item.to}
+              to={item.to}
+              className="flex items-center gap-3 px-4 py-2 rounded-lg transition text-gray-700 hover:bg-gray-100"
+              activeProps={{ className: 'flex items-center gap-3 px-4 py-2 rounded-lg transition bg-green-100 text-green-700' }}
             >
               <Icon size={20} />
               <span>{item.name}</span>
@@ -271,9 +316,7 @@ export const Sidebar = () => {
 ### Header Component
 
 ```typescript
-// apps/admin/components/Header.tsx
-
-'use client';
+// apps/admin/src/components/Header.tsx
 
 import { useState } from 'react';
 import { LogOut, User } from 'lucide-react';
@@ -318,18 +361,22 @@ export const Header = () => {
 };
 ```
 
-### Dashboard Page Placeholder
+### Dashboard Page
 
 ```typescript
-// apps/admin/app/(admin)/dashboard/page.tsx
+// apps/admin/src/routes/_admin/dashboard.tsx
 
+import { createFileRoute } from '@tanstack/react-router';
 import { Card } from '@/components/ui/card';
 
-export default function DashboardPage() {
+export const Route = createFileRoute('/_admin/dashboard')({
+  component: DashboardPage,
+});
+
+function DashboardPage() {
   return (
     <div className="space-y-6">
       <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card className="p-6">
           <h3 className="text-sm font-medium text-gray-500">Total Users</h3>
@@ -356,15 +403,18 @@ export default function DashboardPage() {
 ### Login Page
 
 ```typescript
-// apps/admin/app/(public)/login/page.tsx
+// apps/admin/src/routes/login.tsx
 
-'use client';
-
+import { createFileRoute } from '@tanstack/react-router';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
-export default function LoginPage() {
+export const Route = createFileRoute('/login')({
+  component: LoginPage,
+});
+
+function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
@@ -379,12 +429,9 @@ export default function LoginPage() {
       <div className="w-full max-w-md p-8 bg-white rounded-lg shadow">
         <h1 className="text-3xl font-bold text-center mb-6 text-green-600">CeolX</h1>
         <h2 className="text-xl font-semibold text-center mb-8">Admin Login</h2>
-
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Email
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
             <Input
               type="email"
               value={email}
@@ -394,9 +441,7 @@ export default function LoginPage() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Password
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
             <Input
               type="password"
               value={password}
@@ -405,9 +450,7 @@ export default function LoginPage() {
               required
             />
           </div>
-          <Button type="submit" className="w-full">
-            Sign In
-          </Button>
+          <Button type="submit" className="w-full">Sign In</Button>
         </form>
       </div>
     </div>
@@ -415,14 +458,18 @@ export default function LoginPage() {
 }
 ```
 
-### Subscribe Page (Venue Activation)
+### Subscribe Page
 
 ```typescript
-// apps/admin/app/(public)/subscribe/page.tsx
+// apps/admin/src/routes/subscribe.tsx
 
-'use client';
+import { createFileRoute } from '@tanstack/react-router';
 
-export default function SubscribePage() {
+export const Route = createFileRoute('/subscribe')({
+  component: SubscribePage,
+});
+
+function SubscribePage() {
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-50">
       <div className="w-full max-w-md p-8 bg-white rounded-lg shadow">
@@ -430,7 +477,6 @@ export default function SubscribePage() {
         <p className="text-gray-600 mb-6">
           Choose a subscription plan to activate your venue profile and start receiving bookings.
         </p>
-
         <div className="space-y-4">
           <div className="border border-gray-200 rounded-lg p-4">
             <h3 className="font-semibold mb-2">Basic Plan</h3>
@@ -454,27 +500,28 @@ export default function SubscribePage() {
   "name": "@ceolx/admin",
   "version": "1.0.0",
   "scripts": {
-    "dev": "next dev -p 3000",
-    "build": "next build",
-    "start": "next start",
-    "lint": "next lint",
+    "dev": "vite --port 3000",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "lint": "eslint . --ext ts,tsx",
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
-    "next": "^14.0.0",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "@radix-ui/react-primitive": "^1.0.0",
-    "@shadcn/ui": "latest",
+    "react": "^18.3.0",
+    "react-dom": "^18.3.0",
+    "@tanstack/react-router": "^1.0.0",
     "lucide-react": "^0.292.0",
     "clsx": "^2.0.0",
     "tailwind-merge": "^2.2.0"
   },
   "devDependencies": {
+    "@tanstack/router-plugin": "^1.0.0",
+    "@vitejs/plugin-react": "^4.0.0",
+    "vite": "^5.0.0",
     "typescript": "^5.4.0",
-    "@types/node": "^20.11.0",
-    "@types/react": "^18.2.0",
-    "tailwindcss": "^3.3.0",
+    "@types/react": "^18.3.0",
+    "@types/react-dom": "^18.3.0",
+    "tailwindcss": "^3.4.0",
     "autoprefixer": "^10.4.0",
     "postcss": "^8.4.0"
   }
@@ -485,12 +532,12 @@ export default function SubscribePage() {
 
 ## Common Gotchas
 
+- **`routeTree.gen.ts` is auto-generated** — never edit it manually. It regenerates on every `vite dev` run via the `@tanstack/router-plugin/vite` plugin.
+- **`_admin` prefix = layout route** — files prefixed with `_` create pathless layout routes. Routes inside `_admin/` inherit the layout but the `_admin` segment does not appear in the URL.
+- **Active link styling** — use `activeProps` on TanStack `<Link>` instead of manually checking the current path. TanStack Router handles exact vs. partial matching automatically.
 - **The `/subscribe` route must be public** — it's what Venues land on from their Postmark activation email. No auth guard here.
-- **Admin routes require auth** — auth middleware added in M9, not here. For now, show a placeholder message.
-- **Sidebar "Pending Events" badge** — will show a count wired up in M9. For now, hardcode a number.
-- **Use App Router, not Pages Router** — Next.js 14+ defaults to App Router; do not use `/pages` directory.
-- **Environment variables** — Must prefix with `NEXT_PUBLIC_` to be available in the browser (e.g., `NEXT_PUBLIC_API_BASE_URL`).
-- **API base URL** — Set via `NEXT_PUBLIC_API_BASE_URL` so the client can call the backend. Wired in M8/M9.
-- **Mobile responsiveness** — Sidebar should collapse on mobile (drawer/menu icon); test on small screens.
+- **Environment variables** — Must prefix with `VITE_` (not `NEXT_PUBLIC_`) to be exposed in the browser (e.g., `VITE_API_BASE_URL`).
+- **SPA hosting** — When deployed (e.g., on Vercel or S3/CloudFront), configure the server to serve `index.html` for all routes so client-side routing works on direct URL load.
+- **Auth guard placeholder** — The `_admin.tsx` layout's `beforeLoad` will enforce auth in M9. For now, it just renders without checking.
 
 ---

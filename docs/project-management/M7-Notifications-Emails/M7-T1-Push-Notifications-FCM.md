@@ -1,11 +1,11 @@
 # M7-T1 · Firebase Cloud Messaging (FCM) Push Notifications
 
-| Field | Value |
-|-------|-------|
-| **Milestone** | M7 — Notifications & Emails |
-| **Status** | 🔲 To Do |
+| Field          | Value                                                                                             |
+| -------------- | ------------------------------------------------------------------------------------------------- |
+| **Milestone**  | M7 — Notifications & Emails                                                                       |
+| **Status**     | 🔲 To Do                                                                                          |
 | **Depends on** | M2-T4 (persona system + device_tokens table), M4-T3 (event moderation), M5-T1/T2 (booking system) |
-| **PRD Ref** | Section 9.6 (Notifications), Section 4.3 (Notification Routing), Section 4.4 (Persona Switching) |
+| **PRD Ref**    | Section 9.6 (Notifications), Section 4.3 (Notification Routing), Section 4.4 (Persona Switching)  |
 
 ---
 
@@ -17,17 +17,18 @@ Implement full Firebase Cloud Messaging integration for push notifications acros
 
 ## Affected Apps / Packages
 
-| App / Package | Role |
-|---------------|------|
-| `apps/api` | FCM token registration endpoint, device_tokens schema queries, notification dispatch service |
-| `apps/mobile` | Expo-notifications setup, permission request post-login, tap handlers (foreground/background/cold), persona auto-switch, deep link routing |
-| `packages/shared` | Notification type enums, payload schema, deep link route constants |
+| App / Package     | Role                                                                                                                                       |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| `apps/api`        | FCM token registration endpoint, device_tokens schema queries, notification dispatch service                                               |
+| `apps/mobile`     | Expo-notifications setup, permission request post-login, tap handlers (foreground/background/cold), persona auto-switch, deep link routing |
+| `packages/shared` | Notification type enums, payload schema, deep link route constants                                                                         |
 
 ---
 
 ## Database Schema
 
 ### device_tokens table
+
 ```sql
 CREATE TABLE device_tokens (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -54,6 +55,7 @@ CREATE INDEX idx_device_tokens_active ON device_tokens(is_active);
 Register or update a device token after login.
 
 **Request Body:**
+
 ```json
 {
   "token": "ExponentPushToken[abc123xyz...]",
@@ -62,6 +64,7 @@ Register or update a device token after login.
 ```
 
 **Response (2xx):**
+
 ```json
 {
   "success": true,
@@ -70,6 +73,7 @@ Register or update a device token after login.
 ```
 
 **Error Responses:**
+
 - `400 Bad Request`: Missing token or invalid platform
 - `401 Unauthorized`: Not authenticated
 - `500 Internal Server Error`: Database write failed
@@ -79,6 +83,7 @@ Register or update a device token after login.
 Deregister token on logout.
 
 **Response (2xx):**
+
 ```json
 {
   "success": true
@@ -90,6 +95,7 @@ Deregister token on logout.
 ## Requirements
 
 ### Device Token Lifecycle
+
 - R1.1: On every user login, mobile app calls `expo-notifications.getExpoPushTokenAsync()` and POSTs to `/api/v1/device-tokens` with token + platform
 - R1.2: Upsert logic: if (user_id, device_identifier) exists, update token; else insert new record. Set `is_active = true`
 - R1.3: On logout, call DELETE `/api/v1/device-tokens/:token` and set `is_active = false`
@@ -97,12 +103,14 @@ Deregister token on logout.
 - R1.5: Each user shares one FCM token per device (no multi-device token per user in V1)
 
 ### Notification Permission Handling
+
 - R2.1: On first app launch post-login, call `expo-notifications.requestPermissionsAsync()`
 - R2.2: iOS requires explicit user consent; Android grants at install time
-- R2.3: If permission denied, show non-blocking banner: *"Enable notifications to stay updated on events and bookings"* with Settings CTA
+- R2.3: If permission denied, show non-blocking banner: _"Enable notifications to stay updated on events and bookings"_ with Settings CTA
 - R2.4: No custom dialogs — use native permission API only
 
 ### Notification Payload Structure
+
 - R3.1: All FCM payloads follow this schema:
   ```json
   {
@@ -122,14 +130,16 @@ Deregister token on logout.
 - R3.4: `action` is optional; guides mobile handler (e.g., `view_event`, `accept_booking`)
 
 ### Foreground Notification Tap
+
 - R4.1: When app is in foreground and user taps notification:
   - Read `persona` from payload
   - If persona matches current role → navigate directly to `route`
-  - If mismatch → call persona-switch function → await role update → navigate → show toast: *"Switched to [Role] mode"*
+  - If mismatch → call persona-switch function → await role update → navigate → show toast: _"Switched to [Role] mode"_
 - R4.2: Use `expo-notifications.addNotificationResponseReceivedListener()` to capture tap
 - R4.3: Toast auto-dismisses after 2–3 seconds, non-blocking
 
 ### Background & Cold-Start Tap
+
 - R5.1: When notification tapped from lock screen or notification centre:
   - Extract `persona` from payload and store in AsyncStorage (persist across app restarts)
   - On app boot, read stored persona and set it as the app's initial role
@@ -138,6 +148,7 @@ Deregister token on logout.
 - R5.2: Cold-start ensures app opens in correct role + screen immediately
 
 ### Notification Triggers & Deep Links
+
 - R6.1: **Event Approved** (Artist): `persona: 'artist'`, route `/events/:event_id`, title "Event Approved ✓"
 - R6.2: **Event Rejected** (Artist): `persona: 'artist'`, route `/events/:event_id`, title "Event Not Approved"
 - R6.3: **Booking Invitation** (Artist): `persona: 'artist'`, route `/bookings/:booking_id`, title "New Gig Opportunity"
@@ -148,6 +159,7 @@ Deregister token on logout.
 - R6.8: **Payment Renewed** (Venue): `persona: 'venue'`, route `/profile`, title "Payment Received ✓"
 
 ### Logging & Rate Limiting
+
 - R7.1: All sent notifications logged to `notifications` table (see M7-T2) with `type, title, body, is_read`
 - R7.2: Rate limit: max 5 notifications per user per minute; queue excess and send in batches next minute
 - R7.3: Implement exponential backoff retry on FCM failures: 1s → 3s → 10s, max 3 attempts
@@ -183,11 +195,11 @@ Deregister token on logout.
 
 ```typescript
 // apps/mobile/hooks/useNotifications.ts
-import * as Notifications from 'expo-notifications';
-import { useEffect, useRef } from 'react';
-import { useAuth } from '@/context/AuthContext';
-import { useRole } from '@/context/RoleContext';
-import * as SecureStore from 'expo-secure-store';
+import * as Notifications from "expo-notifications";
+import { useEffect, useRef } from "react";
+import { useAuth } from "@/context/AuthContext";
+import { useRole } from "@/context/RoleContext";
+import * as SecureStore from "expo-secure-store";
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -212,7 +224,7 @@ export function useNotifications() {
 
     // Listen to token refresh
     const subscription = Notifications.addNotificationResponseReceivedListener(
-      (response) => handleTap(response)
+      (response) => handleTap(response),
     );
 
     return () => Notifications.removeNotificationSubscription(subscription);
@@ -221,12 +233,12 @@ export function useNotifications() {
   const registerToken = async () => {
     try {
       const expoPushToken = await Notifications.getExpoPushTokenAsync();
-      const platform = Platform.OS as 'ios' | 'android';
+      const platform = Platform.OS as "ios" | "android";
 
       await fetch(`${API_URL}/api/v1/device-tokens`, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
           Authorization: `Bearer ${session?.token}`,
         },
         body: JSON.stringify({
@@ -235,7 +247,7 @@ export function useNotifications() {
         }),
       });
     } catch (error) {
-      console.error('FCM registration failed:', error);
+      console.error("FCM registration failed:", error);
     }
   };
 
@@ -245,7 +257,7 @@ export function useNotifications() {
     if (persona !== currentRole) {
       await switchRole(persona);
       Toast.show({
-        type: 'info',
+        type: "info",
         text1: `Switched to ${personaLabel(persona)} mode`,
         duration: 2500,
       });
@@ -260,20 +272,20 @@ export function useNotifications() {
 
 ```typescript
 // apps/api/routes/v1/device-tokens.ts
-import { Hono } from 'hono';
-import { db } from '@/db';
-import { deviceTokens } from '@/db/schema';
-import { eq, and } from 'drizzle-orm';
+import { Hono } from "hono";
+import { db } from "@/db";
+import { deviceTokens } from "@/db/schema";
+import { eq, and } from "drizzle-orm";
 
 const router = new Hono();
 
-router.post('/device-tokens', async (c) => {
-  const userId = c.get('user')?.id;
-  if (!userId) return c.json({ error: 'Unauthorized' }, 401);
+router.post("/device-tokens", async (c) => {
+  const userId = c.get("user")?.id;
+  if (!userId) return c.json({ error: "Unauthorized" }, 401);
 
   const { token, platform } = await c.req.json();
-  if (!token || !['ios', 'android'].includes(platform)) {
-    return c.json({ error: 'Invalid token or platform' }, 400);
+  if (!token || !["ios", "android"].includes(platform)) {
+    return c.json({ error: "Invalid token or platform" }, 400);
   }
 
   try {
@@ -282,8 +294,12 @@ router.post('/device-tokens', async (c) => {
     const existing = await db
       .select()
       .from(deviceTokens)
-      .where(and(eq(deviceTokens.userId, userId),
-                 eq(deviceTokens.deviceIdentifier, deviceId)));
+      .where(
+        and(
+          eq(deviceTokens.userId, userId),
+          eq(deviceTokens.deviceIdentifier, deviceId),
+        ),
+      );
 
     if (existing.length > 0) {
       await db
@@ -300,22 +316,24 @@ router.post('/device-tokens', async (c) => {
       });
     }
 
-    return c.json({ success: true, message: 'Token registered' });
+    return c.json({ success: true, message: "Token registered" });
   } catch (error) {
-    console.error('FCM registration error:', error);
-    return c.json({ error: 'Failed to register token' }, 500);
+    console.error("FCM registration error:", error);
+    return c.json({ error: "Failed to register token" }, 500);
   }
 });
 
-router.delete('/device-tokens/:token', async (c) => {
-  const userId = c.get('user')?.id;
-  if (!userId) return c.json({ error: 'Unauthorized' }, 401);
+router.delete("/device-tokens/:token", async (c) => {
+  const userId = c.get("user")?.id;
+  if (!userId) return c.json({ error: "Unauthorized" }, 401);
 
-  const token = c.req.param('token');
+  const token = c.req.param("token");
   await db
     .update(deviceTokens)
     .set({ isActive: false, updatedAt: new Date() })
-    .where(and(eq(deviceTokens.userId, userId), eq(deviceTokens.fcmToken, token)));
+    .where(
+      and(eq(deviceTokens.userId, userId), eq(deviceTokens.fcmToken, token)),
+    );
 
   return c.json({ success: true });
 });
@@ -327,17 +345,21 @@ export default router;
 
 ```typescript
 // apps/api/services/fcmDispatcher.ts
-import admin from 'firebase-admin';
-import { db } from '@/db';
-import { deviceTokens, notifications } from '@/db/schema';
-import { eq, and } from 'drizzle-orm';
+import admin from "firebase-admin";
+import { db } from "@/db";
+import { deviceTokens, notifications } from "@/db/schema";
+import { eq, and } from "drizzle-orm";
 
 export class FCMDispatcher {
   async sendNotification(payload: {
     userId: string;
     title: string;
     body: string;
-    data: { persona: 'artist' | 'venue' | 'spectator'; route: string; action?: string };
+    data: {
+      persona: "artist" | "venue" | "spectator";
+      route: string;
+      action?: string;
+    };
   }) {
     const { userId, title, body, data } = payload;
 
@@ -346,7 +368,9 @@ export class FCMDispatcher {
       const tokens = await db
         .select()
         .from(deviceTokens)
-        .where(and(eq(deviceTokens.userId, userId), eq(deviceTokens.isActive, true)));
+        .where(
+          and(eq(deviceTokens.userId, userId), eq(deviceTokens.isActive, true)),
+        );
 
       if (tokens.length === 0) return { sent: 0, failed: 0 };
 
@@ -360,7 +384,7 @@ export class FCMDispatcher {
       // Log to notifications table
       await db.insert(notifications).values({
         userId,
-        type: data.action || 'generic',
+        type: data.action || "generic",
         title,
         body,
         route: data.route,
@@ -370,7 +394,7 @@ export class FCMDispatcher {
 
       return { sent: response.successCount, failed: response.failureCount };
     } catch (error) {
-      console.error('FCM dispatch error:', error);
+      console.error("FCM dispatch error:", error);
       throw error;
     }
   }
@@ -382,22 +406,27 @@ export const fcmDispatcher = new FCMDispatcher();
 ### Common Gotchas
 
 **Gotcha 1: Android token not returned immediately**
+
 - Issue: `getExpoPushTokenAsync()` returns null on first Android login
 - Fix: Wrap in retry loop with exponential backoff; retry up to 3 times over 5 seconds
 
 **Gotcha 2: Cold-start persona not persisting**
+
 - Issue: App reads notification persona on cold boot but doesn't save to AsyncStorage
 - Fix: Store persona in AsyncStorage on cold boot; read on next app boot until user explicitly switches
 
 **Gotcha 3: iOS foreground notification silent**
+
 - Issue: `shouldShowAlert: true` not returned from notification handler
 - Fix: Ensure `Notifications.setNotificationHandler()` explicitly returns `shouldShowAlert: true`
 
 **Gotcha 4: Token rotation ignored**
+
 - Issue: FCM rotates tokens; old tokens become invalid if app doesn't listen for refresh
 - Fix: Always implement `addNotificationResponseReceivedListener()` and re-register on token refresh
 
 **Gotcha 5: Over-notification spam**
+
 - Issue: Bulk moderation or payment processing triggers 100+ notifications at once
 - Fix: Implement rate limiting in FCMDispatcher — max 5 per user per minute; queue and batch excess
 

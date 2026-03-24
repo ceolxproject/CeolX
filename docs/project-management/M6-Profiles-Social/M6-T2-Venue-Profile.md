@@ -1,11 +1,11 @@
 # M6-T2 · Venue Profile (Public + Edit)
 
-| Field | Value |
-|-------|-------|
-| **Milestone** | M6 — Profiles & Social |
-| **Status** | 🔲 To Do |
+| Field          | Value                                                                                                                  |
+| -------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| **Milestone**  | M6 — Profiles & Social                                                                                                 |
+| **Status**     | 🔲 To Do                                                                                                               |
 | **Depends on** | M2-T4 (venue_profiles table), M8-T1 (Stripe subscription logic), M4-T1 (events linked to venue), M10-T1 (image upload) |
-| **PRD Ref** | Section 7.1 (Venue Features), Section 9.3 (Data Model), Section 9.8 (Subscription) |
+| **PRD Ref**    | Section 7.1 (Venue Features), Section 9.3 (Data Model), Section 9.8 (Subscription)                                     |
 
 ---
 
@@ -17,13 +17,13 @@ The Venue's public profile showcases their identity, location, upcoming events, 
 
 ## Affected Apps / Packages
 
-| App / Package | Role |
-|---------------|------|
-| `apps/api` | GET /api/v1/venues/:id (public profile, subscription-gated), PUT /api/v1/venues/me (auth, venue role) |
-| `apps/mobile` | Public Venue Profile screen, Edit Profile screen (Venue persona), resend activation email UI, image picker and upload |
-| `packages/shared` | Venue profile types, validation schemas |
-| AWS S3 + CloudFront | Profile and cover image storage |
-| Postmark | Activation email with Stripe subscription link |
+| App / Package       | Role                                                                                                                  |
+| ------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| `apps/api`          | GET /api/v1/venues/:id (public profile, subscription-gated), PUT /api/v1/venues/me (auth, venue role)                 |
+| `apps/mobile`       | Public Venue Profile screen, Edit Profile screen (Venue persona), resend activation email UI, image picker and upload |
+| `packages/shared`   | Venue profile types, validation schemas                                                                               |
+| AWS S3 + CloudFront | Profile and cover image storage                                                                                       |
+| Postmark            | Activation email with Stripe subscription link                                                                        |
 
 ---
 
@@ -34,11 +34,13 @@ The Venue's public profile showcases their identity, location, upcoming events, 
 Fetch public venue profile. **Subscription-gated**: returns 404 if subscription_status != 'active' (unless requester is the venue owner viewing their own profile).
 
 **Query Params:**
+
 ```
 None
 ```
 
 **Response (200 OK):**
+
 ```json
 {
   "id": "venue-profile-uuid",
@@ -84,6 +86,7 @@ None
 ```
 
 **Error Responses:**
+
 - `404 Not Found` — Venue does not exist, subscription_status != 'active', or is_active = false
 - `500 Internal Server Error` — Database error
 
@@ -94,6 +97,7 @@ None
 When the authenticated user owns the venue, returns full profile including subscription status and activation message.
 
 **Response (200 OK):**
+
 ```json
 {
   "id": "venue-profile-uuid",
@@ -115,6 +119,7 @@ Update authenticated venue's own profile. Profile image upload is a separate pre
 **Authentication:** Required, Venue role only
 
 **Request Body:**
+
 ```json
 {
   "name": "The Brazen Head",
@@ -137,6 +142,7 @@ Update authenticated venue's own profile. Profile image upload is a separate pre
 All fields optional. Only provided fields are updated.
 
 **Response (200 OK):**
+
 ```json
 {
   "id": "venue-profile-uuid",
@@ -148,6 +154,7 @@ All fields optional. Only provided fields are updated.
 ```
 
 **Error Responses:**
+
 - `400 Bad Request` — Invalid data (bad URL format, missing required fields)
 - `401 Unauthorized` — Not authenticated or not in Venue persona
 - `404 Not Found` — Venue profile does not exist
@@ -162,11 +169,13 @@ Resend the Stripe subscription activation email. Used if the venue didn't receiv
 **Authentication:** Required, Venue owner only
 
 **Request Body:**
+
 ```json
 {}
 ```
 
 **Response (200 OK):**
+
 ```json
 {
   "message": "Activation email sent to your registered email address",
@@ -175,6 +184,7 @@ Resend the Stripe subscription activation email. Used if the venue didn't receiv
 ```
 
 **Error Responses:**
+
 - `400 Bad Request` — Venue already has active subscription (no need to resend)
 - `401 Unauthorized` — Not authenticated or not venue owner
 - `404 Not Found` — Venue profile not found
@@ -187,11 +197,13 @@ Resend the Stripe subscription activation email. Used if the venue didn't receiv
 Request a presigned S3 URL for uploading venue profile image. Image is stored in a user-scoped S3 prefix.
 
 **Query Params:**
+
 ```
 type=profile_image  (required)
 ```
 
 **Response (200 OK):**
+
 ```json
 {
   "upload_url": "https://ceolx-uploads.s3.amazonaws.com/venues/venue-uuid/profile.jpg?X-Amz-Algorithm=...",
@@ -205,6 +217,7 @@ type=profile_image  (required)
 ## Requirements
 
 ### Profile Display
+
 - R1: Public profile displays name, description, address, county, lat/lng, profile_image_url, cover_image_url, website_url, phone, social_links, follower count
 - R2: Venue profile **only visible if subscription_status = 'active'**; inactive/cancelled subscriptions return 404 to other users
 - R3: Venue owner viewing their own inactive profile sees banner: "Your profile is not yet visible to artists. Check your email to activate." + Resend Email button
@@ -215,6 +228,7 @@ type=profile_image  (required)
 - R8: Profile images stored in AWS S3 via CloudFront CDN with 24h caching
 
 ### Profile Editing
+
 - R9: Venue can edit all profile fields at any time without moderation
 - R10: Edit Profile screen shows form with all fields prefilled from database
 - R11: Profile image upload via presigned S3 URL (GET /api/v1/upload/presigned?type=profile_image)
@@ -222,6 +236,7 @@ type=profile_image  (required)
 - R13: Profile edits are NOT moderated — changes go live immediately
 
 ### Subscription Gating
+
 - R14: subscription_status enum: 'inactive' | 'active' | 'cancelled'
 - R15: Venue created via persona switch → subscription_status = 'inactive'
 - R16: Postmark sends activation email with unclickable link text "ceolx.ie/subscribe" (no in-app URL; Apple Rule 3.1.1)
@@ -231,12 +246,14 @@ type=profile_image  (required)
 - R20: Venue can switch away from Venue persona (is_active = false) but subscription remains active and billing continues
 
 ### Visibility & Access Control
+
 - R21: Follow button visible on all profiles (venue cannot follow themselves)
 - R22: Follower count displayed prominently
 - R23: Switching away from Venue persona sets is_active = false; profile returns 404 publicly
 - R24: Past approved events remain visible on the map/feed until their date passes, even if venue becomes inactive
 
 ### Role-Based UI
+
 - R25: Edit Profile button visible only when viewing own venue profile as Venue persona
 - R26: Spectators see read-only view; Artists see both upcoming events AND gig opportunities
 - R27: Spectators do NOT see the Gig Opportunities section
@@ -247,6 +264,7 @@ type=profile_image  (required)
 ## Acceptance Criteria
 
 ### Public Profile Rendering
+
 - [ ] Active venue profile displays all fields (name, description, address, images, contact info)
 - [ ] Inactive subscription (subscription_status != 'active') returns 404 for other users
 - [ ] Venue owner viewing own inactive profile sees banner with activation message + Resend Email button
@@ -256,12 +274,14 @@ type=profile_image  (required)
 - [ ] Social media links render as clickable buttons/icons
 
 ### Profile Editing (Venue Only)
+
 - [ ] Edit Profile button visible only when logged in as Venue viewing own profile
 - [ ] Editing all fields saves immediately to database (no moderation)
 - [ ] Profile image upload via presigned S3 URL works end-to-end
 - [ ] Changes reflected on public profile page after refresh
 
 ### Subscription Gating
+
 - [ ] New Venue created with subscription_status = 'inactive'
 - [ ] Postmark email sent with activation link (plain text "ceolx.ie/subscribe", not clickable button)
 - [ ] Clicking email link opens web browser to ceolx.ie/subscribe page
@@ -270,17 +290,20 @@ type=profile_image  (required)
 - [ ] Resend Email button triggers another activation email
 
 ### Image Upload
+
 - [ ] GET /api/v1/upload/presigned?type=profile_image returns valid presigned URL (15 min expiry)
 - [ ] Mobile uploads image directly to S3 (not through backend)
 - [ ] CloudFront CDN URL returned and stored in database
 - [ ] Old profile images remain in S3 (no cleanup in V1)
 
 ### Follow Integration
+
 - [ ] Follow button functional on all venue profiles (except own)
 - [ ] Follower count increments on follow, decrements on unfollow
 - [ ] Attempting to follow self returns error
 
 ### Subscription Lifecycle
+
 - [ ] Switching away from Venue persona sets is_active = false but keeps subscription active
 - [ ] Subscription billing continues even if venue is inactive
 - [ ] Venue can reactivate (switch back to Venue persona) and profile becomes public again
@@ -298,6 +321,7 @@ type=profile_image  (required)
 ## Technical Notes
 
 ### Database Schema (venue_profiles)
+
 ```sql
 CREATE TABLE venue_profiles (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -327,34 +351,35 @@ CREATE INDEX idx_venue_is_active ON venue_profiles(is_active);
 ```
 
 ### Hono Handler Example
+
 ```typescript
-import { Hono } from 'hono';
-import { db } from '../db';
-import { venueProfiles } from '../db/schema';
-import { eq } from 'drizzle-orm';
-import { sendPostmarkEmail } from '../services/postmark';
+import { Hono } from "hono";
+import { db } from "../db";
+import { venueProfiles } from "../db/schema";
+import { eq } from "drizzle-orm";
+import { sendPostmarkEmail } from "../services/postmark";
 
 const venueRouter = new Hono();
 
 // GET /venues/:id
-venueRouter.get('/:id', async (c) => {
-  const venueId = c.req.param('id');
-  const user = c.get('user'); // authenticated user, may be null
+venueRouter.get("/:id", async (c) => {
+  const venueId = c.req.param("id");
+  const user = c.get("user"); // authenticated user, may be null
 
   const profile = await db
     .select()
     .from(venueProfiles)
     .where(eq(venueProfiles.id, venueId))
-    .then(rows => rows[0]);
+    .then((rows) => rows[0]);
 
   if (!profile) {
-    return c.json({ error: 'Venue not found' }, 404);
+    return c.json({ error: "Venue not found" }, 404);
   }
 
   // Gating: if not the owner, check subscription_status
   const isOwner = user && user.id === profile.user_id;
-  if (!isOwner && profile.subscription_status !== 'active') {
-    return c.json({ error: 'Venue not found' }, 404);
+  if (!isOwner && profile.subscription_status !== "active") {
+    return c.json({ error: "Venue not found" }, 404);
   }
 
   // Fetch linked events
@@ -363,12 +388,13 @@ venueRouter.get('/:id', async (c) => {
   });
 
   const upcomingEvents = events.filter(
-    e => e.status === 'active' &&
-         !e.is_gig_opportunity &&
-         new Date(e.date_start) > new Date()
+    (e) =>
+      e.status === "active" &&
+      !e.is_gig_opportunity &&
+      new Date(e.date_start) > new Date(),
   );
   const gigOpportunities = events.filter(
-    e => e.status === 'active' && e.is_gig_opportunity
+    (e) => e.status === "active" && e.is_gig_opportunity,
   );
 
   return c.json({
@@ -379,10 +405,10 @@ venueRouter.get('/:id', async (c) => {
 });
 
 // PUT /venues/me
-venueRouter.put('/me', async (c) => {
-  const user = c.get('user');
-  if (user.current_role !== 'venue') {
-    return c.json({ error: 'Not in venue persona' }, 401);
+venueRouter.put("/me", async (c) => {
+  const user = c.get("user");
+  if (user.current_role !== "venue") {
+    return c.json({ error: "Not in venue persona" }, 401);
   }
 
   const body = await c.req.json();
@@ -395,52 +421,50 @@ venueRouter.put('/me', async (c) => {
     })
     .where(eq(venueProfiles.user_id, user.id))
     .returning()
-    .then(rows => rows[0]);
+    .then((rows) => rows[0]);
 
   return c.json(updated, 200);
 });
 
 // POST /venues/me/resend-activation
-venueRouter.post('/me/resend-activation', async (c) => {
-  const user = c.get('user');
-  if (user.current_role !== 'venue') {
-    return c.json({ error: 'Not in venue persona' }, 401);
+venueRouter.post("/me/resend-activation", async (c) => {
+  const user = c.get("user");
+  if (user.current_role !== "venue") {
+    return c.json({ error: "Not in venue persona" }, 401);
   }
 
   const profile = await db
     .select()
     .from(venueProfiles)
     .where(eq(venueProfiles.user_id, user.id))
-    .then(rows => rows[0]);
+    .then((rows) => rows[0]);
 
   if (!profile) {
-    return c.json({ error: 'Venue profile not found' }, 404);
+    return c.json({ error: "Venue profile not found" }, 404);
   }
 
-  if (profile.subscription_status === 'active') {
-    return c.json({ error: 'Subscription already active' }, 400);
+  if (profile.subscription_status === "active") {
+    return c.json({ error: "Subscription already active" }, 400);
   }
 
   // Resend activation email
   await sendPostmarkEmail({
     to: user.email,
-    template: 'venue-activation',
+    template: "venue-activation",
     data: {
       venue_name: profile.name,
-      activation_link: 'https://ceolx.ie/subscribe',
+      activation_link: "https://ceolx.ie/subscribe",
     },
   });
 
-  return c.json(
-    { message: 'Activation email sent', sent_at: new Date() },
-    200
-  );
+  return c.json({ message: "Activation email sent", sent_at: new Date() }, 200);
 });
 
 export default venueRouter;
 ```
 
 ### React Native Component (Edit Venue Profile)
+
 ```typescript
 import React, { useState, useEffect } from 'react';
 import { View, TextInput, Button, Image, ScrollView, Alert, Text } from 'react-native';
@@ -549,10 +573,10 @@ export function EditVenueProfileScreen() {
 ```
 
 ### Common Gotchas
+
 - **Subscription gating on every fetch**: Never cache subscription_status. Always check on GET /venues/:id because Stripe webhooks update status asynchronously.
 - **Address as free-text**: Don't validate address format in V1. Store as-is and let Venue enter whatever they want.
 - **Email link in Postmark**: The activation email should NOT have a clickable link button (Apple Rule 3.1.1). Use plain text "ceolx.ie/subscribe" so the Venue manually types it or copies it.
 - **Inactive profiles return 404**: Even if is_active = false, the profile data stays in DB. Only return 404 publicly, not in internal queries.
 - **Concurrent edits**: Last-write-wins is acceptable for V1 scale.
 - **Profile owner still sees inactive profile**: When fetching own profile, always return full data including subscription_status and activation message, even if inactive.
-

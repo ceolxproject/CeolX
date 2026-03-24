@@ -1,11 +1,11 @@
 # M9-T1 · Super Admin Auth + Dashboard (KPI Overview + User Management)
 
-| Field | Value |
-|-------|-------|
-| **Milestone** | M9 — Super Admin |
-| **Status** | 🔲 To Do |
+| Field          | Value                                                  |
+| -------------- | ------------------------------------------------------ |
+| **Milestone**  | M9 — Super Admin                                       |
+| **Status**     | 🔲 To Do                                               |
 | **Depends on** | M1-T5 (admin scaffold), M1-T3 (API), M1-T2 (DB schema) |
-| **PRD Ref** | Section 8 (Super Admin Features) |
+| **PRD Ref**    | Section 8 (Super Admin Features)                       |
 
 ---
 
@@ -26,14 +26,18 @@ The Super Admin web dashboard is the internal control centre for CeolX platform 
 ## API Endpoints
 
 ### POST /admin/auth/login
+
 Request:
+
 ```json
 {
   "email": "admin@ceolx.ie",
   "password": "secure_password_hash"
 }
 ```
+
 Response (200 OK):
+
 ```json
 {
   "success": true,
@@ -45,7 +49,9 @@ Response (200 OK):
   }
 }
 ```
+
 Error (401 Unauthorized):
+
 ```json
 {
   "error": "Invalid email or password"
@@ -53,8 +59,10 @@ Error (401 Unauthorized):
 ```
 
 ### POST /admin/auth/logout
+
 Request: (authenticated)
 Response (200 OK):
+
 ```json
 {
   "success": true,
@@ -63,8 +71,10 @@ Response (200 OK):
 ```
 
 ### GET /admin/stats
+
 Request: (authenticated)
 Response (200 OK):
+
 ```json
 {
   "users": {
@@ -104,8 +114,10 @@ Response (200 OK):
 ```
 
 ### GET /admin/users?page=1&limit=20&search=email@ceolx.ie
+
 Request: (authenticated, optional query params)
 Response (200 OK):
+
 ```json
 {
   "users": [
@@ -129,8 +141,10 @@ Response (200 OK):
 ```
 
 ### GET /admin/users/export
+
 Request: (authenticated)
 Response (200 OK — CSV file):
+
 ```
 name,email,current_role,created_at,last_login_at,flagged_inactive
 Siobhán Ní Dhubhda,siobhan@example.com,artist,2026-02-15 10:30:00,2026-03-23 09:15:00,false
@@ -207,23 +221,23 @@ Siobhán Ní Dhubhda,siobhan@example.com,artist,2026-02-15 10:30:00,2026-03-23 0
 Create a one-time seed script at `/apps/api/src/seed-admin.ts`:
 
 ```typescript
-import { db } from './db';
-import { users } from './schema';
-import { hash } from '@node-rs/argon2';
+import { db } from "./db";
+import { users } from "./schema";
+import { hash } from "@node-rs/argon2";
 
 async function seedAdmin() {
-  const adminEmail = process.env.ADMIN_EMAIL || 'admin@ceolx.ie';
-  const adminPassword = process.env.ADMIN_PASSWORD || 'ChangeMe123!';
+  const adminEmail = process.env.ADMIN_EMAIL || "admin@ceolx.ie";
+  const adminPassword = process.env.ADMIN_PASSWORD || "ChangeMe123!";
 
   const hashedPassword = await hash(adminPassword);
 
   try {
     await db.insert(users).values({
-      id: 'admin_' + crypto.randomUUID(),
+      id: "admin_" + crypto.randomUUID(),
       email: adminEmail,
       password: hashedPassword,
-      name: 'CeolX Admin',
-      currentRole: 'spectator',
+      name: "CeolX Admin",
+      currentRole: "spectator",
       isAdmin: true,
       createdAt: new Date(),
       lastLoginAt: null,
@@ -232,7 +246,7 @@ async function seedAdmin() {
     });
     console.log(`✓ Admin account seeded: ${adminEmail}`);
   } catch (error) {
-    console.error('Admin seed failed:', error);
+    console.error("Admin seed failed:", error);
   }
 }
 
@@ -246,13 +260,13 @@ Run with: `pnpm seed:admin` (add to `package.json` scripts). Store credentials i
 Hono middleware for `/admin/*` routes:
 
 ```typescript
-import { Context, Next } from 'hono';
+import { Context, Next } from "hono";
 
 export async function adminAuthMiddleware(c: Context, next: Next) {
-  const session = c.req.cookie('admin_session_id');
+  const session = c.req.cookie("admin_session_id");
 
   if (!session) {
-    return c.json({ error: 'Unauthorized' }, 401);
+    return c.json({ error: "Unauthorized" }, 401);
   }
 
   // Verify session in DB
@@ -263,10 +277,10 @@ export async function adminAuthMiddleware(c: Context, next: Next) {
     .limit(1);
 
   if (!adminSession.length || adminSession[0].expiresAt < new Date()) {
-    return c.json({ error: 'Session expired' }, 401);
+    return c.json({ error: "Session expired" }, 401);
   }
 
-  c.set('adminId', adminSession[0].adminId);
+  c.set("adminId", adminSession[0].adminId);
   await next();
 }
 ```
@@ -276,9 +290,9 @@ export async function adminAuthMiddleware(c: Context, next: Next) {
 Example query for user stats:
 
 ```typescript
-import { db } from './db';
-import { users } from './schema';
-import { eq, and, gte, count } from 'drizzle-orm';
+import { db } from "./db";
+import { users } from "./schema";
+import { eq, and, gte, count } from "drizzle-orm";
 
 async function getUserStats() {
   const now = new Date();
@@ -299,27 +313,17 @@ async function getUserStats() {
   const newLast7 = await db
     .select({ count: count() })
     .from(users)
-    .where(
-      and(
-        eq(users.isAdmin, false),
-        gte(users.createdAt, last7Days)
-      )
-    );
+    .where(and(eq(users.isAdmin, false), gte(users.createdAt, last7Days)));
 
   // New users last 30 days
   const newLast30 = await db
     .select({ count: count() })
     .from(users)
-    .where(
-      and(
-        eq(users.isAdmin, false),
-        gte(users.createdAt, last30Days)
-      )
-    );
+    .where(and(eq(users.isAdmin, false), gte(users.createdAt, last30Days)));
 
   return {
     total: byPersona.reduce((sum, row) => sum + row.count, 0),
-    byPersona: Object.fromEntries(byPersona.map(r => [r.role, r.count])),
+    byPersona: Object.fromEntries(byPersona.map((r) => [r.role, r.count])),
     newLast7Days: newLast7[0]?.count || 0,
     newLast30Days: newLast30[0]?.count || 0,
   };
@@ -331,25 +335,28 @@ async function getUserStats() {
 Simple TypeScript CSV generation in Hono endpoint:
 
 ```typescript
-import { json2csv } from 'json2csv';
+import { json2csv } from "json2csv";
 
-app.get('/admin/users/export', adminAuthMiddleware, async (c) => {
-  const allUsers = await db.select().from(users).where(eq(users.isAdmin, false));
+app.get("/admin/users/export", adminAuthMiddleware, async (c) => {
+  const allUsers = await db
+    .select()
+    .from(users)
+    .where(eq(users.isAdmin, false));
 
   const csv = json2csv({
-    data: allUsers.map(u => ({
+    data: allUsers.map((u) => ({
       name: u.name,
       email: u.email,
       current_role: u.currentRole,
       created_at: u.createdAt.toISOString(),
-      last_login_at: u.lastLoginAt?.toISOString() || '',
+      last_login_at: u.lastLoginAt?.toISOString() || "",
       flagged_inactive: u.flaggedInactive,
     })),
   });
 
   return c.text(csv, 200, {
-    'Content-Disposition': 'attachment; filename="ceolx_users_export.csv"',
-    'Content-Type': 'text/csv',
+    "Content-Disposition": 'attachment; filename="ceolx_users_export.csv"',
+    "Content-Type": "text/csv",
   });
 });
 ```

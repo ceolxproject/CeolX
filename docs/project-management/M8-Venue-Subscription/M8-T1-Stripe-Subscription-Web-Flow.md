@@ -1,11 +1,11 @@
 # M8-T1 · Stripe Checkout Web Flow (ceolx.ie/subscribe)
 
-| Field | Value |
-|-------|-------|
-| **Milestone** | M8 — Venue Subscription & Payments |
-| **Status** | 🔲 To Do |
+| Field          | Value                                                                                                                    |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| **Milestone**  | M8 — Venue Subscription & Payments                                                                                       |
+| **Status**     | 🔲 To Do                                                                                                                 |
 | **Depends on** | M1-T5 (Next.js admin scaffold + /subscribe route), M2-T4 (venue persona system), M7-T3 (Postmark venue activation email) |
-| **PRD Ref** | Section 7.2 (Venue Subscription — Web-based Stripe), Section 13 (Tech Stack — Admin Dashboard) |
+| **PRD Ref**    | Section 7.2 (Venue Subscription — Web-based Stripe), Section 13 (Tech Stack — Admin Dashboard)                           |
 
 ---
 
@@ -17,10 +17,10 @@ Build the Venue subscription flow at `ceolx.ie/subscribe`. Unlike in-app purchas
 
 ## Affected Apps / Packages
 
-| App / Package | Role |
-|---------------|------|
-| `apps/admin` | `/subscribe` route (public, no auth required initially) + login for CeolX credentials |
-| `apps/api` | `POST /api/v1/stripe/checkout-session` endpoint, Stripe webhook handler |
+| App / Package | Role                                                                                  |
+| ------------- | ------------------------------------------------------------------------------------- |
+| `apps/admin`  | `/subscribe` route (public, no auth required initially) + login for CeolX credentials |
+| `apps/api`    | `POST /api/v1/stripe/checkout-session` endpoint, Stripe webhook handler               |
 
 ---
 
@@ -31,6 +31,7 @@ Build the Venue subscription flow at `ceolx.ie/subscribe`. Unlike in-app purchas
 Create a Stripe Checkout session for Venue subscription.
 
 **Request Body:**
+
 ```json
 {
   "venueProfileId": "uuid"
@@ -38,6 +39,7 @@ Create a Stripe Checkout session for Venue subscription.
 ```
 
 **Response (2xx):**
+
 ```json
 {
   "checkoutUrl": "https://checkout.stripe.com/pay/cs_live_xxx",
@@ -46,6 +48,7 @@ Create a Stripe Checkout session for Venue subscription.
 ```
 
 **Error Responses:**
+
 - `400 Bad Request`: Missing venueProfileId or venue not found
 - `401 Unauthorized`: Not authenticated
 - `409 Conflict`: Venue already has active subscription
@@ -58,6 +61,7 @@ Handle Stripe webhook events (e.g., `checkout.session.completed`).
 **Request Body:** Raw Stripe event JSON (Postman-like, not parsed)
 
 **Response (2xx):**
+
 ```json
 {
   "received": true
@@ -65,6 +69,7 @@ Handle Stripe webhook events (e.g., `checkout.session.completed`).
 ```
 
 **Error Responses:**
+
 - `400 Bad Request`: Invalid Stripe signature
 - `500 Internal Server Error`: Webhook processing failed
 
@@ -73,19 +78,22 @@ Handle Stripe webhook events (e.g., `checkout.session.completed`).
 ## Requirements
 
 ### Web Page Configuration
+
 - R1.1: `/subscribe` page in `apps/admin` is **public** — no initial authentication required to view the page
-- R1.2: Page title/branding: CeolX logo, heading *"Activate Your Venue Profile"*
+- R1.2: Page title/branding: CeolX logo, heading _"Activate Your Venue Profile"_
 - R1.3: Logged-out users see login form on `/subscribe`; logged-in Venue users skip to checkout button
 - R1.4: No external URL (`ceolx.ie/subscribe` link itself) shown or mentioned inside the mobile app — link sent only via email
 
 ### Login Flow
+
 - R2.1: `/subscribe` page includes email/password login form for users without a session
 - R2.2: POST to `/auth/sign-in` (existing BetterAuth endpoint) with email/password
 - R2.3: On successful login, issue session cookie; refresh `/subscribe` page
-- R2.4: Logged-in users see heading: *"Complete your subscription to activate your profile"*
-- R2.5: Account type check: redirect non-Venue users with message: *"Please switch to Venue account type first"*
+- R2.4: Logged-in users see heading: _"Complete your subscription to activate your profile"_
+- R2.5: Account type check: redirect non-Venue users with message: _"Please switch to Venue account type first"_
 
 ### Checkout Session Creation
+
 - R3.1: Authenticated Venue user clicks "Subscribe Now" button
 - R3.2: Button POSTs to `/api/v1/stripe/checkout-session` with authenticated session
 - R3.3: Backend validates: user is authenticated, has Venue profile, subscription_status ≠ active
@@ -99,6 +107,7 @@ Handle Stripe webhook events (e.g., `checkout.session.completed`).
 - R3.5: Return checkout session URL; frontend redirects to Stripe-hosted checkout
 
 ### Stripe Checkout Page
+
 - R4.1: Stripe Checkout hosted page (Stripe's domain) shows:
   - Product: "CeolX Venue Subscription" (or client-specified name)
   - Price: Monthly or annual (per client pricing decision)
@@ -108,6 +117,7 @@ Handle Stripe webhook events (e.g., `checkout.session.completed`).
 - R4.3: Success redirects to `/subscribe?success=true`; cancel redirects to `/subscribe?cancelled=true`
 
 ### Webhook Handler
+
 - R5.1: Stripe sends POST to `/api/webhooks/stripe` with `checkout.session.completed` event
 - R5.2: Endpoint verifies Stripe signature using `stripe.webhooks.constructEvent(body, sig, secret)`
 - R5.3: Extract `metadata.venueProfileId` from session
@@ -120,12 +130,14 @@ Handle Stripe webhook events (e.g., `checkout.session.completed`).
 - R5.7: If webhook fails, log error but don't throw (idempotent retry on Stripe's next attempt)
 
 ### Success & Error Messaging
-- R6.1: On success redirect (`?success=true`), show: *"Subscription activated! Your profile is now live. Artists can now find you."* + button to return to app
-- R6.2: On cancel redirect (`?cancelled=true`), show: *"Subscription cancelled. Your profile remains pending. Check your email to try again or contact support."*
-- R6.3: If `subscription_status = active` already, show: *"Your subscription is already active. Return to the app to manage bookings."*
+
+- R6.1: On success redirect (`?success=true`), show: _"Subscription activated! Your profile is now live. Artists can now find you."_ + button to return to app
+- R6.2: On cancel redirect (`?cancelled=true`), show: _"Subscription cancelled. Your profile remains pending. Check your email to try again or contact support."_
+- R6.3: If `subscription_status = active` already, show: _"Your subscription is already active. Return to the app to manage bookings."_
 - R6.4: Contact support link if error occurs
 
 ### Environment & Configuration
+
 - R7.1: Stripe live secret key stored as `STRIPE_SECRET_KEY` (prod) + test key for staging
 - R7.2: Stripe webhook signing secret stored as `STRIPE_WEBHOOK_SECRET`
 - R7.3: Stripe price ID (subscription product) stored as `STRIPE_PRICE_ID`
@@ -303,21 +315,21 @@ export default function SubscribePage() {
 
 ```typescript
 // apps/api/routes/v1/stripe.ts
-import { Hono } from 'hono';
-import Stripe from 'stripe';
-import { db } from '@/db';
-import { venueProfiles } from '@/db/schema';
-import { eq } from 'drizzle-orm';
+import { Hono } from "hono";
+import Stripe from "stripe";
+import { db } from "@/db";
+import { venueProfiles } from "@/db/schema";
+import { eq } from "drizzle-orm";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 const router = new Hono();
 
-router.post('/stripe/checkout-session', async (c) => {
-  const userId = c.get('user')?.id;
-  if (!userId) return c.json({ error: 'Unauthorized' }, 401);
+router.post("/stripe/checkout-session", async (c) => {
+  const userId = c.get("user")?.id;
+  if (!userId) return c.json({ error: "Unauthorized" }, 401);
 
   const { venueProfileId } = await c.req.json();
-  if (!venueProfileId) return c.json({ error: 'Missing venueProfileId' }, 400);
+  if (!venueProfileId) return c.json({ error: "Missing venueProfileId" }, 400);
 
   try {
     // Validate Venue profile
@@ -327,17 +339,17 @@ router.post('/stripe/checkout-session', async (c) => {
       .where(eq(venueProfiles.id, venueProfileId));
 
     if (!venue.length || venue[0].userId !== userId) {
-      return c.json({ error: 'Venue not found' }, 400);
+      return c.json({ error: "Venue not found" }, 400);
     }
 
-    if (venue[0].subscriptionStatus === 'active') {
-      return c.json({ error: 'Already subscribed' }, 409);
+    if (venue[0].subscriptionStatus === "active") {
+      return c.json({ error: "Already subscribed" }, 409);
     }
 
     // Create Stripe Checkout session
     const session = await stripe.checkout.sessions.create({
-      mode: 'subscription',
-      customer_email: c.get('user').email,
+      mode: "subscription",
+      customer_email: c.get("user").email,
       line_items: [
         {
           price: process.env.STRIPE_PRICE_ID!,
@@ -357,8 +369,8 @@ router.post('/stripe/checkout-session', async (c) => {
       sessionId: session.id,
     });
   } catch (error) {
-    console.error('Checkout session error:', error);
-    return c.json({ error: 'Failed to create checkout session' }, 500);
+    console.error("Checkout session error:", error);
+    return c.json({ error: "Failed to create checkout session" }, 500);
   }
 });
 
@@ -369,37 +381,37 @@ export default router;
 
 ```typescript
 // apps/api/routes/webhooks/stripe.ts
-import { Hono } from 'hono';
-import Stripe from 'stripe';
-import { db } from '@/db';
-import { venueProfiles, venueSubscriptions } from '@/db/schema';
-import { eq } from 'drizzle-orm';
-import { sendEmail } from '@/services/email';
-import { fcmDispatcher } from '@/services/fcmDispatcher';
+import { Hono } from "hono";
+import Stripe from "stripe";
+import { db } from "@/db";
+import { venueProfiles, venueSubscriptions } from "@/db/schema";
+import { eq } from "drizzle-orm";
+import { sendEmail } from "@/services/email";
+import { fcmDispatcher } from "@/services/fcmDispatcher";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 const router = new Hono();
 
-router.post('/webhooks/stripe', async (c) => {
+router.post("/webhooks/stripe", async (c) => {
   const body = await c.req.text();
-  const sig = c.req.header('stripe-signature');
+  const sig = c.req.header("stripe-signature");
 
-  if (!sig) return c.json({ error: 'No signature' }, 400);
+  if (!sig) return c.json({ error: "No signature" }, 400);
 
   let event;
   try {
     event = stripe.webhooks.constructEvent(
       body,
       sig,
-      process.env.STRIPE_WEBHOOK_SECRET!
+      process.env.STRIPE_WEBHOOK_SECRET!,
     );
   } catch (error) {
-    console.error('Webhook signature verification failed:', error);
-    return c.json({ error: 'Invalid signature' }, 400);
+    console.error("Webhook signature verification failed:", error);
+    return c.json({ error: "Invalid signature" }, 400);
   }
 
   try {
-    if (event.type === 'checkout.session.completed') {
+    if (event.type === "checkout.session.completed") {
       const session = event.data.object as Stripe.Checkout.Session;
       const { venueProfileId, userId } = session.metadata as any;
 
@@ -407,7 +419,7 @@ router.post('/webhooks/stripe', async (c) => {
       await db
         .update(venueProfiles)
         .set({
-          subscriptionStatus: 'active',
+          subscriptionStatus: "active",
           stripeCustomerId: session.customer as string,
           isActive: true,
         })
@@ -418,7 +430,7 @@ router.post('/webhooks/stripe', async (c) => {
         venueProfileId,
         stripeCustomerId: session.customer as string,
         stripeSubscriptionId: session.subscription as string,
-        status: 'active',
+        status: "active",
       });
 
       // Get user email for confirmation
@@ -429,34 +441,36 @@ router.post('/webhooks/stripe', async (c) => {
       // Send confirmation email
       await sendEmail({
         to: user.email,
-        templateAlias: 'payment-confirmation',
+        templateAlias: "payment-confirmation",
         templateModel: {
-          venueName: (await db.query.venueProfiles.findFirst({
-            where: eq(venueProfiles.id, venueProfileId),
-          })).name,
-          Amount: '€29.99',
-          PlanName: 'CeolX Pro',
-          ManageLink: 'https://ceolx.ie/account',
+          venueName: (
+            await db.query.venueProfiles.findFirst({
+              where: eq(venueProfiles.id, venueProfileId),
+            })
+          ).name,
+          Amount: "€29.99",
+          PlanName: "CeolX Pro",
+          ManageLink: "https://ceolx.ie/account",
         },
       });
 
       // Send FCM notification
       await fcmDispatcher.sendNotification({
         userId,
-        title: 'Subscription Activated ✓',
-        body: 'Your profile is now live. Start accepting bookings!',
+        title: "Subscription Activated ✓",
+        body: "Your profile is now live. Start accepting bookings!",
         data: {
-          persona: 'venue',
-          route: '/profile',
-          action: 'view_subscription',
+          persona: "venue",
+          route: "/profile",
+          action: "view_subscription",
         },
       });
     }
 
     return c.json({ received: true });
   } catch (error) {
-    console.error('Webhook processing error:', error);
-    return c.json({ error: 'Processing failed' }, 500);
+    console.error("Webhook processing error:", error);
+    return c.json({ error: "Processing failed" }, 500);
   }
 });
 
@@ -466,21 +480,26 @@ export default router;
 ### Common Gotchas
 
 **Gotcha 1: Webhook endpoint not set as public in Next.js**
+
 - Issue: Stripe webhook redirected to auth; returns 401
 - Fix: Ensure `/api/webhooks/stripe` route is public (no middleware auth)
 
 **Gotcha 2: Raw body consumed before Stripe signature verification**
+
 - Issue: Body already parsed as JSON; Stripe signature verify fails
 - Fix: In Hono, use `c.req.raw.text()` or middleware to preserve raw body for signature verification
 
 **Gotcha 3: Duplicate webhooks on retry causing double-charge**
+
 - Issue: Stripe retries webhook; if not idempotent, creates duplicate subscription record
 - Fix: Check `subscription_status` before creating record; use unique constraint on stripeSubscriptionId
 
 **Gotcha 4: Success page doesn't close or redirect**
+
 - Issue: User lands on `/subscribe?success=true` but doesn't know how to return to app
 - Fix: Provide CTA button "Return to App" → deeplink scheme `ceolx://app`
 
 **Gotcha 5: Wrong Stripe environment mixed up (live vs test)**
+
 - Issue: Development uses live Stripe keys; real payments charged
 - Fix: Stripe test keys in .env.local; live keys only in production environment variables

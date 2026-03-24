@@ -1,11 +1,11 @@
 # M1-T4 · React Native + Expo App Scaffold
 
-| Field | Value |
-|-------|-------|
-| **Milestone** | M1 — Project Setup & Infrastructure |
-| **Status** | 🔲 To Do |
-| **Depends on** | M1-T1 (Turborepo, shared types) |
-| **PRD Ref** | Section 10.1 (Mobile App — React Native + Expo), Section 5.1 (Navigation structure) |
+| Field          | Value                                                                               |
+| -------------- | ----------------------------------------------------------------------------------- |
+| **Milestone**  | M1 — Project Setup & Infrastructure                                                 |
+| **Status**     | 🔲 To Do                                                                            |
+| **Depends on** | M1-T1 (Turborepo, shared types)                                                     |
+| **PRD Ref**    | Section 10.1 (Mobile App — React Native + Expo), Section 5.1 (Navigation structure) |
 
 ---
 
@@ -19,10 +19,10 @@ Expo was chosen for rapid development, hot reload capability, and simplified ove
 
 ## Affected Apps / Packages
 
-| App / Package | Role |
-|---------------|------|
-| `apps/mobile` | Entire React Native application built with Expo |
-| `packages/shared` | Enums and types imported for navigation typing |
+| App / Package     | Role                                            |
+| ----------------- | ----------------------------------------------- |
+| `apps/mobile`     | Entire React Native application built with Expo |
+| `packages/shared` | Enums and types imported for navigation typing  |
 
 ---
 
@@ -45,12 +45,14 @@ None — this is a mobile app scaffold task. API integration wired up in M2+ mil
 ### Navigation Structure
 
 **Tab Navigator (bottom tabs)** — visible only when authenticated:
+
 - Map Tab: Map Screen → Event Detail Screen → Artist Profile Screen
 - Discover Tab: Feed Screen → Event Detail Screen
 - Bookings Tab: Bookings List Screen → Booking Detail Screen
 - Profile Tab: Profile Screen → Edit Profile Screen → Switch Account Type Screen
 
 **Auth Navigator** — shown when user not authenticated:
+
 - Sign Up Screen
 - Sign In Screen
 - Verify Email Screen
@@ -61,12 +63,14 @@ None — this is a mobile app scaffold task. API integration wired up in M2+ mil
 ### Permissions Declaration
 
 **iOS (in `app.config.ts`):**
+
 - `NSLocationWhenInUseUsageDescription` — "CeolX uses your location to show nearby Irish music events"
 - `NSCameraUsageDescription` — "Upload videos of your performances"
 - `NSPhotoLibraryUsageDescription` — "Upload images and videos"
 - `NSMicrophoneUsageDescription` — "Record audio for posts"
 
 **Android (via `@react-native-permissions` or Expo plugin):**
+
 - `android.permission.ACCESS_FINE_LOCATION` — GPS location
 - `android.permission.CAMERA` — video recording
 - `android.permission.READ_EXTERNAL_STORAGE` — photo/video selection
@@ -362,43 +366,43 @@ export const useAuth = () => {
 ```typescript
 // apps/mobile/app.config.ts
 
-import { ExpoConfig, ConfigContext } from '@expo/config';
+import { ExpoConfig, ConfigContext } from "@expo/config";
 
 const config: ExpoConfig = {
-  name: 'CeolX',
-  slug: 'ceolx',
-  version: '1.0.0',
-  orientation: 'portrait',
-  icon: './assets/icon.png',
-  userInterfaceStyle: 'light',
+  name: "CeolX",
+  slug: "ceolx",
+  version: "1.0.0",
+  orientation: "portrait",
+  icon: "./assets/icon.png",
+  userInterfaceStyle: "light",
   splash: {
-    image: './assets/splash.png',
-    resizeMode: 'contain',
-    backgroundColor: '#ffffff',
+    image: "./assets/splash.png",
+    resizeMode: "contain",
+    backgroundColor: "#ffffff",
   },
-  assetBundlePatterns: ['**/*'],
+  assetBundlePatterns: ["**/*"],
   ios: {
     supportsTabletMode: false,
-    bundleIdentifier: 'ie.ceolx.app',
+    bundleIdentifier: "ie.ceolx.app",
   },
   android: {
     adaptiveIcon: {
-      foregroundImage: './assets/adaptive-icon.png',
-      backgroundColor: '#ffffff',
+      foregroundImage: "./assets/adaptive-icon.png",
+      backgroundColor: "#ffffff",
     },
-    package: 'ie.ceolx.app',
+    package: "ie.ceolx.app",
   },
-  scheme: 'ceolx',
+  scheme: "ceolx",
   plugins: [
     [
-      'expo-location',
+      "expo-location",
       {
         locationAlwaysAndWhenInUsePermission:
-          'Allow CeolX to use your location to show nearby Irish music events',
+          "Allow CeolX to use your location to show nearby Irish music events",
       },
     ],
-    'expo-secure-store',
-    'expo-notifications',
+    "expo-secure-store",
+    "expo-notifications",
   ],
 };
 

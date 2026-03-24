@@ -1,11 +1,11 @@
 # M1-T2 · Neon Database Setup + Drizzle Schema (All 14 Tables)
 
-| Field | Value |
-|-------|-------|
-| **Milestone** | M1 — Project Setup & Infrastructure |
-| **Status** | 🔲 To Do |
-| **Depends on** | M1-T1 (Git branches must exist, shared enums defined) |
-| **PRD Ref** | Section 9.3 (Event Data Model), Section 10.1 (Tech Stack), Section 4 (Personas) |
+| Field          | Value                                                                           |
+| -------------- | ------------------------------------------------------------------------------- |
+| **Milestone**  | M1 — Project Setup & Infrastructure                                             |
+| **Status**     | 🔲 To Do                                                                        |
+| **Depends on** | M1-T1 (Git branches must exist, shared enums defined)                           |
+| **PRD Ref**    | Section 9.3 (Event Data Model), Section 10.1 (Tech Stack), Section 4 (Personas) |
 
 ---
 
@@ -119,372 +119,362 @@ import {
   uniqueIndex,
   index,
   foreignKey,
-} from 'drizzle-orm/pg-core';
-import { sql } from 'drizzle-orm';
+} from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 
 // Enums
-export const userRoleEnum = pgEnum('user_role', [
-  'spectator',
-  'artist',
-  'venue',
-  'super_admin',
+export const userRoleEnum = pgEnum("user_role", [
+  "spectator",
+  "artist",
+  "venue",
+  "super_admin",
 ]);
 
-export const eventStatusEnum = pgEnum('event_status', [
-  'draft',
-  'pending_review',
-  'rejected',
-  'active',
-  'archived',
+export const eventStatusEnum = pgEnum("event_status", [
+  "draft",
+  "pending_review",
+  "rejected",
+  "active",
+  "archived",
 ]);
 
-export const bookingStatusEnum = pgEnum('booking_status', [
-  'pending',
-  'accepted',
-  'rejected',
-  'cancelled',
+export const bookingStatusEnum = pgEnum("booking_status", [
+  "pending",
+  "accepted",
+  "rejected",
+  "cancelled",
 ]);
 
-export const bookingDirectionEnum = pgEnum('booking_direction', [
-  'venue_to_artist',
-  'artist_to_venue',
+export const bookingDirectionEnum = pgEnum("booking_direction", [
+  "venue_to_artist",
+  "artist_to_venue",
 ]);
 
-export const subscriptionStatusEnum = pgEnum('subscription_status', [
-  'inactive',
-  'active',
-  'past_due',
-  'cancelled',
+export const subscriptionStatusEnum = pgEnum("subscription_status", [
+  "inactive",
+  "active",
+  "past_due",
+  "cancelled",
 ]);
 
-export const mediaTypeEnum = pgEnum('media_type', [
-  'image',
-  'video',
-  'audio',
-  'text',
+export const mediaTypeEnum = pgEnum("media_type", [
+  "image",
+  "video",
+  "audio",
+  "text",
 ]);
 
-export const platformEnum = pgEnum('platform', ['ios', 'android']);
+export const platformEnum = pgEnum("platform", ["ios", "android"]);
 
 // Users table
 export const users = pgTable(
-  'users',
+  "users",
   {
-    id: uuid('id').defaultRandom().primaryKey(),
-    email: varchar('email', { length: 255 }).notNull().unique(),
-    name: varchar('name', { length: 255 }),
-    avatar: text('avatar'),
-    hashedPassword: varchar('hashed_password', { length: 255 }),
-    currentRole: userRoleEnum('current_role').notNull().default('spectator'),
-    lastLoginAt: timestamp('last_login_at'),
-    flaggedInactive: boolean('flagged_inactive').default(false),
-    consentAt: timestamp('consent_at').notNull(),
-    marketingConsent: boolean('marketing_consent').default(false),
-    createdAt: timestamp('created_at').defaultNow().notNull(),
-    updatedAt: timestamp('updated_at').defaultNow().notNull(),
+    id: uuid("id").defaultRandom().primaryKey(),
+    email: varchar("email", { length: 255 }).notNull().unique(),
+    name: varchar("name", { length: 255 }),
+    avatar: text("avatar"),
+    hashedPassword: varchar("hashed_password", { length: 255 }),
+    currentRole: userRoleEnum("current_role").notNull().default("spectator"),
+    lastLoginAt: timestamp("last_login_at"),
+    flaggedInactive: boolean("flagged_inactive").default(false),
+    consentAt: timestamp("consent_at").notNull(),
+    marketingConsent: boolean("marketing_consent").default(false),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
   (table) => ({
-    emailIdx: index('users_email_idx').on(table.email),
-  })
+    emailIdx: index("users_email_idx").on(table.email),
+  }),
 );
 
 // Artist profiles table
-export const artistProfiles = pgTable(
-  'artist_profiles',
-  {
-    id: uuid('id').defaultRandom().primaryKey(),
-    userId: uuid('user_id')
-      .notNull()
-      .unique()
-      .references(() => users.id, { onDelete: 'cascade' }),
-    stageName: varchar('stage_name', { length: 255 }).notNull(),
-    bio: text('bio'),
-    genre: varchar('genre', { length: 100 }).notNull(),
-    links: json('links'),
-    isActive: boolean('is_active').default(true),
-    createdAt: timestamp('created_at').defaultNow().notNull(),
-    updatedAt: timestamp('updated_at').defaultNow().notNull(),
-  }
-);
+export const artistProfiles = pgTable("artist_profiles", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: uuid("user_id")
+    .notNull()
+    .unique()
+    .references(() => users.id, { onDelete: "cascade" }),
+  stageName: varchar("stage_name", { length: 255 }).notNull(),
+  bio: text("bio"),
+  genre: varchar("genre", { length: 100 }).notNull(),
+  links: json("links"),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
 
 // Venue profiles table
-export const venueProfiles = pgTable(
-  'venue_profiles',
-  {
-    id: uuid('id').defaultRandom().primaryKey(),
-    userId: uuid('user_id')
-      .notNull()
-      .unique()
-      .references(() => users.id, { onDelete: 'cascade' }),
-    venueName: varchar('venue_name', { length: 255 }).notNull(),
-    address: varchar('address', { length: 255 }).notNull(),
-    bio: text('bio'),
-    subscriptionStatus: subscriptionStatusEnum('subscription_status')
-      .notNull()
-      .default('inactive'),
-    stripeCustomerId: varchar('stripe_customer_id', { length: 255 }),
-    isActive: boolean('is_active').default(false),
-    createdAt: timestamp('created_at').defaultNow().notNull(),
-    updatedAt: timestamp('updated_at').defaultNow().notNull(),
-  }
-);
+export const venueProfiles = pgTable("venue_profiles", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: uuid("user_id")
+    .notNull()
+    .unique()
+    .references(() => users.id, { onDelete: "cascade" }),
+  venueName: varchar("venue_name", { length: 255 }).notNull(),
+  address: varchar("address", { length: 255 }).notNull(),
+  bio: text("bio"),
+  subscriptionStatus: subscriptionStatusEnum("subscription_status")
+    .notNull()
+    .default("inactive"),
+  stripeCustomerId: varchar("stripe_customer_id", { length: 255 }),
+  isActive: boolean("is_active").default(false),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
 
 // Events table
 export const events = pgTable(
-  'events',
+  "events",
   {
-    id: uuid('id').defaultRandom().primaryKey(),
-    title: varchar('title', { length: 255 }).notNull(),
-    description: text('description').notNull(),
-    coverImage: text('cover_image'),
-    dateStart: timestamp('date_start').notNull(),
-    dateEnd: timestamp('date_end'),
-    lat: numeric('lat', { precision: 10, scale: 7 }).notNull(),
-    lng: numeric('lng', { precision: 10, scale: 7 }).notNull(),
-    venueId: uuid('venue_id').references(() => venueProfiles.id, {
-      onDelete: 'set null',
+    id: uuid("id").defaultRandom().primaryKey(),
+    title: varchar("title", { length: 255 }).notNull(),
+    description: text("description").notNull(),
+    coverImage: text("cover_image"),
+    dateStart: timestamp("date_start").notNull(),
+    dateEnd: timestamp("date_end"),
+    lat: numeric("lat", { precision: 10, scale: 7 }).notNull(),
+    lng: numeric("lng", { precision: 10, scale: 7 }).notNull(),
+    venueId: uuid("venue_id").references(() => venueProfiles.id, {
+      onDelete: "set null",
     }),
-    venueAddress: text('venue_address'),
-    category: varchar('category', { length: 100 }).notNull(),
-    ticketLink: text('ticket_link'),
-    isGigOpportunity: boolean('is_gig_opportunity').default(false),
-    collectionId: uuid('collection_id').references(() => collections.id, {
-      onDelete: 'set null',
+    venueAddress: text("venue_address"),
+    category: varchar("category", { length: 100 }).notNull(),
+    ticketLink: text("ticket_link"),
+    isGigOpportunity: boolean("is_gig_opportunity").default(false),
+    collectionId: uuid("collection_id").references(() => collections.id, {
+      onDelete: "set null",
     }),
-    createdBy: uuid('created_by')
+    createdBy: uuid("created_by")
       .notNull()
-      .references(() => users.id, { onDelete: 'cascade' }),
-    status: eventStatusEnum('status').notNull().default('draft'),
-    rejectionReason: text('rejection_reason'),
-    viewCount: integer('view_count').default(0),
-    createdAt: timestamp('created_at').defaultNow().notNull(),
-    updatedAt: timestamp('updated_at').defaultNow().notNull(),
+      .references(() => users.id, { onDelete: "cascade" }),
+    status: eventStatusEnum("status").notNull().default("draft"),
+    rejectionReason: text("rejection_reason"),
+    viewCount: integer("view_count").default(0),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
   (table) => ({
     // Spatial index for map bounding-box queries
-    spatialIdx: index('events_spatial_idx')
-      .using('gist', sql`(ll_to_earth(${table.lat}, ${table.lng}))`)
+    spatialIdx: index("events_spatial_idx")
+      .using("gist", sql`(ll_to_earth(${table.lat}, ${table.lng}))`)
       .where(sql`${table.status} = 'active'`),
-    statusDateIdx: index('events_status_date_idx').on(
+    statusDateIdx: index("events_status_date_idx").on(
       table.status,
-      table.dateStart
+      table.dateStart,
     ),
-    createdByIdx: index('events_created_by_idx').on(table.createdBy),
-  })
+    createdByIdx: index("events_created_by_idx").on(table.createdBy),
+  }),
 );
 
 // Collections table
-export const collections = pgTable('collections', {
-  id: uuid('id').defaultRandom().primaryKey(),
-  name: varchar('name', { length: 255 }).notNull(),
-  description: text('description'),
-  logo: text('logo'),
-  createdBy: uuid('created_by')
+export const collections = pgTable("collections", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  name: varchar("name", { length: 255 }).notNull(),
+  description: text("description"),
+  logo: text("logo"),
+  createdBy: uuid("created_by")
     .notNull()
-    .references(() => venueProfiles.id, { onDelete: 'cascade' }),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
-  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+    .references(() => venueProfiles.id, { onDelete: "cascade" }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
 // Saved events table
 export const savedEvents = pgTable(
-  'saved_events',
+  "saved_events",
   {
-    id: uuid('id').defaultRandom().primaryKey(),
-    userId: uuid('user_id')
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: uuid("user_id")
       .notNull()
-      .references(() => users.id, { onDelete: 'cascade' }),
-    eventId: uuid('event_id')
+      .references(() => users.id, { onDelete: "cascade" }),
+    eventId: uuid("event_id")
       .notNull()
-      .references(() => events.id, { onDelete: 'cascade' }),
-    createdAt: timestamp('created_at').defaultNow().notNull(),
+      .references(() => events.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
   },
   (table) => ({
-    uniqueUserEvent: uniqueIndex('saved_events_user_event_unique').on(
+    uniqueUserEvent: uniqueIndex("saved_events_user_event_unique").on(
       table.userId,
-      table.eventId
+      table.eventId,
     ),
-  })
+  }),
 );
 
 // Posts table
 export const posts = pgTable(
-  'posts',
+  "posts",
   {
-    id: uuid('id').defaultRandom().primaryKey(),
-    createdBy: uuid('created_by')
+    id: uuid("id").defaultRandom().primaryKey(),
+    createdBy: uuid("created_by")
       .notNull()
-      .references(() => users.id, { onDelete: 'cascade' }),
-    caption: text('caption').notNull(),
-    mediaType: mediaTypeEnum('media_type').notNull(),
-    mediaUrl: text('media_url'),
-    likeCount: integer('like_count').default(0),
-    deletedAt: timestamp('deleted_at'),
-    createdAt: timestamp('created_at').defaultNow().notNull(),
-    updatedAt: timestamp('updated_at').defaultNow().notNull(),
+      .references(() => users.id, { onDelete: "cascade" }),
+    caption: text("caption").notNull(),
+    mediaType: mediaTypeEnum("media_type").notNull(),
+    mediaUrl: text("media_url"),
+    likeCount: integer("like_count").default(0),
+    deletedAt: timestamp("deleted_at"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
   (table) => ({
-    createdByIdx: index('posts_created_by_idx').on(table.createdBy),
-  })
+    createdByIdx: index("posts_created_by_idx").on(table.createdBy),
+  }),
 );
 
 // Comments table
 export const comments = pgTable(
-  'comments',
+  "comments",
   {
-    id: uuid('id').defaultRandom().primaryKey(),
-    postId: uuid('post_id')
+    id: uuid("id").defaultRandom().primaryKey(),
+    postId: uuid("post_id")
       .notNull()
-      .references(() => posts.id, { onDelete: 'cascade' }),
-    userId: uuid('user_id')
+      .references(() => posts.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
       .notNull()
-      .references(() => users.id, { onDelete: 'cascade' }),
-    body: text('body').notNull(),
-    deletedAt: timestamp('deleted_at'),
-    createdAt: timestamp('created_at').defaultNow().notNull(),
-    updatedAt: timestamp('updated_at').defaultNow().notNull(),
+      .references(() => users.id, { onDelete: "cascade" }),
+    body: text("body").notNull(),
+    deletedAt: timestamp("deleted_at"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
   (table) => ({
-    postIdIdx: index('comments_post_id_idx').on(table.postId),
-  })
+    postIdIdx: index("comments_post_id_idx").on(table.postId),
+  }),
 );
 
 // Post likes table
 export const postLikes = pgTable(
-  'post_likes',
+  "post_likes",
   {
-    id: uuid('id').defaultRandom().primaryKey(),
-    postId: uuid('post_id')
+    id: uuid("id").defaultRandom().primaryKey(),
+    postId: uuid("post_id")
       .notNull()
-      .references(() => posts.id, { onDelete: 'cascade' }),
-    userId: uuid('user_id')
+      .references(() => posts.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
       .notNull()
-      .references(() => users.id, { onDelete: 'cascade' }),
-    createdAt: timestamp('created_at').defaultNow().notNull(),
+      .references(() => users.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
   },
   (table) => ({
-    uniquePostUser: uniqueIndex('post_likes_post_user_unique').on(
+    uniquePostUser: uniqueIndex("post_likes_post_user_unique").on(
       table.postId,
-      table.userId
+      table.userId,
     ),
-  })
+  }),
 );
 
 // Follows table
 export const follows = pgTable(
-  'follows',
+  "follows",
   {
-    id: uuid('id').defaultRandom().primaryKey(),
-    followerId: uuid('follower_id')
+    id: uuid("id").defaultRandom().primaryKey(),
+    followerId: uuid("follower_id")
       .notNull()
-      .references(() => users.id, { onDelete: 'cascade' }),
-    followeeId: uuid('followee_id')
+      .references(() => users.id, { onDelete: "cascade" }),
+    followeeId: uuid("followee_id")
       .notNull()
-      .references(() => users.id, { onDelete: 'cascade' }),
-    createdAt: timestamp('created_at').defaultNow().notNull(),
+      .references(() => users.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
   },
   (table) => ({
-    uniqueFollowerFollowee: uniqueIndex(
-      'follows_follower_followee_unique'
-    ).on(table.followerId, table.followeeId),
-  })
+    uniqueFollowerFollowee: uniqueIndex("follows_follower_followee_unique").on(
+      table.followerId,
+      table.followeeId,
+    ),
+  }),
 );
 
 // Bookings table
 export const bookings = pgTable(
-  'bookings',
+  "bookings",
   {
-    id: uuid('id').defaultRandom().primaryKey(),
-    artistId: uuid('artist_id')
+    id: uuid("id").defaultRandom().primaryKey(),
+    artistId: uuid("artist_id")
       .notNull()
-      .references(() => artistProfiles.id, { onDelete: 'cascade' }),
-    venueId: uuid('venue_id')
+      .references(() => artistProfiles.id, { onDelete: "cascade" }),
+    venueId: uuid("venue_id")
       .notNull()
-      .references(() => venueProfiles.id, { onDelete: 'cascade' }),
-    eventId: uuid('event_id').references(() => events.id, {
-      onDelete: 'set null',
+      .references(() => venueProfiles.id, { onDelete: "cascade" }),
+    eventId: uuid("event_id").references(() => events.id, {
+      onDelete: "set null",
     }),
-    status: bookingStatusEnum('status').notNull().default('pending'),
-    direction: bookingDirectionEnum('direction').notNull(),
-    createdAt: timestamp('created_at').defaultNow().notNull(),
-    updatedAt: timestamp('updated_at').defaultNow().notNull(),
+    status: bookingStatusEnum("status").notNull().default("pending"),
+    direction: bookingDirectionEnum("direction").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
   (table) => ({
-    artistStatusIdx: index('bookings_artist_status_idx').on(
+    artistStatusIdx: index("bookings_artist_status_idx").on(
       table.artistId,
-      table.status
+      table.status,
     ),
-    venueStatusIdx: index('bookings_venue_status_idx').on(
+    venueStatusIdx: index("bookings_venue_status_idx").on(
       table.venueId,
-      table.status
+      table.status,
     ),
-  })
+  }),
 );
 
 // Venue subscriptions table
-export const venueSubscriptions = pgTable(
-  'venue_subscriptions',
-  {
-    id: uuid('id').defaultRandom().primaryKey(),
-    venueId: uuid('venue_id')
-      .notNull()
-      .unique()
-      .references(() => venueProfiles.id, { onDelete: 'cascade' }),
-    stripeCustomerId: varchar('stripe_customer_id', { length: 255 }).notNull(),
-    stripeSubscriptionId: varchar('stripe_subscription_id', {
-      length: 255,
-    }).notNull(),
-    plan: varchar('plan', { length: 50 }).notNull().default('lite'),
-    status: subscriptionStatusEnum('status')
-      .notNull()
-      .default('inactive'),
-    currentPeriodStart: timestamp('current_period_start'),
-    currentPeriodEnd: timestamp('current_period_end'),
-    createdAt: timestamp('created_at').defaultNow().notNull(),
-    updatedAt: timestamp('updated_at').defaultNow().notNull(),
-  }
-);
+export const venueSubscriptions = pgTable("venue_subscriptions", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  venueId: uuid("venue_id")
+    .notNull()
+    .unique()
+    .references(() => venueProfiles.id, { onDelete: "cascade" }),
+  stripeCustomerId: varchar("stripe_customer_id", { length: 255 }).notNull(),
+  stripeSubscriptionId: varchar("stripe_subscription_id", {
+    length: 255,
+  }).notNull(),
+  plan: varchar("plan", { length: 50 }).notNull().default("lite"),
+  status: subscriptionStatusEnum("status").notNull().default("inactive"),
+  currentPeriodStart: timestamp("current_period_start"),
+  currentPeriodEnd: timestamp("current_period_end"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
 
 // Notifications table
 export const notifications = pgTable(
-  'notifications',
+  "notifications",
   {
-    id: uuid('id').defaultRandom().primaryKey(),
-    userId: uuid('user_id')
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: uuid("user_id")
       .notNull()
-      .references(() => users.id, { onDelete: 'cascade' }),
-    type: varchar('type', { length: 100 }).notNull(),
-    payload: jsonb('payload').notNull(),
-    read: boolean('read').default(false),
-    createdAt: timestamp('created_at').defaultNow().notNull(),
+      .references(() => users.id, { onDelete: "cascade" }),
+    type: varchar("type", { length: 100 }).notNull(),
+    payload: jsonb("payload").notNull(),
+    read: boolean("read").default(false),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
   },
   (table) => ({
-    userReadIdx: index('notifications_user_read_idx').on(
+    userReadIdx: index("notifications_user_read_idx").on(
       table.userId,
-      table.read
+      table.read,
     ),
-  })
+  }),
 );
 
 // Device tokens table
 export const deviceTokens = pgTable(
-  'device_tokens',
+  "device_tokens",
   {
-    id: uuid('id').defaultRandom().primaryKey(),
-    userId: uuid('user_id')
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: uuid("user_id")
       .notNull()
-      .references(() => users.id, { onDelete: 'cascade' }),
-    fcmToken: text('fcm_token').notNull(),
-    platform: platformEnum('platform').notNull(),
-    createdAt: timestamp('created_at').defaultNow().notNull(),
-    updatedAt: timestamp('updated_at').defaultNow().notNull(),
+      .references(() => users.id, { onDelete: "cascade" }),
+    fcmToken: text("fcm_token").notNull(),
+    platform: platformEnum("platform").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
   (table) => ({
-    uniqueUserToken: uniqueIndex('device_tokens_user_token_unique').on(
+    uniqueUserToken: uniqueIndex("device_tokens_user_token_unique").on(
       table.userId,
-      table.fcmToken
+      table.fcmToken,
     ),
-  })
+  }),
 );
 ```
 
@@ -536,4 +526,3 @@ drizzle-kit studio:pg
 - **GIST index query tuning**: Test bounding-box queries with `EXPLAIN ANALYSE` to confirm index usage; if not using index, increase the bounding-box size slightly
 
 ---
-

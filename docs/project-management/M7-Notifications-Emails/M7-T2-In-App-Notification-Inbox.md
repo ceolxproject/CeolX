@@ -1,11 +1,11 @@
 # M7-T2 · In-App Notification Inbox & Centre
 
-| Field | Value |
-|-------|-------|
-| **Milestone** | M7 — Notifications & Emails |
-| **Status** | 🔲 To Do |
+| Field          | Value                                                                                          |
+| -------------- | ---------------------------------------------------------------------------------------------- |
+| **Milestone**  | M7 — Notifications & Emails                                                                    |
+| **Status**     | 🔲 To Do                                                                                       |
 | **Depends on** | M7-T1 (FCM handler + notifications table), M4-T3 (event moderation), M5-T1/T2 (booking system) |
-| **PRD Ref** | Section 9.6 (Notifications), Section 4.3 (Notification Routing) |
+| **PRD Ref**    | Section 9.6 (Notifications), Section 4.3 (Notification Routing)                                |
 
 ---
 
@@ -17,17 +17,18 @@ Build an in-app Notification Centre accessible from the header (bell icon with u
 
 ## Affected Apps / Packages
 
-| App / Package | Role |
-|---------------|------|
-| `apps/api` | Notification endpoints: list, mark-as-read, unread count |
-| `apps/mobile` | Notification Centre screen, bell icon + badge in header, tap-to-navigate handler |
-| `packages/shared` | Notification type enums, UI constants |
+| App / Package     | Role                                                                             |
+| ----------------- | -------------------------------------------------------------------------------- |
+| `apps/api`        | Notification endpoints: list, mark-as-read, unread count                         |
+| `apps/mobile`     | Notification Centre screen, bell icon + badge in header, tap-to-navigate handler |
+| `packages/shared` | Notification type enums, UI constants                                            |
 
 ---
 
 ## Database Schema
 
 ### notifications table
+
 ```sql
 CREATE TABLE notifications (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -56,12 +57,14 @@ CREATE TABLE notifications (
 Fetch paginated notifications for current user.
 
 **Query Parameters:**
+
 ```
 page=1
 limit=20
 ```
 
 **Response (2xx):**
+
 ```json
 {
   "notifications": [
@@ -82,6 +85,7 @@ limit=20
 ```
 
 **Error Responses:**
+
 - `401 Unauthorized`: Not authenticated
 
 ### PUT /api/v1/notifications/:id/read
@@ -89,6 +93,7 @@ limit=20
 Mark single notification as read.
 
 **Response (2xx):**
+
 ```json
 {
   "success": true
@@ -100,6 +105,7 @@ Mark single notification as read.
 Mark all notifications as read.
 
 **Response (2xx):**
+
 ```json
 {
   "success": true,
@@ -112,6 +118,7 @@ Mark all notifications as read.
 Get unread notification badge count.
 
 **Response (2xx):**
+
 ```json
 {
   "count": 5
@@ -123,6 +130,7 @@ Get unread notification badge count.
 ## Requirements
 
 ### Notification List & Pagination
+
 - R1.1: `GET /api/v1/notifications?page=1&limit=20` returns paginated list, ordered by `created_at DESC`
 - R1.2: Each notification includes: `id, type, title, body, route, persona, isRead, createdAt`
 - R1.3: Response includes `total` count and `hasMore` boolean for infinite scroll
@@ -130,32 +138,37 @@ Get unread notification badge count.
 - R1.5: Soft filter only — archived records stay in DB for GDPR compliance
 
 ### Mark As Read
+
 - R2.1: `PUT /api/v1/notifications/:id/read` sets `is_read = true` for single notification
 - R2.2: `PUT /api/v1/notifications/read-all` sets `is_read = true` for all unread notifications
 - R2.3: Return count of marked notifications in response (for analytics/UX feedback)
 - R2.4: No error if notification already read — idempotent
 
 ### Unread Badge Count
+
 - R3.1: `GET /api/v1/notifications/unread-count` returns count of `is_read = false` notifications
 - R3.2: Mobile app polls this endpoint every 30 seconds OR listens to WebSocket push
 - R3.3: Badge updates in header (bell icon with number) in real-time or near-real-time
 - R3.4: Badge hidden if count is 0
 
 ### Notification Centre UI
+
 - R4.1: Bell icon in header with red badge showing unread count
 - R4.2: Tapping bell opens full-screen Notification Centre modal
 - R4.3: List shows newest notifications first; supports infinite scroll for pagination
 - R4.4: Each notification card shows: title, body, timestamp (e.g., "2 hours ago"), unread indicator (dot or highlight)
 - R4.5: Swipe-left or context menu option to mark single notification as read
 - R4.6: "Mark All as Read" button at top if unread count > 0
-- R4.7: Empty state if no notifications: *"No notifications yet"*
+- R4.7: Empty state if no notifications: _"No notifications yet"_
 
 ### Tap-to-Navigate
+
 - R5.1: Tapping notification on `GET /api/v1/notifications` list navigates to `route` with persona auto-switch (same as M7-T1 foreground handler)
 - R5.2: If current persona ≠ notification's persona, auto-switch first, show toast, then navigate
 - R5.3: Automatically mark tapped notification as read
 
 ### Real-Time Updates
+
 - R6.1: (V1) Poll `GET /api/v1/notifications/unread-count` every 30 seconds while Notification Centre is open
 - R6.2: (Post-V1) Replace polling with WebSocket push on new notification (via FCM received + local update)
 - R6.3: Append new notifications to top of list in real-time without full refresh
@@ -193,19 +206,19 @@ Get unread notification badge count.
 
 ```typescript
 // apps/api/routes/v1/notifications.ts
-import { Hono } from 'hono';
-import { db } from '@/db';
-import { notifications } from '@/db/schema';
-import { eq, and, gt, desc } from 'drizzle-orm';
+import { Hono } from "hono";
+import { db } from "@/db";
+import { notifications } from "@/db/schema";
+import { eq, and, gt, desc } from "drizzle-orm";
 
 const router = new Hono();
 
-router.get('/notifications', async (c) => {
-  const userId = c.get('user')?.id;
-  if (!userId) return c.json({ error: 'Unauthorized' }, 401);
+router.get("/notifications", async (c) => {
+  const userId = c.get("user")?.id;
+  if (!userId) return c.json({ error: "Unauthorized" }, 401);
 
-  const page = parseInt(c.req.query('page') || '1');
-  const limit = parseInt(c.req.query('limit') || '20');
+  const page = parseInt(c.req.query("page") || "1");
+  const limit = parseInt(c.req.query("limit") || "20");
   const offset = (page - 1) * limit;
 
   const thirtyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
@@ -218,8 +231,8 @@ router.get('/notifications', async (c) => {
         and(
           eq(notifications.userId, userId),
           // Exclude archived (older than 90 days)
-          gt(notifications.createdAt, thirtyDaysAgo)
-        )
+          gt(notifications.createdAt, thirtyDaysAgo),
+        ),
       )
       .orderBy(desc(notifications.createdAt))
       .limit(limit)
@@ -228,7 +241,12 @@ router.get('/notifications', async (c) => {
     const [{ count }] = await db
       .select({ count: db.fn.count() })
       .from(notifications)
-      .where(and(eq(notifications.userId, userId), gt(notifications.createdAt, thirtyDaysAgo)));
+      .where(
+        and(
+          eq(notifications.userId, userId),
+          gt(notifications.createdAt, thirtyDaysAgo),
+        ),
+      );
 
     return c.json({
       notifications: rows,
@@ -236,59 +254,68 @@ router.get('/notifications', async (c) => {
       hasMore: offset + limit < count,
     });
   } catch (error) {
-    console.error('Notification fetch error:', error);
-    return c.json({ error: 'Failed to fetch notifications' }, 500);
+    console.error("Notification fetch error:", error);
+    return c.json({ error: "Failed to fetch notifications" }, 500);
   }
 });
 
-router.put('/notifications/:id/read', async (c) => {
-  const userId = c.get('user')?.id;
-  if (!userId) return c.json({ error: 'Unauthorized' }, 401);
+router.put("/notifications/:id/read", async (c) => {
+  const userId = c.get("user")?.id;
+  if (!userId) return c.json({ error: "Unauthorized" }, 401);
 
-  const notificationId = c.req.param('id');
+  const notificationId = c.req.param("id");
 
   try {
     await db
       .update(notifications)
       .set({ isRead: true })
-      .where(and(eq(notifications.id, notificationId), eq(notifications.userId, userId)));
+      .where(
+        and(
+          eq(notifications.id, notificationId),
+          eq(notifications.userId, userId),
+        ),
+      );
 
     return c.json({ success: true });
   } catch (error) {
-    return c.json({ error: 'Failed to update notification' }, 500);
+    return c.json({ error: "Failed to update notification" }, 500);
   }
 });
 
-router.put('/notifications/read-all', async (c) => {
-  const userId = c.get('user')?.id;
-  if (!userId) return c.json({ error: 'Unauthorized' }, 401);
+router.put("/notifications/read-all", async (c) => {
+  const userId = c.get("user")?.id;
+  if (!userId) return c.json({ error: "Unauthorized" }, 401);
 
   try {
     const result = await db
       .update(notifications)
       .set({ isRead: true })
-      .where(and(eq(notifications.userId, userId), eq(notifications.isRead, false)))
+      .where(
+        and(eq(notifications.userId, userId), eq(notifications.isRead, false)),
+      )
       .returning();
 
     return c.json({ success: true, marked: result.length });
   } catch (error) {
-    return c.json({ error: 'Failed to mark all as read' }, 500);
+    return c.json({ error: "Failed to mark all as read" }, 500);
   }
 });
 
-router.get('/notifications/unread-count', async (c) => {
-  const userId = c.get('user')?.id;
-  if (!userId) return c.json({ error: 'Unauthorized' }, 401);
+router.get("/notifications/unread-count", async (c) => {
+  const userId = c.get("user")?.id;
+  if (!userId) return c.json({ error: "Unauthorized" }, 401);
 
   try {
     const [{ count }] = await db
       .select({ count: db.fn.count() })
       .from(notifications)
-      .where(and(eq(notifications.userId, userId), eq(notifications.isRead, false)));
+      .where(
+        and(eq(notifications.userId, userId), eq(notifications.isRead, false)),
+      );
 
     return c.json({ count });
   } catch (error) {
-    return c.json({ error: 'Failed to fetch unread count' }, 500);
+    return c.json({ error: "Failed to fetch unread count" }, 500);
   }
 });
 
@@ -388,14 +415,16 @@ export function NotificationCentreScreen() {
 
 ```typescript
 // apps/mobile/hooks/useUnreadBadgeCount.ts
-import { useQuery } from '@tanstack/react-query';
-import { useEffect } from 'react';
+import { useQuery } from "@tanstack/react-query";
+import { useEffect } from "react";
 
 export function useUnreadBadgeCount() {
   const { data } = useQuery({
-    queryKey: ['notifications', 'unread-count'],
+    queryKey: ["notifications", "unread-count"],
     queryFn: () =>
-      fetch(`${API_URL}/api/v1/notifications/unread-count`).then((r) => r.json()),
+      fetch(`${API_URL}/api/v1/notifications/unread-count`).then((r) =>
+        r.json(),
+      ),
     refetchInterval: 30000, // Poll every 30s
   });
 
@@ -406,17 +435,21 @@ export function useUnreadBadgeCount() {
 ### Common Gotchas
 
 **Gotcha 1: Unread badge not updating after mark-as-read**
+
 - Issue: Query cache not invalidated after mutation
 - Fix: Call `queryClient.invalidateQueries({ queryKey: ['notifications', 'unread-count'] })` after mark-as-read mutation
 
 **Gotcha 2: Pagination loads duplicates**
+
 - Issue: Cache not keyed by page number
 - Fix: Use `queryKey: ['notifications', page]` so each page cached separately
 
 **Gotcha 3: Auto-navigate on notification tap loads old data**
+
 - Issue: Navigation happens before persona switch completes
 - Fix: `await switchRole(persona)` before `navigation.navigate(route)`
 
 **Gotcha 4: Notification Centre lagging on 500+ notifications**
+
 - Issue: Loading entire list for "Mark All as Read" is slow
 - Fix: Use database batch update; only fetch first 50 for display, paginate on demand

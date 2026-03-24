@@ -1,11 +1,11 @@
 # M10-T1 · Media Upload Pipeline (Images via S3 + CloudFront, Videos via Mux)
 
-| Field | Value |
-|-------|-------|
-| **Milestone** | M10 — Media |
-| **Status** | 🔲 To Do |
+| Field          | Value                                                                                                                |
+| -------------- | -------------------------------------------------------------------------------------------------------------------- |
+| **Milestone**  | M10 — Media                                                                                                          |
+| **Status**     | 🔲 To Do                                                                                                             |
 | **Depends on** | M1-T2 (DB schema), M1-T3 (Hono API), M4-T1 (event cover images), M6-T1/T2 (profile images), M6-T4 (posts with media) |
-| **PRD Ref** | Section 4.4 (Media Handling — S3 + CloudFront, Mux), Section 10.1 (Tech Stack) |
+| **PRD Ref**    | Section 4.4 (Media Handling — S3 + CloudFront, Mux), Section 10.1 (Tech Stack)                                       |
 
 ---
 
@@ -17,11 +17,11 @@ CeolX requires a robust, efficient media upload pipeline to handle user-generate
 
 ## Affected Apps / Packages
 
-| App / Package | Role |
-|---------------|------|
-| `apps/api` | Presigned S3 URL generation endpoint, Mux upload URL creation endpoint, webhook handler for Mux video.asset.ready events |
-| `apps/mobile` | Image/video picker UI (expo-image-picker), upload progress display, direct S3/Mux upload client code, error handling and retry logic |
-| `packages/shared` | TypeScript interfaces for upload request/response schemas |
+| App / Package     | Role                                                                                                                                 |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `apps/api`        | Presigned S3 URL generation endpoint, Mux upload URL creation endpoint, webhook handler for Mux video.asset.ready events             |
+| `apps/mobile`     | Image/video picker UI (expo-image-picker), upload progress display, direct S3/Mux upload client code, error handling and retry logic |
+| `packages/shared` | TypeScript interfaces for upload request/response schemas                                                                            |
 
 ---
 
@@ -32,6 +32,7 @@ CeolX requires a robust, efficient media upload pipeline to handle user-generate
 Generate a presigned S3 URL for image upload. Client calls this, receives a temporary S3 URL valid for 5 minutes, then uploads directly to S3.
 
 **Request Body:**
+
 ```json
 {
   "type": "profile_image | cover_image | post_image | event_cover",
@@ -41,6 +42,7 @@ Generate a presigned S3 URL for image upload. Client calls this, receives a temp
 ```
 
 **Response (200 OK):**
+
 ```json
 {
   "uploadUrl": "https://s3.eu-west-1.amazonaws.com/ceolx-media?X-Amz-Algorithm=AWS4-HMAC-SHA256&...",
@@ -51,6 +53,7 @@ Generate a presigned S3 URL for image upload. Client calls this, receives a temp
 ```
 
 **Error Responses:**
+
 - `400 Bad Request`: `{ "error": "Unsupported file type. Accepted: JPEG, PNG, WebP" }`
 - `413 Payload Too Large`: `{ "error": "File exceeds maximum size of 5MB for profile images" }`
 - `401 Unauthorized`: User not authenticated
@@ -62,6 +65,7 @@ Generate a presigned S3 URL for image upload. Client calls this, receives a temp
 Create a Mux Direct Upload URL for video upload. Returns a temporary Mux endpoint where the client uploads the video file directly.
 
 **Request Body:**
+
 ```json
 {
   "fileName": "promo_video.mp4",
@@ -70,6 +74,7 @@ Create a Mux Direct Upload URL for video upload. Returns a temporary Mux endpoin
 ```
 
 **Response (200 OK):**
+
 ```json
 {
   "uploadUrl": "https://upload.mux.com/uploads/mux_upload_id_12345",
@@ -79,6 +84,7 @@ Create a Mux Direct Upload URL for video upload. Returns a temporary Mux endpoin
 ```
 
 **Error Responses:**
+
 - `400 Bad Request`: `{ "error": "Unsupported video format. Accepted: MP4, MOV" }`
 - `413 Payload Too Large`: `{ "error": "Video exceeds maximum size of 500MB" }`
 - `401 Unauthorized`: User not authenticated
@@ -90,6 +96,7 @@ Create a Mux Direct Upload URL for video upload. Returns a temporary Mux endpoin
 Mux calls this endpoint when video transcoding is complete and the asset is ready for playback. Signature verified using Mux webhook secret.
 
 **Request Body (Mux webhook payload):**
+
 ```json
 {
   "type": "video.asset.ready",
@@ -107,6 +114,7 @@ Mux calls this endpoint when video transcoding is complete and the asset is read
 ```
 
 **Response (200 OK):**
+
 ```json
 {
   "success": true,
@@ -201,33 +209,49 @@ Mux calls this endpoint when video transcoding is complete and the asset is read
 ### S3 Presigned URL Generation (Hono Endpoint)
 
 ```typescript
-import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
-import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
-const s3Client = new S3Client({ region: 'eu-west-1' });
+const s3Client = new S3Client({ region: "eu-west-1" });
 
 const UPLOAD_TYPES = {
-  profile_image: { maxSize: 5 * 1024 * 1024, bucket: 'ceolx-media-prod', prefix: 'profiles' },
-  cover_image: { maxSize: 10 * 1024 * 1024, bucket: 'ceolx-media-prod', prefix: 'covers' },
-  post_image: { maxSize: 10 * 1024 * 1024, bucket: 'ceolx-media-prod', prefix: 'posts' },
-  event_cover: { maxSize: 10 * 1024 * 1024, bucket: 'ceolx-media-prod', prefix: 'events' },
+  profile_image: {
+    maxSize: 5 * 1024 * 1024,
+    bucket: "ceolx-media-prod",
+    prefix: "profiles",
+  },
+  cover_image: {
+    maxSize: 10 * 1024 * 1024,
+    bucket: "ceolx-media-prod",
+    prefix: "covers",
+  },
+  post_image: {
+    maxSize: 10 * 1024 * 1024,
+    bucket: "ceolx-media-prod",
+    prefix: "posts",
+  },
+  event_cover: {
+    maxSize: 10 * 1024 * 1024,
+    bucket: "ceolx-media-prod",
+    prefix: "events",
+  },
 };
 
-app.post('/api/v1/upload/presigned', authMiddleware, async (c) => {
+app.post("/api/v1/upload/presigned", authMiddleware, async (c) => {
   const { type, fileName, mimeType } = await c.req.json();
   const config = UPLOAD_TYPES[type as keyof typeof UPLOAD_TYPES];
 
   if (!config) {
-    return c.json({ error: 'Invalid upload type' }, 400);
+    return c.json({ error: "Invalid upload type" }, 400);
   }
 
-  const validMimes = ['image/jpeg', 'image/png', 'image/webp'];
+  const validMimes = ["image/jpeg", "image/png", "image/webp"];
   if (!validMimes.includes(mimeType)) {
-    return c.json({ error: 'Unsupported MIME type' }, 400);
+    return c.json({ error: "Unsupported MIME type" }, 400);
   }
 
   // Generate unique key
-  const userId = c.get('userId');
+  const userId = c.get("userId");
   const timestamp = Date.now();
   const key = `${config.prefix}/${userId}/${timestamp}_${fileName}`;
 
@@ -238,9 +262,9 @@ app.post('/api/v1/upload/presigned', authMiddleware, async (c) => {
         Bucket: config.bucket,
         Key: key,
         ContentType: mimeType,
-        ServerSideEncryption: 'AES256',
+        ServerSideEncryption: "AES256",
       }),
-      { expiresIn: 300 } // 5 minutes
+      { expiresIn: 300 }, // 5 minutes
     );
 
     const publicUrl = `https://cdn.ceolx.ie/${key}`;
@@ -252,7 +276,7 @@ app.post('/api/v1/upload/presigned', authMiddleware, async (c) => {
       expiresIn: 300,
     });
   } catch (error) {
-    return c.json({ error: 'Failed to generate presigned URL' }, 500);
+    return c.json({ error: "Failed to generate presigned URL" }, 500);
   }
 });
 ```
@@ -260,25 +284,25 @@ app.post('/api/v1/upload/presigned', authMiddleware, async (c) => {
 ### Mux Direct Upload Creation (Hono Endpoint)
 
 ```typescript
-import Mux from '@mux/mux-node';
+import Mux from "@mux/mux-node";
 
 const mux = new Mux({
   accessTokenId: process.env.MUX_ACCESS_TOKEN_ID,
   accessTokenSecret: process.env.MUX_ACCESS_TOKEN_SECRET,
 });
 
-app.post('/api/v1/upload/mux-url', authMiddleware, async (c) => {
+app.post("/api/v1/upload/mux-url", authMiddleware, async (c) => {
   const { fileName, mimeType } = await c.req.json();
 
-  const validMimes = ['video/mp4', 'video/quicktime'];
+  const validMimes = ["video/mp4", "video/quicktime"];
   if (!validMimes.includes(mimeType)) {
-    return c.json({ error: 'Unsupported video format' }, 400);
+    return c.json({ error: "Unsupported video format" }, 400);
   }
 
   try {
     const upload = await mux.video.uploads.create({
       new_asset_settings: {
-        playback_policy: ['public'],
+        playback_policy: ["public"],
       },
     });
 
@@ -288,7 +312,7 @@ app.post('/api/v1/upload/mux-url', authMiddleware, async (c) => {
       expiresIn: 3600,
     });
   } catch (error) {
-    return c.json({ error: 'Failed to create Mux upload' }, 500);
+    return c.json({ error: "Failed to create Mux upload" }, 500);
   }
 });
 ```
@@ -296,32 +320,32 @@ app.post('/api/v1/upload/mux-url', authMiddleware, async (c) => {
 ### Mux Webhook Handler (Hono Endpoint)
 
 ```typescript
-import crypto from 'crypto';
+import crypto from "crypto";
 
-app.post('/api/v1/webhooks/mux', async (c) => {
+app.post("/api/v1/webhooks/mux", async (c) => {
   const body = await c.req.text();
-  const signature = c.req.header('mux-signature');
-  const timestamp = c.req.header('mux-request-id');
+  const signature = c.req.header("mux-signature");
+  const timestamp = c.req.header("mux-request-id");
 
   // Verify Mux signature
   const secret = process.env.MUX_WEBHOOK_SECRET!;
   const expectedSignature = crypto
-    .createHmac('sha256', secret)
+    .createHmac("sha256", secret)
     .update(`${timestamp}.${body}`)
-    .digest('hex');
+    .digest("hex");
 
   if (signature !== expectedSignature) {
-    return c.json({ error: 'Invalid signature' }, 401);
+    return c.json({ error: "Invalid signature" }, 401);
   }
 
   const payload = JSON.parse(body);
 
-  if (payload.type === 'video.asset.ready') {
+  if (payload.type === "video.asset.ready") {
     const { upload_id, data } = payload;
     const playbackId = data.playback_ids[0]?.id;
 
     if (!playbackId) {
-      return c.json({ error: 'No playback ID' }, 400);
+      return c.json({ error: "No playback ID" }, 400);
     }
 
     // Find the post by upload_id and update with playback_id
@@ -330,7 +354,7 @@ app.post('/api/v1/webhooks/mux', async (c) => {
       .set({ muxPlaybackId: playbackId, muxAssetId: data.id })
       .where(eq(posts.muxUploadId, upload_id));
 
-    return c.json({ success: true, message: 'Asset ready and stored' });
+    return c.json({ success: true, message: "Asset ready and stored" });
   }
 
   return c.json({ success: true });
@@ -340,10 +364,14 @@ app.post('/api/v1/webhooks/mux', async (c) => {
 ### Mobile Upload Client (React Native)
 
 ```typescript
-import * as ImagePicker from 'expo-image-picker';
-import { uploadImageToS3, uploadVideoToMux, pollForPlaybackId } from '@/lib/uploads';
+import * as ImagePicker from "expo-image-picker";
+import {
+  uploadImageToS3,
+  uploadVideoToMux,
+  pollForPlaybackId,
+} from "@/lib/uploads";
 
-async function handleImageUpload(uploadType: 'profile_image' | 'event_cover') {
+async function handleImageUpload(uploadType: "profile_image" | "event_cover") {
   const result = await ImagePicker.launchImageLibraryAsync({
     mediaTypes: ImagePicker.MediaTypeOptions.Images,
     allowsMultiple: false,
@@ -354,7 +382,7 @@ async function handleImageUpload(uploadType: 'profile_image' | 'event_cover') {
 
     // Validate size
     if (asset.fileSize && asset.fileSize > 10 * 1024 * 1024) {
-      showErrorToast('File exceeds 10MB limit');
+      showErrorToast("File exceeds 10MB limit");
       return;
     }
 
@@ -362,10 +390,10 @@ async function handleImageUpload(uploadType: 'profile_image' | 'event_cover') {
 
     try {
       // Get presigned URL
-      const { uploadUrl, publicUrl } = await api.post('/upload/presigned', {
+      const { uploadUrl, publicUrl } = await api.post("/upload/presigned", {
         type: uploadType,
-        fileName: asset.filename || 'image.jpg',
-        mimeType: asset.mimeType || 'image/jpeg',
+        fileName: asset.filename || "image.jpg",
+        mimeType: asset.mimeType || "image/jpeg",
       });
 
       // Upload directly to S3
@@ -375,9 +403,9 @@ async function handleImageUpload(uploadType: 'profile_image' | 'event_cover') {
 
       // Save URL to database
       await saveProfileImage(publicUrl);
-      showSuccessToast('Image uploaded');
+      showSuccessToast("Image uploaded");
     } catch (error) {
-      showErrorToast('Upload failed. Retry?');
+      showErrorToast("Upload failed. Retry?");
     }
   }
 }
@@ -393,7 +421,7 @@ async function handleVideoUpload() {
 
     // Validate size
     if (asset.fileSize && asset.fileSize > 500 * 1024 * 1024) {
-      showErrorToast('Video exceeds 500MB limit');
+      showErrorToast("Video exceeds 500MB limit");
       return;
     }
 
@@ -401,9 +429,9 @@ async function handleVideoUpload() {
 
     try {
       // Get Mux upload URL
-      const { uploadUrl, uploadId } = await api.post('/upload/mux-url', {
-        fileName: asset.filename || 'video.mp4',
-        mimeType: asset.mimeType || 'video/mp4',
+      const { uploadUrl, uploadId } = await api.post("/upload/mux-url", {
+        fileName: asset.filename || "video.mp4",
+        mimeType: asset.mimeType || "video/mp4",
       });
 
       // Upload directly to Mux
@@ -414,9 +442,9 @@ async function handleVideoUpload() {
       // Poll for playback_id
       const playbackId = await pollForPlaybackId(postId, uploadId);
 
-      showSuccessToast('Video uploaded and transcoding');
+      showSuccessToast("Video uploaded and transcoding");
     } catch (error) {
-      showErrorToast('Upload failed. Retry?');
+      showErrorToast("Upload failed. Retry?");
     }
   }
 }

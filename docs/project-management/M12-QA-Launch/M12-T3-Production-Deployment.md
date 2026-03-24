@@ -1,11 +1,11 @@
 # M12-T3 · Production Deployment & Launch Monitoring
 
-| Field | Value |
-|-------|-------|
-| **Milestone** | M12 — Launch Readiness |
-| **Status** | 🔲 To Do |
-| **Depends on** | M12-T1 (QA passed), M12-T2 (App Store/Play Store approved) |
-| **PRD Ref** | Section 4.5 (Infrastructure & Deployment), Section 10.1 (Tech Stack), GDPR (monitoring & data logging) |
+| Field          | Value                                                                                                  |
+| -------------- | ------------------------------------------------------------------------------------------------------ |
+| **Milestone**  | M12 — Launch Readiness                                                                                 |
+| **Status**     | 🔲 To Do                                                                                               |
+| **Depends on** | M12-T1 (QA passed), M12-T2 (App Store/Play Store approved)                                             |
+| **PRD Ref**    | Section 4.5 (Infrastructure & Deployment), Section 10.1 (Tech Stack), GDPR (monitoring & data logging) |
 
 ---
 
@@ -17,12 +17,12 @@ Deploy all CeolX services to production and configure monitoring before go-live.
 
 ## Affected Apps / Packages
 
-| App / Package | Role |
-|---------------|------|
-| `apps/api` | AWS Lambda production deployment, health check endpoint, error logging |
-| `apps/admin` | Vercel or AWS production deployment, admin auth, dashboard access |
-| `apps/mobile` | Distributed via App Store / Play Store; points to production API |
-| `packages/shared` | Compiled and deployed as part of all apps |
+| App / Package     | Role                                                                   |
+| ----------------- | ---------------------------------------------------------------------- |
+| `apps/api`        | AWS Lambda production deployment, health check endpoint, error logging |
+| `apps/admin`      | Vercel or AWS production deployment, admin auth, dashboard access      |
+| `apps/mobile`     | Distributed via App Store / Play Store; points to production API       |
+| `packages/shared` | Compiled and deployed as part of all apps                              |
 
 ---
 
@@ -33,6 +33,7 @@ Deploy all CeolX services to production and configure monitoring before go-live.
 Health check endpoint for monitoring and uptime verification. Returns immediately with no dependencies.
 
 **Response (200 OK):**
+
 ```json
 {
   "status": "ok",
@@ -272,7 +273,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: '20'
+          node-version: "20"
 
       - name: Install dependencies
         run: pnpm install
@@ -310,24 +311,24 @@ jobs:
 
 ```typescript
 // tests/smoke.test.ts
-import { api } from '../src/client';
+import { api } from "../src/client";
 
-describe('Production Smoke Tests', () => {
-  it('should allow signup and login flow', async () => {
+describe("Production Smoke Tests", () => {
+  it("should allow signup and login flow", async () => {
     const email = `test_${Date.now()}@ceolx.ie`;
-    const password = 'TestPassword123!';
+    const password = "TestPassword123!";
 
     // Sign up
-    const signupRes = await api.post('/auth/signup', {
+    const signupRes = await api.post("/auth/signup", {
       email,
       password,
-      name: 'Test User',
-      role: 'spectator',
+      name: "Test User",
+      role: "spectator",
     });
     expect(signupRes.status).toBe(201);
 
     // Login
-    const loginRes = await api.post('/auth/login', {
+    const loginRes = await api.post("/auth/login", {
       email,
       password,
     });
@@ -335,8 +336,8 @@ describe('Production Smoke Tests', () => {
     expect(loginRes.body.session.email).toBe(email);
   });
 
-  it('should load map events', async () => {
-    const res = await api.get('/events?bounds=53.1,53.5,-7.8,-7.2');
+  it("should load map events", async () => {
+    const res = await api.get("/events?bounds=53.1,53.5,-7.8,-7.2");
     expect(res.status).toBe(200);
     expect(Array.isArray(res.body.events)).toBe(true);
   });

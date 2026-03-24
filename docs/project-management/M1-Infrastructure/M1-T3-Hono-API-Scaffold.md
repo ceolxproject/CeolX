@@ -1,11 +1,11 @@
 # M1-T3 · Hono API Scaffold + AWS Lambda Configuration
 
-| Field | Value |
-|-------|-------|
-| **Milestone** | M1 — Project Setup & Infrastructure |
-| **Status** | 🔲 To Do |
-| **Depends on** | M1-T1 (Turborepo + shared enums), M1-T2 (Drizzle schema) |
-| **PRD Ref** | Section 10.1 (Backend API — Hono), Section 10.2 (AWS Lambda deployment) |
+| Field          | Value                                                                   |
+| -------------- | ----------------------------------------------------------------------- |
+| **Milestone**  | M1 — Project Setup & Infrastructure                                     |
+| **Status**     | 🔲 To Do                                                                |
+| **Depends on** | M1-T1 (Turborepo + shared enums), M1-T2 (Drizzle schema)                |
+| **PRD Ref**    | Section 10.1 (Backend API — Hono), Section 10.2 (AWS Lambda deployment) |
 
 ---
 
@@ -19,10 +19,10 @@ Hono was chosen for its minimal boilerplate, TypeScript-first design, and native
 
 ## Affected Apps / Packages
 
-| App / Package | Role |
-|---------------|------|
-| `apps/api` | Hono application with routes, middleware, error handlers, Lambda adapter |
-| `packages/shared` | Types used in request/response schemas, enums, error codes |
+| App / Package     | Role                                                                     |
+| ----------------- | ------------------------------------------------------------------------ |
+| `apps/api`        | Hono application with routes, middleware, error handlers, Lambda adapter |
+| `packages/shared` | Types used in request/response schemas, enums, error codes               |
 
 ---
 
@@ -37,6 +37,7 @@ All endpoints return `200 OK` with placeholder JSON at this stage.
 Health check for load balancers and monitoring.
 
 **Response (200):**
+
 ```json
 {
   "status": "ok",
@@ -52,6 +53,7 @@ Health check for load balancers and monitoring.
 Register new user with email and password (wired in M2-T1).
 
 **Request Body:**
+
 ```json
 {
   "email": "user@example.com",
@@ -61,6 +63,7 @@ Register new user with email and password (wired in M2-T1).
 ```
 
 **Response (201):**
+
 ```json
 {
   "success": true,
@@ -73,6 +76,7 @@ Register new user with email and password (wired in M2-T1).
 Authenticate user and return session token (wired in M2-T1).
 
 **Request Body:**
+
 ```json
 {
   "email": "user@example.com",
@@ -81,6 +85,7 @@ Authenticate user and return session token (wired in M2-T1).
 ```
 
 **Response (200):**
+
 ```json
 {
   "success": true,
@@ -93,6 +98,7 @@ Authenticate user and return session token (wired in M2-T1).
 Terminate user session.
 
 **Response (200):**
+
 ```json
 {
   "success": true,
@@ -107,11 +113,13 @@ Terminate user session.
 Fetch events in bounding box for map display (wired in M3-T1).
 
 **Query Params:**
+
 ```
 ?sw_lat=53.0&sw_lng=-8.5&ne_lat=54.0&ne_lng=-7.5&limit=50
 ```
 
 **Response (200):**
+
 ```json
 {
   "events": [],
@@ -124,6 +132,7 @@ Fetch events in bounding box for map display (wired in M3-T1).
 Create a new event (wired in M4-T1).
 
 **Request Body:**
+
 ```json
 {
   "title": "Traditional Irish Music Session",
@@ -139,6 +148,7 @@ Create a new event (wired in M4-T1).
 ```
 
 **Response (201):**
+
 ```json
 {
   "id": "uuid",
@@ -152,6 +162,7 @@ Create a new event (wired in M4-T1).
 Fetch single event detail.
 
 **Response (200):**
+
 ```json
 {
   "event": {},
@@ -164,6 +175,7 @@ Fetch single event detail.
 Update an existing event.
 
 **Response (200):**
+
 ```json
 {
   "event": {},
@@ -178,11 +190,13 @@ Update an existing event.
 Search for artists by name, genre, location.
 
 **Query Params:**
+
 ```
 ?q=Aoife&genre=Traditional&limit=20
 ```
 
 **Response (200):**
+
 ```json
 {
   "artists": [],
@@ -195,6 +209,7 @@ Search for artists by name, genre, location.
 Fetch artist's public profile.
 
 **Response (200):**
+
 ```json
 {
   "artist": {},
@@ -209,6 +224,7 @@ Fetch artist's public profile.
 Create booking invitation or application.
 
 **Request Body:**
+
 ```json
 {
   "artistId": "uuid",
@@ -219,6 +235,7 @@ Create booking invitation or application.
 ```
 
 **Response (201):**
+
 ```json
 {
   "bookingId": "uuid",
@@ -232,6 +249,7 @@ Create booking invitation or application.
 Update booking status (accept, reject, cancel).
 
 **Response (200):**
+
 ```json
 {
   "booking": {},
@@ -246,11 +264,13 @@ Update booking status (accept, reject, cancel).
 Fetch events pending moderation.
 
 **Query Params:**
+
 ```
 ?limit=50&offset=0
 ```
 
 **Response (200):**
+
 ```json
 {
   "events": [],
@@ -264,6 +284,7 @@ Fetch events pending moderation.
 Approve an event for publication.
 
 **Response (200):**
+
 ```json
 {
   "success": true,
@@ -276,6 +297,7 @@ Approve an event for publication.
 Reject an event with reason.
 
 **Request Body:**
+
 ```json
 {
   "rejectionReason": "Event violates community guidelines"
@@ -283,6 +305,7 @@ Reject an event with reason.
 ```
 
 **Response (200):**
+
 ```json
 {
   "success": true,
@@ -297,6 +320,7 @@ Reject an event with reason.
 Handle Stripe subscription events (wired in M8-T2).
 
 **Response (200):**
+
 ```json
 {
   "received": true,
@@ -393,20 +417,20 @@ Handle Stripe subscription events (wired in M8-T2).
 ```typescript
 // apps/api/src/index.ts
 
-import { Hono } from 'hono';
-import { cors } from 'hono/cors';
-import { logger } from 'hono/logger';
-import { handle } from 'hono/aws-lambda';
+import { Hono } from "hono";
+import { cors } from "hono/cors";
+import { logger } from "hono/logger";
+import { handle } from "hono/aws-lambda";
 
-import authRoutes from './routes/auth';
-import eventsRoutes from './routes/events';
-import searchRoutes from './routes/search';
-import bookingsRoutes from './routes/bookings';
-import adminRoutes from './routes/admin';
-import webhooksRoutes from './routes/webhooks';
+import authRoutes from "./routes/auth";
+import eventsRoutes from "./routes/events";
+import searchRoutes from "./routes/search";
+import bookingsRoutes from "./routes/bookings";
+import adminRoutes from "./routes/admin";
+import webhooksRoutes from "./routes/webhooks";
 
-import { authMiddleware } from './middleware/auth';
-import { errorHandler } from './middleware/errorHandler';
+import { authMiddleware } from "./middleware/auth";
+import { errorHandler } from "./middleware/errorHandler";
 
 const app = new Hono();
 
@@ -415,38 +439,38 @@ app.use(logger());
 app.use(
   cors({
     origin: [
-      'https://app.ceolx.ie',
-      'https://admin.ceolx.ie',
-      'http://localhost:3000',
-      'http://localhost:3001',
-      'http://localhost:8081', // Expo dev client
+      "https://app.ceolx.ie",
+      "https://admin.ceolx.ie",
+      "http://localhost:3000",
+      "http://localhost:3001",
+      "http://localhost:8081", // Expo dev client
     ],
     credentials: true,
-  })
+  }),
 );
 
 // Health check (public)
-app.get('/health', (c) => {
+app.get("/health", (c) => {
   return c.json(
     {
-      status: 'ok',
+      status: "ok",
       timestamp: new Date().toISOString(),
-      version: '1.0.0',
+      version: "1.0.0",
     },
-    200
+    200,
   );
 });
 
 // Auth middleware (applied to /api/* routes)
-app.use('/api/*', authMiddleware);
+app.use("/api/*", authMiddleware);
 
 // Route groups
-app.route('/api/v1/auth', authRoutes);
-app.route('/api/v1/events', eventsRoutes);
-app.route('/api/v1/search', searchRoutes);
-app.route('/api/v1/bookings', bookingsRoutes);
-app.route('/api/v1/admin', adminRoutes);
-app.route('/api/v1/webhooks', webhooksRoutes);
+app.route("/api/v1/auth", authRoutes);
+app.route("/api/v1/events", eventsRoutes);
+app.route("/api/v1/search", searchRoutes);
+app.route("/api/v1/bookings", bookingsRoutes);
+app.route("/api/v1/admin", adminRoutes);
+app.route("/api/v1/webhooks", webhooksRoutes);
 
 // Error handler (last middleware)
 app.onError(errorHandler);
@@ -455,11 +479,11 @@ app.onError(errorHandler);
 app.notFound((c) => {
   return c.json(
     {
-      error: 'NotFound',
-      code: 'ROUTE_NOT_FOUND',
-      message: 'Endpoint not found',
+      error: "NotFound",
+      code: "ROUTE_NOT_FOUND",
+      message: "Endpoint not found",
     },
-    404
+    404,
   );
 });
 
@@ -475,11 +499,11 @@ export default app;
 ```typescript
 // apps/api/src/routes/events.ts
 
-import { Hono } from 'hono';
-import { zValidator } from '@hono/zod-validator';
-import { z } from 'zod';
-import * as eventsService from '../services/eventsService';
-import type { AuthContext } from '../types/auth';
+import { Hono } from "hono";
+import { zValidator } from "@hono/zod-validator";
+import { z } from "zod";
+import * as eventsService from "../services/eventsService";
+import type { AuthContext } from "../types/auth";
 
 const app = new Hono<{ Variables: AuthContext }>();
 
@@ -491,32 +515,32 @@ const createEventSchema = z.object({
   lat: z.number().min(51).max(55),
   lng: z.number().min(-11).max(-5),
   venueAddress: z.string().optional(),
-  category: z.enum(['Traditional', 'Contemporary', 'Fusion']),
+  category: z.enum(["Traditional", "Contemporary", "Fusion"]),
   ticketLink: z.string().url().optional(),
 });
 
-app.post('/', zValidator('json', createEventSchema), async (c) => {
-  const userId = c.get('userId');
-  const currentRole = c.get('currentRole');
-  const payload = c.req.valid('json');
+app.post("/", zValidator("json", createEventSchema), async (c) => {
+  const userId = c.get("userId");
+  const currentRole = c.get("currentRole");
+  const payload = c.req.valid("json");
 
   const event = await eventsService.createEvent(userId, payload, currentRole);
   return c.json({ event }, 201);
 });
 
-app.get('/map', async (c) => {
-  const swLat = c.req.query('sw_lat');
-  const swLng = c.req.query('sw_lng');
-  const neLat = c.req.query('ne_lat');
-  const neLng = c.req.query('ne_lng');
-  const limit = c.req.query('limit') || '50';
+app.get("/map", async (c) => {
+  const swLat = c.req.query("sw_lat");
+  const swLng = c.req.query("sw_lng");
+  const neLat = c.req.query("ne_lat");
+  const neLng = c.req.query("ne_lng");
+  const limit = c.req.query("limit") || "50";
 
-  return c.json({ events: [], message: 'Map endpoint placeholder' });
+  return c.json({ events: [], message: "Map endpoint placeholder" });
 });
 
-app.get('/:id', async (c) => {
-  const eventId = c.req.param('id');
-  return c.json({ event: {}, message: 'Event detail endpoint placeholder' });
+app.get("/:id", async (c) => {
+  const eventId = c.req.param("id");
+  return c.json({ event: {}, message: "Event detail endpoint placeholder" });
 });
 
 export default app;
@@ -527,7 +551,7 @@ export default app;
 ```typescript
 // apps/api/src/middleware/auth.ts
 
-import { Context, Next } from 'hono';
+import { Context, Next } from "hono";
 
 export interface AuthContext {
   Variables: {
@@ -537,12 +561,12 @@ export interface AuthContext {
 }
 
 export const authMiddleware = async (c: Context, next: Next) => {
-  const authHeader = c.req.header('Authorization');
-  const token = authHeader?.replace('Bearer ', '');
+  const authHeader = c.req.header("Authorization");
+  const token = authHeader?.replace("Bearer ", "");
 
   if (!token) {
-    c.set('userId', null);
-    c.set('currentRole', null);
+    c.set("userId", null);
+    c.set("currentRole", null);
     return next();
   }
 
@@ -550,20 +574,20 @@ export const authMiddleware = async (c: Context, next: Next) => {
     // TODO in M2-T1: Verify token with BetterAuth
     // For now, stub implementation
     const payload = {
-      userId: 'user-id-from-token',
-      currentRole: 'spectator',
+      userId: "user-id-from-token",
+      currentRole: "spectator",
     };
 
-    c.set('userId', payload.userId);
-    c.set('currentRole', payload.currentRole);
+    c.set("userId", payload.userId);
+    c.set("currentRole", payload.currentRole);
   } catch (err) {
     return c.json(
       {
-        error: 'AuthenticationError',
-        code: 'INVALID_TOKEN',
-        message: 'Invalid or expired token',
+        error: "AuthenticationError",
+        code: "INVALID_TOKEN",
+        message: "Invalid or expired token",
       },
-      401
+      401,
     );
   }
 
@@ -576,11 +600,11 @@ export const authMiddleware = async (c: Context, next: Next) => {
 ```typescript
 // apps/api/src/middleware/errorHandler.ts
 
-import { Context } from 'hono';
-import { HTTPException } from 'hono/http-exception';
+import { Context } from "hono";
+import { HTTPException } from "hono/http-exception";
 
 export const errorHandler = (err: Error, c: Context) => {
-  console.error('[API Error]', {
+  console.error("[API Error]", {
     message: err.message,
     stack: err.stack,
     route: c.req.path,
@@ -596,18 +620,18 @@ export const errorHandler = (err: Error, c: Context) => {
         message: err.message,
         statusCode: err.status,
       },
-      err.status
+      err.status,
     );
   }
 
   return c.json(
     {
-      error: 'InternalServerError',
-      code: 'INTERNAL_ERROR',
-      message: 'An unexpected error occurred',
+      error: "InternalServerError",
+      code: "INTERNAL_ERROR",
+      message: "An unexpected error occurred",
       statusCode: 500,
     },
-    500
+    500,
   );
 };
 ```

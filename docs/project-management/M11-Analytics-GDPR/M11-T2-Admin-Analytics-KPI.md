@@ -1,11 +1,11 @@
 # M11-T2 · Admin Analytics & KPI Dashboard
 
-| Field | Value |
-|-------|-------|
-| **Milestone** | M11 — Analytics & GDPR |
-| **Status** | 🔲 To Do |
+| Field          | Value                                                                                          |
+| -------------- | ---------------------------------------------------------------------------------------------- |
+| **Milestone**  | M11 — Analytics & GDPR                                                                         |
+| **Status**     | 🔲 To Do                                                                                       |
 | **Depends on** | M9-T1 (admin dashboard core), M2-T4 (personas), M4 (events), M5 (bookings), M8 (subscriptions) |
-| **PRD Ref** | Section 8 (Super Admin Features — KPI Overview), Section 4.5 (Analytics) |
+| **PRD Ref**    | Section 8 (Super Admin Features — KPI Overview), Section 4.5 (Analytics)                       |
 
 ---
 
@@ -17,11 +17,11 @@ Extend the Super Admin dashboard with comprehensive analytics and KPI cards. The
 
 ## Affected Apps / Packages
 
-| App / Package | Role |
-|---------------|------|
-| `apps/api` | `GET /admin/stats` aggregation endpoint; caching layer (Redis or DB timestamp); background job to pre-compute KPIs if scaling |
-| `apps/admin` | KPI dashboard layout with six cards (users, events, subscriptions, engagement, pending moderation); trend indicators; period selector (7d, 30d) |
-| `packages/shared` | TypeScript interfaces for KPI response schema |
+| App / Package     | Role                                                                                                                                            |
+| ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `apps/api`        | `GET /admin/stats` aggregation endpoint; caching layer (Redis or DB timestamp); background job to pre-compute KPIs if scaling                   |
+| `apps/admin`      | KPI dashboard layout with six cards (users, events, subscriptions, engagement, pending moderation); trend indicators; period selector (7d, 30d) |
+| `packages/shared` | TypeScript interfaces for KPI response schema                                                                                                   |
 
 ---
 
@@ -32,9 +32,11 @@ Extend the Super Admin dashboard with comprehensive analytics and KPI cards. The
 Retrieve aggregated KPI data for the dashboard. Returns user, event, subscription, engagement, and moderation metrics.
 
 **Query Parameters:**
+
 - `period`: optional, `7d` (default) or `30d` — determines which time window to use for "new" counts
 
 **Response (200 OK):**
+
 ```json
 {
   "users": {
@@ -90,6 +92,7 @@ Retrieve aggregated KPI data for the dashboard. Returns user, event, subscriptio
 ```
 
 **Error Responses:**
+
 - `401 Unauthorized`: Admin not authenticated
 - `500 Internal Server Error`: Database query failed
 
@@ -116,7 +119,7 @@ Retrieve aggregated KPI data for the dashboard. Returns user, event, subscriptio
 ### Subscription KPIs
 
 - R11: **Active venue subscriptions**: count `venue_subscriptions` where `subscriptionStatus = 'active'`
-- R12: **Monthly Recurring Revenue (MRR)**: SUM of (`subscriptionPrice` * number of active subscriptions) / 12 if annual, or direct monthly sum if monthly
+- R12: **Monthly Recurring Revenue (MRR)**: SUM of (`subscriptionPrice` \* number of active subscriptions) / 12 if annual, or direct monthly sum if monthly
   - Stripe data: fetch from Stripe API or cache locally; for V1, assume £180/month per Venue (20 euros/month)
   - Simple formula: `activeVenues * 180` (in local currency)
 - R13: **New subscriptions in last 30 days**: count `venue_subscriptions` with `createdAt >= NOW() - INTERVAL '30 days'` and `subscriptionStatus = 'active'`
@@ -243,10 +246,10 @@ async function getUserStats() {
 ### Caching with Redis
 
 ```typescript
-import Redis from 'ioredis';
+import Redis from "ioredis";
 
 const redis = new Redis(process.env.REDIS_URL);
-const STATS_CACHE_KEY = 'admin:stats';
+const STATS_CACHE_KEY = "admin:stats";
 const STATS_CACHE_TTL = 300; // 5 minutes
 
 async function getCachedStats() {
@@ -266,7 +269,7 @@ async function getCachedStats() {
 }
 
 // Invalidate cache on data changes
-app.post('/events', async (c) => {
+app.post("/events", async (c) => {
   // ... create event logic ...
   await redis.del(STATS_CACHE_KEY); // Invalidate immediately
   return c.json({ success: true });
@@ -366,21 +369,22 @@ export default function Dashboard({ stats }: { stats: typeof adminStats }) {
 ### Hono Endpoint Implementation
 
 ```typescript
-app.get('/api/v1/admin/stats', adminAuthMiddleware, async (c) => {
+app.get("/api/v1/admin/stats", adminAuthMiddleware, async (c) => {
   try {
     // Check cache
-    const cached = await redis.get('admin:stats:v1');
+    const cached = await redis.get("admin:stats:v1");
     if (cached) {
       return c.json(JSON.parse(cached));
     }
 
     // Compute all stats in parallel
-    const [userStats, eventStats, subscriptionStats, engagementStats] = await Promise.all([
-      getUserStats(),
-      getEventStats(),
-      getSubscriptionStats(),
-      getEngagementStats(),
-    ]);
+    const [userStats, eventStats, subscriptionStats, engagementStats] =
+      await Promise.all([
+        getUserStats(),
+        getEventStats(),
+        getSubscriptionStats(),
+        getEngagementStats(),
+      ]);
 
     const response = {
       users: userStats,
@@ -392,12 +396,12 @@ app.get('/api/v1/admin/stats', adminAuthMiddleware, async (c) => {
     };
 
     // Cache for 5 minutes
-    await redis.setex('admin:stats:v1', 300, JSON.stringify(response));
+    await redis.setex("admin:stats:v1", 300, JSON.stringify(response));
 
     return c.json(response);
   } catch (error) {
-    console.error('Failed to fetch admin stats:', error);
-    return c.json({ error: 'Failed to fetch stats' }, 500);
+    console.error("Failed to fetch admin stats:", error);
+    return c.json({ error: "Failed to fetch stats" }, 500);
   }
 });
 ```

@@ -1,11 +1,11 @@
 # M4-T2 · Event Detail Screen
 
-| Field | Value |
-|-------|-------|
-| **Milestone** | M4 — Event System |
-| **Status** | 🔲 To Do |
+| Field          | Value                                                                                                                       |
+| -------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| **Milestone**  | M4 — Event System                                                                                                           |
+| **Status**     | 🔲 To Do                                                                                                                    |
 | **Depends on** | M4-T1 (events must exist), M3-T1 (map pins link to this screen), M3-T4 (feed cards link to this), M4-T4 (saved events view) |
-| **PRD Ref** | Section 5.1 (End User Features), Section 6.1 (Artist Features), Section 9.3 (Event Data Model) |
+| **PRD Ref**    | Section 5.1 (End User Features), Section 6.1 (Artist Features), Section 9.3 (Event Data Model)                              |
 
 ---
 
@@ -17,11 +17,11 @@ The full event detail view — the canonical source of event information. Access
 
 ## Affected Apps / Packages
 
-| App / Package | Role |
-|---------------|------|
-| `apps/api` | GET /events/:id (detail), POST/DELETE /events/:id/save (saving), optional view tracking |
-| `apps/mobile` | Event Detail screen (full screen modal), bottom sheet variant (from map pin), save/calendar/share integration |
-| `packages/shared` | Event detail and saved_events types |
+| App / Package     | Role                                                                                                          |
+| ----------------- | ------------------------------------------------------------------------------------------------------------- |
+| `apps/api`        | GET /events/:id (detail), POST/DELETE /events/:id/save (saving), optional view tracking                       |
+| `apps/mobile`     | Event Detail screen (full screen modal), bottom sheet variant (from map pin), save/calendar/share integration |
+| `packages/shared` | Event detail and saved_events types                                                                           |
 
 ---
 
@@ -32,6 +32,7 @@ The full event detail view — the canonical source of event information. Access
 Fetch full event detail with user context.
 
 **Response (200 OK):**
+
 ```json
 {
   "id": "evt_abc123def456",
@@ -72,6 +73,7 @@ Fetch full event detail with user context.
 ```
 
 **Error Responses:**
+
 - `404 Not Found`: Event not found or archived (and viewer is not creator)
 - `401 Unauthorized`: User not authenticated (optional — can be public)
 
@@ -80,6 +82,7 @@ Fetch full event detail with user context.
 Save an event to the user's saved list.
 
 **Response (201 Created):**
+
 ```json
 {
   "event_id": "evt_abc123def456",
@@ -89,6 +92,7 @@ Save an event to the user's saved list.
 ```
 
 **Error Responses:**
+
 - `400 Bad Request`: Event already saved
 - `401 Unauthorized`: User not authenticated
 - `404 Not Found`: Event not found
@@ -100,6 +104,7 @@ Unsave an event.
 **Response (204 No Content):** Empty response on success.
 
 **Error Responses:**
+
 - `401 Unauthorized`: User not authenticated
 - `404 Not Found`: Event or save relationship not found
 
@@ -108,6 +113,7 @@ Unsave an event.
 ## Requirements
 
 ### Display & Layout
+
 - **Cover image** at top (16:9 aspect ratio, 300px height on mobile)
 - **Title** bold, large font, below image
 - **Category badge** with icon (color-coded by category)
@@ -119,6 +125,7 @@ Unsave an event.
 - **Ticket link** (if present) as a button: "Get Tickets → External Link"
 
 ### Persona-Aware Actions
+
 - **All users**: Save button (heart icon, filled if already saved), Share button, Save to Calendar button
 - **Artists**: "Apply" button on gig opportunity events (disabled if already applied, links to Booking flow M5)
 - **Event creators** (if status = draft/pending_review/rejected): Edit button (navigates to Edit Event screen)
@@ -126,6 +133,7 @@ Unsave an event.
 - **Spectators**: No edit/manage controls; only save/share/calendar
 
 ### Save Functionality
+
 - Save button toggles between filled (saved) and outline (unsaved) heart icon
 - Tapping save inserts row into `saved_events(user_id, event_id)` via API
 - Tapping unsave removes the row
@@ -133,6 +141,7 @@ Unsave an event.
 - Optimistic UI: button state updates immediately; error handling if API fails
 
 ### Save to Calendar
+
 - "Add to Calendar" button visible on all events for all personas
 - On tap: request `WRITE_CALENDAR` permission (expo-calendar)
 - Creates calendar event with:
@@ -144,12 +153,14 @@ Unsave an event.
 - Gracefully handle permission denial (show info toast, don't crash)
 
 ### Bottom Sheet Variant (Map Pin Tap)
+
 - Condensed preview: cover image (smaller), title, date, location, category
 - "See full details" button expands to full Event Detail screen
 - All action buttons (save, share, apply) available in condensed view
 - Swipe down to dismiss
 
 ### Visibility & Access Control
+
 - **Active events** visible to all users
 - **Pending/rejected events** visible only to creator
 - **Archived events** visible to creator only; other users see 404
@@ -158,6 +169,7 @@ Unsave an event.
   - Creator only if status = pending_review or rejected
 
 ### Rejection Reason Display
+
 - If `status = rejected` and user is creator: display banner at top:
   - Background: yellow/warning color
   - Text: "Your event was rejected: [rejection_reason]. You can edit and resubmit."
@@ -193,18 +205,21 @@ Unsave an event.
 ## Dependencies
 
 ### Upstream
+
 - **M4-T1** — Events must be created; Event Detail displays them
 - **M3-T1** — Map pins tap to open Event Detail bottom sheet
 - **M3-T4** — Feed cards tap to open Event Detail full screen
 - **M2-T4** — Persona system; UI actions are persona-aware
 
 ### Downstream
+
 - **M4-T4** — Saved Events view queries `saved_events` table for list of saved events
 - **M5-T1** (Booking Flow) — "Apply" button on gig opportunities links to booking interface
 - **M6-T1** (Artist Profile) — Creator and collaborator names link to artist profiles
 - **M6-T2** (Venue Profile) — Venue names (if applicable) link to venue profiles
 
 ### External Services
+
 - **expo-calendar** — Native calendar integration for Save to Calendar
 - **Linking API (React Native)** — Open external ticket URLs
 - **expo-sharing** — Device share sheet for event sharing
@@ -218,15 +233,15 @@ Unsave an event.
 ```typescript
 // apps/api/src/routes/events.ts
 
-import { Hono } from 'hono';
-import { getAuth } from 'hono/better-auth';
-import { db } from '../db';
-import { events, saved_events, artist_profiles } from '@ceolx/shared/schema';
-import { eq } from 'drizzle-orm';
+import { Hono } from "hono";
+import { getAuth } from "hono/better-auth";
+import { db } from "../db";
+import { events, saved_events, artist_profiles } from "@ceolx/shared/schema";
+import { eq } from "drizzle-orm";
 
-app.get('/events/:id', async (c) => {
+app.get("/events/:id", async (c) => {
   const auth = getAuth(c); // Optional for public events
-  const eventId = c.req.param('id');
+  const eventId = c.req.param("id");
 
   // Fetch event with creator details
   const event = await db.query.events.findFirst({
@@ -246,13 +261,17 @@ app.get('/events/:id', async (c) => {
   });
 
   if (!event) {
-    return c.json({ error: 'Event not found' }, 404);
+    return c.json({ error: "Event not found" }, 404);
   }
 
   // Check visibility
-  if (event.status === 'archived' || event.status === 'rejected' || event.status === 'pending_review') {
+  if (
+    event.status === "archived" ||
+    event.status === "rejected" ||
+    event.status === "pending_review"
+  ) {
     if (!auth || auth.user.id !== event.created_by) {
-      return c.json({ error: 'Event not found' }, 404);
+      return c.json({ error: "Event not found" }, 404);
     }
   }
 
@@ -261,10 +280,7 @@ app.get('/events/:id', async (c) => {
   if (auth) {
     const saved = await db.query.saved_events.findFirst({
       where: (saved, { and, eq }) =>
-        and(
-          eq(saved.user_id, auth.user.id),
-          eq(saved.event_id, eventId)
-        ),
+        and(eq(saved.user_id, auth.user.id), eq(saved.event_id, eventId)),
     });
     isSaved = !!saved;
   }
@@ -277,9 +293,9 @@ app.get('/events/:id', async (c) => {
   });
 });
 
-app.post('/events/:id/save', async (c) => {
+app.post("/events/:id/save", async (c) => {
   const auth = await requireAuth(c);
-  const eventId = c.req.param('id');
+  const eventId = c.req.param("id");
 
   // Check event exists
   const event = await db.query.events.findFirst({
@@ -287,20 +303,17 @@ app.post('/events/:id/save', async (c) => {
   });
 
   if (!event) {
-    return c.json({ error: 'Event not found' }, 404);
+    return c.json({ error: "Event not found" }, 404);
   }
 
   // Check if already saved
   const existing = await db.query.saved_events.findFirst({
     where: (saved, { and, eq }) =>
-      and(
-        eq(saved.user_id, auth.user.id),
-        eq(saved.event_id, eventId)
-      ),
+      and(eq(saved.user_id, auth.user.id), eq(saved.event_id, eventId)),
   });
 
   if (existing) {
-    return c.json({ error: 'Event already saved' }, 400);
+    return c.json({ error: "Event already saved" }, 400);
   }
 
   // Insert save
@@ -317,19 +330,15 @@ app.post('/events/:id/save', async (c) => {
   return c.json(saved[0]);
 });
 
-app.delete('/events/:id/save', async (c) => {
+app.delete("/events/:id/save", async (c) => {
   const auth = await requireAuth(c);
-  const eventId = c.req.param('id');
+  const eventId = c.req.param("id");
 
   // Delete save relationship
   await db
     .delete(saved_events)
-    .where(
-      (saved, { and, eq }) =>
-        and(
-          eq(saved.user_id, auth.user.id),
-          eq(saved.event_id, eventId)
-        )
+    .where((saved, { and, eq }) =>
+      and(eq(saved.user_id, auth.user.id), eq(saved.event_id, eventId)),
     );
 
   setResponseStatus(c, 204);

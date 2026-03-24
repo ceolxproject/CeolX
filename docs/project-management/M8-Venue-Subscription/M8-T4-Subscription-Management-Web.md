@@ -1,11 +1,11 @@
 # M8-T4 · Subscription Management Portal (ceolx.ie/account)
 
-| Field | Value |
-|-------|-------|
-| **Milestone** | M8 — Venue Subscription & Payments |
-| **Status** | 🔲 To Do |
+| Field          | Value                                                                                                                  |
+| -------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| **Milestone**  | M8 — Venue Subscription & Payments                                                                                     |
+| **Status**     | 🔲 To Do                                                                                                               |
 | **Depends on** | M8-T1 (Stripe checkout), M8-T2 (subscription status), M8-T3 (lifecycle + cancellation), M1-T5 (Next.js admin scaffold) |
-| **PRD Ref** | Section 7.2 (Venue Subscription), Section 13 (Tech Stack — Admin Dashboard) |
+| **PRD Ref**    | Section 7.2 (Venue Subscription), Section 13 (Tech Stack — Admin Dashboard)                                            |
 
 ---
 
@@ -17,10 +17,10 @@ Build the Venue subscription management page at `ceolx.ie/account`. Authenticate
 
 ## Affected Apps / Packages
 
-| App / Package | Role |
-|---------------|------|
-| `apps/admin` | `/account` route (public but auth-required), Stripe Customer Portal session endpoint |
-| `apps/api` | `POST /api/v1/stripe/portal-session` endpoint |
+| App / Package | Role                                                                                 |
+| ------------- | ------------------------------------------------------------------------------------ |
+| `apps/admin`  | `/account` route (public but auth-required), Stripe Customer Portal session endpoint |
+| `apps/api`    | `POST /api/v1/stripe/portal-session` endpoint                                        |
 
 ---
 
@@ -31,11 +31,13 @@ Build the Venue subscription management page at `ceolx.ie/account`. Authenticate
 Create a Stripe Customer Portal session for authenticated Venue user.
 
 **Request Body:**
+
 ```json
 {}
 ```
 
 **Response (2xx):**
+
 ```json
 {
   "portalUrl": "https://billing.stripe.com/p/session/..."
@@ -43,6 +45,7 @@ Create a Stripe Customer Portal session for authenticated Venue user.
 ```
 
 **Error Responses:**
+
 - `401 Unauthorized`: Not authenticated or not a Venue user
 - `404 Not Found`: No active Stripe subscription found
 - `500 Internal Server Error`: Stripe API error
@@ -52,12 +55,14 @@ Create a Stripe Customer Portal session for authenticated Venue user.
 ## Requirements
 
 ### Authentication & Routing
+
 - R1.1: `/account` page requires authenticated user with active Venue persona
 - R1.2: Unauthenticated users redirected to login page
-- R1.3: Non-Venue users (Spectator/Artist) see message: *"Please switch to Venue account type to manage your subscription."*
+- R1.3: Non-Venue users (Spectator/Artist) see message: _"Please switch to Venue account type to manage your subscription."_
 - R1.4: No external URL shown inside mobile app — link to `ceolx.ie/account` sent only via Postmark payment confirmation email (M7-T3)
 
 ### Subscription Status Display
+
 - R2.1: On page load, display current subscription status:
   - If `subscription_status = 'active'`: show green badge "Active" + plan name + next billing date
   - If `subscription_status = 'past_due'`: show yellow badge "Payment Due" + message "Your payment method needs updating"
@@ -67,6 +72,7 @@ Create a Stripe Customer Portal session for authenticated Venue user.
 - R2.3: Display next billing date (extracted from Stripe subscription `current_period_end`)
 
 ### Stripe Customer Portal Integration
+
 - R3.1: On page load, fetch `stripe_customer_id` from Venue profile via authenticated API call
 - R3.2: Call `POST /api/v1/stripe/portal-session` to create a Stripe portal session
 - R3.3: Redirect Venue to portal URL (Stripe's hosted domain)
@@ -79,23 +85,27 @@ Create a Stripe Customer Portal session for authenticated Venue user.
 - R3.6: Return URL in portal session: `https://ceolx.ie` (returns to home, not `/account`)
 
 ### Cancellation Flow
+
 - R4.1: Venue clicks "Cancel Subscription" in Stripe Customer Portal
 - R4.2: Stripe sends `customer.subscription.deleted` webhook → backend sets `subscription_status = 'cancelled'` (M8-T3)
 - R4.3: Mobile app detects cancellation on next poll (30s) → shows pending/reactivation state (M8-T2, M8-T3)
 - R4.4: **CeolX does not build cancellation UI** — all cancellation is via Stripe Portal only
 
 ### Reactivation Path
-- R5.1: If Venue cancels, `/account` page shows: *"Your subscription is cancelled. [Button: Reactivate] → ceolx.ie/subscribe"*
+
+- R5.1: If Venue cancels, `/account` page shows: _"Your subscription is cancelled. [Button: Reactivate] → ceolx.ie/subscribe"_
 - R5.2: Re-subscribing follows same flow as M8-T1 (Stripe Checkout → webhook → activation)
 - R5.3: No data is deleted on cancellation — past events and bookings preserved
 
 ### Error Handling
-- R6.1: If user has no Stripe customer ID: *"No active subscription found. Check your email for the activation link or contact support."*
-- R6.2: If Stripe API fails: *"Unable to load subscription details. Please try again or contact support."*
+
+- R6.1: If user has no Stripe customer ID: _"No active subscription found. Check your email for the activation link or contact support."_
+- R6.2: If Stripe API fails: _"Unable to load subscription details. Please try again or contact support."_
 - R6.3: Retry button available on error state
 - R6.4: Contact support link on all error pages
 
 ### Page Layout
+
 - R7.1: Heading: "Manage Your Subscription"
 - R7.2: Subscription status card (green/yellow/gray badge)
 - R7.3: Billing details section: plan name, next billing date, amount
@@ -311,18 +321,18 @@ export default function AccountPage() {
 
 ```typescript
 // apps/api/routes/v1/stripe.ts (extended)
-import { Hono } from 'hono';
-import Stripe from 'stripe';
-import { db } from '@/db';
-import { venueProfiles } from '@/db/schema';
-import { eq } from 'drizzle-orm';
+import { Hono } from "hono";
+import Stripe from "stripe";
+import { db } from "@/db";
+import { venueProfiles } from "@/db/schema";
+import { eq } from "drizzle-orm";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 const router = new Hono();
 
-router.post('/stripe/portal-session', async (c) => {
-  const userId = c.get('user')?.id;
-  if (!userId) return c.json({ error: 'Unauthorized' }, 401);
+router.post("/stripe/portal-session", async (c) => {
+  const userId = c.get("user")?.id;
+  if (!userId) return c.json({ error: "Unauthorized" }, 401);
 
   try {
     // Get Venue profile with Stripe customer ID
@@ -333,24 +343,25 @@ router.post('/stripe/portal-session', async (c) => {
     if (!venue || !venue.stripeCustomerId) {
       return c.json(
         {
-          error: 'No active subscription found. Check your email for the activation link or contact support.',
+          error:
+            "No active subscription found. Check your email for the activation link or contact support.",
         },
-        404
+        404,
       );
     }
 
     // Create Customer Portal session
     const session = await stripe.billingPortal.sessions.create({
       customer: venue.stripeCustomerId,
-      return_url: 'https://ceolx.ie',
+      return_url: "https://ceolx.ie",
     });
 
     return c.json({ portalUrl: session.url });
   } catch (error) {
-    console.error('Portal session error:', error);
+    console.error("Portal session error:", error);
     return c.json(
-      { error: 'Unable to load subscription details. Please try again.' },
-      500
+      { error: "Unable to load subscription details. Please try again." },
+      500,
     );
   }
 });
@@ -361,6 +372,7 @@ export default router;
 ### Stripe Customer Portal Configuration (Pre-Launch Checklist — M12)
 
 Before launch, configure Stripe Customer Portal in Stripe Dashboard:
+
 1. Go to **Settings → Billing → Customer portal**
 2. Create or configure portal:
    - **Branding**: Upload CeolX logo, set brand color
@@ -380,26 +392,32 @@ Before launch, configure Stripe Customer Portal in Stripe Dashboard:
 ## Common Gotchas
 
 **Gotcha 1: Portal session URL redirects to login**
+
 - Issue: User not authenticated; Stripe portal tries to verify ownership
 - Fix: Ensure session cookie is valid before creating portal session; check `user_id` matches Stripe metadata
 
 **Gotcha 2: No Stripe Customer ID found**
+
 - Issue: Stripe customer created but not stored in `venue_profiles.stripe_customer_id`
 - Fix: Verify M8-T1 webhook handler saves `stripe_customer_id` in the update statement
 
 **Gotcha 3: Portal session URL expired/404**
+
 - Issue: Portal URLs expire after 24 hours; user gets 404 if page is bookmarked
 - Fix: Regenerate portal URL on each page load (do NOT cache); use React Query with no cache time
 
 **Gotcha 4: Cancellation not detected in app**
+
 - Issue: User cancels in Stripe Portal but app still shows active until next poll (30s)
 - Fix: For now acceptable (V1); post-launch use WebSocket push on webhook for instant detection
 
 **Gotcha 5: Return URL from portal shows home page instead of `/account`**
+
 - Issue: User expects to return to subscription page; instead redirected to home
 - Fix: Set `return_url` to `https://ceolx.ie` (not `/account`); it's a portal exit point, not a return
 
 **Gotcha 6: Payment method update doesn't immediately fix past_due**
+
 - Issue: User updates card in portal; still sees `subscription_status = 'past_due'` in app
 - Fix: Stripe automatically retries payment within 3 days; no immediate action needed. App will show active once `invoice.payment_succeeded` fires and is processed by webhook
 
@@ -408,9 +426,11 @@ Before launch, configure Stripe Customer Portal in Stripe Dashboard:
 ## Email Template: Link to /account (Payment Confirmation)
 
 Postmark payment confirmation email should include:
+
 ```html
 <p>
-  <a href="https://ceolx.ie/account">Manage Your Subscription</a> anytime in the portal above.
+  <a href="https://ceolx.ie/account">Manage Your Subscription</a> anytime in the
+  portal above.
 </p>
 ```
 

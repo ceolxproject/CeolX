@@ -1,0 +1,3 @@
+{
+  "extends": "@CeolX/config/tsconfig.base.json"
+}

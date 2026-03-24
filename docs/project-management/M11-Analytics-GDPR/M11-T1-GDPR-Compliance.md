@@ -1,37 +1,41 @@
 # M11-T1 · GDPR Compliance (Irish Client — Mandatory)
 
-| Field | Value |
-|-------|-------|
-| **Milestone** | M11 — Analytics & GDPR |
-| **Status** | 🔲 To Do |
+| Field          | Value                                                   |
+| -------------- | ------------------------------------------------------- |
+| **Milestone**  | M11 — Analytics & GDPR                                  |
+| **Status**     | 🔲 To Do                                                |
 | **Depends on** | M2-T1 (auth), M2-T4 (persona system), M1-T2 (DB schema) |
-| **PRD Ref** | Section 11 (GDPR) |
+| **PRD Ref**    | Section 11 (GDPR)                                       |
 
 ---
 
 ## Description
+
 GDPR compliance is mandatory — CeolX is an Irish client and the platform collects personal data. Covers consent at sign-up, right to erasure (account deletion), data portability (export), and inactive account handling.
 
 ---
 
 ## Affected Apps / Packages
-| App / Package | Role |
-|---------------|------|
-| `apps/api` | Account deletion (anonymisation), data export endpoint, consent storage |
+
+| App / Package | Role                                                                                          |
+| ------------- | --------------------------------------------------------------------------------------------- |
+| `apps/api`    | Account deletion (anonymisation), data export endpoint, consent storage                       |
 | `apps/mobile` | Consent screen at sign-up, account deletion flow in Settings, data export request in Settings |
-| `apps/admin` | No specific admin UI — handled server-side |
+| `apps/admin`  | No specific admin UI — handled server-side                                                    |
 
 ---
 
 ## API Endpoints
-| Method | Path | Purpose |
-|--------|------|---------|
-| DELETE | `/users/me` | Anonymise personal data (right to erasure) |
-| GET | `/users/me/export` | Generate and return user's personal data export (JSON) |
+
+| Method | Path               | Purpose                                                |
+| ------ | ------------------ | ------------------------------------------------------ |
+| DELETE | `/users/me`        | Anonymise personal data (right to erasure)             |
+| GET    | `/users/me/export` | Generate and return user's personal data export (JSON) |
 
 ---
 
 ## Requirements
+
 - R1: Consent screen shown at sign-up for: data collection, location use, and marketing communications — opt-in checkboxes (not pre-checked)
 - R2: Privacy Policy and Terms of Service links on the consent screen — must be accepted before proceeding
 - R3: **Right to Erasure**: `DELETE /users/me` anonymises personal data (`name`, `email`, `avatar` nulled/replaced with anonymised placeholder) — non-personal content structures (events, posts) retained in DB but unlinked from identifiable user
@@ -43,6 +47,7 @@ GDPR compliance is mandatory — CeolX is an Irish client and the platform colle
 ---
 
 ## Acceptance Criteria
+
 - [ ] Consent checkboxes shown at sign-up; user cannot proceed without accepting Privacy Policy + ToS
 - [ ] Accepted consents stored with timestamp on user record
 - [ ] Account deletion anonymises name, email, avatar; events/posts remain but show "Deleted User"
@@ -61,14 +66,14 @@ GDPR compliance is mandatory — CeolX is an Irish client and the platform colle
 Account deletion is **anonymisation only**, never a hard delete. Deleting a user's event entirely would break referential integrity and lose valuable historical data for other users' bookings and follows. Instead:
 
 ```typescript
-app.delete('/api/v1/users/me', authMiddleware, async (c) => {
-  const userId = c.get('userId');
+app.delete("/api/v1/users/me", authMiddleware, async (c) => {
+  const userId = c.get("userId");
 
   // Anonymise personal data
   await db
     .update(users)
     .set({
-      name: 'Deleted User',
+      name: "Deleted User",
       email: `${userId}@deleted.ceolx.ie`,
       avatar: null,
       bio: null,
@@ -82,7 +87,7 @@ app.delete('/api/v1/users/me', authMiddleware, async (c) => {
   await db
     .update(artistProfiles)
     .set({
-      displayName: 'Deleted Artist',
+      displayName: "Deleted Artist",
       bio: null,
       profileImage: null,
       isDeleted: true,
@@ -93,16 +98,12 @@ app.delete('/api/v1/users/me', authMiddleware, async (c) => {
   // Bookings remain; related events still show history
 
   // Invalidate sessions
-  await db
-    .delete(sessions)
-    .where(eq(sessions.userId, userId));
+  await db.delete(sessions).where(eq(sessions.userId, userId));
 
   // Clear push notification tokens
-  await db
-    .delete(deviceTokens)
-    .where(eq(deviceTokens.userId, userId));
+  await db.delete(deviceTokens).where(eq(deviceTokens.userId, userId));
 
-  return c.json({ success: true, message: 'Account deleted' });
+  return c.json({ success: true, message: "Account deleted" });
 });
 ```
 
@@ -111,18 +112,32 @@ app.delete('/api/v1/users/me', authMiddleware, async (c) => {
 Exports all user data in a JSON file suitable for import to another service:
 
 ```typescript
-app.get('/api/v1/users/me/export', authMiddleware, async (c) => {
-  const userId = c.get('userId');
+app.get("/api/v1/users/me/export", authMiddleware, async (c) => {
+  const userId = c.get("userId");
 
   // Fetch all user data
   const user = await db.query.users.findFirst({ where: eq(users.id, userId) });
-  const artistProfile = await db.query.artistProfiles.findFirst({ where: eq(artistProfiles.userId, userId) });
-  const venueProfile = await db.query.venueProfiles.findFirst({ where: eq(venueProfiles.userId, userId) });
-  const events = await db.query.events.findMany({ where: eq(events.createdBy, userId) });
-  const bookings = await db.query.bookings.findMany({ where: eq(bookings.artistId, userId) });
-  const posts = await db.query.posts.findMany({ where: eq(posts.createdBy, userId) });
-  const follows = await db.query.follows.findMany({ where: eq(follows.followerId, userId) });
-  const savedEvents = await db.query.savedEvents.findMany({ where: eq(savedEvents.userId, userId) });
+  const artistProfile = await db.query.artistProfiles.findFirst({
+    where: eq(artistProfiles.userId, userId),
+  });
+  const venueProfile = await db.query.venueProfiles.findFirst({
+    where: eq(venueProfiles.userId, userId),
+  });
+  const events = await db.query.events.findMany({
+    where: eq(events.createdBy, userId),
+  });
+  const bookings = await db.query.bookings.findMany({
+    where: eq(bookings.artistId, userId),
+  });
+  const posts = await db.query.posts.findMany({
+    where: eq(posts.createdBy, userId),
+  });
+  const follows = await db.query.follows.findMany({
+    where: eq(follows.followerId, userId),
+  });
+  const savedEvents = await db.query.savedEvents.findMany({
+    where: eq(savedEvents.userId, userId),
+  });
 
   const exportData = {
     user,
@@ -136,11 +151,11 @@ app.get('/api/v1/users/me/export', authMiddleware, async (c) => {
     exportedAt: new Date().toISOString(),
   };
 
-  const filename = `ceolx_data_export_${userId}_${new Date().toISOString().split('T')[0]}.json`;
+  const filename = `ceolx_data_export_${userId}_${new Date().toISOString().split("T")[0]}.json`;
 
   return c.json(exportData, 200, {
-    'Content-Disposition': `attachment; filename="${filename}"`,
-    'Content-Type': 'application/json',
+    "Content-Disposition": `attachment; filename="${filename}"`,
+    "Content-Type": "application/json",
   });
 });
 ```
@@ -159,10 +174,7 @@ async function flagInactiveAccounts() {
     .update(users)
     .set({ flaggedInactive: true })
     .where(
-      and(
-        lt(users.lastLoginAt, twoYearsAgo),
-        eq(users.flaggedInactive, false)
-      )
+      and(lt(users.lastLoginAt, twoYearsAgo), eq(users.flaggedInactive, false)),
     );
 
   console.log(`Flagged ${updated} accounts as inactive`);

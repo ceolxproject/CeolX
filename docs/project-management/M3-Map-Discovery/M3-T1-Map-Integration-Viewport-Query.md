@@ -1,11 +1,11 @@
 # M3-T1 · Map Integration + Viewport Bounding Box Query
 
-| Field | Value |
-|-------|-------|
-| **Milestone** | M3 — Map & Discovery |
-| **Status** | 🔲 To Do |
+| Field          | Value                                                                                                       |
+| -------------- | ----------------------------------------------------------------------------------------------------------- |
+| **Milestone**  | M3 — Map & Discovery                                                                                        |
+| **Status**     | 🔲 To Do                                                                                                    |
 | **Depends on** | M1-T2 (events table + GIST index), M1-T3 (API scaffold), M1-T4 (mobile scaffold), M4-T1 (events must exist) |
-| **PRD Ref** | Section 9.2 (Map & Feed Discovery), Section 9.2.1 (Viewport Bounding Box Query) |
+| **PRD Ref**    | Section 9.2 (Map & Feed Discovery), Section 9.2.1 (Viewport Bounding Box Query)                             |
 
 ---
 
@@ -32,6 +32,7 @@ The map renders natively on each platform (Apple Maps on iOS via MapKit, Google 
 Fetch active upcoming events within a map viewport bounding box.
 
 **Query Parameters:**
+
 ```json
 {
   "swLat": 52.5,
@@ -43,6 +44,7 @@ Fetch active upcoming events within a map viewport bounding box.
 ```
 
 **Response (200 OK):**
+
 ```json
 {
   "events": [
@@ -74,6 +76,7 @@ Fetch active upcoming events within a map viewport bounding box.
 ```
 
 **Error Responses:**
+
 - `400` — Invalid bounding box parameters `{ "error": "swLat, swLng, neLat, neLng required and must be valid floats" }`
 - `401` — Unauthorized `{ "error": "Authentication required" }`
 - `500` — Database or GIST index error `{ "error": "Failed to query events by location" }`
@@ -83,6 +86,7 @@ Fetch active upcoming events within a map viewport bounding box.
 ## Requirements
 
 ### Viewport Bounding Box Query
+
 - The API accepts SW (southwest) and NE (northeast) corners as lat/lng floats
 - Query returns only events where `status = active` and `date_start >= now()` — upcoming events only
 - Results capped at 50 events per fetch to prevent payload bloat
@@ -91,6 +95,7 @@ Fetch active upcoming events within a map viewport bounding box.
 - `EXPLAIN ANALYSE` must confirm index is used — no full table scan
 
 ### Mobile Map Rendering
+
 - `react-native-maps` component renders full-screen on the Map tab
 - Platform-specific provider: Apple Maps on iOS (via MapKit), Google Maps on Android
 - Both are abstracted by a single `<MapView>` component — no platform-specific code in mobile app
@@ -100,6 +105,7 @@ Fetch active upcoming events within a map viewport bounding box.
 - A "See full details" link in the bottom sheet navigates to the full Event Detail screen
 
 ### Debouncing & Pan Performance
+
 - `onRegionChangeComplete` fires when user finishes panning
 - Convert the region object to a bounding box: `swLat = latitude - latitudeDelta/2`, `neLat = latitude + latitudeDelta/2`, same for longitude
 - API calls debounced ~400ms after `onRegionChangeComplete` — rapid pan sequences don't fire requests for each intermediate frame
@@ -126,17 +132,20 @@ Fetch active upcoming events within a map viewport bounding box.
 ## Dependencies
 
 ### Upstream
+
 - **M1-T2** — Neon database and events table with GIST spatial index must be created and deployed
 - **M1-T3** — Hono API scaffold with TypeScript, middleware, and error handling set up
 - **M1-T4** — React Native + Expo project scaffold with navigation stack for tabs
 - **M4-T1** — Events must be created by users (via Create Event form) so there is test data on the map
 
 ### Downstream
+
 - **M3-T2** — Location permission fallback chain relies on map being the default home screen
 - **M3-T4** — Feed view algorithm references the same events as the map — must maintain data consistency
 - **M4-T2** — Event Detail screen is accessed by tapping a map pin (this task)
 
 ### External Services
+
 - **Neon PostgreSQL** — Serverless DB with GIST spatial indexes
 - **Apple Maps (iOS)** / **Google Maps (Android)** — via `react-native-maps`
 
@@ -151,9 +160,9 @@ The core query uses SQL `BETWEEN` with the GIST index:
 ```typescript
 // apps/api/src/routes/events.ts
 
-import { drizzle } from 'drizzle-orm/postgres-js';
-import { events } from '@ceolx/shared/schema';
-import { sql } from 'drizzle-orm';
+import { drizzle } from "drizzle-orm/postgres-js";
+import { events } from "@ceolx/shared/schema";
+import { sql } from "drizzle-orm";
 
 export async function getEventsInViewport(
   db: ReturnType<typeof drizzle>,
@@ -161,7 +170,7 @@ export async function getEventsInViewport(
   swLng: number,
   neLat: number,
   neLng: number,
-  limit: number = 50
+  limit: number = 50,
 ) {
   const now = new Date().toISOString();
 
@@ -184,14 +193,16 @@ export async function getEventsInViewport(
         AND ${events.date_start} >= ${now}
         AND ${events.lat} BETWEEN ${swLat} AND ${neLat}
         AND ${events.lng} BETWEEN ${swLng} AND ${neLng}
-      `
+      `,
     )
-    .orderBy(sql`
+    .orderBy(
+      sql`
       SQRT(
         POW(${events.lat} - ${(swLat + neLat) / 2}, 2) +
         POW(${events.lng} - ${(swLng + neLng) / 2}, 2)
       )
-    `)
+    `,
+    )
     .limit(limit);
 
   return result;

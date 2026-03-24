@@ -36,21 +36,21 @@ section within a project.
 
 ## Available Tools & When to Use Them
 
-| Tool | Use When |
-|------|----------|
-| `get_workspace_users` | Looking up a user to assign a task or add as collaborator |
-| `get_projects` | Listing all projects in the workspace |
-| `get_project` | Getting details (sections, members) of a specific project |
-| `get_tasks` | Listing tasks in a project or section |
-| `get_task` | Fetching full details of a specific task by GID |
-| `search_objects` | Searching for tasks, projects, or users by keyword |
-| `search_tasks_preview` | Previewing task search results before acting |
-| `create_task_preview` | Generating a preview of a new task for user confirmation |
-| `create_project_preview` | Generating a preview of a new project for user confirmation |
-| `update_task` | Updating task fields: name, description, due date, assignee, completion |
-| `get_status_overview` | Getting a high-level status view of a project |
-| `get_portfolios` / `get_portfolio` | Viewing portfolio-level data |
-| `get_items_for_portfolio` | Listing projects in a portfolio |
+| Tool                               | Use When                                                                |
+| ---------------------------------- | ----------------------------------------------------------------------- |
+| `get_workspace_users`              | Looking up a user to assign a task or add as collaborator               |
+| `get_projects`                     | Listing all projects in the workspace                                   |
+| `get_project`                      | Getting details (sections, members) of a specific project               |
+| `get_tasks`                        | Listing tasks in a project or section                                   |
+| `get_task`                         | Fetching full details of a specific task by GID                         |
+| `search_objects`                   | Searching for tasks, projects, or users by keyword                      |
+| `search_tasks_preview`             | Previewing task search results before acting                            |
+| `create_task_preview`              | Generating a preview of a new task for user confirmation                |
+| `create_project_preview`           | Generating a preview of a new project for user confirmation             |
+| `update_task`                      | Updating task fields: name, description, due date, assignee, completion |
+| `get_status_overview`              | Getting a high-level status view of a project                           |
+| `get_portfolios` / `get_portfolio` | Viewing portfolio-level data                                            |
+| `get_items_for_portfolio`          | Listing projects in a portfolio                                         |
 
 ---
 
@@ -64,6 +64,7 @@ section within a project.
 4. Wait for user to click "Create task" in the UI — do not call any creation tool again.
 
 **Good `create_task_preview` fields to always include:**
+
 - `taskName` — clear and specific
 - `description` — context, checklist of subtasks if relevant, links to documents
 - `assignee` — GID from `get_workspace_users`, or `"me"` if self-assigning
@@ -100,23 +101,23 @@ user can identify the right one quickly.
 
 ## Known Users (cache — verify with get_workspace_users if uncertain)
 
-| Name | GID |
-|------|-----|
-| Priya Yadav | `1209289934108706` |
-| Aravind Jaimon | `1199376712173373` |
+| Name            | GID                |
+| --------------- | ------------------ |
+| Priya Yadav     | `1209289934108706` |
+| Aravind Jaimon  | `1199376712173373` |
 | Pratiksha Patil | `1203952267007789` |
 
 ---
 
 ## Known Project Sections — CeolX (1210959953917909)
 
-| Section | GID |
-|---------|-----|
-| Ideas | `1210959953917910` |
-| Backlogs | `1210960051442678` |
+| Section     | GID                |
+| ----------- | ------------------ |
+| Ideas       | `1210959953917910` |
+| Backlogs    | `1210960051442678` |
 | In Progress | `1213652919039664` |
-| Staged | `1213652919039665` |
-| Completed | `1213652919039666` |
+| Staged      | `1213652919039665` |
+| Completed   | `1213652919039666` |
 
 When a user asks to add a task to a "group" or "section", match it against this list first.
 If the section doesn't exist, note that creating new sections must be done manually in the Asana UI.
@@ -126,6 +127,7 @@ If the section doesn't exist, note that creating new sections must be done manua
 ## Response Style
 
 After any Asana action, give a concise confirmation:
+
 - What was done (created / updated / found)
 - Key details (task name, assignee, due date, section)
 - Any pending actions the user should take (e.g. "click Create task to confirm")

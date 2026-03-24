@@ -1,11 +1,11 @@
 # M11-T3 · Artist & Venue In-App Analytics
 
-| Field | Value |
-|-------|-------|
-| **Milestone** | M11 — Analytics & GDPR |
-| **Status** | 🔲 To Do |
+| Field          | Value                                                                                                                          |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| **Milestone**  | M11 — Analytics & GDPR                                                                                                         |
+| **Status**     | 🔲 To Do                                                                                                                       |
 | **Depends on** | M2-T4 (personas), M4-T1 (events), M5 (bookings), M6-T1 (Artist profile), M6-T2 (Venue profile), M6-T3 (follows), M6-T4 (posts) |
-| **PRD Ref** | Section 6.1 (Artist Features), Section 7.1 (Venue Features — Analytics) |
+| **PRD Ref**    | Section 6.1 (Artist Features), Section 7.1 (Venue Features — Analytics)                                                        |
 
 ---
 
@@ -17,11 +17,11 @@ Artists and Venues need visibility into their content performance to make inform
 
 ## Affected Apps / Packages
 
-| App / Package | Role |
-|---------------|------|
-| `apps/api` | `GET /artists/me/analytics`, `GET /venues/me/analytics` endpoints; aggregation queries; caching layer (Redis or DB timestamp) |
-| `apps/mobile` | Analytics tab on Artist profile (ProfileArtist screen) and Venue profile (ProfileVenue screen); visible to owner only; stat cards, breakdown tables |
-| `packages/shared` | TypeScript interfaces for analytics response schema |
+| App / Package     | Role                                                                                                                                                |
+| ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `apps/api`        | `GET /artists/me/analytics`, `GET /venues/me/analytics` endpoints; aggregation queries; caching layer (Redis or DB timestamp)                       |
+| `apps/mobile`     | Analytics tab on Artist profile (ProfileArtist screen) and Venue profile (ProfileVenue screen); visible to owner only; stat cards, breakdown tables |
+| `packages/shared` | TypeScript interfaces for analytics response schema                                                                                                 |
 
 ---
 
@@ -32,6 +32,7 @@ Artists and Venues need visibility into their content performance to make inform
 Retrieve analytics for the authenticated Artist. Returns post engagement, event reach, bookings, and follower data.
 
 **Response (200 OK):**
+
 ```json
 {
   "posts": {
@@ -81,6 +82,7 @@ Retrieve analytics for the authenticated Artist. Returns post engagement, event 
 ```
 
 **Error Responses:**
+
 - `401 Unauthorized`: User not authenticated or not an artist
 - `403 Forbidden`: Artist profile not set up for this user
 
@@ -91,6 +93,7 @@ Retrieve analytics for the authenticated Artist. Returns post engagement, event 
 Retrieve analytics for the authenticated Venue. Includes all artist metrics plus applications received.
 
 **Response (200 OK):**
+
 ```json
 {
   "posts": {
@@ -229,16 +232,16 @@ Retrieve analytics for the authenticated Venue. Includes all artist metrics plus
 ### Event View Count Increment (Hono Endpoint)
 
 ```typescript
-app.get('/api/v1/events/:eventId', async (c) => {
-  const eventId = c.req.param('eventId');
-  const userId = c.get('userId'); // from auth middleware, nullable for Spectators
+app.get("/api/v1/events/:eventId", async (c) => {
+  const eventId = c.req.param("eventId");
+  const userId = c.get("userId"); // from auth middleware, nullable for Spectators
 
   const event = await db.query.events.findFirst({
     where: eq(events.id, eventId),
   });
 
   if (!event) {
-    return c.json({ error: 'Event not found' }, 404);
+    return c.json({ error: "Event not found" }, 404);
   }
 
   // Increment view count if user is NOT the creator
@@ -256,8 +259,8 @@ app.get('/api/v1/events/:eventId', async (c) => {
 ### Artist Analytics Endpoint (Hono)
 
 ```typescript
-app.get('/api/v1/artists/me/analytics', authMiddleware, async (c) => {
-  const userId = c.get('userId');
+app.get("/api/v1/artists/me/analytics", authMiddleware, async (c) => {
+  const userId = c.get("userId");
 
   // Verify artist profile exists
   const artistProfile = await db.query.artistProfiles.findFirst({
@@ -265,7 +268,7 @@ app.get('/api/v1/artists/me/analytics', authMiddleware, async (c) => {
   });
 
   if (!artistProfile) {
-    return c.json({ error: 'Artist profile not found' }, 403);
+    return c.json({ error: "Artist profile not found" }, 403);
   }
 
   // Check cache
@@ -275,61 +278,62 @@ app.get('/api/v1/artists/me/analytics', authMiddleware, async (c) => {
   }
 
   // Fetch analytics in parallel
-  const [postLikes, topPosts, eventReach, eventSaves, bookings, followers] = await Promise.all([
-    // Total likes
-    db
-      .select({ total: sql`sum(${postLikes.count})` })
-      .from(postLikes)
-      .innerJoin(posts, eq(posts.id, postLikes.postId))
-      .where(eq(posts.createdBy, userId)),
+  const [postLikes, topPosts, eventReach, eventSaves, bookings, followers] =
+    await Promise.all([
+      // Total likes
+      db
+        .select({ total: sql`sum(${postLikes.count})` })
+        .from(postLikes)
+        .innerJoin(posts, eq(posts.id, postLikes.postId))
+        .where(eq(posts.createdBy, userId)),
 
-    // Top 3 posts
-    db
-      .select({
-        postId: posts.id,
-        title: posts.title,
-        likes: sql`count(${postLikes.id})`,
-        createdAt: posts.createdAt,
-      })
-      .from(posts)
-      .leftJoin(postLikes, eq(postLikes.postId, posts.id))
-      .where(eq(posts.createdBy, userId))
-      .groupBy(posts.id)
-      .orderBy(desc(sql`count(${postLikes.id})`))
-      .limit(3),
+      // Top 3 posts
+      db
+        .select({
+          postId: posts.id,
+          title: posts.title,
+          likes: sql`count(${postLikes.id})`,
+          createdAt: posts.createdAt,
+        })
+        .from(posts)
+        .leftJoin(postLikes, eq(postLikes.postId, posts.id))
+        .where(eq(posts.createdBy, userId))
+        .groupBy(posts.id)
+        .orderBy(desc(sql`count(${postLikes.id})`))
+        .limit(3),
 
-    // Event views + saves
-    db
-      .select({
-        totalViews: sql`sum(${events.viewCount})`,
-        totalEvents: count(),
-      })
-      .from(events)
-      .where(eq(events.createdBy, userId)),
+      // Event views + saves
+      db
+        .select({
+          totalViews: sql`sum(${events.viewCount})`,
+          totalEvents: count(),
+        })
+        .from(events)
+        .where(eq(events.createdBy, userId)),
 
-    // Event saves
-    db
-      .select({ count: count() })
-      .from(savedEvents)
-      .innerJoin(events, eq(events.id, savedEvents.eventId))
-      .where(eq(events.createdBy, userId)),
+      // Event saves
+      db
+        .select({ count: count() })
+        .from(savedEvents)
+        .innerJoin(events, eq(events.id, savedEvents.eventId))
+        .where(eq(events.createdBy, userId)),
 
-    // Bookings by status
-    db
-      .select({
-        status: bookings.status,
-        count: count(),
-      })
-      .from(bookings)
-      .where(eq(bookings.artistId, userId))
-      .groupBy(bookings.status),
+      // Bookings by status
+      db
+        .select({
+          status: bookings.status,
+          count: count(),
+        })
+        .from(bookings)
+        .where(eq(bookings.artistId, userId))
+        .groupBy(bookings.status),
 
-    // Follower count
-    db
-      .select({ count: count() })
-      .from(follows)
-      .where(eq(follows.followedId, userId)),
-  ]);
+      // Follower count
+      db
+        .select({ count: count() })
+        .from(follows)
+        .where(eq(follows.followedId, userId)),
+    ]);
 
   const analytics = {
     posts: {
@@ -339,7 +343,7 @@ app.get('/api/v1/artists/me/analytics', authMiddleware, async (c) => {
         topPosts.length > 0
           ? topPosts.reduce((sum, p) => sum + p.likes, 0) / topPosts.length
           : 0,
-      topPosts: topPosts.map(p => ({
+      topPosts: topPosts.map((p) => ({
         postId: p.postId,
         title: p.title,
         likes: p.likes,
@@ -357,9 +361,7 @@ app.get('/api/v1/artists/me/analytics', authMiddleware, async (c) => {
     },
     bookings: {
       total: bookings.reduce((sum, b) => sum + b.count, 0),
-      byStatus: Object.fromEntries(
-        bookings.map(b => [b.status, b.count])
-      ),
+      byStatus: Object.fromEntries(bookings.map((b) => [b.status, b.count])),
     },
     followers: followers[0]?.count || 0,
     cachedAt: new Date().toISOString(),
@@ -370,7 +372,7 @@ app.get('/api/v1/artists/me/analytics', authMiddleware, async (c) => {
   await redis.setex(
     `analytics:artist:${userId}`,
     1800,
-    JSON.stringify(analytics)
+    JSON.stringify(analytics),
   );
 
   return c.json(analytics);

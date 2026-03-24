@@ -1,11 +1,11 @@
 # M2-T4 · Persona Onboarding + Role Switching Logic
 
-| Field | Value |
-|-------|-------|
-| **Milestone** | M2 — Authentication & Persona System |
-| **Status** | 🔲 To Do |
+| Field          | Value                                                                          |
+| -------------- | ------------------------------------------------------------------------------ |
+| **Milestone**  | M2 — Authentication & Persona System                                           |
+| **Status**     | 🔲 To Do                                                                       |
 | **Depends on** | M2-T1, M2-T2 (auth must work), M1-T2 (artist_profiles + venue_profiles tables) |
-| **PRD Ref** | Section 4.2 (Onboarding), Section 4.3 (Persona Switching) |
+| **PRD Ref**    | Section 4.2 (Onboarding), Section 4.3 (Persona Switching)                      |
 
 ---
 
@@ -19,11 +19,11 @@ There are three user personas: spectator (music fan), artist (performer), and ve
 
 ## Affected Apps / Packages
 
-| App / Package | Role |
-|---------------|------|
-| `apps/api` | Role update endpoint, profile creation/deactivation logic, `GET /users/me` |
-| `apps/mobile` | Onboarding screen (post-signup), role-specific sub-flows, Settings > Switch Account Type, FCM notification tap routing |
-| `packages/shared` | `UserRole` enum (`spectator \| artist \| venue`) |
+| App / Package     | Role                                                                                                                   |
+| ----------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `apps/api`        | Role update endpoint, profile creation/deactivation logic, `GET /users/me`                                             |
+| `apps/mobile`     | Onboarding screen (post-signup), role-specific sub-flows, Settings > Switch Account Type, FCM notification tap routing |
+| `packages/shared` | `UserRole` enum (`spectator \| artist \| venue`)                                                                       |
 
 ---
 
@@ -34,6 +34,7 @@ There are three user personas: spectator (music fan), artist (performer), and ve
 Called once after email verification (M2-T1) to select initial persona.
 
 **Request Body:**
+
 ```json
 {
   "persona": "artist"
@@ -41,6 +42,7 @@ Called once after email verification (M2-T1) to select initial persona.
 ```
 
 **Response (200 OK):**
+
 ```json
 {
   "success": true,
@@ -59,6 +61,7 @@ Called once after email verification (M2-T1) to select initial persona.
 Switch to a different persona at any time.
 
 **Request Body:**
+
 ```json
 {
   "role": "venue"
@@ -66,6 +69,7 @@ Switch to a different persona at any time.
 ```
 
 **Response (200 OK):**
+
 ```json
 {
   "success": true,
@@ -81,6 +85,7 @@ Switch to a different persona at any time.
 Return authenticated user with current role and active profile data.
 
 **Response (200 OK):**
+
 ```json
 {
   "success": true,
@@ -174,16 +179,19 @@ Return authenticated user with current role and active profile data.
 ## Dependencies
 
 ### Upstream
+
 - M2-T1 (Email/Password Auth — token issued before onboarding)
 - M2-T2 (Google/Apple OAuth — tokens issued before onboarding)
 - M1-T2 (Database schema with `artist_profiles` and `venue_profiles` tables)
 
 ### Downstream
+
 - M3+ (All feature development) — every feature gates access by `users.current_role`
 - M8 (Venue Subscription) — activation email sent from Venue onboarding
 - M7 (Push Notifications) — notification payload includes persona for auto-switching
 
 ### External services
+
 - Postmark API (for Venue activation email)
 - Firebase FCM (for persona in notification payload)
 
@@ -196,26 +204,26 @@ Return authenticated user with current role and active profile data.
 ```typescript
 // apps/api/src/routes/users.ts (POST /onboarding)
 
-import { Hono } from 'hono';
-import { zValidator } from '@hono/zod-validator';
-import { z } from 'zod';
-import { v4 as uuidv4 } from 'uuid';
-import { db } from '../lib/db';
-import { users, artistProfiles, venueProfiles } from '../schema';
-import { sendVenueActivationEmail } from '../services/emailService';
-import { authMiddleware } from '../middleware/auth';
+import { Hono } from "hono";
+import { zValidator } from "@hono/zod-validator";
+import { z } from "zod";
+import { v4 as uuidv4 } from "uuid";
+import { db } from "../lib/db";
+import { users, artistProfiles, venueProfiles } from "../schema";
+import { sendVenueActivationEmail } from "../services/emailService";
+import { authMiddleware } from "../middleware/auth";
 
 const onboardingSchema = z.object({
-  persona: z.enum(['spectator', 'artist', 'venue']),
+  persona: z.enum(["spectator", "artist", "venue"]),
 });
 
 app.post(
-  '/onboarding',
+  "/onboarding",
   authMiddleware,
-  zValidator('json', onboardingSchema),
+  zValidator("json", onboardingSchema),
   async (c) => {
-    const userId = c.get('userId');
-    const { persona } = c.req.valid('json');
+    const userId = c.get("userId");
+    const { persona } = c.req.valid("json");
 
     // Update user role
     const user = await db
@@ -225,18 +233,18 @@ app.post(
       .returning();
 
     // Create profile if needed
-    if (persona === 'artist') {
+    if (persona === "artist") {
       await db.insert(artistProfiles).values({
         id: uuidv4(),
         userId,
         isActive: true,
       });
-    } else if (persona === 'venue') {
+    } else if (persona === "venue") {
       await db.insert(venueProfiles).values({
         id: uuidv4(),
         userId,
         isActive: false,
-        subscriptionStatus: 'inactive',
+        subscriptionStatus: "inactive",
       });
 
       // Send activation email
@@ -247,11 +255,11 @@ app.post(
       {
         success: true,
         user: user[0],
-        message: 'Persona selected.',
+        message: "Persona selected.",
       },
-      200
+      200,
     );
-  }
+  },
 );
 ```
 
@@ -261,23 +269,23 @@ app.post(
 // apps/api/src/routes/users.ts (PATCH /role)
 
 const switchRoleSchema = z.object({
-  role: z.enum(['spectator', 'artist', 'venue']),
+  role: z.enum(["spectator", "artist", "venue"]),
 });
 
 app.patch(
-  '/role',
+  "/role",
   authMiddleware,
-  zValidator('json', switchRoleSchema),
+  zValidator("json", switchRoleSchema),
   async (c) => {
-    const userId = c.get('userId');
-    const { role } = c.req.valid('json');
+    const userId = c.get("userId");
+    const { role } = c.req.valid("json");
 
     const user = await db.query.users.findFirst({
       where: eq(users.id, userId),
     });
 
     if (!user) {
-      return c.json({ error: 'USER_NOT_FOUND' }, 404);
+      return c.json({ error: "USER_NOT_FOUND" }, 404);
     }
 
     // Update current role
@@ -288,7 +296,7 @@ app.patch(
       .returning();
 
     // Handle profile activation/deactivation
-    if (role === 'artist') {
+    if (role === "artist") {
       // Reactivate or create artist profile
       const artistProfile = await db.query.artistProfiles.findFirst({
         where: eq(artistProfiles.userId, userId),
@@ -312,7 +320,7 @@ app.patch(
         .update(venueProfiles)
         .set({ isActive: false })
         .where(eq(venueProfiles.userId, userId));
-    } else if (role === 'venue') {
+    } else if (role === "venue") {
       // Check if venue profile exists
       const venueProfile = await db.query.venueProfiles.findFirst({
         where: eq(venueProfiles.userId, userId),
@@ -324,7 +332,7 @@ app.patch(
           id: uuidv4(),
           userId,
           isActive: false,
-          subscriptionStatus: 'inactive',
+          subscriptionStatus: "inactive",
         });
         await sendVenueActivationEmail(user.email);
       } else if (!venueProfile.isActive) {
@@ -340,7 +348,7 @@ app.patch(
         .update(artistProfiles)
         .set({ isActive: false })
         .where(eq(artistProfiles.userId, userId));
-    } else if (role === 'spectator') {
+    } else if (role === "spectator") {
       // Deactivate all profiles
       await db
         .update(artistProfiles)
@@ -357,7 +365,7 @@ app.patch(
       success: true,
       user: updatedUser[0],
     });
-  }
+  },
 );
 ```
 
@@ -366,24 +374,24 @@ app.patch(
 ```typescript
 // apps/api/src/routes/users.ts (GET /me)
 
-app.get('/me', authMiddleware, async (c) => {
-  const userId = c.get('userId');
+app.get("/me", authMiddleware, async (c) => {
+  const userId = c.get("userId");
 
   const user = await db.query.users.findFirst({
     where: eq(users.id, userId),
   });
 
   if (!user) {
-    return c.json({ error: 'USER_NOT_FOUND' }, 404);
+    return c.json({ error: "USER_NOT_FOUND" }, 404);
   }
 
   // Fetch active profile
   let profile = null;
-  if (user.currentRole === 'artist') {
+  if (user.currentRole === "artist") {
     profile = await db.query.artistProfiles.findFirst({
       where: eq(artistProfiles.userId, userId),
     });
-  } else if (user.currentRole === 'venue') {
+  } else if (user.currentRole === "venue") {
     profile = await db.query.venueProfiles.findFirst({
       where: eq(venueProfiles.userId, userId),
     });

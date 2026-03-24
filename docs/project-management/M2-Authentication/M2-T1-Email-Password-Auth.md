@@ -1,11 +1,11 @@
 # M2-T1 · Email/Password Sign-Up + Email Verification
 
-| Field | Value |
-|-------|-------|
-| **Milestone** | M2 — Authentication & Persona System |
-| **Status** | 🔲 To Do |
+| Field          | Value                                                                               |
+| -------------- | ----------------------------------------------------------------------------------- |
+| **Milestone**  | M2 — Authentication & Persona System                                                |
+| **Status**     | 🔲 To Do                                                                            |
 | **Depends on** | M1-T1 (Turborepo), M1-T2 (DB schema), M1-T3 (API scaffold), M1-T4 (mobile scaffold) |
-| **PRD Ref** | Section 4.1 (Authentication) |
+| **PRD Ref**    | Section 4.1 (Authentication)                                                        |
 
 ---
 
@@ -17,11 +17,11 @@ Implement the base authentication method — email/password sign-up, email verif
 
 ## Affected Apps / Packages
 
-| App / Package | Role |
-|---------------|------|
-| `apps/api` | BetterAuth configuration, sign-up/sign-in/logout endpoints, email verification logic, password hashing |
-| `apps/mobile` | Sign Up screen, Sign In screen, email confirmation screen, session persistence via AuthContext |
-| `packages/shared` | Shared error codes and response types |
+| App / Package     | Role                                                                                                   |
+| ----------------- | ------------------------------------------------------------------------------------------------------ |
+| `apps/api`        | BetterAuth configuration, sign-up/sign-in/logout endpoints, email verification logic, password hashing |
+| `apps/mobile`     | Sign Up screen, Sign In screen, email confirmation screen, session persistence via AuthContext         |
+| `packages/shared` | Shared error codes and response types                                                                  |
 
 ---
 
@@ -32,6 +32,7 @@ Implement the base authentication method — email/password sign-up, email verif
 Create user account with email and password.
 
 **Request Body:**
+
 ```json
 {
   "email": "user@example.com",
@@ -41,6 +42,7 @@ Create user account with email and password.
 ```
 
 **Response (201 Created):**
+
 ```json
 {
   "success": true,
@@ -56,6 +58,7 @@ Create user account with email and password.
 ```
 
 **Error Responses:**
+
 - `400 Bad Request` — Missing required fields or invalid email format
 - `409 Conflict` — Email already registered
 - `422 Unprocessable Entity` — Password does not meet strength requirements
@@ -65,6 +68,7 @@ Create user account with email and password.
 Mark user as verified using token from email link.
 
 **Response (200 OK):**
+
 ```json
 {
   "success": true,
@@ -73,6 +77,7 @@ Mark user as verified using token from email link.
 ```
 
 **Error Responses:**
+
 - `400 Bad Request` — Token missing or invalid
 - `410 Gone` — Token expired (24 hour window)
 - `404 Not Found` — User not found
@@ -82,6 +87,7 @@ Mark user as verified using token from email link.
 Authenticate user with email and password. Returns BetterAuth session token.
 
 **Request Body:**
+
 ```json
 {
   "email": "user@example.com",
@@ -90,6 +96,7 @@ Authenticate user with email and password. Returns BetterAuth session token.
 ```
 
 **Response (200 OK):**
+
 ```json
 {
   "success": true,
@@ -108,6 +115,7 @@ Authenticate user with email and password. Returns BetterAuth session token.
 ```
 
 **Error Responses:**
+
 - `400 Bad Request` — Missing email or password
 - `401 Unauthorized` — Invalid credentials
 - `403 Forbidden` — Email not verified (include link to resend verification)
@@ -117,6 +125,7 @@ Authenticate user with email and password. Returns BetterAuth session token.
 Resend verification email to a user's email address.
 
 **Request Body:**
+
 ```json
 {
   "email": "user@example.com"
@@ -124,6 +133,7 @@ Resend verification email to a user's email address.
 ```
 
 **Response (200 OK):**
+
 ```json
 {
   "success": true,
@@ -136,6 +146,7 @@ Resend verification email to a user's email address.
 Terminate user session and invalidate token.
 
 **Response (200 OK):**
+
 ```json
 {
   "success": true,
@@ -241,18 +252,21 @@ Terminate user session and invalidate token.
 ## Dependencies
 
 ### Upstream
+
 - M1-T1 (Turborepo configuration)
 - M1-T2 (Drizzle schema with `users` and `email_verification_tokens` tables)
 - M1-T3 (Hono API scaffold with routes and middleware)
 - M1-T4 (Mobile app scaffold with AuthContext and SecureStore)
 
 ### Downstream
+
 - M2-T2 (Google/Apple OAuth) — builds on BetterAuth session
 - M2-T3 (Forgot Password) — reuses token generation pattern
 - M2-T4 (Onboarding/Persona Selection) — activated after email verification
 - All M3+ features — require authenticated user
 
 ### External services
+
 - Postmark API (for transactional email)
 - BetterAuth (hosted or self-managed)
 - PostgreSQL / Neon (for session and token storage)
@@ -266,14 +280,14 @@ Terminate user session and invalidate token.
 ```typescript
 // apps/api/src/lib/auth.ts
 
-import { betterAuth } from 'better-auth';
-import { postmark } from 'better-auth/providers';
-import { drizzleAdapter } from 'better-auth/adapters/drizzle';
-import { db } from './db';
+import { betterAuth } from "better-auth";
+import { postmark } from "better-auth/providers";
+import { drizzleAdapter } from "better-auth/adapters/drizzle";
+import { db } from "./db";
 
 export const auth = betterAuth({
   database: drizzleAdapter(db, {
-    provider: 'pg',
+    provider: "pg",
   }),
   emailAndPassword: {
     enabled: true,
@@ -299,14 +313,14 @@ export const auth = betterAuth({
 ```typescript
 // apps/api/src/routes/auth.ts (sign-up)
 
-import { Hono } from 'hono';
-import { zValidator } from '@hono/zod-validator';
-import { z } from 'zod';
-import * as bcrypt from 'bcryptjs';
-import { v4 as uuidv4 } from 'uuid';
-import { db } from '../lib/db';
-import { users, emailVerificationTokens } from '../schema';
-import { sendVerificationEmail } from '../services/emailService';
+import { Hono } from "hono";
+import { zValidator } from "@hono/zod-validator";
+import { z } from "zod";
+import * as bcrypt from "bcryptjs";
+import { v4 as uuidv4 } from "uuid";
+import { db } from "../lib/db";
+import { users, emailVerificationTokens } from "../schema";
+import { sendVerificationEmail } from "../services/emailService";
 
 const signUpSchema = z.object({
   name: z.string().min(2).max(100),
@@ -314,16 +328,16 @@ const signUpSchema = z.object({
   password: z
     .string()
     .min(8)
-    .regex(/[A-Z]/, 'Must contain uppercase letter')
-    .regex(/[a-z]/, 'Must contain lowercase letter')
-    .regex(/[0-9]/, 'Must contain number')
-    .regex(/[!@#$%^&*]/, 'Must contain special character'),
+    .regex(/[A-Z]/, "Must contain uppercase letter")
+    .regex(/[a-z]/, "Must contain lowercase letter")
+    .regex(/[0-9]/, "Must contain number")
+    .regex(/[!@#$%^&*]/, "Must contain special character"),
 });
 
 const app = new Hono();
 
-app.post('/sign-up', zValidator('json', signUpSchema), async (c) => {
-  const { name, email, password } = c.req.valid('json');
+app.post("/sign-up", zValidator("json", signUpSchema), async (c) => {
+  const { name, email, password } = c.req.valid("json");
   const emailLower = email.toLowerCase();
 
   // Check for duplicate email
@@ -332,8 +346,8 @@ app.post('/sign-up', zValidator('json', signUpSchema), async (c) => {
   });
   if (existing) {
     return c.json(
-      { error: 'EMAIL_ALREADY_EXISTS', message: 'Email already registered' },
-      409
+      { error: "EMAIL_ALREADY_EXISTS", message: "Email already registered" },
+      409,
     );
   }
 
@@ -350,7 +364,7 @@ app.post('/sign-up', zValidator('json', signUpSchema), async (c) => {
       name,
       passwordHash,
       emailVerified: false,
-      currentRole: 'spectator',
+      currentRole: "spectator",
     })
     .returning();
 
@@ -377,9 +391,9 @@ app.post('/sign-up', zValidator('json', signUpSchema), async (c) => {
         emailVerified: user[0].emailVerified,
         createdAt: user[0].createdAt,
       },
-      message: 'Account created. Check your email to verify.',
+      message: "Account created. Check your email to verify.",
     },
-    201
+    201,
   );
 });
 ```
@@ -389,14 +403,11 @@ app.post('/sign-up', zValidator('json', signUpSchema), async (c) => {
 ```typescript
 // apps/api/src/routes/auth.ts (verify-email)
 
-app.get('/verify-email', async (c) => {
-  const token = c.req.query('token');
+app.get("/verify-email", async (c) => {
+  const token = c.req.query("token");
 
   if (!token) {
-    return c.json(
-      { error: 'INVALID_TOKEN', message: 'Token required' },
-      400
-    );
+    return c.json({ error: "INVALID_TOKEN", message: "Token required" }, 400);
   }
 
   // Find token
@@ -406,16 +417,16 @@ app.get('/verify-email', async (c) => {
 
   if (!verificationToken) {
     return c.json(
-      { error: 'INVALID_TOKEN', message: 'Invalid verification token' },
-      400
+      { error: "INVALID_TOKEN", message: "Invalid verification token" },
+      400,
     );
   }
 
   // Check expiry
   if (verificationToken.expiresAt < new Date()) {
     return c.json(
-      { error: 'TOKEN_EXPIRED', message: 'Verification token expired' },
-      410
+      { error: "TOKEN_EXPIRED", message: "Verification token expired" },
+      410,
     );
   }
 
@@ -432,7 +443,7 @@ app.get('/verify-email', async (c) => {
 
   return c.json({
     success: true,
-    message: 'Email verified. You can now sign in.',
+    message: "Email verified. You can now sign in.",
   });
 });
 ```
@@ -447,8 +458,8 @@ const signInSchema = z.object({
   password: z.string(),
 });
 
-app.post('/sign-in', zValidator('json', signInSchema), async (c) => {
-  const { email, password } = c.req.valid('json');
+app.post("/sign-in", zValidator("json", signInSchema), async (c) => {
+  const { email, password } = c.req.valid("json");
   const emailLower = email.toLowerCase();
 
   // Find user
@@ -458,8 +469,8 @@ app.post('/sign-in', zValidator('json', signInSchema), async (c) => {
 
   if (!user) {
     return c.json(
-      { error: 'INVALID_CREDENTIALS', message: 'Invalid email or password' },
-      401
+      { error: "INVALID_CREDENTIALS", message: "Invalid email or password" },
+      401,
     );
   }
 
@@ -467,11 +478,11 @@ app.post('/sign-in', zValidator('json', signInSchema), async (c) => {
   if (!user.emailVerified) {
     return c.json(
       {
-        error: 'EMAIL_NOT_VERIFIED',
-        message: 'Please verify your email before signing in',
-        code: 'EMAIL_NOT_VERIFIED',
+        error: "EMAIL_NOT_VERIFIED",
+        message: "Please verify your email before signing in",
+        code: "EMAIL_NOT_VERIFIED",
       },
-      403
+      403,
     );
   }
 
@@ -479,8 +490,8 @@ app.post('/sign-in', zValidator('json', signInSchema), async (c) => {
   const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
   if (!isPasswordValid) {
     return c.json(
-      { error: 'INVALID_CREDENTIALS', message: 'Invalid email or password' },
-      401
+      { error: "INVALID_CREDENTIALS", message: "Invalid email or password" },
+      401,
     );
   }
 

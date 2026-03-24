@@ -1,11 +1,11 @@
 # M3-T3 · Pin Clustering + Search on Map
 
-| Field | Value |
-|-------|-------|
-| **Milestone** | M3 — Map & Discovery |
-| **Status** | 🔲 To Do |
+| Field          | Value                                                                                                |
+| -------------- | ---------------------------------------------------------------------------------------------------- |
+| **Milestone**  | M3 — Map & Discovery                                                                                 |
+| **Status**     | 🔲 To Do                                                                                             |
 | **Depends on** | M3-T1 (map viewport query), M1-T3 (API scaffold), M1-T4 (mobile scaffold), M4-T1 (events must exist) |
-| **PRD Ref** | Section 9.2.1 (Map Clustering), Section 9.2.2 (Search Functionality) |
+| **PRD Ref**    | Section 9.2.1 (Map Clustering), Section 9.2.2 (Search Functionality)                                 |
 
 ---
 
@@ -30,6 +30,7 @@ Two overlapping features on the Map screen. First, **pin clustering**: when the 
 Search events by text (county, city, artist name, category) with optional spatial filtering.
 
 **Query Parameters:**
+
 ```json
 {
   "query": "dublin",
@@ -43,6 +44,7 @@ Search events by text (county, city, artist name, category) with optional spatia
 ```
 
 **Response (200 OK):**
+
 ```json
 {
   "events": [
@@ -65,6 +67,7 @@ Search events by text (county, city, artist name, category) with optional spatia
 ```
 
 **Error Responses:**
+
 - `400` — Invalid query or type `{ "error": "query and type are required" }`
 - `401` — Unauthorized `{ "error": "Authentication required" }`
 - `500` — Search error `{ "error": "Failed to search events" }`
@@ -74,6 +77,7 @@ Search events by text (county, city, artist name, category) with optional spatia
 ## Requirements
 
 ### Pin Clustering
+
 - **Built-in clustering** via `react-native-maps` automatic clustering
 - Pins within ~40 pixels of each other (at the current zoom level) merge into a single cluster badge
 - Cluster badge displays a count (e.g., "8", "25")
@@ -82,6 +86,7 @@ Search events by text (county, city, artist name, category) with optional spatia
 - Clustering is **on by default** and cannot be disabled by the user
 
 ### Search Functionality
+
 - Search bar renders at the top of the Map screen, below the map title
 - Placeholder text: "Search by county, city, artist, or event..."
 - On text input, suggest search types: "Search for Dublin (county)", "Search for Padraig O'Brien (artist)", etc. (optional autocomplete)
@@ -92,6 +97,7 @@ Search events by text (county, city, artist name, category) with optional spatia
 - Search is **always available** and does not depend on location permission
 
 ### Search Types
+
 - **County**: Filter events in the specified Irish county (e.g., "Cork", "Galway")
 - **City**: Filter events in the specified city (e.g., "Dublin", "Limerick")
 - **Artist**: Filter events created by or collaborating with an artist whose name matches (case-insensitive partial match)
@@ -99,6 +105,7 @@ Search events by text (county, city, artist name, category) with optional spatia
 - If user enters ambiguous text, the app **doesn't auto-select** a type — the search bar shows suggestions for each type
 
 ### Search Results Display
+
 - Results render as pins on the map at the same coordinates as the viewport query (M3-T1)
 - Up to 50 search results per query (same limit as viewport query)
 - Results sorted by recency (newest events first)
@@ -106,6 +113,7 @@ Search events by text (county, city, artist name, category) with optional spatia
 - User can clear search by tapping an X button in the search bar or dismissing the keyboard
 
 ### Gig Opportunity Visibility
+
 - Gig opportunity events (`is_gig_opportunity: true`) are visible to Artist persona in search results
 - Gig opportunity events are **hidden from Spectator persona** in search results and on the map
 - Gig opportunity events are **hidden from Venue persona** (they don't apply for gigs, they create them)
@@ -134,14 +142,17 @@ Search events by text (county, city, artist name, category) with optional spatia
 ## Dependencies
 
 ### Upstream
+
 - **M3-T1** — Map viewport query and pin rendering infrastructure
 - **M1-T3** — API scaffold with search endpoint
 - **M4-T1** — Events created by users; search queries events from the events table
 
 ### Downstream
+
 - **M3-T4** — Feed view uses similar search/filter logic; results should be consistent between Map and Feed
 
 ### External Services
+
 - **react-native-maps** — Native clustering implementation
 
 ---
@@ -205,12 +216,12 @@ import ClusteredMapView from 'react-native-maps-clustering';
 ```typescript
 // apps/mobile/src/hooks/useEventSearch.ts
 
-import { useState, useCallback } from 'react';
-import { api } from '../services/api';
+import { useState, useCallback } from "react";
+import { api } from "../services/api";
 
 interface SearchQuery {
   query: string;
-  type: 'county' | 'city' | 'artist' | 'category';
+  type: "county" | "city" | "artist" | "category";
   swLat?: number;
   swLng?: number;
   neLat?: number;
@@ -221,28 +232,25 @@ export const useEventSearch = () => {
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  const search = useCallback(
-    async (searchQuery: SearchQuery) => {
-      if (!searchQuery.query.trim()) {
-        setResults([]);
-        return;
-      }
+  const search = useCallback(async (searchQuery: SearchQuery) => {
+    if (!searchQuery.query.trim()) {
+      setResults([]);
+      return;
+    }
 
-      setLoading(true);
-      try {
-        const response = await api.get('/events/search', {
-          params: searchQuery,
-        });
-        setResults(response.data.events);
-      } catch (error) {
-        console.error('Search failed:', error);
-        setResults([]);
-      } finally {
-        setLoading(false);
-      }
-    },
-    []
-  );
+    setLoading(true);
+    try {
+      const response = await api.get("/events/search", {
+        params: searchQuery,
+      });
+      setResults(response.data.events);
+    } catch (error) {
+      console.error("Search failed:", error);
+      setResults([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   return { results, loading, search };
 };
@@ -372,31 +380,28 @@ const styles = StyleSheet.create({
 ```typescript
 // apps/api/src/routes/events.ts
 
-import { Hono } from 'hono';
-import { db } from '../db';
-import { events } from '@ceolx/shared/schema';
-import { ilike, sql } from 'drizzle-orm';
+import { Hono } from "hono";
+import { db } from "../db";
+import { events } from "@ceolx/shared/schema";
+import { ilike, sql } from "drizzle-orm";
 
 const app = new Hono();
 
-app.get('/search', async (c) => {
-  const query = c.req.query('query');
-  const type = c.req.query('type') as
-    | 'county'
-    | 'city'
-    | 'artist'
-    | 'category'
+app.get("/search", async (c) => {
+  const query = c.req.query("query");
+  const type = c.req.query("type") as
+    | "county"
+    | "city"
+    | "artist"
+    | "category"
     | undefined;
-  const swLat = c.req.query('swLat');
-  const swLng = c.req.query('swLng');
-  const neLat = c.req.query('neLat');
-  const neLng = c.req.query('neLng');
+  const swLat = c.req.query("swLat");
+  const swLng = c.req.query("swLng");
+  const neLat = c.req.query("neLat");
+  const neLng = c.req.query("neLng");
 
   if (!query || !type) {
-    return c.json(
-      { error: 'query and type are required' },
-      400
-    );
+    return c.json({ error: "query and type are required" }, 400);
   }
 
   try {
@@ -406,24 +411,18 @@ app.get('/search', async (c) => {
     ];
 
     // Add type-specific filter
-    if (type === 'county' || type === 'city') {
-      whereConditions.push(
-        ilike(events.venue_address, `%${query}%`)
-      );
-    } else if (type === 'artist') {
-      whereConditions.push(
-        ilike(events.created_by, `%${query}%`)
-      );
-    } else if (type === 'category') {
-      whereConditions.push(
-        ilike(events.category, `%${query}%`)
-      );
+    if (type === "county" || type === "city") {
+      whereConditions.push(ilike(events.venue_address, `%${query}%`));
+    } else if (type === "artist") {
+      whereConditions.push(ilike(events.created_by, `%${query}%`));
+    } else if (type === "category") {
+      whereConditions.push(ilike(events.category, `%${query}%`));
     }
 
     // Add spatial bounds if provided
     if (swLat && swLng && neLat && neLng) {
       whereConditions.push(
-        sql`${events.lat} BETWEEN ${swLat} AND ${neLat} AND ${events.lng} BETWEEN ${swLng} AND ${neLng}`
+        sql`${events.lat} BETWEEN ${swLat} AND ${neLat} AND ${events.lng} BETWEEN ${swLng} AND ${neLng}`,
       );
     }
 
@@ -433,7 +432,7 @@ app.get('/search', async (c) => {
     const results = await db
       .select()
       .from(events)
-      .where(sql`${whereConditions.join(' AND ')}`)
+      .where(sql`${whereConditions.join(" AND ")}`)
       .orderBy(sql`${events.date_start} DESC`)
       .limit(50);
 
@@ -443,8 +442,8 @@ app.get('/search', async (c) => {
       searchType: type,
     });
   } catch (error) {
-    console.error('Search error:', error);
-    return c.json({ error: 'Failed to search events' }, 500);
+    console.error("Search error:", error);
+    return c.json({ error: "Failed to search events" }, 500);
   }
 });
 ```

@@ -1,1207 +1,1702 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>CeolX — Product Flow Diagrams</title>
-<style>
-  :root {
-    --green:       #1A7A4A;
-    --green-light: #E8F5EE;
-    --green-mid:   #C6E6D4;
-    --green-dark:  #0F5233;
-    --grey-dark:   #2D2D2D;
-    --grey-mid:    #555555;
-    --grey-light:  #F5F5F5;
-    --white:       #FFFFFF;
-    --blue:        #1E5FAD;
-    --blue-light:  #E8F0FA;
-    --orange:      #D4600A;
-    --orange-light:#FDF0E6;
-    --purple:      #6B3FA0;
-    --purple-light:#F0EAF8;
-    --red:         #C0392B;
-    --red-light:   #FDECEA;
-  }
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CeolX — Product Flow Diagrams</title>
+    <style>
+      :root {
+        --green: #1a7a4a;
+        --green-light: #e8f5ee;
+        --green-mid: #c6e6d4;
+        --green-dark: #0f5233;
+        --grey-dark: #2d2d2d;
+        --grey-mid: #555555;
+        --grey-light: #f5f5f5;
+        --white: #ffffff;
+        --blue: #1e5fad;
+        --blue-light: #e8f0fa;
+        --orange: #d4600a;
+        --orange-light: #fdf0e6;
+        --purple: #6b3fa0;
+        --purple-light: #f0eaf8;
+        --red: #c0392b;
+        --red-light: #fdecea;
+      }
 
-  * { box-sizing: border-box; margin: 0; padding: 0; }
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
 
-  body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
-    background: #F0F4F2;
-    color: var(--grey-dark);
-  }
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+        background: #f0f4f2;
+        color: var(--grey-dark);
+      }
 
-  /* ── Header ── */
-  .page-header {
-    background: var(--green);
-    color: white;
-    padding: 32px 48px;
-    display: flex;
-    align-items: center;
-    gap: 20px;
-  }
-  .page-header .logo {
-    font-size: 36px;
-    font-weight: 800;
-    letter-spacing: -1px;
-  }
-  .page-header .subtitle {
-    font-size: 16px;
-    opacity: 0.85;
-    margin-top: 4px;
-  }
-  .page-header .badge {
-    margin-left: auto;
-    background: rgba(255,255,255,0.2);
-    border-radius: 20px;
-    padding: 6px 16px;
-    font-size: 13px;
-    font-weight: 600;
-  }
+      /* ── Header ── */
+      .page-header {
+        background: var(--green);
+        color: white;
+        padding: 32px 48px;
+        display: flex;
+        align-items: center;
+        gap: 20px;
+      }
+      .page-header .logo {
+        font-size: 36px;
+        font-weight: 800;
+        letter-spacing: -1px;
+      }
+      .page-header .subtitle {
+        font-size: 16px;
+        opacity: 0.85;
+        margin-top: 4px;
+      }
+      .page-header .badge {
+        margin-left: auto;
+        background: rgba(255, 255, 255, 0.2);
+        border-radius: 20px;
+        padding: 6px 16px;
+        font-size: 13px;
+        font-weight: 600;
+      }
 
-  /* ── Nav ── */
-  .nav {
-    background: var(--green-dark);
-    display: flex;
-    gap: 0;
-    overflow-x: auto;
-    scrollbar-width: none;
-  }
-  .nav::-webkit-scrollbar { display: none; }
-  .nav button {
-    background: none;
-    border: none;
-    color: rgba(255,255,255,0.7);
-    padding: 14px 22px;
-    font-size: 13px;
-    font-weight: 600;
-    cursor: pointer;
-    white-space: nowrap;
-    border-bottom: 3px solid transparent;
-    transition: all 0.2s;
-  }
-  .nav button:hover { color: white; }
-  .nav button.active {
-    color: white;
-    border-bottom-color: #4FD890;
-    background: rgba(255,255,255,0.08);
-  }
+      /* ── Nav ── */
+      .nav {
+        background: var(--green-dark);
+        display: flex;
+        gap: 0;
+        overflow-x: auto;
+        scrollbar-width: none;
+      }
+      .nav::-webkit-scrollbar {
+        display: none;
+      }
+      .nav button {
+        background: none;
+        border: none;
+        color: rgba(255, 255, 255, 0.7);
+        padding: 14px 22px;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        white-space: nowrap;
+        border-bottom: 3px solid transparent;
+        transition: all 0.2s;
+      }
+      .nav button:hover {
+        color: white;
+      }
+      .nav button.active {
+        color: white;
+        border-bottom-color: #4fd890;
+        background: rgba(255, 255, 255, 0.08);
+      }
 
-  /* ── Layout ── */
-  .content {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 40px 32px;
-  }
+      /* ── Layout ── */
+      .content {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 40px 32px;
+      }
 
-  .section { display: none; }
-  .section.active { display: block; }
+      .section {
+        display: none;
+      }
+      .section.active {
+        display: block;
+      }
 
-  .section-title {
-    font-size: 22px;
-    font-weight: 700;
-    color: var(--green);
-    margin-bottom: 6px;
-  }
-  .section-desc {
-    font-size: 14px;
-    color: var(--grey-mid);
-    margin-bottom: 32px;
-    line-height: 1.6;
-  }
+      .section-title {
+        font-size: 22px;
+        font-weight: 700;
+        color: var(--green);
+        margin-bottom: 6px;
+      }
+      .section-desc {
+        font-size: 14px;
+        color: var(--grey-mid);
+        margin-bottom: 32px;
+        line-height: 1.6;
+      }
 
-  /* ── Flow Diagram Components ── */
-  .flow-container {
-    background: white;
-    border-radius: 12px;
-    padding: 32px;
-    box-shadow: 0 2px 12px rgba(0,0,0,0.07);
-    margin-bottom: 32px;
-    overflow-x: auto;
-  }
-  .flow-title {
-    font-size: 15px;
-    font-weight: 700;
-    color: var(--grey-dark);
-    margin-bottom: 24px;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-  }
-  .flow-title .dot {
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    background: var(--green);
-  }
+      /* ── Flow Diagram Components ── */
+      .flow-container {
+        background: white;
+        border-radius: 12px;
+        padding: 32px;
+        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.07);
+        margin-bottom: 32px;
+        overflow-x: auto;
+      }
+      .flow-title {
+        font-size: 15px;
+        font-weight: 700;
+        color: var(--grey-dark);
+        margin-bottom: 24px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .flow-title .dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: var(--green);
+      }
 
-  /* ── Node Styles ── */
-  .flow {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 0;
-  }
-  .flow-row {
-    display: flex;
-    align-items: center;
-    gap: 0;
-    flex-wrap: nowrap;
-  }
-  .flow-col {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 0;
-  }
+      /* ── Node Styles ── */
+      .flow {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0;
+      }
+      .flow-row {
+        display: flex;
+        align-items: center;
+        gap: 0;
+        flex-wrap: nowrap;
+      }
+      .flow-col {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0;
+      }
 
-  .node {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
-    font-size: 12px;
-    font-weight: 600;
-    line-height: 1.35;
-    padding: 10px 14px;
-    border-radius: 8px;
-    min-width: 120px;
-    max-width: 160px;
-  }
-  .node.start {
-    background: var(--green);
-    color: white;
-    border-radius: 24px;
-    min-width: 100px;
-  }
-  .node.end {
-    background: var(--green-dark);
-    color: white;
-    border-radius: 24px;
-    min-width: 100px;
-  }
-  .node.action {
-    background: var(--blue-light);
-    color: var(--blue);
-    border: 1.5px solid #B8CFF0;
-  }
-  .node.decision {
-    background: var(--orange-light);
-    color: var(--orange);
-    border: 1.5px solid #F0C090;
-    border-radius: 4px;
-    transform: none;
-    padding: 10px 14px;
-  }
-  .node.system {
-    background: var(--green-light);
-    color: var(--green);
-    border: 1.5px solid var(--green-mid);
-  }
-  .node.external {
-    background: var(--purple-light);
-    color: var(--purple);
-    border: 1.5px dashed #C0A0E0;
-  }
-  .node.error {
-    background: var(--red-light);
-    color: var(--red);
-    border: 1.5px solid #F0B0A8;
-  }
-  .node.persona-user   { background: #E3F2FD; color: #1565C0; border: 1.5px solid #BBDEFB; }
-  .node.persona-artist { background: #F3E5F5; color: #6A1B9A; border: 1.5px solid #E1BEE7; }
-  .node.persona-venue  { background: #FFF3E0; color: #E65100; border: 1.5px solid #FFE0B2; }
-  .node.persona-admin  { background: #FCE4EC; color: #880E4F; border: 1.5px solid #F8BBD0; }
+      .node {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        font-size: 12px;
+        font-weight: 600;
+        line-height: 1.35;
+        padding: 10px 14px;
+        border-radius: 8px;
+        min-width: 120px;
+        max-width: 160px;
+      }
+      .node.start {
+        background: var(--green);
+        color: white;
+        border-radius: 24px;
+        min-width: 100px;
+      }
+      .node.end {
+        background: var(--green-dark);
+        color: white;
+        border-radius: 24px;
+        min-width: 100px;
+      }
+      .node.action {
+        background: var(--blue-light);
+        color: var(--blue);
+        border: 1.5px solid #b8cff0;
+      }
+      .node.decision {
+        background: var(--orange-light);
+        color: var(--orange);
+        border: 1.5px solid #f0c090;
+        border-radius: 4px;
+        transform: none;
+        padding: 10px 14px;
+      }
+      .node.system {
+        background: var(--green-light);
+        color: var(--green);
+        border: 1.5px solid var(--green-mid);
+      }
+      .node.external {
+        background: var(--purple-light);
+        color: var(--purple);
+        border: 1.5px dashed #c0a0e0;
+      }
+      .node.error {
+        background: var(--red-light);
+        color: var(--red);
+        border: 1.5px solid #f0b0a8;
+      }
+      .node.persona-user {
+        background: #e3f2fd;
+        color: #1565c0;
+        border: 1.5px solid #bbdefb;
+      }
+      .node.persona-artist {
+        background: #f3e5f5;
+        color: #6a1b9a;
+        border: 1.5px solid #e1bee7;
+      }
+      .node.persona-venue {
+        background: #fff3e0;
+        color: #e65100;
+        border: 1.5px solid #ffe0b2;
+      }
+      .node.persona-admin {
+        background: #fce4ec;
+        color: #880e4f;
+        border: 1.5px solid #f8bbd0;
+      }
 
-  /* ── Arrows ── */
-  .arrow-down {
-    width: 2px;
-    background: #CCC;
-    height: 28px;
-    position: relative;
-    margin: 0 auto;
-  }
-  .arrow-down::after {
-    content: '';
-    position: absolute;
-    bottom: -6px;
-    left: -4px;
-    border-left: 5px solid transparent;
-    border-right: 5px solid transparent;
-    border-top: 7px solid #CCC;
-  }
-  .arrow-right {
-    width: 28px;
-    height: 2px;
-    background: #CCC;
-    position: relative;
-  }
-  .arrow-right::after {
-    content: '';
-    position: absolute;
-    right: -6px;
-    top: -4px;
-    border-top: 5px solid transparent;
-    border-bottom: 5px solid transparent;
-    border-left: 7px solid #CCC;
-  }
-  .arrow-label {
-    font-size: 10px;
-    color: var(--grey-mid);
-    font-weight: 600;
-    text-align: center;
-    white-space: nowrap;
-    margin: 2px 0;
-  }
+      /* ── Arrows ── */
+      .arrow-down {
+        width: 2px;
+        background: #ccc;
+        height: 28px;
+        position: relative;
+        margin: 0 auto;
+      }
+      .arrow-down::after {
+        content: "";
+        position: absolute;
+        bottom: -6px;
+        left: -4px;
+        border-left: 5px solid transparent;
+        border-right: 5px solid transparent;
+        border-top: 7px solid #ccc;
+      }
+      .arrow-right {
+        width: 28px;
+        height: 2px;
+        background: #ccc;
+        position: relative;
+      }
+      .arrow-right::after {
+        content: "";
+        position: absolute;
+        right: -6px;
+        top: -4px;
+        border-top: 5px solid transparent;
+        border-bottom: 5px solid transparent;
+        border-left: 7px solid #ccc;
+      }
+      .arrow-label {
+        font-size: 10px;
+        color: var(--grey-mid);
+        font-weight: 600;
+        text-align: center;
+        white-space: nowrap;
+        margin: 2px 0;
+      }
 
-  /* ── State Machine ── */
-  .state-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-    gap: 16px;
-    margin-top: 8px;
-  }
-  .state-card {
-    border-radius: 10px;
-    padding: 16px;
-    border: 2px solid transparent;
-  }
-  .state-card .state-name {
-    font-size: 13px;
-    font-weight: 700;
-    margin-bottom: 8px;
-  }
-  .state-card .state-desc {
-    font-size: 11px;
-    line-height: 1.5;
-    color: var(--grey-mid);
-  }
-  .state-card .state-trigger {
-    font-size: 10px;
-    font-weight: 700;
-    margin-top: 8px;
-    padding: 3px 8px;
-    border-radius: 10px;
-    display: inline-block;
-  }
-  .state-pending  { background: #FFF8E1; border-color: #FFE082; }
-  .state-pending .state-name  { color: #F57F17; }
-  .state-pending .state-trigger { background: #FFE082; color: #F57F17; }
-  .state-accepted { background: var(--green-light); border-color: var(--green-mid); }
-  .state-accepted .state-name  { color: var(--green); }
-  .state-accepted .state-trigger { background: var(--green-mid); color: var(--green); }
-  .state-rejected { background: var(--red-light); border-color: #FFCDD2; }
-  .state-rejected .state-name  { color: var(--red); }
-  .state-rejected .state-trigger { background: #FFCDD2; color: var(--red); }
-  .state-cancelled { background: #ECEFF1; border-color: #CFD8DC; }
-  .state-cancelled .state-name  { color: #546E7A; }
-  .state-cancelled .state-trigger { background: #CFD8DC; color: #546E7A; }
+      /* ── State Machine ── */
+      .state-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 16px;
+        margin-top: 8px;
+      }
+      .state-card {
+        border-radius: 10px;
+        padding: 16px;
+        border: 2px solid transparent;
+      }
+      .state-card .state-name {
+        font-size: 13px;
+        font-weight: 700;
+        margin-bottom: 8px;
+      }
+      .state-card .state-desc {
+        font-size: 11px;
+        line-height: 1.5;
+        color: var(--grey-mid);
+      }
+      .state-card .state-trigger {
+        font-size: 10px;
+        font-weight: 700;
+        margin-top: 8px;
+        padding: 3px 8px;
+        border-radius: 10px;
+        display: inline-block;
+      }
+      .state-pending {
+        background: #fff8e1;
+        border-color: #ffe082;
+      }
+      .state-pending .state-name {
+        color: #f57f17;
+      }
+      .state-pending .state-trigger {
+        background: #ffe082;
+        color: #f57f17;
+      }
+      .state-accepted {
+        background: var(--green-light);
+        border-color: var(--green-mid);
+      }
+      .state-accepted .state-name {
+        color: var(--green);
+      }
+      .state-accepted .state-trigger {
+        background: var(--green-mid);
+        color: var(--green);
+      }
+      .state-rejected {
+        background: var(--red-light);
+        border-color: #ffcdd2;
+      }
+      .state-rejected .state-name {
+        color: var(--red);
+      }
+      .state-rejected .state-trigger {
+        background: #ffcdd2;
+        color: var(--red);
+      }
+      .state-cancelled {
+        background: #eceff1;
+        border-color: #cfd8dc;
+      }
+      .state-cancelled .state-name {
+        color: #546e7a;
+      }
+      .state-cancelled .state-trigger {
+        background: #cfd8dc;
+        color: #546e7a;
+      }
 
-  /* ── Swimlane ── */
-  .swimlane-wrapper {
-    display: grid;
-    gap: 0;
-    border-radius: 10px;
-    overflow: hidden;
-    border: 1.5px solid #E0E0E0;
-  }
-  .swimlane-row {
-    display: grid;
-    align-items: stretch;
-  }
-  .lane-header {
-    padding: 10px 16px;
-    font-size: 12px;
-    font-weight: 700;
-    text-align: center;
-    color: white;
-  }
-  .lane-cell {
-    padding: 12px;
-    border-right: 1px solid #E0E0E0;
-    border-bottom: 1px solid #E0E0E0;
-    background: white;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    min-height: 80px;
-  }
-  .lane-cell:last-child { border-right: none; }
+      /* ── Swimlane ── */
+      .swimlane-wrapper {
+        display: grid;
+        gap: 0;
+        border-radius: 10px;
+        overflow: hidden;
+        border: 1.5px solid #e0e0e0;
+      }
+      .swimlane-row {
+        display: grid;
+        align-items: stretch;
+      }
+      .lane-header {
+        padding: 10px 16px;
+        font-size: 12px;
+        font-weight: 700;
+        text-align: center;
+        color: white;
+      }
+      .lane-cell {
+        padding: 12px;
+        border-right: 1px solid #e0e0e0;
+        border-bottom: 1px solid #e0e0e0;
+        background: white;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        min-height: 80px;
+      }
+      .lane-cell:last-child {
+        border-right: none;
+      }
 
-  /* ── Legend ── */
-  .legend {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 12px;
-    margin-bottom: 24px;
-    padding: 14px 18px;
-    background: var(--grey-light);
-    border-radius: 8px;
-  }
-  .legend-item {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 11px;
-    color: var(--grey-mid);
-    font-weight: 600;
-  }
-  .legend-box {
-    width: 20px;
-    height: 14px;
-    border-radius: 3px;
-  }
+      /* ── Legend ── */
+      .legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin-bottom: 24px;
+        padding: 14px 18px;
+        background: var(--grey-light);
+        border-radius: 8px;
+      }
+      .legend-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 11px;
+        color: var(--grey-mid);
+        font-weight: 600;
+      }
+      .legend-box {
+        width: 20px;
+        height: 14px;
+        border-radius: 3px;
+      }
 
-  /* ── Multi-flow grid ── */
-  .flow-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 24px;
-    margin-bottom: 32px;
-  }
-  @media (max-width: 900px) { .flow-grid { grid-template-columns: 1fr; } }
+      /* ── Multi-flow grid ── */
+      .flow-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 24px;
+        margin-bottom: 32px;
+      }
+      @media (max-width: 900px) {
+        .flow-grid {
+          grid-template-columns: 1fr;
+        }
+      }
 
-  /* ── Architecture Diagram ── */
-  .arch-container {
-    display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
-    gap: 20px;
-  }
-  .arch-col-title {
-    font-size: 12px;
-    font-weight: 700;
-    color: var(--grey-mid);
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    margin-bottom: 12px;
-    text-align: center;
-  }
-  .arch-node {
-    background: white;
-    border: 1.5px solid #E0E0E0;
-    border-radius: 8px;
-    padding: 12px 14px;
-    margin-bottom: 10px;
-    font-size: 12px;
-  }
-  .arch-node .arch-label {
-    font-weight: 700;
-    font-size: 11px;
-    color: var(--grey-mid);
-    text-transform: uppercase;
-    letter-spacing: 0.4px;
-    margin-bottom: 3px;
-  }
-  .arch-node .arch-value {
-    font-weight: 700;
-    font-size: 13px;
-    color: var(--green);
-  }
-  .arch-connector {
-    text-align: center;
-    color: #CCC;
-    font-size: 18px;
-    margin: 4px 0;
-  }
+      /* ── Architecture Diagram ── */
+      .arch-container {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 20px;
+      }
+      .arch-col-title {
+        font-size: 12px;
+        font-weight: 700;
+        color: var(--grey-mid);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 12px;
+        text-align: center;
+      }
+      .arch-node {
+        background: white;
+        border: 1.5px solid #e0e0e0;
+        border-radius: 8px;
+        padding: 12px 14px;
+        margin-bottom: 10px;
+        font-size: 12px;
+      }
+      .arch-node .arch-label {
+        font-weight: 700;
+        font-size: 11px;
+        color: var(--grey-mid);
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+        margin-bottom: 3px;
+      }
+      .arch-node .arch-value {
+        font-weight: 700;
+        font-size: 13px;
+        color: var(--green);
+      }
+      .arch-connector {
+        text-align: center;
+        color: #ccc;
+        font-size: 18px;
+        margin: 4px 0;
+      }
 
-  /* ── Notification list ── */
-  .notif-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 16px;
-  }
-  .notif-group {
-    background: var(--grey-light);
-    border-radius: 10px;
-    padding: 16px;
-  }
-  .notif-group-title {
-    font-size: 13px;
-    font-weight: 700;
-    color: var(--green);
-    margin-bottom: 12px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-  .notif-item {
-    display: flex;
-    align-items: flex-start;
-    gap: 8px;
-    margin-bottom: 8px;
-    font-size: 12px;
-    line-height: 1.5;
-  }
-  .notif-item::before {
-    content: '→';
-    color: var(--green);
-    font-weight: 700;
-    flex-shrink: 0;
-    margin-top: 1px;
-  }
+      /* ── Notification list ── */
+      .notif-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+      }
+      .notif-group {
+        background: var(--grey-light);
+        border-radius: 10px;
+        padding: 16px;
+      }
+      .notif-group-title {
+        font-size: 13px;
+        font-weight: 700;
+        color: var(--green);
+        margin-bottom: 12px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .notif-item {
+        display: flex;
+        align-items: flex-start;
+        gap: 8px;
+        margin-bottom: 8px;
+        font-size: 12px;
+        line-height: 1.5;
+      }
+      .notif-item::before {
+        content: "→";
+        color: var(--green);
+        font-weight: 700;
+        flex-shrink: 0;
+        margin-top: 1px;
+      }
 
-  /* ── GDPR flow ── */
-  .gdpr-steps {
-    display: flex;
-    gap: 0;
-    align-items: stretch;
-    flex-wrap: wrap;
-  }
-  .gdpr-step {
-    flex: 1;
-    min-width: 140px;
-    background: white;
-    border: 1.5px solid #E0E0E0;
-    border-radius: 8px;
-    padding: 16px;
-    margin: 4px;
-    position: relative;
-  }
-  .gdpr-step-num {
-    font-size: 24px;
-    font-weight: 800;
-    color: var(--green-mid);
-    line-height: 1;
-    margin-bottom: 8px;
-  }
-  .gdpr-step-title {
-    font-size: 13px;
-    font-weight: 700;
-    color: var(--green);
-    margin-bottom: 6px;
-  }
-  .gdpr-step-desc {
-    font-size: 11px;
-    color: var(--grey-mid);
-    line-height: 1.5;
-  }
+      /* ── GDPR flow ── */
+      .gdpr-steps {
+        display: flex;
+        gap: 0;
+        align-items: stretch;
+        flex-wrap: wrap;
+      }
+      .gdpr-step {
+        flex: 1;
+        min-width: 140px;
+        background: white;
+        border: 1.5px solid #e0e0e0;
+        border-radius: 8px;
+        padding: 16px;
+        margin: 4px;
+        position: relative;
+      }
+      .gdpr-step-num {
+        font-size: 24px;
+        font-weight: 800;
+        color: var(--green-mid);
+        line-height: 1;
+        margin-bottom: 8px;
+      }
+      .gdpr-step-title {
+        font-size: 13px;
+        font-weight: 700;
+        color: var(--green);
+        margin-bottom: 6px;
+      }
+      .gdpr-step-desc {
+        font-size: 11px;
+        color: var(--grey-mid);
+        line-height: 1.5;
+      }
 
-  .chip {
-    display: inline-flex;
-    align-items: center;
-    padding: 3px 10px;
-    border-radius: 12px;
-    font-size: 10px;
-    font-weight: 700;
-    letter-spacing: 0.3px;
-  }
-  .chip-green { background: var(--green-light); color: var(--green); }
-  .chip-blue  { background: var(--blue-light);  color: var(--blue);  }
-  .chip-orange { background: var(--orange-light); color: var(--orange); }
-</style>
-</head>
-<body>
+      .chip {
+        display: inline-flex;
+        align-items: center;
+        padding: 3px 10px;
+        border-radius: 12px;
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.3px;
+      }
+      .chip-green {
+        background: var(--green-light);
+        color: var(--green);
+      }
+      .chip-blue {
+        background: var(--blue-light);
+        color: var(--blue);
+      }
+      .chip-orange {
+        background: var(--orange-light);
+        color: var(--orange);
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Header -->
+    <div class="page-header">
+      <div>
+        <div class="logo">CeolX</div>
+        <div class="subtitle">Product Flow Diagrams — PRD v1.5</div>
+      </div>
+      <div class="badge">Internal Development Reference</div>
+    </div>
 
-<!-- Header -->
-<div class="page-header">
-  <div>
-    <div class="logo">CeolX</div>
-    <div class="subtitle">Product Flow Diagrams — PRD v1.5</div>
-  </div>
-  <div class="badge">Internal Development Reference</div>
-</div>
+    <!-- Nav -->
+    <div class="nav">
+      <button class="active" onclick="show('onboarding', this)">1. Auth & Onboarding</button>
+      <button onclick="show('discovery', this)">2. Discovery Flow</button>
+      <button onclick="show('event', this)">3. Event Lifecycle</button>
+      <button onclick="show('booking', this)">4. Artist ↔ Venue Booking</button>
+      <button onclick="show('payments', this)">5. Subscription & Payments</button>
+      <button onclick="show('notifications', this)">6. Notifications</button>
+      <button onclick="show('stack', this)">7. Tech Stack</button>
+    </div>
 
-<!-- Nav -->
-<div class="nav">
-  <button class="active" onclick="show('onboarding', this)">1. Auth & Onboarding</button>
-  <button onclick="show('discovery', this)">2. Discovery Flow</button>
-  <button onclick="show('event', this)">3. Event Lifecycle</button>
-  <button onclick="show('booking', this)">4. Artist ↔ Venue Booking</button>
-  <button onclick="show('payments', this)">5. Subscription & Payments</button>
-  <button onclick="show('notifications', this)">6. Notifications</button>
-  <button onclick="show('stack', this)">7. Tech Stack</button>
-</div>
-
-<div class="content">
-
-  <!-- ════════════════════════════════════════════════════
+    <div class="content">
+      <!-- ════════════════════════════════════════════════════
        1. AUTH & ONBOARDING
   ════════════════════════════════════════════════════ -->
-  <div id="onboarding" class="section active">
-    <div class="section-title">Authentication & Onboarding Flow</div>
-    <div class="section-desc">How each persona signs up, selects their role, and enters the app for the first time. All four personas share the same auth system (BetterAuth) with role-based divergence after persona selection.</div>
+      <div id="onboarding" class="section active">
+        <div class="section-title">Authentication & Onboarding Flow</div>
+        <div class="section-desc">
+          How each persona signs up, selects their role, and enters the app for the first time. All
+          four personas share the same auth system (BetterAuth) with role-based divergence after
+          persona selection.
+        </div>
 
-    <div class="legend">
-      <div class="legend-item"><div class="legend-box" style="background:#E3F2FD;border:1.5px solid #BBDEFB"></div>End User action</div>
-      <div class="legend-item"><div class="legend-box" style="background:#F3E5F5;border:1.5px solid #E1BEE7"></div>Artist action</div>
-      <div class="legend-item"><div class="legend-box" style="background:#FFF3E0;border:1.5px solid #FFE0B2"></div>Venue/Business action</div>
-      <div class="legend-item"><div class="legend-box" style="background:#E8F5EE;border:1.5px solid #C6E6D4"></div>System action</div>
-      <div class="legend-item"><div class="legend-box" style="background:#FDF0E6;border:1.5px dashed #F0C090"></div>Decision point</div>
-    </div>
+        <div class="legend">
+          <div class="legend-item">
+            <div class="legend-box" style="background: #e3f2fd; border: 1.5px solid #bbdefb"></div>
+            End User action
+          </div>
+          <div class="legend-item">
+            <div class="legend-box" style="background: #f3e5f5; border: 1.5px solid #e1bee7"></div>
+            Artist action
+          </div>
+          <div class="legend-item">
+            <div class="legend-box" style="background: #fff3e0; border: 1.5px solid #ffe0b2"></div>
+            Venue/Business action
+          </div>
+          <div class="legend-item">
+            <div class="legend-box" style="background: #e8f5ee; border: 1.5px solid #c6e6d4"></div>
+            System action
+          </div>
+          <div class="legend-item">
+            <div class="legend-box" style="background: #fdf0e6; border: 1.5px dashed #f0c090"></div>
+            Decision point
+          </div>
+        </div>
 
-    <div class="flow-container">
-      <div class="flow-title"><div class="dot"></div>Sign Up Flow</div>
-      <div class="flow">
-
-        <div class="node start">User Opens App</div>
-        <div class="arrow-down"></div>
-
-        <div class="node system">Splash Screen</div>
-        <div class="arrow-down"></div>
-
-        <div class="node decision">New User?</div>
-        <div style="display:flex;gap:60px;align-items:flex-start;margin-top:0">
-          <div class="flow-col">
-            <div class="arrow-label">Yes — Sign Up</div>
+        <div class="flow-container">
+          <div class="flow-title">
+            <div class="dot"></div>
+            Sign Up Flow
+          </div>
+          <div class="flow">
+            <div class="node start">User Opens App</div>
             <div class="arrow-down"></div>
-            <div class="node action">Choose Method</div>
+
+            <div class="node system">Splash Screen</div>
             <div class="arrow-down"></div>
-            <div style="display:flex;gap:24px">
+
+            <div class="node decision">New User?</div>
+            <div style="display: flex; gap: 60px; align-items: flex-start; margin-top: 0">
               <div class="flow-col">
-                <div class="node system" style="min-width:100px;font-size:11px">Email + Password</div>
+                <div class="arrow-label">Yes — Sign Up</div>
                 <div class="arrow-down"></div>
-                <div class="node system" style="min-width:100px;font-size:11px">Email Verification (Postmark)</div>
+                <div class="node action">Choose Method</div>
+                <div class="arrow-down"></div>
+                <div style="display: flex; gap: 24px">
+                  <div class="flow-col">
+                    <div class="node system" style="min-width: 100px; font-size: 11px">
+                      Email + Password
+                    </div>
+                    <div class="arrow-down"></div>
+                    <div class="node system" style="min-width: 100px; font-size: 11px">
+                      Email Verification (Postmark)
+                    </div>
+                  </div>
+                  <div class="flow-col">
+                    <div class="node external" style="min-width: 100px; font-size: 11px">
+                      Google OAuth
+                    </div>
+                  </div>
+                  <div class="flow-col">
+                    <div class="node external" style="min-width: 100px; font-size: 11px">
+                      Apple Sign-In (iOS only)
+                    </div>
+                  </div>
+                </div>
+                <div class="arrow-down"></div>
+                <div class="node system">Account Created (BetterAuth)</div>
               </div>
               <div class="flow-col">
-                <div class="node external" style="min-width:100px;font-size:11px">Google OAuth</div>
-              </div>
-              <div class="flow-col">
-                <div class="node external" style="min-width:100px;font-size:11px">Apple Sign-In (iOS only)</div>
+                <div class="arrow-label">No — Sign In</div>
+                <div class="arrow-down"></div>
+                <div class="node action">Enter Credentials</div>
+                <div class="arrow-down"></div>
+                <div class="node system">Session Token Issued</div>
               </div>
             </div>
+
+            <div class="arrow-down" style="height: 40px"></div>
+            <div class="node system">Persona Selection Screen</div>
             <div class="arrow-down"></div>
-            <div class="node system">Account Created (BetterAuth)</div>
-          </div>
-          <div class="flow-col">
-            <div class="arrow-label">No — Sign In</div>
-            <div class="arrow-down"></div>
-            <div class="node action">Enter Credentials</div>
-            <div class="arrow-down"></div>
-            <div class="node system">Session Token Issued</div>
+
+            <div style="display: flex; gap: 20px; align-items: flex-start">
+              <div class="flow-col">
+                <div class="node persona-user">End User</div>
+                <div class="arrow-down"></div>
+                <div class="node system" style="font-size: 11px">Request Location Permission</div>
+                <div class="arrow-down"></div>
+                <div class="node end">Home Feed / Map</div>
+              </div>
+              <div class="flow-col">
+                <div class="node persona-artist">Artist</div>
+                <div class="arrow-down"></div>
+                <div class="node system" style="font-size: 11px">
+                  Profile Setup (Bio, Name, Contact)
+                </div>
+                <div class="arrow-down"></div>
+                <div class="node system" style="font-size: 11px">Request Location Permission</div>
+                <div class="arrow-down"></div>
+                <div class="node end">Home Feed / Map</div>
+              </div>
+              <div class="flow-col">
+                <div class="node persona-venue">Venue / Business</div>
+                <div class="arrow-down"></div>
+                <div class="node system" style="font-size: 11px">
+                  Profile Setup (Bio, Name, Address)
+                </div>
+                <div class="arrow-down"></div>
+                <div class="node external" style="font-size: 11px">
+                  Subscription Plan Selection (Lite / Pro)
+                </div>
+                <div class="arrow-down"></div>
+                <div class="node external" style="font-size: 11px">
+                  RevenueCat → Apple IAP / Google Play
+                </div>
+                <div class="arrow-down"></div>
+                <div class="node system" style="font-size: 11px">Request Location Permission</div>
+                <div class="arrow-down"></div>
+                <div class="node end">Home Feed / Map</div>
+              </div>
+              <div class="flow-col">
+                <div class="node persona-admin">Super Admin</div>
+                <div class="arrow-down"></div>
+                <div class="node system" style="font-size: 11px">
+                  Email / Password Only (no SSO)
+                </div>
+                <div class="arrow-down"></div>
+                <div class="node end">Admin Dashboard</div>
+              </div>
+            </div>
           </div>
         </div>
 
-        <div class="arrow-down" style="height:40px"></div>
-        <div class="node system">Persona Selection Screen</div>
-        <div class="arrow-down"></div>
-
-        <div style="display:flex;gap:20px;align-items:flex-start">
-          <div class="flow-col">
-            <div class="node persona-user">End User</div>
-            <div class="arrow-down"></div>
-            <div class="node system" style="font-size:11px">Request Location Permission</div>
-            <div class="arrow-down"></div>
-            <div class="node end">Home Feed / Map</div>
+        <div class="flow-container">
+          <div class="flow-title">
+            <div class="dot"></div>
+            Forgot Password Flow
           </div>
-          <div class="flow-col">
-            <div class="node persona-artist">Artist</div>
+          <div class="flow">
+            <div class="node action">Tap "Forgot Password"</div>
             <div class="arrow-down"></div>
-            <div class="node system" style="font-size:11px">Profile Setup (Bio, Name, Contact)</div>
+            <div class="node action">Enter Registered Email</div>
             <div class="arrow-down"></div>
-            <div class="node system" style="font-size:11px">Request Location Permission</div>
+            <div class="node system">BetterAuth Sends Reset Link (via Postmark)</div>
             <div class="arrow-down"></div>
-            <div class="node end">Home Feed / Map</div>
-          </div>
-          <div class="flow-col">
-            <div class="node persona-venue">Venue / Business</div>
-            <div class="arrow-down"></div>
-            <div class="node system" style="font-size:11px">Profile Setup (Bio, Name, Address)</div>
-            <div class="arrow-down"></div>
-            <div class="node external" style="font-size:11px">Subscription Plan Selection (Lite / Pro)</div>
-            <div class="arrow-down"></div>
-            <div class="node external" style="font-size:11px">RevenueCat → Apple IAP / Google Play</div>
-            <div class="arrow-down"></div>
-            <div class="node system" style="font-size:11px">Request Location Permission</div>
-            <div class="arrow-down"></div>
-            <div class="node end">Home Feed / Map</div>
-          </div>
-          <div class="flow-col">
-            <div class="node persona-admin">Super Admin</div>
-            <div class="arrow-down"></div>
-            <div class="node system" style="font-size:11px">Email / Password Only (no SSO)</div>
-            <div class="arrow-down"></div>
-            <div class="node end">Admin Dashboard</div>
+            <div class="node decision">Link Clicked within Expiry?</div>
+            <div style="display: flex; gap: 60px; margin-top: 0">
+              <div class="flow-col">
+                <div class="arrow-label" style="color: var(--green)">Yes</div>
+                <div class="arrow-down"></div>
+                <div class="node action">Enter New Password</div>
+                <div class="arrow-down"></div>
+                <div class="node end">Sign In</div>
+              </div>
+              <div class="flow-col">
+                <div class="arrow-label" style="color: var(--red)">No</div>
+                <div class="arrow-down"></div>
+                <div class="node error">Link Expired</div>
+                <div class="arrow-down"></div>
+                <div class="node action">Request New Link</div>
+              </div>
+            </div>
           </div>
         </div>
-
       </div>
-    </div>
 
-    <div class="flow-container">
-      <div class="flow-title"><div class="dot"></div>Forgot Password Flow</div>
-      <div class="flow">
-        <div class="node action">Tap "Forgot Password"</div>
-        <div class="arrow-down"></div>
-        <div class="node action">Enter Registered Email</div>
-        <div class="arrow-down"></div>
-        <div class="node system">BetterAuth Sends Reset Link (via Postmark)</div>
-        <div class="arrow-down"></div>
-        <div class="node decision">Link Clicked within Expiry?</div>
-        <div style="display:flex;gap:60px;margin-top:0">
-          <div class="flow-col">
-            <div class="arrow-label" style="color:var(--green)">Yes</div>
-            <div class="arrow-down"></div>
-            <div class="node action">Enter New Password</div>
-            <div class="arrow-down"></div>
-            <div class="node end">Sign In</div>
-          </div>
-          <div class="flow-col">
-            <div class="arrow-label" style="color:var(--red)">No</div>
-            <div class="arrow-down"></div>
-            <div class="node error">Link Expired</div>
-            <div class="arrow-down"></div>
-            <div class="node action">Request New Link</div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ════════════════════════════════════════════════════
+      <!-- ════════════════════════════════════════════════════
        2. DISCOVERY FLOW
   ════════════════════════════════════════════════════ -->
-  <div id="discovery" class="section">
-    <div class="section-title">End User Discovery Flow</div>
-    <div class="section-desc">How an End User finds, explores, and saves events using the feed and map. Location permission is required for the app to function — there is no manual location fallback.</div>
+      <div id="discovery" class="section">
+        <div class="section-title">End User Discovery Flow</div>
+        <div class="section-desc">
+          How an End User finds, explores, and saves events using the feed and map. Location
+          permission is required for the app to function — there is no manual location fallback.
+        </div>
 
-    <div class="flow-grid">
-      <div class="flow-container">
-        <div class="flow-title"><div class="dot"></div>Feed Discovery</div>
-        <div class="flow">
-          <div class="node start">Home Screen (Feed Tab)</div>
-          <div class="arrow-down"></div>
-          <div class="node system">Algorithmic Feed Loads<br><span style="font-size:10px;font-weight:400">(Recency + Distance + Follows)</span></div>
-          <div class="arrow-down"></div>
-          <div class="node decision">Apply Filters?</div>
-          <div style="display:flex;gap:40px;margin-top:0">
-            <div class="flow-col">
-              <div class="arrow-label">Yes</div>
-              <div class="arrow-down"></div>
-              <div class="node action">Set Category + Radius<br><span style="font-size:10px;font-weight:400">(5km / 15km / custom)</span></div>
-              <div class="arrow-down"></div>
-              <div class="node system">Filtered Results</div>
+        <div class="flow-grid">
+          <div class="flow-container">
+            <div class="flow-title">
+              <div class="dot"></div>
+              Feed Discovery
             </div>
-            <div class="flow-col">
-              <div class="arrow-label">No</div>
+            <div class="flow">
+              <div class="node start">Home Screen (Feed Tab)</div>
               <div class="arrow-down"></div>
-              <div class="node system">Default Feed</div>
+              <div class="node system">
+                Algorithmic Feed Loads<br /><span style="font-size: 10px; font-weight: 400"
+                  >(Recency + Distance + Follows)</span
+                >
+              </div>
+              <div class="arrow-down"></div>
+              <div class="node decision">Apply Filters?</div>
+              <div style="display: flex; gap: 40px; margin-top: 0">
+                <div class="flow-col">
+                  <div class="arrow-label">Yes</div>
+                  <div class="arrow-down"></div>
+                  <div class="node action">
+                    Set Category + Radius<br /><span style="font-size: 10px; font-weight: 400"
+                      >(5km / 15km / custom)</span
+                    >
+                  </div>
+                  <div class="arrow-down"></div>
+                  <div class="node system">Filtered Results</div>
+                </div>
+                <div class="flow-col">
+                  <div class="arrow-label">No</div>
+                  <div class="arrow-down"></div>
+                  <div class="node system">Default Feed</div>
+                </div>
+              </div>
+              <div class="arrow-down"></div>
+              <div class="node decision">Content Type?</div>
+              <div style="display: flex; gap: 24px; margin-top: 0">
+                <div class="flow-col">
+                  <div class="arrow-label">Event</div>
+                  <div class="arrow-down"></div>
+                  <div class="node action">Tap Event Card</div>
+                  <div class="arrow-down"></div>
+                  <div class="node system">Event Detail View</div>
+                </div>
+                <div class="flow-col">
+                  <div class="arrow-label">Post</div>
+                  <div class="arrow-down"></div>
+                  <div class="node action">View Post</div>
+                  <div class="arrow-down"></div>
+                  <div class="node action">Like / Share / Follow</div>
+                </div>
+              </div>
             </div>
           </div>
-          <div class="arrow-down"></div>
-          <div class="node decision">Content Type?</div>
-          <div style="display:flex;gap:24px;margin-top:0">
-            <div class="flow-col">
-              <div class="arrow-label">Event</div>
-              <div class="arrow-down"></div>
-              <div class="node action">Tap Event Card</div>
-              <div class="arrow-down"></div>
-              <div class="node system">Event Detail View</div>
+
+          <div class="flow-container">
+            <div class="flow-title">
+              <div class="dot"></div>
+              Map Discovery
             </div>
-            <div class="flow-col">
-              <div class="arrow-label">Post</div>
+            <div class="flow">
+              <div class="node start">Home Screen (Map Tab)</div>
               <div class="arrow-down"></div>
-              <div class="node action">View Post</div>
+              <div class="node system">
+                Map Loads (Apple Maps / Google Maps)<br /><span
+                  style="font-size: 10px; font-weight: 400"
+                  >Upcoming event pins only</span
+                >
+              </div>
               <div class="arrow-down"></div>
-              <div class="node action">Like / Share / Follow</div>
+              <div class="node action">Browse / Pan Map</div>
+              <div class="arrow-down"></div>
+              <div class="node action">Tap Event Pin</div>
+              <div class="arrow-down"></div>
+              <div class="node system">Event Preview Card</div>
+              <div class="arrow-down"></div>
+              <div class="node decision">Open Full Details?</div>
+              <div style="display: flex; gap: 40px; margin-top: 0">
+                <div class="flow-col">
+                  <div class="arrow-label">Yes</div>
+                  <div class="arrow-down"></div>
+                  <div class="node system">Event Detail View</div>
+                </div>
+                <div class="flow-col">
+                  <div class="arrow-label">No</div>
+                  <div class="arrow-down"></div>
+                  <div class="node action">Continue Browsing</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="flow-container">
+          <div class="flow-title">
+            <div class="dot"></div>
+            Event Detail → Save / Book Flow
+          </div>
+          <div class="flow">
+            <div class="node start">Event Detail View</div>
+            <div class="arrow-down"></div>
+            <div style="display: flex; gap: 24px; align-items: flex-start">
+              <div class="node system" style="min-width: 170px">
+                Title, Date/Time, Description<br />Artist Lineup, Venue Details
+              </div>
+            </div>
+            <div class="arrow-down"></div>
+            <div style="display: flex; gap: 32px; align-items: flex-start">
+              <div class="flow-col">
+                <div class="chip chip-blue">Save Event</div>
+                <div class="arrow-down"></div>
+                <div class="node system" style="font-size: 11px">Added to Calendar + My Events</div>
+                <div class="arrow-down"></div>
+                <div class="node system" style="font-size: 11px">
+                  Push Reminder Set (1hr before)
+                </div>
+              </div>
+              <div class="flow-col">
+                <div class="chip chip-orange">Buy Ticket</div>
+                <div class="arrow-down"></div>
+                <div class="node external" style="font-size: 11px">
+                  Redirect to External Link<br />(Organiser's ticket site)
+                </div>
+                <div class="arrow-down"></div>
+                <div class="node action" style="font-size: 11px">
+                  User Manually Toggles<br />"Booked" in App
+                </div>
+                <div class="arrow-down"></div>
+                <div class="node system" style="font-size: 11px">Added to Booked Events</div>
+              </div>
+              <div class="flow-col">
+                <div class="chip chip-green">Follow Artist</div>
+                <div class="arrow-down"></div>
+                <div class="node system" style="font-size: 11px">
+                  Artist added to Following list
+                </div>
+                <div class="arrow-down"></div>
+                <div class="node system" style="font-size: 11px">
+                  Future posts / events appear in feed
+                </div>
+              </div>
             </div>
           </div>
         </div>
       </div>
 
-      <div class="flow-container">
-        <div class="flow-title"><div class="dot"></div>Map Discovery</div>
-        <div class="flow">
-          <div class="node start">Home Screen (Map Tab)</div>
-          <div class="arrow-down"></div>
-          <div class="node system">Map Loads (Apple Maps / Google Maps)<br><span style="font-size:10px;font-weight:400">Upcoming event pins only</span></div>
-          <div class="arrow-down"></div>
-          <div class="node action">Browse / Pan Map</div>
-          <div class="arrow-down"></div>
-          <div class="node action">Tap Event Pin</div>
-          <div class="arrow-down"></div>
-          <div class="node system">Event Preview Card</div>
-          <div class="arrow-down"></div>
-          <div class="node decision">Open Full Details?</div>
-          <div style="display:flex;gap:40px;margin-top:0">
-            <div class="flow-col">
-              <div class="arrow-label">Yes</div>
-              <div class="arrow-down"></div>
-              <div class="node system">Event Detail View</div>
-            </div>
-            <div class="flow-col">
-              <div class="arrow-label">No</div>
-              <div class="arrow-down"></div>
-              <div class="node action">Continue Browsing</div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div class="flow-container">
-      <div class="flow-title"><div class="dot"></div>Event Detail → Save / Book Flow</div>
-      <div class="flow">
-        <div class="node start">Event Detail View</div>
-        <div class="arrow-down"></div>
-        <div style="display:flex;gap:24px;align-items:flex-start">
-          <div class="node system" style="min-width:170px">Title, Date/Time, Description<br>Artist Lineup, Venue Details</div>
-        </div>
-        <div class="arrow-down"></div>
-        <div style="display:flex;gap:32px;align-items:flex-start">
-          <div class="flow-col">
-            <div class="chip chip-blue">Save Event</div>
-            <div class="arrow-down"></div>
-            <div class="node system" style="font-size:11px">Added to Calendar + My Events</div>
-            <div class="arrow-down"></div>
-            <div class="node system" style="font-size:11px">Push Reminder Set (1hr before)</div>
-          </div>
-          <div class="flow-col">
-            <div class="chip chip-orange">Buy Ticket</div>
-            <div class="arrow-down"></div>
-            <div class="node external" style="font-size:11px">Redirect to External Link<br>(Organiser's ticket site)</div>
-            <div class="arrow-down"></div>
-            <div class="node action" style="font-size:11px">User Manually Toggles<br>"Booked" in App</div>
-            <div class="arrow-down"></div>
-            <div class="node system" style="font-size:11px">Added to Booked Events</div>
-          </div>
-          <div class="flow-col">
-            <div class="chip chip-green">Follow Artist</div>
-            <div class="arrow-down"></div>
-            <div class="node system" style="font-size:11px">Artist added to Following list</div>
-            <div class="arrow-down"></div>
-            <div class="node system" style="font-size:11px">Future posts / events appear in feed</div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ════════════════════════════════════════════════════
+      <!-- ════════════════════════════════════════════════════
        3. EVENT LIFECYCLE
   ════════════════════════════════════════════════════ -->
-  <div id="event" class="section">
-    <div class="section-title">Event Lifecycle</div>
-    <div class="section-desc">How events are created, published, displayed, and eventually archived. Both Artists and Venues share the same Event model — differentiated by the <code style="background:#eee;padding:1px 5px;border-radius:3px;font-size:12px">is_gig_opportunity</code> flag.</div>
+      <div id="event" class="section">
+        <div class="section-title">Event Lifecycle</div>
+        <div class="section-desc">
+          How events are created, published, displayed, and eventually archived. Both Artists and
+          Venues share the same Event model — differentiated by the
+          <code style="background: #eee; padding: 1px 5px; border-radius: 3px; font-size: 12px"
+            >is_gig_opportunity</code
+          >
+          flag.
+        </div>
 
-    <div class="flow-grid">
-      <div class="flow-container">
-        <div class="flow-title"><div class="dot"></div>Artist Creates Event</div>
-        <div class="flow">
-          <div class="node persona-artist">Artist Taps "Create Event"</div>
-          <div class="arrow-down"></div>
-          <div class="node action">Fill Event Details<br><span style="font-size:10px;font-weight:400">Title, Image, Date/Time, Description,<br>Category, Ticket Link</span></div>
-          <div class="arrow-down"></div>
-          <div class="node action">Select Venue<br><span style="font-size:10px;font-weight:400">From registered venues OR free-text address</span></div>
-          <div class="arrow-down"></div>
-          <div class="node action">Add Collaborators (optional)</div>
-          <div class="arrow-down"></div>
-          <div class="node decision">Add to Collection?</div>
-          <div style="display:flex;gap:40px;margin-top:0">
-            <div class="flow-col">
-              <div class="arrow-label">Yes</div>
-              <div class="arrow-down"></div>
-              <div class="node action">Select / Create Collection</div>
+        <div class="flow-grid">
+          <div class="flow-container">
+            <div class="flow-title">
+              <div class="dot"></div>
+              Artist Creates Event
             </div>
-            <div class="flow-col">
-              <div class="arrow-label">No</div>
+            <div class="flow">
+              <div class="node persona-artist">Artist Taps "Create Event"</div>
               <div class="arrow-down"></div>
-              <div class="node system">Standalone Event</div>
+              <div class="node action">
+                Fill Event Details<br /><span style="font-size: 10px; font-weight: 400"
+                  >Title, Image, Date/Time, Description,<br />Category, Ticket Link</span
+                >
+              </div>
+              <div class="arrow-down"></div>
+              <div class="node action">
+                Select Venue<br /><span style="font-size: 10px; font-weight: 400"
+                  >From registered venues OR free-text address</span
+                >
+              </div>
+              <div class="arrow-down"></div>
+              <div class="node action">Add Collaborators (optional)</div>
+              <div class="arrow-down"></div>
+              <div class="node decision">Add to Collection?</div>
+              <div style="display: flex; gap: 40px; margin-top: 0">
+                <div class="flow-col">
+                  <div class="arrow-label">Yes</div>
+                  <div class="arrow-down"></div>
+                  <div class="node action">Select / Create Collection</div>
+                </div>
+                <div class="flow-col">
+                  <div class="arrow-label">No</div>
+                  <div class="arrow-down"></div>
+                  <div class="node system">Standalone Event</div>
+                </div>
+              </div>
+              <div class="arrow-down"></div>
+              <div class="node system">
+                Event Published<br /><span style="font-size: 10px; font-weight: 400"
+                  >is_gig_opportunity: false</span
+                >
+              </div>
+              <div class="arrow-down"></div>
+              <div class="node system">Appears on Feed + Map<br />Followers Notified</div>
             </div>
           </div>
-          <div class="arrow-down"></div>
-          <div class="node system">Event Published<br><span style="font-size:10px;font-weight:400">is_gig_opportunity: false</span></div>
-          <div class="arrow-down"></div>
-          <div class="node system">Appears on Feed + Map<br>Followers Notified</div>
+
+          <div class="flow-container">
+            <div class="flow-title">
+              <div class="dot"></div>
+              Venue Creates Gig Opportunity
+            </div>
+            <div class="flow">
+              <div class="node persona-venue">Venue Taps "Create Event"</div>
+              <div class="arrow-down"></div>
+              <div class="node action">Fill Event Details</div>
+              <div class="arrow-down"></div>
+              <div class="node action">
+                Toggle "Seeking Artists"<br /><span style="font-size: 10px; font-weight: 400"
+                  >Sets is_gig_opportunity: true</span
+                >
+              </div>
+              <div class="arrow-down"></div>
+              <div class="node action">
+                Add Promotional Ad (optional)<br /><span style="font-size: 10px; font-weight: 400"
+                  >e.g. "15% OFF at Dominos nearby"</span
+                >
+              </div>
+              <div class="arrow-down"></div>
+              <div class="node decision">Add to Collection?</div>
+              <div style="display: flex; gap: 40px; margin-top: 0">
+                <div class="flow-col">
+                  <div class="arrow-label">Yes</div>
+                  <div class="arrow-down"></div>
+                  <div class="node action">Select / Create Collection</div>
+                </div>
+                <div class="flow-col">
+                  <div class="arrow-label">No</div>
+                  <div class="arrow-down"></div>
+                  <div class="node system">Standalone Gig</div>
+                </div>
+              </div>
+              <div class="arrow-down"></div>
+              <div class="node system">
+                Gig Opportunity Published<br /><span style="font-size: 10px; font-weight: 400"
+                  >Visible to Artists only</span
+                >
+              </div>
+              <div class="arrow-down"></div>
+              <div class="node system">Artists Can Apply to Perform</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="flow-container">
+          <div class="flow-title">
+            <div class="dot"></div>
+            Event Status Lifecycle
+          </div>
+          <div
+            style="
+              display: flex;
+              align-items: center;
+              gap: 0;
+              flex-wrap: wrap;
+              justify-content: center;
+            "
+          >
+            <div class="node action" style="min-width: 130px">
+              Draft<br /><span style="font-size: 10px; font-weight: 400">Being created</span>
+            </div>
+            <div class="arrow-right"></div>
+            <div class="node system" style="min-width: 130px">
+              Active<br /><span style="font-size: 10px; font-weight: 400"
+                >Future date — on feed & map</span
+              >
+            </div>
+            <div class="arrow-right"></div>
+            <div class="node decision" style="min-width: 130px">Event Date Passes</div>
+            <div class="arrow-right"></div>
+            <div
+              class="node"
+              style="
+                background: #eceff1;
+                color: #546e7a;
+                border: 1.5px solid #cfd8dc;
+                min-width: 130px;
+              "
+            >
+              Archived<br /><span style="font-size: 10px; font-weight: 400"
+                >Soft deleted — off feed & map,<br />visible on creator profile</span
+              >
+            </div>
+          </div>
+          <div
+            style="
+              margin-top: 20px;
+              padding: 14px;
+              background: var(--green-light);
+              border-radius: 8px;
+              font-size: 12px;
+              color: var(--green);
+            "
+          >
+            <strong>Note:</strong> Events are never hard deleted. Past events remain accessible in
+            the database and are visible on the Artist/Venue's profile page under "Past Events".
+            Recurring events are not supported in V1.
+          </div>
         </div>
       </div>
 
-      <div class="flow-container">
-        <div class="flow-title"><div class="dot"></div>Venue Creates Gig Opportunity</div>
-        <div class="flow">
-          <div class="node persona-venue">Venue Taps "Create Event"</div>
-          <div class="arrow-down"></div>
-          <div class="node action">Fill Event Details</div>
-          <div class="arrow-down"></div>
-          <div class="node action">Toggle "Seeking Artists"<br><span style="font-size:10px;font-weight:400">Sets is_gig_opportunity: true</span></div>
-          <div class="arrow-down"></div>
-          <div class="node action">Add Promotional Ad (optional)<br><span style="font-size:10px;font-weight:400">e.g. "15% OFF at Dominos nearby"</span></div>
-          <div class="arrow-down"></div>
-          <div class="node decision">Add to Collection?</div>
-          <div style="display:flex;gap:40px;margin-top:0">
-            <div class="flow-col">
-              <div class="arrow-label">Yes</div>
-              <div class="arrow-down"></div>
-              <div class="node action">Select / Create Collection</div>
-            </div>
-            <div class="flow-col">
-              <div class="arrow-label">No</div>
-              <div class="arrow-down"></div>
-              <div class="node system">Standalone Gig</div>
-            </div>
-          </div>
-          <div class="arrow-down"></div>
-          <div class="node system">Gig Opportunity Published<br><span style="font-size:10px;font-weight:400">Visible to Artists only</span></div>
-          <div class="arrow-down"></div>
-          <div class="node system">Artists Can Apply to Perform</div>
-        </div>
-      </div>
-    </div>
-
-    <div class="flow-container">
-      <div class="flow-title"><div class="dot"></div>Event Status Lifecycle</div>
-      <div style="display:flex;align-items:center;gap:0;flex-wrap:wrap;justify-content:center">
-        <div class="node action" style="min-width:130px">Draft<br><span style="font-size:10px;font-weight:400">Being created</span></div>
-        <div class="arrow-right"></div>
-        <div class="node system" style="min-width:130px">Active<br><span style="font-size:10px;font-weight:400">Future date — on feed & map</span></div>
-        <div class="arrow-right"></div>
-        <div class="node decision" style="min-width:130px">Event Date Passes</div>
-        <div class="arrow-right"></div>
-        <div class="node" style="background:#ECEFF1;color:#546E7A;border:1.5px solid #CFD8DC;min-width:130px">Archived<br><span style="font-size:10px;font-weight:400">Soft deleted — off feed & map,<br>visible on creator profile</span></div>
-      </div>
-      <div style="margin-top:20px;padding:14px;background:var(--green-light);border-radius:8px;font-size:12px;color:var(--green)">
-        <strong>Note:</strong> Events are never hard deleted. Past events remain accessible in the database and are visible on the Artist/Venue's profile page under "Past Events". Recurring events are not supported in V1.
-      </div>
-    </div>
-  </div>
-
-  <!-- ════════════════════════════════════════════════════
+      <!-- ════════════════════════════════════════════════════
        4. ARTIST ↔ VENUE BOOKING
   ════════════════════════════════════════════════════ -->
-  <div id="booking" class="section">
-    <div class="section-title">Artist ↔ Venue Booking Flow</div>
-    <div class="section-desc">The booking system supports two directions of initiation. Either an Artist applies to a Venue's gig opportunity, or a Venue sends a direct invitation to an Artist. Both paths share the same state machine.</div>
+      <div id="booking" class="section">
+        <div class="section-title">Artist ↔ Venue Booking Flow</div>
+        <div class="section-desc">
+          The booking system supports two directions of initiation. Either an Artist applies to a
+          Venue's gig opportunity, or a Venue sends a direct invitation to an Artist. Both paths
+          share the same state machine.
+        </div>
 
-    <div class="flow-grid">
-      <div class="flow-container">
-        <div class="flow-title"><div class="dot"></div>Direction 1 — Artist Applies to Venue</div>
-        <div class="flow">
-          <div class="node persona-artist">Artist Browses Gig Opportunities<br><span style="font-size:10px;font-weight:400">(Artist-only feed)</span></div>
-          <div class="arrow-down"></div>
-          <div class="node persona-artist">Taps "Apply to Perform"</div>
-          <div class="arrow-down"></div>
-          <div class="node system">Application Sent → State: Pending</div>
-          <div class="arrow-down"></div>
-          <div class="node system">Venue Receives Notification</div>
-          <div class="arrow-down"></div>
-          <div class="node persona-venue">Venue Reviews Artist Application</div>
-          <div class="arrow-down"></div>
-          <div class="node decision">Venue Decision</div>
-          <div style="display:flex;gap:40px;margin-top:0">
-            <div class="flow-col">
-              <div class="arrow-label" style="color:var(--green)">Accept</div>
-              <div class="arrow-down"></div>
-              <div class="node system" style="font-size:11px">State: Accepted<br>Artist linked to event</div>
-              <div class="arrow-down"></div>
-              <div class="node system" style="font-size:11px">Artist Notified</div>
-              <div class="arrow-down"></div>
-              <div class="node decision" style="font-size:11px">Either Party Cancels?</div>
-              <div class="arrow-down"></div>
-              <div class="node" style="background:#ECEFF1;color:#546E7A;border:1.5px solid #CFD8DC;font-size:11px">State: Cancelled</div>
+        <div class="flow-grid">
+          <div class="flow-container">
+            <div class="flow-title">
+              <div class="dot"></div>
+              Direction 1 — Artist Applies to Venue
             </div>
-            <div class="flow-col">
-              <div class="arrow-label" style="color:var(--red)">Reject</div>
+            <div class="flow">
+              <div class="node persona-artist">
+                Artist Browses Gig Opportunities<br /><span
+                  style="font-size: 10px; font-weight: 400"
+                  >(Artist-only feed)</span
+                >
+              </div>
               <div class="arrow-down"></div>
-              <div class="node error" style="font-size:11px">State: Rejected</div>
+              <div class="node persona-artist">Taps "Apply to Perform"</div>
               <div class="arrow-down"></div>
-              <div class="node system" style="font-size:11px">Artist Notified</div>
+              <div class="node system">Application Sent → State: Pending</div>
+              <div class="arrow-down"></div>
+              <div class="node system">Venue Receives Notification</div>
+              <div class="arrow-down"></div>
+              <div class="node persona-venue">Venue Reviews Artist Application</div>
+              <div class="arrow-down"></div>
+              <div class="node decision">Venue Decision</div>
+              <div style="display: flex; gap: 40px; margin-top: 0">
+                <div class="flow-col">
+                  <div class="arrow-label" style="color: var(--green)">Accept</div>
+                  <div class="arrow-down"></div>
+                  <div class="node system" style="font-size: 11px">
+                    State: Accepted<br />Artist linked to event
+                  </div>
+                  <div class="arrow-down"></div>
+                  <div class="node system" style="font-size: 11px">Artist Notified</div>
+                  <div class="arrow-down"></div>
+                  <div class="node decision" style="font-size: 11px">Either Party Cancels?</div>
+                  <div class="arrow-down"></div>
+                  <div
+                    class="node"
+                    style="
+                      background: #eceff1;
+                      color: #546e7a;
+                      border: 1.5px solid #cfd8dc;
+                      font-size: 11px;
+                    "
+                  >
+                    State: Cancelled
+                  </div>
+                </div>
+                <div class="flow-col">
+                  <div class="arrow-label" style="color: var(--red)">Reject</div>
+                  <div class="arrow-down"></div>
+                  <div class="node error" style="font-size: 11px">State: Rejected</div>
+                  <div class="arrow-down"></div>
+                  <div class="node system" style="font-size: 11px">Artist Notified</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="flow-container">
+            <div class="flow-title">
+              <div class="dot"></div>
+              Direction 2 — Venue Invites Artist
+            </div>
+            <div class="flow">
+              <div class="node persona-venue">Venue Browses Artist Profiles</div>
+              <div class="arrow-down"></div>
+              <div class="node persona-venue">Taps "Invite to Perform"</div>
+              <div class="arrow-down"></div>
+              <div class="node system">Invitation Sent → State: Pending</div>
+              <div class="arrow-down"></div>
+              <div class="node system">Artist Receives Notification</div>
+              <div class="arrow-down"></div>
+              <div class="node persona-artist">Artist Reviews Invitation</div>
+              <div class="arrow-down"></div>
+              <div class="node decision">Artist Decision</div>
+              <div style="display: flex; gap: 40px; margin-top: 0">
+                <div class="flow-col">
+                  <div class="arrow-label" style="color: var(--green)">Accept</div>
+                  <div class="arrow-down"></div>
+                  <div class="node system" style="font-size: 11px">
+                    State: Accepted<br />Artist linked to event
+                  </div>
+                  <div class="arrow-down"></div>
+                  <div class="node system" style="font-size: 11px">Venue Notified</div>
+                  <div class="arrow-down"></div>
+                  <div class="node decision" style="font-size: 11px">Either Party Cancels?</div>
+                  <div class="arrow-down"></div>
+                  <div
+                    class="node"
+                    style="
+                      background: #eceff1;
+                      color: #546e7a;
+                      border: 1.5px solid #cfd8dc;
+                      font-size: 11px;
+                    "
+                  >
+                    State: Cancelled
+                  </div>
+                </div>
+                <div class="flow-col">
+                  <div class="arrow-label" style="color: var(--red)">Reject</div>
+                  <div class="arrow-down"></div>
+                  <div class="node error" style="font-size: 11px">State: Rejected</div>
+                  <div class="arrow-down"></div>
+                  <div class="node system" style="font-size: 11px">Venue Notified</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="flow-container">
+          <div class="flow-title">
+            <div class="dot"></div>
+            Booking State Machine
+          </div>
+          <div class="state-grid">
+            <div class="state-card state-pending">
+              <div class="state-name">PENDING</div>
+              <div class="state-desc">
+                Initial state when either an Artist submits an application or a Venue sends an
+                invitation. No action taken yet by the recipient.
+              </div>
+              <span class="state-trigger">Triggered by: Application or Invitation sent</span>
+            </div>
+            <div class="state-card state-accepted">
+              <div class="state-name">ACCEPTED</div>
+              <div class="state-desc">
+                Recipient has confirmed. Artist is now linked to the event as a performer. Both
+                parties are notified.
+              </div>
+              <span class="state-trigger">Triggered by: Recipient accepts</span>
+            </div>
+            <div class="state-card state-rejected">
+              <div class="state-name">REJECTED</div>
+              <div class="state-desc">
+                Recipient declined the request. Terminal state — no further action. Sender is
+                notified.
+              </div>
+              <span class="state-trigger">Triggered by: Recipient rejects</span>
+            </div>
+            <div class="state-card state-cancelled">
+              <div class="state-name">CANCELLED</div>
+              <div class="state-desc">
+                Either the Artist or the Venue cancels a previously accepted booking. Available at
+                any time post-acceptance.
+              </div>
+              <span class="state-trigger">Triggered by: Either party cancels</span>
             </div>
           </div>
         </div>
       </div>
 
-      <div class="flow-container">
-        <div class="flow-title"><div class="dot"></div>Direction 2 — Venue Invites Artist</div>
-        <div class="flow">
-          <div class="node persona-venue">Venue Browses Artist Profiles</div>
-          <div class="arrow-down"></div>
-          <div class="node persona-venue">Taps "Invite to Perform"</div>
-          <div class="arrow-down"></div>
-          <div class="node system">Invitation Sent → State: Pending</div>
-          <div class="arrow-down"></div>
-          <div class="node system">Artist Receives Notification</div>
-          <div class="arrow-down"></div>
-          <div class="node persona-artist">Artist Reviews Invitation</div>
-          <div class="arrow-down"></div>
-          <div class="node decision">Artist Decision</div>
-          <div style="display:flex;gap:40px;margin-top:0">
-            <div class="flow-col">
-              <div class="arrow-label" style="color:var(--green)">Accept</div>
-              <div class="arrow-down"></div>
-              <div class="node system" style="font-size:11px">State: Accepted<br>Artist linked to event</div>
-              <div class="arrow-down"></div>
-              <div class="node system" style="font-size:11px">Venue Notified</div>
-              <div class="arrow-down"></div>
-              <div class="node decision" style="font-size:11px">Either Party Cancels?</div>
-              <div class="arrow-down"></div>
-              <div class="node" style="background:#ECEFF1;color:#546E7A;border:1.5px solid #CFD8DC;font-size:11px">State: Cancelled</div>
-            </div>
-            <div class="flow-col">
-              <div class="arrow-label" style="color:var(--red)">Reject</div>
-              <div class="arrow-down"></div>
-              <div class="node error" style="font-size:11px">State: Rejected</div>
-              <div class="arrow-down"></div>
-              <div class="node system" style="font-size:11px">Venue Notified</div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div class="flow-container">
-      <div class="flow-title"><div class="dot"></div>Booking State Machine</div>
-      <div class="state-grid">
-        <div class="state-card state-pending">
-          <div class="state-name">PENDING</div>
-          <div class="state-desc">Initial state when either an Artist submits an application or a Venue sends an invitation. No action taken yet by the recipient.</div>
-          <span class="state-trigger">Triggered by: Application or Invitation sent</span>
-        </div>
-        <div class="state-card state-accepted">
-          <div class="state-name">ACCEPTED</div>
-          <div class="state-desc">Recipient has confirmed. Artist is now linked to the event as a performer. Both parties are notified.</div>
-          <span class="state-trigger">Triggered by: Recipient accepts</span>
-        </div>
-        <div class="state-card state-rejected">
-          <div class="state-name">REJECTED</div>
-          <div class="state-desc">Recipient declined the request. Terminal state — no further action. Sender is notified.</div>
-          <span class="state-trigger">Triggered by: Recipient rejects</span>
-        </div>
-        <div class="state-card state-cancelled">
-          <div class="state-name">CANCELLED</div>
-          <div class="state-desc">Either the Artist or the Venue cancels a previously accepted booking. Available at any time post-acceptance.</div>
-          <span class="state-trigger">Triggered by: Either party cancels</span>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ════════════════════════════════════════════════════
+      <!-- ════════════════════════════════════════════════════
        5. SUBSCRIPTION & PAYMENTS
   ════════════════════════════════════════════════════ -->
-  <div id="payments" class="section">
-    <div class="section-title">Subscription & Payments Flow</div>
-    <div class="section-desc">Venue/Business subscriptions use Apple IAP on iOS and Google Play Billing on Android — Stripe is not permitted for in-app purchases. RevenueCat abstracts both stores into a single SDK and management layer.</div>
+      <div id="payments" class="section">
+        <div class="section-title">Subscription & Payments Flow</div>
+        <div class="section-desc">
+          Venue/Business subscriptions use Apple IAP on iOS and Google Play Billing on Android —
+          Stripe is not permitted for in-app purchases. RevenueCat abstracts both stores into a
+          single SDK and management layer.
+        </div>
 
-    <div class="flow-container">
-      <div class="flow-title"><div class="dot"></div>Venue Subscription Flow</div>
-      <div class="flow">
-        <div class="node persona-venue">Venue Completes Profile Setup</div>
-        <div class="arrow-down"></div>
-        <div class="node action">Subscription Plan Selection Screen<br><span style="font-size:10px;font-weight:400">Lite vs Pro — pricing shown</span></div>
-        <div class="arrow-down"></div>
-        <div class="node system">RevenueCat SDK Initiates Purchase</div>
-        <div class="arrow-down"></div>
-        <div class="node decision">Platform?</div>
-        <div style="display:flex;gap:60px;margin-top:0;align-items:flex-start">
-          <div class="flow-col">
-            <div class="arrow-label">iOS</div>
-            <div class="arrow-down"></div>
-            <div class="node external">Apple IAP Sheet<br><span style="font-size:10px;font-weight:400">Native Apple payment UI</span></div>
-            <div class="arrow-down"></div>
-            <div class="node external">Apple Processes Payment<br><span style="font-size:10px;font-weight:400">Takes 15% (Small Biz Program)</span></div>
+        <div class="flow-container">
+          <div class="flow-title">
+            <div class="dot"></div>
+            Venue Subscription Flow
           </div>
-          <div class="flow-col">
-            <div class="arrow-label">Android</div>
+          <div class="flow">
+            <div class="node persona-venue">Venue Completes Profile Setup</div>
             <div class="arrow-down"></div>
-            <div class="node external">Google Play Billing Sheet<br><span style="font-size:10px;font-weight:400">Native Google payment UI</span></div>
+            <div class="node action">
+              Subscription Plan Selection Screen<br /><span
+                style="font-size: 10px; font-weight: 400"
+                >Lite vs Pro — pricing shown</span
+              >
+            </div>
             <div class="arrow-down"></div>
-            <div class="node external">Google Processes Payment<br><span style="font-size:10px;font-weight:400">Takes 15% (reduced fee)</span></div>
+            <div class="node system">RevenueCat SDK Initiates Purchase</div>
+            <div class="arrow-down"></div>
+            <div class="node decision">Platform?</div>
+            <div style="display: flex; gap: 60px; margin-top: 0; align-items: flex-start">
+              <div class="flow-col">
+                <div class="arrow-label">iOS</div>
+                <div class="arrow-down"></div>
+                <div class="node external">
+                  Apple IAP Sheet<br /><span style="font-size: 10px; font-weight: 400"
+                    >Native Apple payment UI</span
+                  >
+                </div>
+                <div class="arrow-down"></div>
+                <div class="node external">
+                  Apple Processes Payment<br /><span style="font-size: 10px; font-weight: 400"
+                    >Takes 15% (Small Biz Program)</span
+                  >
+                </div>
+              </div>
+              <div class="flow-col">
+                <div class="arrow-label">Android</div>
+                <div class="arrow-down"></div>
+                <div class="node external">
+                  Google Play Billing Sheet<br /><span style="font-size: 10px; font-weight: 400"
+                    >Native Google payment UI</span
+                  >
+                </div>
+                <div class="arrow-down"></div>
+                <div class="node external">
+                  Google Processes Payment<br /><span style="font-size: 10px; font-weight: 400"
+                    >Takes 15% (reduced fee)</span
+                  >
+                </div>
+              </div>
+            </div>
+            <div class="arrow-down" style="height: 40px"></div>
+            <div class="node system">RevenueCat Validates Purchase + Issues Entitlement</div>
+            <div class="arrow-down"></div>
+            <div class="node system">
+              Webhook Sent to CeolX Backend<br /><span style="font-size: 10px; font-weight: 400"
+                >Subscription state: active</span
+              >
+            </div>
+            <div class="arrow-down"></div>
+            <div style="display: flex; gap: 40px; align-items: flex-start">
+              <div class="flow-col">
+                <div class="node system" style="font-size: 11px">Venue Features Unlocked</div>
+              </div>
+              <div class="flow-col">
+                <div class="node system" style="font-size: 11px">Confirmation Email (Postmark)</div>
+              </div>
+              <div class="flow-col">
+                <div class="node persona-venue" style="font-size: 11px">Venue Enters App</div>
+              </div>
+            </div>
           </div>
         </div>
-        <div class="arrow-down" style="height:40px"></div>
-        <div class="node system">RevenueCat Validates Purchase + Issues Entitlement</div>
-        <div class="arrow-down"></div>
-        <div class="node system">Webhook Sent to CeolX Backend<br><span style="font-size:10px;font-weight:400">Subscription state: active</span></div>
-        <div class="arrow-down"></div>
-        <div style="display:flex;gap:40px;align-items:flex-start">
-          <div class="flow-col">
-            <div class="node system" style="font-size:11px">Venue Features Unlocked</div>
+
+        <div class="flow-container">
+          <div class="flow-title">
+            <div class="dot"></div>
+            Revenue Split (Per Subscription Payment)
           </div>
-          <div class="flow-col">
-            <div class="node system" style="font-size:11px">Confirmation Email (Postmark)</div>
-          </div>
-          <div class="flow-col">
-            <div class="node persona-venue" style="font-size:11px">Venue Enters App</div>
+          <div style="display: flex; gap: 16px; flex-wrap: wrap">
+            <div
+              style="
+                flex: 1;
+                min-width: 200px;
+                background: var(--orange-light);
+                border: 1.5px solid #f0c090;
+                border-radius: 10px;
+                padding: 20px;
+                text-align: center;
+              "
+            >
+              <div style="font-size: 32px; font-weight: 800; color: var(--orange)">15%</div>
+              <div style="font-size: 13px; font-weight: 700; color: var(--orange); margin-top: 4px">
+                Apple / Google
+              </div>
+              <div
+                style="font-size: 11px; color: var(--grey-mid); margin-top: 8px; line-height: 1.5"
+              >
+                Small Business Program rate (under $1M/yr). Rises to 30% above $1M annual revenue.
+              </div>
+            </div>
+            <div
+              style="
+                flex: 1;
+                min-width: 200px;
+                background: var(--blue-light);
+                border: 1.5px solid #b8cff0;
+                border-radius: 10px;
+                padding: 20px;
+                text-align: center;
+              "
+            >
+              <div style="font-size: 32px; font-weight: 800; color: var(--blue)">0%</div>
+              <div style="font-size: 13px; font-weight: 700; color: var(--blue); margin-top: 4px">
+                RevenueCat
+              </div>
+              <div
+                style="font-size: 11px; color: var(--grey-mid); margin-top: 8px; line-height: 1.5"
+              >
+                No commission. Free up to $2,500/mo tracked revenue. $99/mo up to $10k MTR.
+              </div>
+            </div>
+            <div
+              style="
+                flex: 1;
+                min-width: 200px;
+                background: var(--green-light);
+                border: 2px solid var(--green);
+                border-radius: 10px;
+                padding: 20px;
+                text-align: center;
+              "
+            >
+              <div style="font-size: 32px; font-weight: 800; color: var(--green)">~85%</div>
+              <div style="font-size: 13px; font-weight: 700; color: var(--green); margin-top: 4px">
+                CeolX Net Revenue
+              </div>
+              <div
+                style="font-size: 11px; color: var(--grey-mid); margin-top: 8px; line-height: 1.5"
+              >
+                On a €10/mo subscription, CeolX nets ~€8.50 at launch scale.
+              </div>
+            </div>
           </div>
         </div>
       </div>
-    </div>
 
-    <div class="flow-container">
-      <div class="flow-title"><div class="dot"></div>Revenue Split (Per Subscription Payment)</div>
-      <div style="display:flex;gap:16px;flex-wrap:wrap">
-        <div style="flex:1;min-width:200px;background:var(--orange-light);border:1.5px solid #F0C090;border-radius:10px;padding:20px;text-align:center">
-          <div style="font-size:32px;font-weight:800;color:var(--orange)">15%</div>
-          <div style="font-size:13px;font-weight:700;color:var(--orange);margin-top:4px">Apple / Google</div>
-          <div style="font-size:11px;color:var(--grey-mid);margin-top:8px;line-height:1.5">Small Business Program rate (under $1M/yr). Rises to 30% above $1M annual revenue.</div>
-        </div>
-        <div style="flex:1;min-width:200px;background:var(--blue-light);border:1.5px solid #B8CFF0;border-radius:10px;padding:20px;text-align:center">
-          <div style="font-size:32px;font-weight:800;color:var(--blue)">0%</div>
-          <div style="font-size:13px;font-weight:700;color:var(--blue);margin-top:4px">RevenueCat</div>
-          <div style="font-size:11px;color:var(--grey-mid);margin-top:8px;line-height:1.5">No commission. Free up to $2,500/mo tracked revenue. $99/mo up to $10k MTR.</div>
-        </div>
-        <div style="flex:1;min-width:200px;background:var(--green-light);border:2px solid var(--green);border-radius:10px;padding:20px;text-align:center">
-          <div style="font-size:32px;font-weight:800;color:var(--green)">~85%</div>
-          <div style="font-size:13px;font-weight:700;color:var(--green);margin-top:4px">CeolX Net Revenue</div>
-          <div style="font-size:11px;color:var(--grey-mid);margin-top:8px;line-height:1.5">On a €10/mo subscription, CeolX nets ~€8.50 at launch scale.</div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ════════════════════════════════════════════════════
+      <!-- ════════════════════════════════════════════════════
        6. NOTIFICATIONS
   ════════════════════════════════════════════════════ -->
-  <div id="notifications" class="section">
-    <div class="section-title">Notification Flows</div>
-    <div class="section-desc">Push notifications are delivered via Firebase FCM. Transactional emails use Postmark. Notification triggers are categorised by user action type.</div>
-
-    <div class="flow-container">
-      <div class="flow-title"><div class="dot"></div>Push Notification Architecture</div>
-      <div class="flow">
-        <div style="display:flex;gap:24px;align-items:flex-start;flex-wrap:wrap;justify-content:center">
-          <div class="node persona-artist" style="font-size:11px">Artist Action<br>(post event, accept invite)</div>
-          <div class="node persona-venue" style="font-size:11px">Venue Action<br>(post gig, send invite)</div>
-          <div class="node system" style="font-size:11px">System Trigger<br>(time-based reminder)</div>
+      <div id="notifications" class="section">
+        <div class="section-title">Notification Flows</div>
+        <div class="section-desc">
+          Push notifications are delivered via Firebase FCM. Transactional emails use Postmark.
+          Notification triggers are categorised by user action type.
         </div>
-        <div class="arrow-down"></div>
-        <div class="node system">CeolX Backend API (Hono)</div>
-        <div class="arrow-down"></div>
-        <div class="node external">Firebase FCM</div>
-        <div class="arrow-down"></div>
-        <div style="display:flex;gap:40px;align-items:flex-start">
-          <div class="flow-col">
-            <div class="node persona-user" style="font-size:11px">iOS Push Notification<br>(APNs via FCM)</div>
+
+        <div class="flow-container">
+          <div class="flow-title">
+            <div class="dot"></div>
+            Push Notification Architecture
           </div>
-          <div class="flow-col">
-            <div class="node persona-user" style="font-size:11px">Android Push Notification<br>(FCM Direct)</div>
+          <div class="flow">
+            <div
+              style="
+                display: flex;
+                gap: 24px;
+                align-items: flex-start;
+                flex-wrap: wrap;
+                justify-content: center;
+              "
+            >
+              <div class="node persona-artist" style="font-size: 11px">
+                Artist Action<br />(post event, accept invite)
+              </div>
+              <div class="node persona-venue" style="font-size: 11px">
+                Venue Action<br />(post gig, send invite)
+              </div>
+              <div class="node system" style="font-size: 11px">
+                System Trigger<br />(time-based reminder)
+              </div>
+            </div>
+            <div class="arrow-down"></div>
+            <div class="node system">CeolX Backend API (Hono)</div>
+            <div class="arrow-down"></div>
+            <div class="node external">Firebase FCM</div>
+            <div class="arrow-down"></div>
+            <div style="display: flex; gap: 40px; align-items: flex-start">
+              <div class="flow-col">
+                <div class="node persona-user" style="font-size: 11px">
+                  iOS Push Notification<br />(APNs via FCM)
+                </div>
+              </div>
+              <div class="flow-col">
+                <div class="node persona-user" style="font-size: 11px">
+                  Android Push Notification<br />(FCM Direct)
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="flow-container">
+          <div class="flow-title">
+            <div class="dot"></div>
+            Notification Trigger Reference
+          </div>
+          <div class="notif-grid">
+            <div class="notif-group">
+              <div class="notif-group-title">🔍 Discovery</div>
+              <div class="notif-item">
+                New event created within user's set radius (nearby event alert)
+              </div>
+              <div class="notif-item">New post or event from a followed Artist or Venue</div>
+            </div>
+            <div class="notif-group">
+              <div class="notif-group-title">📅 Calendar</div>
+              <div class="notif-item">Event reminder — 1 hour before saved event's start time</div>
+            </div>
+            <div class="notif-group">
+              <div class="notif-group-title">👥 Social</div>
+              <div class="notif-item">New follower on your Artist or Venue profile</div>
+            </div>
+            <div class="notif-group">
+              <div class="notif-group-title">🎵 Booking</div>
+              <div class="notif-item">Venue sends Artist an invitation to perform</div>
+              <div class="notif-item">Artist applies to a Venue's gig opportunity</div>
+              <div class="notif-item">Booking accepted (either direction)</div>
+              <div class="notif-item">Booking rejected or cancelled (either direction)</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="flow-container">
+          <div class="flow-title">
+            <div class="dot"></div>
+            Transactional Email Reference (Postmark)
+          </div>
+          <div class="notif-grid">
+            <div class="notif-group">
+              <div class="notif-group-title">🔐 Auth</div>
+              <div class="notif-item">Email verification on Email/Password sign-up</div>
+              <div class="notif-item">Password reset link</div>
+            </div>
+            <div class="notif-group">
+              <div class="notif-group-title">💳 Payments</div>
+              <div class="notif-item">
+                Subscription payment confirmation — triggered by RevenueCat webhook to backend, sent
+                via Postmark
+              </div>
+            </div>
           </div>
         </div>
       </div>
-    </div>
 
-    <div class="flow-container">
-      <div class="flow-title"><div class="dot"></div>Notification Trigger Reference</div>
-      <div class="notif-grid">
-        <div class="notif-group">
-          <div class="notif-group-title">🔍 Discovery</div>
-          <div class="notif-item">New event created within user's set radius (nearby event alert)</div>
-          <div class="notif-item">New post or event from a followed Artist or Venue</div>
-        </div>
-        <div class="notif-group">
-          <div class="notif-group-title">📅 Calendar</div>
-          <div class="notif-item">Event reminder — 1 hour before saved event's start time</div>
-        </div>
-        <div class="notif-group">
-          <div class="notif-group-title">👥 Social</div>
-          <div class="notif-item">New follower on your Artist or Venue profile</div>
-        </div>
-        <div class="notif-group">
-          <div class="notif-group-title">🎵 Booking</div>
-          <div class="notif-item">Venue sends Artist an invitation to perform</div>
-          <div class="notif-item">Artist applies to a Venue's gig opportunity</div>
-          <div class="notif-item">Booking accepted (either direction)</div>
-          <div class="notif-item">Booking rejected or cancelled (either direction)</div>
-        </div>
-      </div>
-    </div>
-
-    <div class="flow-container">
-      <div class="flow-title"><div class="dot"></div>Transactional Email Reference (Postmark)</div>
-      <div class="notif-grid">
-        <div class="notif-group">
-          <div class="notif-group-title">🔐 Auth</div>
-          <div class="notif-item">Email verification on Email/Password sign-up</div>
-          <div class="notif-item">Password reset link</div>
-        </div>
-        <div class="notif-group">
-          <div class="notif-group-title">💳 Payments</div>
-          <div class="notif-item">Subscription payment confirmation — triggered by RevenueCat webhook to backend, sent via Postmark</div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ════════════════════════════════════════════════════
+      <!-- ════════════════════════════════════════════════════
        7. TECH STACK
   ════════════════════════════════════════════════════ -->
-  <div id="stack" class="section">
-    <div class="section-title">Tech Stack Architecture</div>
-    <div class="section-desc">Confirmed technology decisions from the planning session (March 2026). This supersedes the original January 2026 proposal. Built for a solo full-stack developer.</div>
+      <div id="stack" class="section">
+        <div class="section-title">Tech Stack Architecture</div>
+        <div class="section-desc">
+          Confirmed technology decisions from the planning session (March 2026). This supersedes the
+          original January 2026 proposal. Built for a solo full-stack developer.
+        </div>
 
-    <div class="flow-container">
-      <div class="flow-title"><div class="dot"></div>System Architecture Overview</div>
-      <div class="arch-container">
-        <div>
-          <div class="arch-col-title">Frontend (Client)</div>
-          <div class="arch-node"><div class="arch-label">Mobile App</div><div class="arch-value">React Native + Expo</div></div>
-          <div class="arch-connector">↓</div>
-          <div class="arch-node"><div class="arch-label">Maps</div><div class="arch-value">React Native Maps</div><div style="font-size:11px;color:var(--grey-mid);margin-top:3px">Apple Maps (iOS) · Google Maps (Android)</div></div>
-          <div class="arch-connector">↓</div>
-          <div class="arch-node"><div class="arch-label">Admin Dashboard</div><div class="arch-value">Next.js + ShadCN/UI</div></div>
-          <div class="arch-connector">↓</div>
-          <div class="arch-node"><div class="arch-label">Monorepo</div><div class="arch-value">Turborepo</div><div style="font-size:11px;color:var(--grey-mid);margin-top:3px">apps/mobile · apps/admin · apps/api · packages/shared</div></div>
+        <div class="flow-container">
+          <div class="flow-title">
+            <div class="dot"></div>
+            System Architecture Overview
+          </div>
+          <div class="arch-container">
+            <div>
+              <div class="arch-col-title">Frontend (Client)</div>
+              <div class="arch-node">
+                <div class="arch-label">Mobile App</div>
+                <div class="arch-value">React Native + Expo</div>
+              </div>
+              <div class="arch-connector">↓</div>
+              <div class="arch-node">
+                <div class="arch-label">Maps</div>
+                <div class="arch-value">React Native Maps</div>
+                <div style="font-size: 11px; color: var(--grey-mid); margin-top: 3px">
+                  Apple Maps (iOS) · Google Maps (Android)
+                </div>
+              </div>
+              <div class="arch-connector">↓</div>
+              <div class="arch-node">
+                <div class="arch-label">Admin Dashboard</div>
+                <div class="arch-value">Next.js + ShadCN/UI</div>
+              </div>
+              <div class="arch-connector">↓</div>
+              <div class="arch-node">
+                <div class="arch-label">Monorepo</div>
+                <div class="arch-value">Turborepo</div>
+                <div style="font-size: 11px; color: var(--grey-mid); margin-top: 3px">
+                  apps/mobile · apps/admin · apps/api · packages/shared
+                </div>
+              </div>
+            </div>
+            <div>
+              <div class="arch-col-title">Backend (Server)</div>
+              <div class="arch-node">
+                <div class="arch-label">API Framework</div>
+                <div class="arch-value">Hono (Node.js / TypeScript)</div>
+                <div style="font-size: 11px; color: var(--grey-mid); margin-top: 3px">
+                  Deployed on AWS Lambda (serverless)
+                </div>
+              </div>
+              <div class="arch-connector">↓</div>
+              <div class="arch-node">
+                <div class="arch-label">ORM</div>
+                <div class="arch-value">Drizzle</div>
+                <div style="font-size: 11px; color: var(--grey-mid); margin-top: 3px">
+                  SQL-like, TypeScript-first
+                </div>
+              </div>
+              <div class="arch-connector">↓</div>
+              <div class="arch-node">
+                <div class="arch-label">Database</div>
+                <div class="arch-value">PostgreSQL via Neon</div>
+                <div style="font-size: 11px; color: var(--grey-mid); margin-top: 3px">
+                  Serverless · DB branching (dev/staging/prod)
+                </div>
+              </div>
+              <div class="arch-connector">↓</div>
+              <div class="arch-node">
+                <div class="arch-label">Authentication</div>
+                <div class="arch-value">BetterAuth</div>
+                <div style="font-size: 11px; color: var(--grey-mid); margin-top: 3px">
+                  Email/Password · Google OAuth · Apple Sign-In
+                </div>
+              </div>
+            </div>
+            <div>
+              <div class="arch-col-title">Services & Integrations</div>
+              <div class="arch-node">
+                <div class="arch-label">Push Notifications</div>
+                <div class="arch-value">Firebase FCM</div>
+              </div>
+              <div class="arch-connector"></div>
+              <div class="arch-node">
+                <div class="arch-label">Email</div>
+                <div class="arch-value">Postmark</div>
+                <div style="font-size: 11px; color: var(--grey-mid); margin-top: 3px">
+                  Transactional emails only
+                </div>
+              </div>
+              <div class="arch-connector"></div>
+              <div class="arch-node">
+                <div class="arch-label">Media Storage</div>
+                <div class="arch-value">AWS S3 + CloudFront</div>
+                <div style="font-size: 11px; color: var(--grey-mid); margin-top: 3px">
+                  Images & audio · CDN delivery
+                </div>
+              </div>
+              <div class="arch-connector"></div>
+              <div class="arch-node">
+                <div class="arch-label">Video Processing</div>
+                <div class="arch-value">Mux</div>
+                <div style="font-size: 11px; color: var(--grey-mid); margin-top: 3px">
+                  Upload · Transcode · HLS · CDN · Analytics
+                </div>
+              </div>
+              <div class="arch-connector"></div>
+              <div class="arch-node">
+                <div class="arch-label">Payments</div>
+                <div class="arch-value">RevenueCat</div>
+                <div style="font-size: 11px; color: var(--grey-mid); margin-top: 3px">
+                  Apple IAP (iOS) · Google Play Billing (Android)
+                </div>
+              </div>
+              <div class="arch-connector"></div>
+              <div class="arch-node">
+                <div class="arch-label">Source Control</div>
+                <div class="arch-value">GitHub</div>
+              </div>
+            </div>
+          </div>
         </div>
-        <div>
-          <div class="arch-col-title">Backend (Server)</div>
-          <div class="arch-node"><div class="arch-label">API Framework</div><div class="arch-value">Hono (Node.js / TypeScript)</div><div style="font-size:11px;color:var(--grey-mid);margin-top:3px">Deployed on AWS Lambda (serverless)</div></div>
-          <div class="arch-connector">↓</div>
-          <div class="arch-node"><div class="arch-label">ORM</div><div class="arch-value">Drizzle</div><div style="font-size:11px;color:var(--grey-mid);margin-top:3px">SQL-like, TypeScript-first</div></div>
-          <div class="arch-connector">↓</div>
-          <div class="arch-node"><div class="arch-label">Database</div><div class="arch-value">PostgreSQL via Neon</div><div style="font-size:11px;color:var(--grey-mid);margin-top:3px">Serverless · DB branching (dev/staging/prod)</div></div>
-          <div class="arch-connector">↓</div>
-          <div class="arch-node"><div class="arch-label">Authentication</div><div class="arch-value">BetterAuth</div><div style="font-size:11px;color:var(--grey-mid);margin-top:3px">Email/Password · Google OAuth · Apple Sign-In</div></div>
-        </div>
-        <div>
-          <div class="arch-col-title">Services & Integrations</div>
-          <div class="arch-node"><div class="arch-label">Push Notifications</div><div class="arch-value">Firebase FCM</div></div>
-          <div class="arch-connector"></div>
-          <div class="arch-node"><div class="arch-label">Email</div><div class="arch-value">Postmark</div><div style="font-size:11px;color:var(--grey-mid);margin-top:3px">Transactional emails only</div></div>
-          <div class="arch-connector"></div>
-          <div class="arch-node"><div class="arch-label">Media Storage</div><div class="arch-value">AWS S3 + CloudFront</div><div style="font-size:11px;color:var(--grey-mid);margin-top:3px">Images & audio · CDN delivery</div></div>
-          <div class="arch-connector"></div>
-          <div class="arch-node"><div class="arch-label">Video Processing</div><div class="arch-value">Mux</div><div style="font-size:11px;color:var(--grey-mid);margin-top:3px">Upload · Transcode · HLS · CDN · Analytics</div></div>
-          <div class="arch-connector"></div>
-          <div class="arch-node"><div class="arch-label">Payments</div><div class="arch-value">RevenueCat</div><div style="font-size:11px;color:var(--grey-mid);margin-top:3px">Apple IAP (iOS) · Google Play Billing (Android)</div></div>
-          <div class="arch-connector"></div>
-          <div class="arch-node"><div class="arch-label">Source Control</div><div class="arch-value">GitHub</div></div>
+
+        <div class="flow-container">
+          <div class="flow-title">
+            <div class="dot"></div>
+            GDPR Compliance Flow (Mandatory — Irish Client)
+          </div>
+          <div class="gdpr-steps">
+            <div class="gdpr-step">
+              <div class="gdpr-step-num">01</div>
+              <div class="gdpr-step-title">Consent at Sign-Up</div>
+              <div class="gdpr-step-desc">
+                User must accept Privacy Policy and Terms of Service. Consent for location tracking
+                and marketing comms collected explicitly.
+              </div>
+            </div>
+            <div class="gdpr-step">
+              <div class="gdpr-step-num">02</div>
+              <div class="gdpr-step-title">Location Data</div>
+              <div class="gdpr-step-desc">
+                Collected on-demand only (app in use). Not continuously tracked in background. User
+                can revoke at any time via device settings.
+              </div>
+            </div>
+            <div class="gdpr-step">
+              <div class="gdpr-step-num">03</div>
+              <div class="gdpr-step-title">Right to Erasure</div>
+              <div class="gdpr-step-desc">
+                Users can request account deletion. Personal data is anonymised. Non-personal
+                content (event structures) retained for platform integrity.
+              </div>
+            </div>
+            <div class="gdpr-step">
+              <div class="gdpr-step-num">04</div>
+              <div class="gdpr-step-title">Data Portability</div>
+              <div class="gdpr-step-desc">
+                Users can export their personal data on request (Article 20). Delivered as a
+                structured file.
+              </div>
+            </div>
+            <div class="gdpr-step">
+              <div class="gdpr-step-num">05</div>
+              <div class="gdpr-step-title">Data Retention</div>
+              <div class="gdpr-step-desc">
+                Inactive accounts flagged after 24 months. Defined retention periods for all
+                personal data categories.
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
 
-    <div class="flow-container">
-      <div class="flow-title"><div class="dot"></div>GDPR Compliance Flow (Mandatory — Irish Client)</div>
-      <div class="gdpr-steps">
-        <div class="gdpr-step">
-          <div class="gdpr-step-num">01</div>
-          <div class="gdpr-step-title">Consent at Sign-Up</div>
-          <div class="gdpr-step-desc">User must accept Privacy Policy and Terms of Service. Consent for location tracking and marketing comms collected explicitly.</div>
-        </div>
-        <div class="gdpr-step">
-          <div class="gdpr-step-num">02</div>
-          <div class="gdpr-step-title">Location Data</div>
-          <div class="gdpr-step-desc">Collected on-demand only (app in use). Not continuously tracked in background. User can revoke at any time via device settings.</div>
-        </div>
-        <div class="gdpr-step">
-          <div class="gdpr-step-num">03</div>
-          <div class="gdpr-step-title">Right to Erasure</div>
-          <div class="gdpr-step-desc">Users can request account deletion. Personal data is anonymised. Non-personal content (event structures) retained for platform integrity.</div>
-        </div>
-        <div class="gdpr-step">
-          <div class="gdpr-step-num">04</div>
-          <div class="gdpr-step-title">Data Portability</div>
-          <div class="gdpr-step-desc">Users can export their personal data on request (Article 20). Delivered as a structured file.</div>
-        </div>
-        <div class="gdpr-step">
-          <div class="gdpr-step-num">05</div>
-          <div class="gdpr-step-title">Data Retention</div>
-          <div class="gdpr-step-desc">Inactive accounts flagged after 24 months. Defined retention periods for all personal data categories.</div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-</div>
-
-<script>
-  function show(id, btn) {
-    document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
-    document.querySelectorAll('.nav button').forEach(b => b.classList.remove('active'));
-    document.getElementById(id).classList.add('active');
-    btn.classList.add('active');
-  }
-</script>
-</body>
+    <script>
+      function show(id, btn) {
+        document.querySelectorAll(".section").forEach((s) => s.classList.remove("active"));
+        document.querySelectorAll(".nav button").forEach((b) => b.classList.remove("active"));
+        document.getElementById(id).classList.add("active");
+        btn.classList.add("active");
+      }
+    </script>
+  </body>
 </html>

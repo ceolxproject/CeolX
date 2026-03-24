@@ -9,9 +9,26 @@
       "Bash(python3 -c \":*)",
       "Bash(pandoc \"/Users/priyayadav/Documents/Raftlabs/CeolX/CeolX - Features \\(Copy for Devs\\).docx\" -o /tmp/ceolx_features.md)",
       "Bash(pandoc \"/Users/priyayadav/Documents/Raftlabs/CeolX/CeolX - Proposal Document March 2026.docx\" -o /tmp/ceolx_proposal.md)",
-      "Bash(brew install:*)"
+      "Bash(brew install:*)",
+      "Bash(npx --yes create-better-t-stack@latest --help)",
+      "Bash(command -v nvm)",
+      "Bash(~/.nvm/nvm.sh)",
+      "Bash(command -v volta)",
+      "Bash(command -v fnm)",
+      "Bash(source ~/.nvm/nvm.sh)",
+      "Bash(nvm use:*)",
+      "Bash(pnpm create:*)",
+      "Bash(pnpm list:*)",
+      "Bash(git show-ref:*)"
     ]
   },
+  "enabledMcpjsonServers": [
+    "better-t-stack",
+    "context7",
+    "shadcn",
+    "better-auth",
+    "expo-mcp"
+  ],
   "enabledPlugins": {
     "figma@claude-plugins-official": true
   }

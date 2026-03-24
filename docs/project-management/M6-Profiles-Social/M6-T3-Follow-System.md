@@ -1,11 +1,11 @@
 # M6-T3 · Follow System
 
-| Field | Value |
-|-------|-------|
-| **Milestone** | M6 — Profiles & Social |
-| **Status** | 🔲 To Do |
-| **Depends on** | M6-T1 (artist_profiles), M6-T2 (venue_profiles), M7-T1 (FCM push notifications) |
-| **PRD Ref** | Section 5.1 (End User Features), Section 6.3 (Artist Social), Section 7.3 (Venue Social), Section 9.3 (Data Model) |
+| Field          | Value                                                                                                              |
+| -------------- | ------------------------------------------------------------------------------------------------------------------ |
+| **Milestone**  | M6 — Profiles & Social                                                                                             |
+| **Status**     | 🔲 To Do                                                                                                           |
+| **Depends on** | M6-T1 (artist_profiles), M6-T2 (venue_profiles), M7-T1 (FCM push notifications)                                    |
+| **PRD Ref**    | Section 5.1 (End User Features), Section 6.3 (Artist Social), Section 7.3 (Venue Social), Section 9.3 (Data Model) |
 
 ---
 
@@ -17,12 +17,12 @@ The follow system enables users to subscribe to specific artists and venues. Fol
 
 ## Affected Apps / Packages
 
-| App / Package | Role |
-|---------------|------|
-| `apps/api` | POST /api/v1/follows (create follow), DELETE /api/v1/follows/:profileId (unfollow), GET /api/v1/users/me/following (list follows), GET /api/v1/artists/:id and GET /api/v1/venues/:id return follower_count |
-| `apps/mobile` | Follow button on Artist/Venue profile screens, Following list in Profile tab, follower count display |
-| `packages/shared` | Follow types, profile reference types |
-| Firebase FCM | Push notification when user is followed (optional V2 feature) |
+| App / Package     | Role                                                                                                                                                                                                        |
+| ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `apps/api`        | POST /api/v1/follows (create follow), DELETE /api/v1/follows/:profileId (unfollow), GET /api/v1/users/me/following (list follows), GET /api/v1/artists/:id and GET /api/v1/venues/:id return follower_count |
+| `apps/mobile`     | Follow button on Artist/Venue profile screens, Following list in Profile tab, follower count display                                                                                                        |
+| `packages/shared` | Follow types, profile reference types                                                                                                                                                                       |
+| Firebase FCM      | Push notification when user is followed (optional V2 feature)                                                                                                                                               |
 
 ---
 
@@ -35,6 +35,7 @@ Create a follow relationship. User follows an artist or venue.
 **Authentication:** Required (any persona)
 
 **Request Body:**
+
 ```json
 {
   "profile_id": "artist-profile-uuid",
@@ -45,6 +46,7 @@ Create a follow relationship. User follows an artist or venue.
 Valid profile_type: `"artist"` | `"venue"`
 
 **Response (201 Created):**
+
 ```json
 {
   "id": "follow-uuid",
@@ -56,6 +58,7 @@ Valid profile_type: `"artist"` | `"venue"`
 ```
 
 **Error Responses:**
+
 - `400 Bad Request` — Invalid profile_id or profile_type; attempting to follow self
 - `401 Unauthorized` — Not authenticated
 - `404 Not Found` — Profile does not exist or is inactive
@@ -71,16 +74,19 @@ Remove a follow relationship. User unfollows an artist or venue.
 **Authentication:** Required (any persona)
 
 **Path Params:**
+
 ```
 :profileId — UUID of artist_profile or venue_profile being unfollowed
 ```
 
 **Response (204 No Content):**
+
 ```
 (no body)
 ```
 
 **Error Responses:**
+
 - `401 Unauthorized` — Not authenticated
 - `404 Not Found` — Follow relationship does not exist
 - `500 Internal Server Error` — Database error
@@ -94,6 +100,7 @@ List all artists and venues the authenticated user follows.
 **Authentication:** Required
 
 **Query Params:**
+
 ```
 ?profile_type=artist  (optional: filter to only artists or venues)
 ?limit=50             (optional: default 50, max 100)
@@ -101,6 +108,7 @@ List all artists and venues the authenticated user follows.
 ```
 
 **Response (200 OK):**
+
 ```json
 {
   "following": [
@@ -140,6 +148,7 @@ List all artists and venues the authenticated user follows.
 ## Requirements
 
 ### Follow Creation
+
 - R1: Any authenticated user (spectator, artist, venue) can follow any active artist or venue
 - R2: A user cannot follow themselves (attempting to follow own profile returns error)
 - R3: Each user can follow a profile at most once (duplicate follows prevented by unique constraint)
@@ -147,11 +156,13 @@ List all artists and venues the authenticated user follows.
 - R5: Follow is unidirectional — no mutual follow requirement
 
 ### Unfollowing
+
 - R6: User can unfollow any profile they previously followed
 - R7: Unfollowing removes the follow relationship from the database
 - R8: Unfollow can be called by the user who created the follow relationship
 
 ### Follower Count
+
 - R9: artist_profiles.follower_count and venue_profiles.follower_count are denormalized integers
 - R10: On follow creation: increment follower_count on the target profile
 - R11: On unfollow: decrement follower_count on the target profile
@@ -159,6 +170,7 @@ List all artists and venues the authenticated user follows.
 - R13: Follower count updates in real-time (or on refresh) when follow/unfollow occurs
 
 ### Follow List
+
 - R14: GET /api/v1/users/me/following returns all profiles (artists and venues) the authenticated user follows
 - R15: Results include profile data (id, display_name/name, profile_image_url, genre/subscription_status)
 - R16: Results are paginated (default 50 per page, max 100)
@@ -166,6 +178,7 @@ List all artists and venues the authenticated user follows.
 - R18: Results are sorted by follow creation date (newest first)
 
 ### UI Integration
+
 - R19: Follow button visible on all artist and venue profile screens (except own profile)
 - R20: Follow button text toggles between "Follow" and "Following" based on follow status
 - R21: Tapping Follow button calls POST /api/v1/follows and updates button state immediately (optimistic UI)
@@ -174,6 +187,7 @@ List all artists and venues the authenticated user follows.
 - R24: Following list shows profile image, name, and a quick-unfollow button
 
 ### Feed Integration (Deferred to M3-T4)
+
 - R25: Discover feed algorithm weights followed accounts at +20% ranking boost
 - R26: Users see posts from followed accounts higher in their feed
 - R27: Follows feed is the primary source of feed content (followed posts, then trending, then random)
@@ -183,6 +197,7 @@ List all artists and venues the authenticated user follows.
 ## Acceptance Criteria
 
 ### Follow Button
+
 - [ ] Follow button visible on all artist and venue profile screens
 - [ ] Follow button disabled when viewing own profile (Artist viewing Artist profile, Venue viewing Venue profile)
 - [ ] Tapping Follow calls POST /api/v1/follows; button toggles to "Following" immediately
@@ -190,12 +205,14 @@ List all artists and venues the authenticated user follows.
 - [ ] Follower count increments when follow created, decrements on unfollow
 
 ### Follow Validation
+
 - [ ] Attempting to follow self returns error
 - [ ] Attempting to follow same profile twice returns 409 Conflict
 - [ ] Following inactive profile returns 404 error
 - [ ] Unfollow request for non-existent follow returns 404
 
 ### Following List
+
 - [ ] GET /api/v1/users/me/following returns all followed profiles with full data
 - [ ] Results paginated (default 50, max 100)
 - [ ] Results can be filtered by profile_type (artist or venue)
@@ -204,6 +221,7 @@ List all artists and venues the authenticated user follows.
 - [ ] Tapping unfollow from Following list immediately removes item and updates count
 
 ### Database
+
 - [ ] Follower count incremented on follow, decremented on unfollow
 - [ ] Unique constraint on (follower_user_id, following_profile_id, following_profile_type) prevents duplicates
 - [ ] Composite index on follower_user_id for fast filtering
@@ -221,6 +239,7 @@ List all artists and venues the authenticated user follows.
 ## Technical Notes
 
 ### Database Schema (follows table)
+
 ```sql
 CREATE TABLE follows (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -237,49 +256,53 @@ CREATE INDEX idx_follows_following ON follows(following_profile_id, following_pr
 ```
 
 ### Hono Handler Example
+
 ```typescript
-import { Hono } from 'hono';
-import { db } from '../db';
-import { follows, artistProfiles, venueProfiles } from '../db/schema';
-import { eq, and } from 'drizzle-orm';
+import { Hono } from "hono";
+import { db } from "../db";
+import { follows, artistProfiles, venueProfiles } from "../db/schema";
+import { eq, and } from "drizzle-orm";
 
 const followRouter = new Hono();
 
 // POST /follows
-followRouter.post('/', async (c) => {
-  const user = c.get('user');
+followRouter.post("/", async (c) => {
+  const user = c.get("user");
   const { profile_id, profile_type } = await c.req.json();
 
-  if (!['artist', 'venue'].includes(profile_type)) {
-    return c.json({ error: 'Invalid profile_type' }, 400);
+  if (!["artist", "venue"].includes(profile_type)) {
+    return c.json({ error: "Invalid profile_type" }, 400);
   }
 
   // Check if profile exists and is active
-  const profileTable = profile_type === 'artist' ? artistProfiles : venueProfiles;
+  const profileTable =
+    profile_type === "artist" ? artistProfiles : venueProfiles;
   const profile = await db
     .select()
     .from(profileTable)
-    .where(and(eq(profileTable.id, profile_id), eq(profileTable.is_active, true)))
-    .then(rows => rows[0]);
+    .where(
+      and(eq(profileTable.id, profile_id), eq(profileTable.is_active, true)),
+    )
+    .then((rows) => rows[0]);
 
   if (!profile) {
-    return c.json({ error: 'Profile not found or inactive' }, 404);
+    return c.json({ error: "Profile not found or inactive" }, 404);
   }
 
   // Prevent self-follow
-  if (profile_type === 'artist') {
+  if (profile_type === "artist") {
     const artistProfile = await db.query.artistProfiles.findFirst({
       where: eq(artistProfiles.user_id, user.id),
     });
     if (artistProfile?.id === profile_id) {
-      return c.json({ error: 'Cannot follow yourself' }, 400);
+      return c.json({ error: "Cannot follow yourself" }, 400);
     }
-  } else if (profile_type === 'venue') {
+  } else if (profile_type === "venue") {
     const venueProfile = await db.query.venueProfiles.findFirst({
       where: eq(venueProfiles.user_id, user.id),
     });
     if (venueProfile?.id === profile_id) {
-      return c.json({ error: 'Cannot follow yourself' }, 400);
+      return c.json({ error: "Cannot follow yourself" }, 400);
     }
   }
 
@@ -291,13 +314,13 @@ followRouter.post('/', async (c) => {
       and(
         eq(follows.follower_user_id, user.id),
         eq(follows.following_profile_id, profile_id),
-        eq(follows.following_profile_type, profile_type)
-      )
+        eq(follows.following_profile_type, profile_type),
+      ),
     )
-    .then(rows => rows[0]);
+    .then((rows) => rows[0]);
 
   if (existingFollow) {
-    return c.json({ error: 'Already following this profile' }, 409);
+    return c.json({ error: "Already following this profile" }, 409);
   }
 
   // Create follow
@@ -309,7 +332,7 @@ followRouter.post('/', async (c) => {
       following_profile_type: profile_type,
     })
     .returning()
-    .then(rows => rows[0]);
+    .then((rows) => rows[0]);
 
   // Increment follower_count
   await db
@@ -321,9 +344,9 @@ followRouter.post('/', async (c) => {
 });
 
 // DELETE /follows/:profileId
-followRouter.delete('/:profileId', async (c) => {
-  const user = c.get('user');
-  const profileId = c.req.param('profileId');
+followRouter.delete("/:profileId", async (c) => {
+  const user = c.get("user");
+  const profileId = c.req.param("profileId");
 
   // Find the follow relationship
   const follow = await db
@@ -332,22 +355,21 @@ followRouter.delete('/:profileId', async (c) => {
     .where(
       and(
         eq(follows.follower_user_id, user.id),
-        eq(follows.following_profile_id, profileId)
-      )
+        eq(follows.following_profile_id, profileId),
+      ),
     )
-    .then(rows => rows[0]);
+    .then((rows) => rows[0]);
 
   if (!follow) {
-    return c.json({ error: 'Follow not found' }, 404);
+    return c.json({ error: "Follow not found" }, 404);
   }
 
   // Delete follow
-  await db
-    .delete(follows)
-    .where(eq(follows.id, follow.id));
+  await db.delete(follows).where(eq(follows.id, follow.id));
 
   // Decrement follower_count
-  const profileTable = follow.following_profile_type === 'artist' ? artistProfiles : venueProfiles;
+  const profileTable =
+    follow.following_profile_type === "artist" ? artistProfiles : venueProfiles;
   await db
     .update(profileTable)
     .set({ follower_count: db.raw(`MAX(0, follower_count - 1)`) })
@@ -357,18 +379,18 @@ followRouter.delete('/:profileId', async (c) => {
 });
 
 // GET /users/me/following
-followRouter.get('/me/following', async (c) => {
-  const user = c.get('user');
-  const profileType = c.req.query('profile_type');
-  const limit = parseInt(c.req.query('limit') || '50');
-  const offset = parseInt(c.req.query('offset') || '0');
+followRouter.get("/me/following", async (c) => {
+  const user = c.get("user");
+  const profileType = c.req.query("profile_type");
+  const limit = parseInt(c.req.query("limit") || "50");
+  const offset = parseInt(c.req.query("offset") || "0");
 
   let query = db
     .select()
     .from(follows)
     .where(eq(follows.follower_user_id, user.id));
 
-  if (profileType && ['artist', 'venue'].includes(profileType)) {
+  if (profileType && ["artist", "venue"].includes(profileType)) {
     query = query.where(eq(follows.following_profile_type, profileType));
   }
 
@@ -380,18 +402,19 @@ followRouter.get('/me/following', async (c) => {
   // Fetch profile data for each follow
   const following = await Promise.all(
     results.map(async (f) => {
-      const profileTable = f.following_profile_type === 'artist' ? artistProfiles : venueProfiles;
+      const profileTable =
+        f.following_profile_type === "artist" ? artistProfiles : venueProfiles;
       const profile = await db
         .select()
         .from(profileTable)
         .where(eq(profileTable.id, f.following_profile_id))
-        .then(rows => rows[0]);
+        .then((rows) => rows[0]);
 
       return {
         ...f,
         profile,
       };
-    })
+    }),
   );
 
   return c.json({
@@ -404,6 +427,7 @@ export default followRouter;
 ```
 
 ### React Native Follow Button Component
+
 ```typescript
 import React, { useState, useEffect } from 'react';
 import { TouchableOpacity, Text, ActivityIndicator } from 'react-native';
@@ -480,6 +504,7 @@ export function FollowButton({ profileId, profileType, isOwnProfile = false }) {
 ```
 
 ### React Native Following List Screen
+
 ```typescript
 export function FollowingListScreen() {
   const [following, setFollowing] = useState([]);
@@ -545,10 +570,10 @@ export function FollowingListScreen() {
 ```
 
 ### Common Gotchas
+
 - **Self-follow validation**: Must check that the user doesn't own the profile they're trying to follow. This requires querying artist_profiles or venue_profiles by user_id first.
 - **Denormalized follower_count**: Must increment/decrement synchronously with the follow/unfollow operation. If the operation fails, roll back the count update.
 - **Duplicate follow handling**: Unique constraint catches duplicates at DB level. If a duplicate is attempted, return 409 Conflict (not 400 Bad Request).
 - **Inactive profile follow**: If user follows an artist, then the artist switches away (is_active = false), the follow relationship persists. When artist becomes active again, the follow is still there.
 - **Follower count stale reads**: For very high-traffic profiles, follower_count could become stale. Acceptable for V1 scale (under 1,000 users).
 - **Follow persistence after switch**: If a user switches personas, their follows are preserved. A Spectator's follows remain even if they switch to Artist.
-

@@ -1,11 +1,11 @@
 # M4-T3 · Event Moderation (Admin Approve / Reject)
 
-| Field | Value |
-|-------|-------|
-| **Milestone** | M4 — Event System |
-| **Status** | 🔲 To Do |
+| Field          | Value                                                                                                                                               |
+| -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Milestone**  | M4 — Event System                                                                                                                                   |
+| **Status**     | 🔲 To Do                                                                                                                                            |
 | **Depends on** | M4-T1 (events created with pending_review status), M1-T5 (Next.js admin scaffold), M9-T1 (Super Admin auth), M7-T2 (Firebase FCM for notifications) |
-| **PRD Ref** | Section 8 (Super Admin Features), Section 9.3 (Event Status Lifecycle), Section 9.4 (Event Moderation) |
+| **PRD Ref**    | Section 8 (Super Admin Features), Section 9.3 (Event Status Lifecycle), Section 9.4 (Event Moderation)                                              |
 
 ---
 
@@ -17,12 +17,12 @@ The admin moderation pipeline ensures quality and prevents spam on the CeolX pla
 
 ## Affected Apps / Packages
 
-| App / Package | Role |
-|---------------|------|
-| `apps/api` | Moderation endpoints (GET pending queue, POST approve, POST reject), FCM notification dispatch |
-| `apps/admin` | Pending Events Queue page (Next.js), approve/reject forms, status indicators |
-| `apps/mobile` | Creator receives push notifications with rejection reasons, displays rejection reason on Event Detail |
-| `packages/shared` | Event status enum, notification schemas |
+| App / Package     | Role                                                                                                  |
+| ----------------- | ----------------------------------------------------------------------------------------------------- |
+| `apps/api`        | Moderation endpoints (GET pending queue, POST approve, POST reject), FCM notification dispatch        |
+| `apps/admin`      | Pending Events Queue page (Next.js), approve/reject forms, status indicators                          |
+| `apps/mobile`     | Creator receives push notifications with rejection reasons, displays rejection reason on Event Detail |
+| `packages/shared` | Event status enum, notification schemas                                                               |
 
 ---
 
@@ -33,6 +33,7 @@ The admin moderation pipeline ensures quality and prevents spam on the CeolX pla
 List all events with `status = pending_review` for admin moderation.
 
 **Query Parameters:**
+
 ```json
 {
   "limit": 20,
@@ -43,6 +44,7 @@ List all events with `status = pending_review` for admin moderation.
 ```
 
 **Response (200 OK):**
+
 ```json
 {
   "events": [
@@ -68,6 +70,7 @@ List all events with `status = pending_review` for admin moderation.
 ```
 
 **Error Responses:**
+
 - `401 Unauthorized`: User not authenticated
 - `403 Forbidden`: User is not Super Admin
 
@@ -78,6 +81,7 @@ Approve a pending event and make it live.
 **Request Body:** (empty)
 
 **Response (200 OK):**
+
 ```json
 {
   "id": "evt_abc123def456",
@@ -87,6 +91,7 @@ Approve a pending event and make it live.
 ```
 
 **Error Responses:**
+
 - `400 Bad Request`: Event is not in pending_review status
 - `401 Unauthorized`: User not authenticated
 - `403 Forbidden`: User is not Super Admin
@@ -97,6 +102,7 @@ Approve a pending event and make it live.
 Reject a pending event with a written reason.
 
 **Request Body:**
+
 ```json
 {
   "reason": "string (required, max 500 chars - the rejection reason to explain to creator)"
@@ -104,6 +110,7 @@ Reject a pending event with a written reason.
 ```
 
 **Response (200 OK):**
+
 ```json
 {
   "id": "evt_abc123def456",
@@ -114,6 +121,7 @@ Reject a pending event with a written reason.
 ```
 
 **Error Responses:**
+
 - `400 Bad Request`: Reason is required or exceeds 500 chars; event is not in pending_review status
 - `401 Unauthorized`: User not authenticated
 - `403 Forbidden`: User is not Super Admin
@@ -124,6 +132,7 @@ Reject a pending event with a written reason.
 ## Requirements
 
 ### Admin Queue Display
+
 - List all events with `status = pending_review` sorted by creation date (oldest first — FIFO)
 - Display for each event: cover image thumbnail, title, creator name, creator type (artist/venue), category, created date, venue address
 - Pagination: 20 events per page
@@ -131,6 +140,7 @@ Reject a pending event with a written reason.
 - Filter (optional): By category or creator type
 
 ### Approve Action
+
 - Admin views a pending event and clicks "Approve"
 - Event `status` transitions from `pending_review` → `active`
 - Event becomes visible on map and feed immediately (next refresh)
@@ -138,6 +148,7 @@ Reject a pending event with a written reason.
 - Admin sees success toast: "Event approved"
 
 ### Reject Action
+
 - Admin views a pending event, clicks "Reject"
 - Modal/form appears asking for rejection reason (mandatory)
 - Admin enters reason (max 500 chars): e.g., "Venue address is unclear. Please provide a full venue name or building number."
@@ -148,6 +159,7 @@ Reject a pending event with a written reason.
   - Admin sees success toast: "Event rejected"
 
 ### Creator Notification Flow
+
 - **On Approve**: Push notification sent to creator via FCM with payload:
   - `title`: "Event Approved!"
   - `body`: "Your event '[event title]' is now live and visible to users."
@@ -160,11 +172,13 @@ Reject a pending event with a written reason.
   - `route`: `/events/{event_id}` (deep link to Event Detail, showing rejection banner)
 
 ### Super Admin Authorization
+
 - Only `role = super_admin` can access `/admin/events/pending`, approve, or reject
 - Verify auth token and role on every endpoint call
 - Log all approve/reject actions (admin_id, event_id, action, timestamp)
 
 ### Data Consistency
+
 - Hard delete is never used; `archived` is the terminal state for expired events
 - Profile creation/edits are NOT moderated — events only
 - Moderation decisions are final; admins cannot "unapprove" an active event (would require admin to manually reject it if needed)
@@ -195,6 +209,7 @@ Reject a pending event with a written reason.
 ## Dependencies
 
 ### Upstream
+
 - **M4-T1** — Events are created with `status = pending_review`; moderation queue queries these
 - **M1-T3** — API scaffold, authentication, error handling
 - **M1-T5** — Next.js admin dashboard scaffold
@@ -202,11 +217,13 @@ Reject a pending event with a written reason.
 - **M7-T2** — Firebase FCM for push notifications
 
 ### Downstream
+
 - **M4-T2** — Event Detail screen displays rejection reason to creator
 - **M3-T1**, **M3-T4** — Map and Feed queries only active events; approved events appear there
 - **M4-T4** — My Events view shows rejected events in creator's event list
 
 ### External Services
+
 - **Firebase FCM** — Push notifications to creators
 
 ---
@@ -218,57 +235,55 @@ Reject a pending event with a written reason.
 ```typescript
 // apps/api/src/routes/admin.ts
 
-import { Hono } from 'hono';
-import { getAuth } from 'hono/better-auth';
-import { db } from '../db';
-import { events } from '@ceolx/shared/schema';
-import { eq, and } from 'drizzle-orm';
-import { z } from 'zod';
-import { zValidator } from '@hono/zod-validator';
-import { sendFCMNotification } from '../services/fcm';
+import { Hono } from "hono";
+import { getAuth } from "hono/better-auth";
+import { db } from "../db";
+import { events } from "@ceolx/shared/schema";
+import { eq, and } from "drizzle-orm";
+import { z } from "zod";
+import { zValidator } from "@hono/zod-validator";
+import { sendFCMNotification } from "../services/fcm";
 
 const app = new Hono();
 
 // Middleware: Verify Super Admin
 async function requireSuperAdmin(c: any, next: any) {
   const auth = getAuth(c);
-  if (!auth || auth.user.role !== 'super_admin') {
-    return c.json({ error: 'Forbidden: Super Admin access required' }, 403);
+  if (!auth || auth.user.role !== "super_admin") {
+    return c.json({ error: "Forbidden: Super Admin access required" }, 403);
   }
   await next();
 }
 
-app.use('/admin/*', requireSuperAdmin);
+app.use("/admin/*", requireSuperAdmin);
 
 // GET /admin/events/pending
-app.get('/admin/events/pending', async (c) => {
-  const limit = parseInt(c.req.query('limit') || '20', 10);
-  const offset = parseInt(c.req.query('offset') || '0', 10);
-  const sortBy = c.req.query('sort_by') || 'created_at';
-  const sortOrder = c.req.query('sort_order') || 'asc';
+app.get("/admin/events/pending", async (c) => {
+  const limit = parseInt(c.req.query("limit") || "20", 10);
+  const offset = parseInt(c.req.query("offset") || "0", 10);
+  const sortBy = c.req.query("sort_by") || "created_at";
+  const sortOrder = c.req.query("sort_order") || "asc";
 
   try {
     const pendingEvents = await db.query.events.findMany({
-      where: (events, { eq }) => eq(events.status, 'pending_review'),
+      where: (events, { eq }) => eq(events.status, "pending_review"),
       with: {
         creator: {
           columns: { id: true, name: true, type: true },
         },
       },
       orderBy: (events) => {
-        if (sortBy === 'title') {
-          return sortOrder === 'asc' ? [events.title] : [events.title];
+        if (sortBy === "title") {
+          return sortOrder === "asc" ? [events.title] : [events.title];
         }
-        return sortOrder === 'asc'
-          ? [events.created_at]
-          : [events.created_at];
+        return sortOrder === "asc" ? [events.created_at] : [events.created_at];
       },
       limit,
       offset,
     });
 
     const totalCount = await db.query.events.findMany({
-      where: (events, { eq }) => eq(events.status, 'pending_review'),
+      where: (events, { eq }) => eq(events.status, "pending_review"),
       columns: { id: true },
     });
 
@@ -292,15 +307,15 @@ app.get('/admin/events/pending', async (c) => {
       limit,
     });
   } catch (error) {
-    console.error('Moderation queue fetch error:', error);
-    return c.json({ error: 'Failed to fetch pending events' }, 500);
+    console.error("Moderation queue fetch error:", error);
+    return c.json({ error: "Failed to fetch pending events" }, 500);
   }
 });
 
 // POST /admin/events/:id/approve
-app.post('/admin/events/:id/approve', async (c) => {
+app.post("/admin/events/:id/approve", async (c) => {
   const auth = getAuth(c);
-  const eventId = c.req.param('id');
+  const eventId = c.req.param("id");
 
   try {
     // Fetch event
@@ -314,13 +329,13 @@ app.post('/admin/events/:id/approve', async (c) => {
     });
 
     if (!event) {
-      return c.json({ error: 'Event not found' }, 404);
+      return c.json({ error: "Event not found" }, 404);
     }
 
-    if (event.status !== 'pending_review') {
+    if (event.status !== "pending_review") {
       return c.json(
         { error: `Event status is ${event.status}, cannot approve` },
-        400
+        400,
       );
     }
 
@@ -328,7 +343,7 @@ app.post('/admin/events/:id/approve', async (c) => {
     const updated = await db
       .update(events)
       .set({
-        status: 'active',
+        status: "active",
         updated_at: new Date(),
       })
       .where(eq(events.id, eventId))
@@ -342,7 +357,7 @@ app.post('/admin/events/:id/approve', async (c) => {
     if (creatorUser?.device_token) {
       await sendFCMNotification({
         token: creatorUser.device_token,
-        title: 'Event Approved!',
+        title: "Event Approved!",
         body: `Your event "${event.title}" is now live!`,
         data: {
           persona: event.creator.type,
@@ -360,8 +375,8 @@ app.post('/admin/events/:id/approve', async (c) => {
       updated_at: updated[0].updated_at,
     });
   } catch (error) {
-    console.error('Approve event error:', error);
-    return c.json({ error: 'Failed to approve event' }, 500);
+    console.error("Approve event error:", error);
+    return c.json({ error: "Failed to approve event" }, 500);
   }
 });
 
@@ -371,12 +386,12 @@ const RejectSchema = z.object({
 });
 
 app.post(
-  '/admin/events/:id/reject',
-  zValidator('json', RejectSchema),
+  "/admin/events/:id/reject",
+  zValidator("json", RejectSchema),
   async (c) => {
     const auth = getAuth(c);
-    const eventId = c.req.param('id');
-    const { reason } = c.req.valid('json');
+    const eventId = c.req.param("id");
+    const { reason } = c.req.valid("json");
 
     try {
       // Fetch event
@@ -390,13 +405,13 @@ app.post(
       });
 
       if (!event) {
-        return c.json({ error: 'Event not found' }, 404);
+        return c.json({ error: "Event not found" }, 404);
       }
 
-      if (event.status !== 'pending_review') {
+      if (event.status !== "pending_review") {
         return c.json(
           { error: `Event status is ${event.status}, cannot reject` },
-          400
+          400,
         );
       }
 
@@ -404,7 +419,7 @@ app.post(
       const updated = await db
         .update(events)
         .set({
-          status: 'rejected',
+          status: "rejected",
           rejection_reason: reason,
           updated_at: new Date(),
         })
@@ -419,7 +434,7 @@ app.post(
       if (creatorUser?.device_token) {
         await sendFCMNotification({
           token: creatorUser.device_token,
-          title: 'Event Rejected',
+          title: "Event Rejected",
           body: `Your event was rejected: ${reason}`,
           data: {
             persona: event.creator.type,
@@ -430,7 +445,7 @@ app.post(
 
       // Log action
       console.log(
-        `[ADMIN] Event ${eventId} rejected by ${auth.user.id}: ${reason}`
+        `[ADMIN] Event ${eventId} rejected by ${auth.user.id}: ${reason}`,
       );
 
       return c.json({
@@ -440,10 +455,10 @@ app.post(
         updated_at: updated[0].updated_at,
       });
     } catch (error) {
-      console.error('Reject event error:', error);
-      return c.json({ error: 'Failed to reject event' }, 500);
+      console.error("Reject event error:", error);
+      return c.json({ error: "Failed to reject event" }, 500);
     }
-  }
+  },
 );
 ```
 
@@ -690,7 +705,7 @@ export default function PendingEventsPage() {
 ```typescript
 // apps/api/src/services/fcm.ts
 
-import admin from 'firebase-admin';
+import admin from "firebase-admin";
 
 interface FCMPayload {
   token: string;
@@ -714,7 +729,7 @@ export async function sendFCMNotification(payload: FCMPayload) {
     console.log(`FCM sent: ${response}`);
     return response;
   } catch (error) {
-    console.error('FCM send error:', error);
+    console.error("FCM send error:", error);
     throw error;
   }
 }
@@ -727,43 +742,47 @@ export async function sendFCMNotification(payload: FCMPayload) {
 - **Notification delivery**: FCM may fail silently if device token is invalid. Log failures and implement retry logic or cleanup of stale tokens.
 - **Timezone confusion**: Rejection reason timestamps stored in UTC. Ensure admin dashboard converts to their local timezone for readability.
 
-| Field | Value |
-|-------|-------|
-| **Milestone** | M4 — Event System |
-| **Status** | 🔲 To Do |
+| Field          | Value                                                                      |
+| -------------- | -------------------------------------------------------------------------- |
+| **Milestone**  | M4 — Event System                                                          |
+| **Status**     | 🔲 To Do                                                                   |
 | **Depends on** | M4-T1 (events must be created), M1-T5 (admin scaffold), M9-T1 (admin auth) |
-| **PRD Ref** | Section 8 (Super Admin Features), Section 9.3 (Event Status Lifecycle) |
+| **PRD Ref**    | Section 8 (Super Admin Features), Section 9.3 (Event Status Lifecycle)     |
 
 ---
 
 ## Description
+
 The admin moderation pipeline. Every event submitted by Artists or Venues sits in the `pending_review` queue until the Super Admin approves or rejects it. Approval makes it live on the map and feed. Rejection notifies the creator with a reason so they can edit and resubmit.
 
 ---
 
 ## Affected Apps / Packages
-| App / Package | Role |
-|---------------|------|
-| `apps/api` | Moderation endpoints, status transition logic, push notification trigger |
-| `apps/admin` | Pending Events Queue page, approve/reject UI |
-| `apps/mobile` | Creator notification receipt, rejection reason display on Event Detail |
+
+| App / Package | Role                                                                     |
+| ------------- | ------------------------------------------------------------------------ |
+| `apps/api`    | Moderation endpoints, status transition logic, push notification trigger |
+| `apps/admin`  | Pending Events Queue page, approve/reject UI                             |
+| `apps/mobile` | Creator notification receipt, rejection reason display on Event Detail   |
 
 ---
 
 ## API Endpoints
-| Method | Path | Purpose |
-|--------|------|---------|
-| GET | `/admin/events/pending` | List all events with `status = pending_review` |
-| POST | `/admin/events/:id/approve` | Set `status = active`, trigger push notification to creator |
-| POST | `/admin/events/:id/reject` | Set `status = rejected`, store `rejection_reason`, trigger push notification |
+
+| Method | Path                        | Purpose                                                                      |
+| ------ | --------------------------- | ---------------------------------------------------------------------------- |
+| GET    | `/admin/events/pending`     | List all events with `status = pending_review`                               |
+| POST   | `/admin/events/:id/approve` | Set `status = active`, trigger push notification to creator                  |
+| POST   | `/admin/events/:id/reject`  | Set `status = rejected`, store `rejection_reason`, trigger push notification |
 
 ---
 
 ## Requirements
+
 - R1: `GET /admin/events/pending` returns all events with `status = pending_review`, sorted by `created_at` ascending (oldest first)
 - R2: Admin can approve an event → `status = active`; event becomes visible on map and feed immediately
 - R3: Admin can reject an event with a mandatory written reason → `status = rejected`, `rejection_reason` populated
-- R4: Creator receives a push notification on approval: *"Your event '[title]' is now live!"*
+- R4: Creator receives a push notification on approval: _"Your event '[title]' is now live!"_
 - R5: Creator receives a push notification on rejection with the rejection reason included
 - R6: Creator can edit a rejected event and resubmit → `status = pending_review`, `rejection_reason` cleared
 - R7: Admin pending queue shows: event title, creator name, persona (Artist/Venue), submitted date, cover image thumbnail
@@ -772,6 +791,7 @@ The admin moderation pipeline. Every event submitted by Artists or Venues sits i
 ---
 
 ## Acceptance Criteria
+
 - [ ] Admin Pending Events page lists all `pending_review` events, oldest first
 - [ ] Approving an event sets `status = active` and event appears on map/feed
 - [ ] Rejecting an event requires a reason to be entered before submitting
@@ -783,6 +803,7 @@ The admin moderation pipeline. Every event submitted by Artists or Venues sits i
 ---
 
 ## Technical Notes
+
 - Status lifecycle: `draft → pending_review → active → archived` (and `pending_review → rejected → pending_review` for resubmission)
 - Hard delete is never used — `archived` is the terminal state for expired events
 - Push notification sent via Firebase FCM — notification payload must include `persona` and `route` fields for persona-aware routing on mobile (per M2-T4)

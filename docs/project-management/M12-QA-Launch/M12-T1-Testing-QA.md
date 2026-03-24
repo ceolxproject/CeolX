@@ -1,11 +1,11 @@
 # M12-T1 · Performance Testing & QA
 
-| Field | Value |
-|-------|-------|
-| **Milestone** | M12 — Launch Readiness |
-| **Status** | 🔲 To Do |
+| Field          | Value                                                          |
+| -------------- | -------------------------------------------------------------- |
+| **Milestone**  | M12 — Launch Readiness                                         |
+| **Status**     | 🔲 To Do                                                       |
 | **Depends on** | All M1–M11 tasks completed and deployed to staging environment |
-| **PRD Ref** | Section 5 (Testing Strategy) |
+| **PRD Ref**    | Section 5 (Testing Strategy)                                   |
 
 ---
 
@@ -17,12 +17,12 @@ Comprehensive QA before production launch, covering unit tests, API integration 
 
 ## Affected Apps / Packages
 
-| App / Package | Role |
-|---------------|------|
-| `apps/api` | Unit tests (Jest), integration tests (Hono test client), performance benchmarks (k6), Stripe webhook simulation |
-| `apps/mobile` | Unit tests (Jest, React Native Testing Library), E2E flows on iOS and Android real devices, performance profiling (React DevTools, Xcode Instruments) |
-| `apps/admin` | Functional testing (Playwright E2E), admin dashboard smoke tests |
-| `packages/shared` | Unit tests for shared utilities and types |
+| App / Package     | Role                                                                                                                                                  |
+| ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `apps/api`        | Unit tests (Jest), integration tests (Hono test client), performance benchmarks (k6), Stripe webhook simulation                                       |
+| `apps/mobile`     | Unit tests (Jest, React Native Testing Library), E2E flows on iOS and Android real devices, performance profiling (React DevTools, Xcode Instruments) |
+| `apps/admin`      | Functional testing (Playwright E2E), admin dashboard smoke tests                                                                                      |
+| `packages/shared` | Unit tests for shared utilities and types                                                                                                             |
 
 ---
 
@@ -254,16 +254,12 @@ No new endpoints. All existing endpoints require integration tests covering happ
 ```typescript
 // jest.config.js
 module.exports = {
-  preset: 'ts-jest',
-  testEnvironment: 'node',
-  roots: ['<rootDir>/src'],
-  testMatch: ['**/__tests__/**/*.ts', '**/?(*.)+(spec|test).ts'],
-  moduleFileExtensions: ['ts', 'js'],
-  collectCoverageFrom: [
-    'src/**/*.ts',
-    '!src/**/*.d.ts',
-    '!src/**/index.ts',
-  ],
+  preset: "ts-jest",
+  testEnvironment: "node",
+  roots: ["<rootDir>/src"],
+  testMatch: ["**/__tests__/**/*.ts", "**/?(*.)+(spec|test).ts"],
+  moduleFileExtensions: ["ts", "js"],
+  collectCoverageFrom: ["src/**/*.ts", "!src/**/*.d.ts", "!src/**/index.ts"],
   coverageThreshold: {
     global: {
       branches: 80,
@@ -278,43 +274,43 @@ module.exports = {
 ### Hono Test Example
 
 ```typescript
-import { describe, it, expect } from '@jest/globals';
-import app from '../src/app';
+import { describe, it, expect } from "@jest/globals";
+import app from "../src/app";
 
-describe('POST /api/v1/auth/login', () => {
-  it('should login with valid credentials', async () => {
+describe("POST /api/v1/auth/login", () => {
+  it("should login with valid credentials", async () => {
     const res = await app.request(
-      new Request('http://localhost:3000/api/v1/auth/login', {
-        method: 'POST',
+      new Request("http://localhost:3000/api/v1/auth/login", {
+        method: "POST",
         body: JSON.stringify({
-          email: 'user@ceolx.ie',
-          password: 'validPassword123!',
+          email: "user@ceolx.ie",
+          password: "validPassword123!",
         }),
-        headers: { 'Content-Type': 'application/json' },
-      })
+        headers: { "Content-Type": "application/json" },
+      }),
     );
 
     expect(res.status).toBe(200);
     const data = await res.json();
     expect(data.session).toBeDefined();
-    expect(data.session.email).toBe('user@ceolx.ie');
+    expect(data.session.email).toBe("user@ceolx.ie");
   });
 
-  it('should reject invalid password', async () => {
+  it("should reject invalid password", async () => {
     const res = await app.request(
-      new Request('http://localhost:3000/api/v1/auth/login', {
-        method: 'POST',
+      new Request("http://localhost:3000/api/v1/auth/login", {
+        method: "POST",
         body: JSON.stringify({
-          email: 'user@ceolx.ie',
-          password: 'wrongPassword',
+          email: "user@ceolx.ie",
+          password: "wrongPassword",
         }),
-        headers: { 'Content-Type': 'application/json' },
-      })
+        headers: { "Content-Type": "application/json" },
+      }),
     );
 
     expect(res.status).toBe(401);
     const data = await res.json();
-    expect(data.error).toBe('Invalid email or password');
+    expect(data.error).toBe("Invalid email or password");
   });
 });
 ```
@@ -323,31 +319,31 @@ describe('POST /api/v1/auth/login', () => {
 
 ```javascript
 // load-test.js
-import http from 'k6/http';
-import { check, sleep } from 'k6';
+import http from "k6/http";
+import { check, sleep } from "k6";
 
 export const options = {
   stages: [
-    { duration: '2m', target: 100 }, // Ramp up to 100 users
-    { duration: '5m', target: 100 }, // Stay at 100 users
-    { duration: '2m', target: 0 },   // Ramp down to 0
+    { duration: "2m", target: 100 }, // Ramp up to 100 users
+    { duration: "5m", target: 100 }, // Stay at 100 users
+    { duration: "2m", target: 0 }, // Ramp down to 0
   ],
   thresholds: {
-    'http_req_duration': ['p(95)<500', 'p(99)<1000'], // 95th percentile < 500ms
-    'http_err_rate': ['<0.1'],                        // Error rate < 10%
+    http_req_duration: ["p(95)<500", "p(99)<1000"], // 95th percentile < 500ms
+    http_err_rate: ["<0.1"], // Error rate < 10%
   },
 };
 
 export default function () {
   // Test map viewport query
   const queryRes = http.get(
-    'https://api.staging.ceolx.ie/api/v1/events?bounds=53.1,53.5,-7.8,-7.2',
-    { headers: { Authorization: 'Bearer test_token' } }
+    "https://api.staging.ceolx.ie/api/v1/events?bounds=53.1,53.5,-7.8,-7.2",
+    { headers: { Authorization: "Bearer test_token" } },
   );
 
   check(queryRes, {
-    'status is 200': (r) => r.status === 200,
-    'response time < 200ms': (r) => r.timings.duration < 200,
+    "status is 200": (r) => r.status === 200,
+    "response time < 200ms": (r) => r.timings.duration < 200,
   });
 
   sleep(1);
@@ -362,6 +358,7 @@ Create a shared Google Doc or markdown file tracking all test scenarios:
 # CeolX QA Test Plan
 
 ## Spectator Flow (iOS)
+
 - [x] Grant location permission
 - [x] Map loads with pins
 - [ ] Search by county
@@ -370,9 +367,11 @@ Create a shared Google Doc or markdown file tracking all test scenarios:
 - [ ] Follow artist
 
 ## Spectator Flow (Android)
+
 - [ ] ... (same as iOS)
 
 ## Artist Flow (iOS)
+
 - [ ] Switch to Artist persona
 - [ ] Edit profile and upload image
 - [ ] Create event with cover
@@ -383,6 +382,7 @@ Create a shared Google Doc or markdown file tracking all test scenarios:
 ## ... (continue for all flows)
 
 ## Issues Found
+
 1. [BLOCKER] Login screen crashes on iOS when email contains special characters
    - Status: FIXED in commit abc123
    - Verified: 2026-03-22

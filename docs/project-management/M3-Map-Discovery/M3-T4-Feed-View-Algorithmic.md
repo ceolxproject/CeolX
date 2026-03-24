@@ -1,11 +1,11 @@
 # M3-T4 · Feed View + Algorithmic Ranking
 
-| Field | Value |
-|-------|-------|
-| **Milestone** | M3 — Map & Discovery |
-| **Status** | 🔲 To Do |
+| Field          | Value                                                                                                             |
+| -------------- | ----------------------------------------------------------------------------------------------------------------- |
+| **Milestone**  | M3 — Map & Discovery                                                                                              |
+| **Status**     | 🔲 To Do                                                                                                          |
 | **Depends on** | M1-T2 (events table), M1-T3 (API scaffold), M2-T4 (persona system), M3-T2 (user location), M6-T3 (follows system) |
-| **PRD Ref** | Section 9.2.2 (Feed View), Section 5.1 (End User Features), Section 6.1 (Artist Features) |
+| **PRD Ref**    | Section 9.2.2 (Feed View), Section 5.1 (End User Features), Section 6.1 (Artist Features)                         |
 
 ---
 
@@ -30,6 +30,7 @@ The Feed view displays events as vertically scrollable cards, ranked by an algor
 Fetch algorithmically ranked events with pagination.
 
 **Query Parameters:**
+
 ```json
 {
   "latitude": 53.3432,
@@ -41,6 +42,7 @@ Fetch algorithmically ranked events with pagination.
 ```
 
 **Response (200 OK):**
+
 ```json
 {
   "events": [
@@ -67,6 +69,7 @@ Fetch algorithmically ranked events with pagination.
 ```
 
 **Error Responses:**
+
 - `400` — Invalid parameters `{ "error": "latitude and longitude required" }`
 - `401` — Unauthorized `{ "error": "Authentication required" }`
 - `500` — Ranking error `{ "error": "Failed to fetch feed" }`
@@ -76,6 +79,7 @@ Fetch algorithmically ranked events with pagination.
 ## Requirements
 
 ### Algorithmic Ranking Formula
+
 - **Recency Score (40%)**: `1 - (daysSinceCreation / 30)`, capped at 0-1. Events created today score ~1.0; events created 30 days ago score ~0.0
 - **Distance Score (40%)**: `1 - (distance_km / max_distance_km)`, capped at 0-1. Closest events score ~1.0; events >100km away score ~0.0
 - **Social Score (20%)**: Binary — 1.0 if user follows the event creator, 0.0 if not
@@ -83,12 +87,14 @@ Fetch algorithmically ranked events with pagination.
 - Events sorted by final score descending (highest score first)
 
 ### Feed Layout
+
 - Events displayed as vertically scrollable cards (full-width or with margins)
 - Each card shows: cover image, title, date/time, location (venue address or lat/lng), creator name (artist or venue), distance from user (e.g., "12 km away")
 - Tapping a card opens Event Detail screen (same as M4-T2)
 - Category badge or icon shown on each card (matching M3-T1 design)
 
 ### Pagination
+
 - API returns 10-15 events per page (limit parameter configurable)
 - Offset-based pagination: `offset = 0, 15, 30, 45, ...`
 - On reaching end of list, a "Load more" button or auto-pagination loads the next batch
@@ -96,16 +102,19 @@ Fetch algorithmically ranked events with pagination.
 - Pull-to-refresh resets pagination and re-fetches the first page
 
 ### Gig Opportunity Visibility
+
 - Gig opportunity events (`is_gig_opportunity: true`) shown to **Artist persona only**
 - Gig opportunity events **hidden from Spectator and Venue personas** on the Feed
 - Venue personas see their own events on My Events (M4-T4) but not other venues' gig opportunities on the Feed
 
 ### Empty & Error States
+
 - If no events available in user's region, show non-blocking card: "No events nearby. Check back soon or search for a specific county."
 - If API error occurs, show error toast and offer a "Retry" button
 - During pagination loading, show a loading indicator (spinner) at the bottom of the list
 
 ### Saved Events Integration
+
 - Each event card includes a **Save button** (heart icon or bookmark)
 - Tapping Save adds the event to `saved_events` table (see M4-T2)
 - Save button reflects saved state: filled heart if saved, outlined heart if not
@@ -135,6 +144,7 @@ Fetch algorithmically ranked events with pagination.
 ## Dependencies
 
 ### Upstream
+
 - **M1-T2** — Events table with `created_at` timestamp for recency calculation
 - **M1-T3** — API scaffold with middleware for user context and error handling
 - **M2-T4** — User persona system; Feed filters by `current_role` to hide gig opportunities from Spectators
@@ -143,10 +153,12 @@ Fetch algorithmically ranked events with pagination.
 - **M4-T2** — Event Detail screen linked from Feed cards
 
 ### Downstream
+
 - **M6-T1** (Artist Profile) — Creator names on Feed cards link to artist profiles
 - **M6-T2** (Venue Profile) — Venue names on Feed cards link to venue profiles
 
 ### External Services
+
 - None
 
 ---
@@ -158,7 +170,7 @@ Fetch algorithmically ranked events with pagination.
 ```typescript
 // apps/api/src/services/feedRanking.ts
 
-import { Event } from '@ceolx/shared/schema';
+import { Event } from "@ceolx/shared/schema";
 
 interface LocationCoords {
   lat: number;
@@ -171,7 +183,7 @@ const DAYS_FOR_RECENCY = 30;
 export function calculateRankingScore(
   event: Event,
   userLocation: LocationCoords,
-  isFollowingCreator: boolean
+  isFollowingCreator: boolean,
 ): number {
   // Recency score (40%)
   const now = Date.now();
@@ -184,7 +196,7 @@ export function calculateRankingScore(
     userLocation.lat,
     userLocation.lng,
     event.lat,
-    event.lng
+    event.lng,
   );
   const distanceScore = Math.max(0, 1 - distanceKm / MAX_DISTANCE_KM);
 
@@ -202,7 +214,7 @@ function calculateDistance(
   lat1: number,
   lng1: number,
   lat2: number,
-  lng2: number
+  lng2: number,
 ): number {
   // Haversine formula
   const R = 6371; // Earth radius in km
@@ -224,32 +236,29 @@ function calculateDistance(
 ```typescript
 // apps/api/src/routes/feed.ts
 
-import { Hono } from 'hono';
-import { getAuth } from 'hono/better-auth';
-import { db } from '../db';
-import { events, follows, saved_events } from '@ceolx/shared/schema';
-import { eq, sql, and } from 'drizzle-orm';
-import { calculateRankingScore } from '../services/feedRanking';
+import { Hono } from "hono";
+import { getAuth } from "hono/better-auth";
+import { db } from "../db";
+import { events, follows, saved_events } from "@ceolx/shared/schema";
+import { eq, sql, and } from "drizzle-orm";
+import { calculateRankingScore } from "../services/feedRanking";
 
 const app = new Hono();
 
-app.get('/feed', async (c) => {
+app.get("/feed", async (c) => {
   const auth = getAuth(c);
   if (!auth) {
-    return c.json({ error: 'Unauthorized' }, 401);
+    return c.json({ error: "Unauthorized" }, 401);
   }
 
-  const latitude = parseFloat(c.req.query('latitude') || '');
-  const longitude = parseFloat(c.req.query('longitude') || '');
-  const limit = parseInt(c.req.query('limit') || '15', 10);
-  const offset = parseInt(c.req.query('offset') || '0', 10);
-  const persona = c.req.query('persona') || 'spectator';
+  const latitude = parseFloat(c.req.query("latitude") || "");
+  const longitude = parseFloat(c.req.query("longitude") || "");
+  const limit = parseInt(c.req.query("limit") || "15", 10);
+  const offset = parseInt(c.req.query("offset") || "0", 10);
+  const persona = c.req.query("persona") || "spectator";
 
   if (isNaN(latitude) || isNaN(longitude)) {
-    return c.json(
-      { error: 'latitude and longitude required' },
-      400
-    );
+    return c.json({ error: "latitude and longitude required" }, 400);
   }
 
   try {
@@ -260,14 +269,11 @@ app.get('/feed', async (c) => {
       })
       .from(events)
       .where(
-        and(
-          eq(events.status, 'active'),
-          sql`${events.date_start} >= NOW()`
-        )
+        and(eq(events.status, "active"), sql`${events.date_start} >= NOW()`),
       );
 
     // Hide gig opportunities from non-artists
-    if (persona !== 'artist') {
+    if (persona !== "artist") {
       query = query.where(eq(events.is_gig_opportunity, false));
     }
 
@@ -279,9 +285,7 @@ app.get('/feed', async (c) => {
       .from(follows)
       .where(eq(follows.follower_id, auth.user.id));
 
-    const followedCreatorIds = new Set(
-      userFollows.map((f) => f.created_by)
-    );
+    const followedCreatorIds = new Set(userFollows.map((f) => f.created_by));
 
     // Calculate ranking scores
     const rankedEvents = allEvents
@@ -290,19 +294,14 @@ app.get('/feed', async (c) => {
         ranking_score: calculateRankingScore(
           e.event,
           { lat: latitude, lng: longitude },
-          followedCreatorIds.has(e.event.created_by)
+          followedCreatorIds.has(e.event.created_by),
         ),
-        is_followed_creator: followedCreatorIds.has(
-          e.event.created_by
-        ),
+        is_followed_creator: followedCreatorIds.has(e.event.created_by),
       }))
       .sort((a, b) => b.ranking_score - a.ranking_score);
 
     // Apply pagination
-    const paginatedEvents = rankedEvents.slice(
-      offset,
-      offset + limit
-    );
+    const paginatedEvents = rankedEvents.slice(offset, offset + limit);
 
     // Check if user has saved each event
     const savedEventIds = await db
@@ -310,9 +309,7 @@ app.get('/feed', async (c) => {
       .from(saved_events)
       .where(eq(saved_events.user_id, auth.user.id));
 
-    const savedSet = new Set(
-      savedEventIds.map((s) => s.event_id)
-    );
+    const savedSet = new Set(savedEventIds.map((s) => s.event_id));
 
     return c.json({
       events: paginatedEvents.map((e) => ({
@@ -326,12 +323,7 @@ app.get('/feed', async (c) => {
         cover_image: e.cover_image,
         venue_address: e.venue_address,
         creator_profile_id: e.created_by,
-        distance_km: calculateDistance(
-          latitude,
-          longitude,
-          e.lat,
-          e.lng
-        ),
+        distance_km: calculateDistance(latitude, longitude, e.lat, e.lng),
         is_followed_creator: e.is_followed_creator,
         ranking_score: e.ranking_score,
         is_saved: savedSet.has(e.id),
@@ -340,8 +332,8 @@ app.get('/feed', async (c) => {
       totalCount: rankedEvents.length,
     });
   } catch (error) {
-    console.error('Feed fetch error:', error);
-    return c.json({ error: 'Failed to fetch feed' }, 500);
+    console.error("Feed fetch error:", error);
+    return c.json({ error: "Failed to fetch feed" }, 500);
   }
 });
 
@@ -349,7 +341,7 @@ function calculateDistance(
   lat1: number,
   lng1: number,
   lat2: number,
-  lng2: number
+  lng2: number,
 ): number {
   const R = 6371;
   const dLat = ((lat2 - lat1) * Math.PI) / 180;

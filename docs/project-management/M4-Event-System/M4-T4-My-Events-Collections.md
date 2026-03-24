@@ -1,11 +1,11 @@
 # M4-T4 · My Events View + Collections
 
-| Field | Value |
-|-------|-------|
-| **Milestone** | M4 — Event System |
-| **Status** | 🔲 To Do |
-| **Depends on** | M4-T1 (events created), M4-T2 (event detail with save), M2-T4 (persona system), M10-T1 (S3 media) |
-| **PRD Ref** | Section 5.1 (End User Features), Section 6.1 (Artist Features), Section 7.1 (Venue Features), Section 9.3 (Event Data Model) |
+| Field          | Value                                                                                                                        |
+| -------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| **Milestone**  | M4 — Event System                                                                                                            |
+| **Status**     | 🔲 To Do                                                                                                                     |
+| **Depends on** | M4-T1 (events created), M4-T2 (event detail with save), M2-T4 (persona system), M10-T1 (S3 media)                            |
+| **PRD Ref**    | Section 5.1 (End User Features), Section 6.1 (Artist Features), Section 7.1 (Venue Features), Section 9.3 (Event Data Model) |
 
 ---
 
@@ -17,11 +17,11 @@ Two profile-oriented features for event management. **My Created Events** allows
 
 ## Affected Apps / Packages
 
-| App / Package | Role |
-|---------------|------|
-| `apps/api` | GET /users/me/events, GET /users/me/saved-events, collections CRUD endpoints (POST, GET, PATCH, DELETE), event-collection associations |
-| `apps/mobile` | My Events section (Profile tab), Collections management screen (Venue only), Saved Events section (all personas), event status grouping logic |
-| `packages/shared` | Collection and saved_events types, event grouping utilities |
+| App / Package     | Role                                                                                                                                          |
+| ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| `apps/api`        | GET /users/me/events, GET /users/me/saved-events, collections CRUD endpoints (POST, GET, PATCH, DELETE), event-collection associations        |
+| `apps/mobile`     | My Events section (Profile tab), Collections management screen (Venue only), Saved Events section (all personas), event status grouping logic |
+| `packages/shared` | Collection and saved_events types, event grouping utilities                                                                                   |
 
 ---
 
@@ -32,6 +32,7 @@ Two profile-oriented features for event management. **My Created Events** allows
 List all events created by the authenticated user.
 
 **Query Parameters:**
+
 ```json
 {
   "limit": 20,
@@ -40,6 +41,7 @@ List all events created by the authenticated user.
 ```
 
 **Response (200 OK):**
+
 ```json
 {
   "events": [
@@ -58,6 +60,7 @@ List all events created by the authenticated user.
 ```
 
 **Error Responses:**
+
 - `401 Unauthorized`: User not authenticated
 
 ### GET /api/v1/users/me/saved-events
@@ -65,6 +68,7 @@ List all events created by the authenticated user.
 List all events saved by the authenticated user.
 
 **Query Parameters:**
+
 ```json
 {
   "limit": 20,
@@ -74,6 +78,7 @@ List all events saved by the authenticated user.
 ```
 
 **Response (200 OK):**
+
 ```json
 {
   "events": [
@@ -95,6 +100,7 @@ List all events saved by the authenticated user.
 ```
 
 **Error Responses:**
+
 - `401 Unauthorized`: User not authenticated
 
 ### POST /api/v1/collections
@@ -102,6 +108,7 @@ List all events saved by the authenticated user.
 Create a new collection.
 
 **Request Body:**
+
 ```json
 {
   "name": "string (required, max 100 chars)",
@@ -110,6 +117,7 @@ Create a new collection.
 ```
 
 **Response (201 Created):**
+
 ```json
 {
   "id": "coll_xyz789",
@@ -122,6 +130,7 @@ Create a new collection.
 ```
 
 **Error Responses:**
+
 - `400 Bad Request`: Name is required or exceeds 100 chars
 - `401 Unauthorized`: User not authenticated
 - `403 Forbidden`: User is not a venue
@@ -131,6 +140,7 @@ Create a new collection.
 Get collection details with all associated events.
 
 **Response (200 OK):**
+
 ```json
 {
   "id": "coll_xyz789",
@@ -152,6 +162,7 @@ Get collection details with all associated events.
 ```
 
 **Error Responses:**
+
 - `404 Not Found`: Collection not found
 
 ### PATCH /api/v1/collections/:id
@@ -159,6 +170,7 @@ Get collection details with all associated events.
 Edit collection name and/or logo.
 
 **Request Body:**
+
 ```json
 {
   "name": "string (optional, max 100 chars)",
@@ -169,6 +181,7 @@ Edit collection name and/or logo.
 **Response (200 OK):** Updated collection object (same as GET response).
 
 **Error Responses:**
+
 - `401 Unauthorized`: User not authenticated
 - `403 Forbidden`: User is not the collection owner
 - `404 Not Found`: Collection not found
@@ -180,6 +193,7 @@ Delete a collection. Associated events are NOT deleted — their `collection_id`
 **Response (204 No Content):** Empty response on success.
 
 **Error Responses:**
+
 - `401 Unauthorized`: User not authenticated
 - `403 Forbidden`: User is not the collection owner
 - `404 Not Found`: Collection not found
@@ -189,6 +203,7 @@ Delete a collection. Associated events are NOT deleted — their `collection_id`
 ## Requirements
 
 ### My Created Events
+
 - **Display**: FlatList showing all events created by the authenticated user
 - **Grouping**: Client-side grouping by status: "Active", "Pending Review", "Rejected", "Archived (Past)"
 - **Each event card shows**: Cover image thumbnail (80x60px), title, date/time, status badge with color (green=active, blue=pending, red=rejected, gray=archived)
@@ -198,6 +213,7 @@ Delete a collection. Associated events are NOT deleted — their `collection_id`
 - **Only visible to**: Artist and Venue personas (not Spectators)
 
 ### Collections (Venue-Only)
+
 - **Creation**: Venue can create a collection with name (required, max 100 chars) and optional logo image
 - **Logo upload**: Direct to S3 via presigned URL, stored as CloudFront CDN URL
 - **Display**: List of collections in Venue's Profile section
@@ -208,6 +224,7 @@ Delete a collection. Associated events are NOT deleted — their `collection_id`
 - **Visible to**: Venue persona only
 
 ### Saved Events (All Personas)
+
 - **Display**: FlatList showing all events saved by the authenticated user via the Save button (M4-T2)
 - **Default view**: Shows upcoming saved events (status = active, date_start >= now)
 - **Collapsible section**: "Past Saved Events" below upcoming events, showing archived saved events (status = archived or date_start < now)
@@ -246,16 +263,19 @@ Delete a collection. Associated events are NOT deleted — their `collection_id`
 ## Dependencies
 
 ### Upstream
+
 - **M4-T1** — Events created; My Created Events queries user's events
 - **M4-T2** — Saved Events button populates saved_events table
 - **M2-T4** — Persona system; My Created Events and Collections are persona-specific
 - **M10-T1** — S3 + CloudFront for collection logos and event images
 
 ### Downstream
+
 - **M4-T2** — Event Detail save/unsave affects Saved Events list
 - **M6-T1**, **M6-T2** — Creator names in Saved Events link to artist/venue profiles
 
 ### External Services
+
 - **AWS S3** — Collection logo storage
 - **AWS CloudFront** — CDN for collection logos
 
@@ -268,16 +288,16 @@ Delete a collection. Associated events are NOT deleted — their `collection_id`
 ```typescript
 // apps/api/src/routes/users.ts
 
-import { Hono } from 'hono';
-import { getAuth } from 'hono/better-auth';
-import { db } from '../db';
-import { events } from '@ceolx/shared/schema';
-import { eq } from 'drizzle-orm';
+import { Hono } from "hono";
+import { getAuth } from "hono/better-auth";
+import { db } from "../db";
+import { events } from "@ceolx/shared/schema";
+import { eq } from "drizzle-orm";
 
-app.get('/users/me/events', async (c) => {
+app.get("/users/me/events", async (c) => {
   const auth = await requireAuth(c);
-  const limit = parseInt(c.req.query('limit') || '20', 10);
-  const offset = parseInt(c.req.query('offset') || '0', 10);
+  const limit = parseInt(c.req.query("limit") || "20", 10);
+  const offset = parseInt(c.req.query("offset") || "0", 10);
 
   try {
     // Get all events created by user (via artist or venue profile)
@@ -299,8 +319,8 @@ app.get('/users/me/events', async (c) => {
       total_count: parseInt(totalCount[0].count),
     });
   } catch (error) {
-    console.error('My events fetch error:', error);
-    return c.json({ error: 'Failed to fetch your events' }, 500);
+    console.error("My events fetch error:", error);
+    return c.json({ error: "Failed to fetch your events" }, 500);
   }
 });
 ```
@@ -308,11 +328,11 @@ app.get('/users/me/events', async (c) => {
 ### Saved Events Endpoint (Hono)
 
 ```typescript
-app.get('/users/me/saved-events', async (c) => {
+app.get("/users/me/saved-events", async (c) => {
   const auth = await requireAuth(c);
-  const limit = parseInt(c.req.query('limit') || '20', 10);
-  const offset = parseInt(c.req.query('offset') || '0', 10);
-  const includeArchived = c.req.query('include_archived') === 'true';
+  const limit = parseInt(c.req.query("limit") || "20", 10);
+  const offset = parseInt(c.req.query("offset") || "0", 10);
+  const includeArchived = c.req.query("include_archived") === "true";
 
   try {
     let query = db
@@ -326,7 +346,7 @@ app.get('/users/me/saved-events', async (c) => {
       .orderBy(desc(saved_events.saved_at));
 
     if (!includeArchived) {
-      query = query.where(eq(events.status, 'active'));
+      query = query.where(eq(events.status, "active"));
     }
 
     const savedEvents = await query.limit(limit).offset(offset);
@@ -344,8 +364,8 @@ app.get('/users/me/saved-events', async (c) => {
       total_count: parseInt(totalCount[0].count),
     });
   } catch (error) {
-    console.error('Saved events fetch error:', error);
-    return c.json({ error: 'Failed to fetch saved events' }, 500);
+    console.error("Saved events fetch error:", error);
+    return c.json({ error: "Failed to fetch saved events" }, 500);
   }
 });
 ```
@@ -355,22 +375,22 @@ app.get('/users/me/saved-events', async (c) => {
 ```typescript
 // apps/api/src/routes/collections.ts
 
-import { Hono } from 'hono';
-import { getAuth } from 'hono/better-auth';
-import { db } from '../db';
-import { collections, events } from '@ceolx/shared/schema';
-import { eq } from 'drizzle-orm';
-import { z } from 'zod';
-import { zValidator } from '@hono/zod-validator';
+import { Hono } from "hono";
+import { getAuth } from "hono/better-auth";
+import { db } from "../db";
+import { collections, events } from "@ceolx/shared/schema";
+import { eq } from "drizzle-orm";
+import { z } from "zod";
+import { zValidator } from "@hono/zod-validator";
 
 const CollectionSchema = z.object({
   name: z.string().min(1).max(100),
   logo: z.string().url().optional(),
 });
 
-app.post('/collections', zValidator('json', CollectionSchema), async (c) => {
+app.post("/collections", zValidator("json", CollectionSchema), async (c) => {
   const auth = await requireAuth(c);
-  const data = c.req.valid('json');
+  const data = c.req.valid("json");
 
   // Verify user is a venue
   const venueProfile = await db.query.venue_profiles.findFirst({
@@ -378,7 +398,7 @@ app.post('/collections', zValidator('json', CollectionSchema), async (c) => {
   });
 
   if (!venueProfile) {
-    return c.json({ error: 'Only venues can create collections' }, 403);
+    return c.json({ error: "Only venues can create collections" }, 403);
   }
 
   const collection = await db
@@ -394,8 +414,8 @@ app.post('/collections', zValidator('json', CollectionSchema), async (c) => {
   return c.json(collection[0], 201);
 });
 
-app.get('/collections/:id', async (c) => {
-  const collectionId = c.req.param('id');
+app.get("/collections/:id", async (c) => {
+  const collectionId = c.req.param("id");
 
   const collection = await db.query.collections.findFirst({
     where: (coll, { eq }) => eq(coll.id, collectionId),
@@ -413,7 +433,7 @@ app.get('/collections/:id', async (c) => {
   });
 
   if (!collection) {
-    return c.json({ error: 'Collection not found' }, 404);
+    return c.json({ error: "Collection not found" }, 404);
   }
 
   return c.json({
@@ -422,50 +442,54 @@ app.get('/collections/:id', async (c) => {
   });
 });
 
-app.patch('/collections/:id', zValidator('json', CollectionSchema.partial()), async (c) => {
+app.patch(
+  "/collections/:id",
+  zValidator("json", CollectionSchema.partial()),
+  async (c) => {
+    const auth = await requireAuth(c);
+    const collectionId = c.req.param("id");
+    const data = c.req.valid("json");
+
+    const collection = await db.query.collections.findFirst({
+      where: (coll, { eq }) => eq(coll.id, collectionId),
+    });
+
+    if (!collection) {
+      return c.json({ error: "Collection not found" }, 404);
+    }
+
+    // Verify ownership
+    const venueProfile = await db.query.venue_profiles.findFirst({
+      where: (profiles, { eq }) => eq(profiles.user_id, auth.user.id),
+    });
+
+    if (!venueProfile || collection.created_by !== venueProfile.id) {
+      return c.json({ error: "Forbidden" }, 403);
+    }
+
+    const updated = await db
+      .update(collections)
+      .set({
+        name: data.name !== undefined ? data.name : collection.name,
+        logo: data.logo !== undefined ? data.logo : collection.logo,
+      })
+      .where(eq(collections.id, collectionId))
+      .returning();
+
+    return c.json(updated[0]);
+  },
+);
+
+app.delete("/collections/:id", async (c) => {
   const auth = await requireAuth(c);
-  const collectionId = c.req.param('id');
-  const data = c.req.valid('json');
+  const collectionId = c.req.param("id");
 
   const collection = await db.query.collections.findFirst({
     where: (coll, { eq }) => eq(coll.id, collectionId),
   });
 
   if (!collection) {
-    return c.json({ error: 'Collection not found' }, 404);
-  }
-
-  // Verify ownership
-  const venueProfile = await db.query.venue_profiles.findFirst({
-    where: (profiles, { eq }) => eq(profiles.user_id, auth.user.id),
-  });
-
-  if (!venueProfile || collection.created_by !== venueProfile.id) {
-    return c.json({ error: 'Forbidden' }, 403);
-  }
-
-  const updated = await db
-    .update(collections)
-    .set({
-      name: data.name !== undefined ? data.name : collection.name,
-      logo: data.logo !== undefined ? data.logo : collection.logo,
-    })
-    .where(eq(collections.id, collectionId))
-    .returning();
-
-  return c.json(updated[0]);
-});
-
-app.delete('/collections/:id', async (c) => {
-  const auth = await requireAuth(c);
-  const collectionId = c.req.param('id');
-
-  const collection = await db.query.collections.findFirst({
-    where: (coll, { eq }) => eq(coll.id, collectionId),
-  });
-
-  if (!collection) {
-    return c.json({ error: 'Collection not found' }, 404);
+    return c.json({ error: "Collection not found" }, 404);
   }
 
   const venueProfile = await db.query.venue_profiles.findFirst({
@@ -473,7 +497,7 @@ app.delete('/collections/:id', async (c) => {
   });
 
   if (!venueProfile || collection.created_by !== venueProfile.id) {
-    return c.json({ error: 'Forbidden' }, 403);
+    return c.json({ error: "Forbidden" }, 403);
   }
 
   // Remove collection_id from all associated events
@@ -485,7 +509,7 @@ app.delete('/collections/:id', async (c) => {
   // Delete collection
   await db.delete(collections).where(eq(collections.id, collectionId));
 
-  return c.status(204).body('');
+  return c.status(204).body("");
 });
 ```
 

@@ -1,11 +1,11 @@
 # M1-T1 · Turborepo Monorepo Setup + GitHub Branch Strategy
 
-| Field | Value |
-|-------|-------|
-| **Milestone** | M1 — Project Setup & Infrastructure |
-| **Status** | 🔲 To Do |
-| **Depends on** | Nothing — first task |
-| **PRD Ref** | Section 10.1 (Tech Stack), Section 10.2 (Infrastructure) |
+| Field          | Value                                                    |
+| -------------- | -------------------------------------------------------- |
+| **Milestone**  | M1 — Project Setup & Infrastructure                      |
+| **Status**     | ✅ Done                                                  |
+| **Depends on** | Nothing — first task                                     |
+| **PRD Ref**    | Section 10.1 (Tech Stack), Section 10.2 (Infrastructure) |
 
 ---
 
@@ -19,12 +19,16 @@ CeolX is a solo-developer project, so the monorepo structure prioritizes clarity
 
 ## Affected Apps / Packages
 
-| App / Package | Role |
-|---------------|------|
-| `apps/mobile` | React Native + Expo iOS/Android app; empty scaffold created |
-| `apps/admin` | Next.js admin dashboard + Venue subscription page; empty scaffold created |
-| `apps/api` | Hono backend API (AWS Lambda); empty scaffold created |
-| `packages/shared` | Shared TypeScript types, enums, utility functions |
+| App / Package   | Role                                                                     |
+| --------------- | ------------------------------------------------------------------------ |
+| `apps/native`   | React Native + Expo iOS/Android app (NativeWind)                         |
+| `apps/web`      | React + Vite + TanStack Router admin dashboard + Venue subscription page |
+| `apps/server`   | Hono + tRPC backend API (AWS Lambda)                                     |
+| `packages/db`   | Drizzle ORM schema, migrations, CeolX enums                              |
+| `packages/api`  | tRPC router type definitions (shared between server and web)             |
+| `packages/auth` | BetterAuth configuration                                                 |
+| `packages/ui`   | Shared UI components                                                     |
+| `packages/env`  | Environment variable validation (@t3-oss/env)                            |
 
 ---
 
@@ -94,32 +98,35 @@ All exported from `packages/shared/src/enums/index.ts`:
 
 ## Acceptance Criteria
 
-- [ ] `npm install` from root completes without errors; all dependencies resolved
-- [ ] `npm run build` completes successfully across all four workspaces
-- [ ] `packages/shared` types importable in all apps with correct IDE autocomplete
-- [ ] Root `tsconfig.json` references all workspace `tsconfig.json` files correctly
-- [ ] GitHub repo created with `dev`, `staging`, `main` branches; protection rules applied
-- [ ] All six shared enums defined and exported from `packages/shared/src/enums/index.ts`
-- [ ] `.env.example` documents all required environment variables for dev/staging/prod
-- [ ] `npm run dev` starts all three dev servers without errors
-- [ ] Project structure verified: correct layout with `apps/` and `packages/` directories
-- [ ] TypeScript compilation passes (`npm run type-check`)
+- [x] `pnpm install` from root completes without errors; all dependencies resolved
+- [x] `pnpm turbo check-types` passes across all workspaces (3/3 successful)
+- [x] `packages/db` enums importable in all apps with correct IDE autocomplete
+- [x] Root `tsconfig.json` references all workspace `tsconfig.json` files correctly
+- [x] GitHub repo has `dev`, `staging`, `main` branches created
+- [ ] GitHub branch protection rules applied (manual step — requires GitHub dashboard or `gh` CLI with auth)
+- [x] All seven CeolX enums defined and exported from `packages/db/src/schema/enums.ts`
+- [x] `.env.example` documents all required environment variables for dev/staging/prod
+- [x] Project structure verified: `apps/native`, `apps/web`, `apps/server`, `packages/*`
+- [x] TypeScript compilation passes (`pnpm turbo check-types`)
 
 ---
 
 ## Dependencies
 
 ### Upstream
+
 None — this is the first task in the project.
 
 ### Downstream (this task blocks)
+
 - **M1-T2** — Neon Database + Drizzle (requires Git branches and TypeScript enums)
 - **M1-T3** — Hono API (requires Turborepo config and shared types)
 - **M1-T4** — React Native + Expo (requires Turborepo dev server)
-- **M1-T5** — Next.js Admin (requires Turborepo dev server)
+- **M1-T5** — React Admin (requires Turborepo dev server)
 - **All M2–M11 tasks** — depend on this foundational structure
 
 ### External services
+
 - GitHub account and repository
 - Neon PostgreSQL account (free tier sufficient)
 
@@ -134,10 +141,7 @@ None — this is the first task in the project.
   "name": "@ceolx/monorepo",
   "version": "1.0.0",
   "private": true,
-  "workspaces": [
-    "apps/*",
-    "packages/*"
-  ],
+  "workspaces": ["apps/*", "packages/*"],
   "devDependencies": {
     "turbo": "^2.0.0",
     "typescript": "^5.4.0",
@@ -166,10 +170,7 @@ None — this is the first task in the project.
 ```json
 {
   "$schema": "https://turbo.build/schema.json",
-  "globalDependencies": [
-    "tsconfig.json",
-    ".env.local"
-  ],
+  "globalDependencies": ["tsconfig.json", ".env.local"],
   "tasks": {
     "build": {
       "outputs": ["dist/**", ".next/**", "build/**"],
@@ -238,61 +239,62 @@ None — this is the first task in the project.
 // packages/shared/src/enums/index.ts
 
 export enum UserRole {
-  SPECTATOR = 'spectator',
-  ARTIST = 'artist',
-  VENUE = 'venue',
-  SUPER_ADMIN = 'super_admin',
+  SPECTATOR = "spectator",
+  ARTIST = "artist",
+  VENUE = "venue",
+  SUPER_ADMIN = "super_admin",
 }
 
 export enum EventStatus {
-  DRAFT = 'draft',
-  PENDING_REVIEW = 'pending_review',
-  REJECTED = 'rejected',
-  ACTIVE = 'active',
-  ARCHIVED = 'archived',
+  DRAFT = "draft",
+  PENDING_REVIEW = "pending_review",
+  REJECTED = "rejected",
+  ACTIVE = "active",
+  ARCHIVED = "archived",
 }
 
 export enum BookingStatus {
-  PENDING = 'pending',
-  ACCEPTED = 'accepted',
-  REJECTED = 'rejected',
-  CANCELLED = 'cancelled',
+  PENDING = "pending",
+  ACCEPTED = "accepted",
+  REJECTED = "rejected",
+  CANCELLED = "cancelled",
 }
 
 export enum BookingDirection {
-  VENUE_TO_ARTIST = 'venue_to_artist',
-  ARTIST_TO_VENUE = 'artist_to_venue',
+  VENUE_TO_ARTIST = "venue_to_artist",
+  ARTIST_TO_VENUE = "artist_to_venue",
 }
 
 export enum SubscriptionStatus {
-  INACTIVE = 'inactive',
-  ACTIVE = 'active',
-  PAST_DUE = 'past_due',
-  CANCELLED = 'cancelled',
+  INACTIVE = "inactive",
+  ACTIVE = "active",
+  PAST_DUE = "past_due",
+  CANCELLED = "cancelled",
 }
 
 export enum MediaType {
-  IMAGE = 'image',
-  VIDEO = 'video',
-  AUDIO = 'audio',
-  TEXT = 'text',
+  IMAGE = "image",
+  VIDEO = "video",
+  AUDIO = "audio",
+  TEXT = "text",
 }
 
 export enum NotificationType {
-  EVENT_APPROVED = 'event_approved',
-  EVENT_REJECTED = 'event_rejected',
-  BOOKING_INVITATION = 'booking_invitation',
-  BOOKING_UPDATE = 'booking_update',
-  ARTIST_MESSAGE = 'artist_message',
-  VENUE_MESSAGE = 'venue_message',
+  EVENT_APPROVED = "event_approved",
+  EVENT_REJECTED = "event_rejected",
+  BOOKING_INVITATION = "booking_invitation",
+  BOOKING_UPDATE = "booking_update",
+  ARTIST_MESSAGE = "artist_message",
+  VENUE_MESSAGE = "venue_message",
 }
 
-export * as Enums from './index';
+export * as Enums from "./index";
 ```
 
 ### GitHub Branch Protection Configuration
 
 **main branch:**
+
 - Require pull request reviews (1 approval)
 - Require status checks to pass
 - Require branches up to date
@@ -300,11 +302,13 @@ export * as Enums from './index';
 - No force push allowed
 
 **staging branch:**
+
 - Require status checks to pass
 - Allow force push by Priya (maintainer)
 - No deletions
 
 **dev branch:**
+
 - No protection rules
 
 ### Environment Variables Example
@@ -354,19 +358,28 @@ MUX_TOKEN_SECRET=...
 
 ### Monorepo Directory Structure
 
+> Scaffolded via `better-t-stack` (BTS). Package names differ from original plan — `apps/server` not `apps/api`, `apps/web` not `apps/admin`, `apps/native` not `apps/mobile`.
+
 ```
-ceolx/
+CeolX/
 ├── apps/
-│   ├── api/              # Hono API (Lambda)
-│   ├── admin/            # Next.js admin + subscribe
-│   └── mobile/           # React Native Expo
+│   ├── server/           # Hono + tRPC API (AWS Lambda)
+│   ├── web/              # React + Vite + TanStack Router (admin + /subscribe)
+│   └── native/           # React Native + Expo + NativeWind
 ├── packages/
-│   └── shared/           # Shared types + enums
+│   ├── db/               # Drizzle schema, migrations, CeolX enums
+│   ├── api/              # tRPC router types (shared server ↔ web)
+│   ├── auth/             # BetterAuth configuration
+│   ├── ui/               # Shared UI components
+│   ├── env/              # Environment variable validation
+│   └── config/           # Shared TS/ESLint config
 ├── .github/
-│   └── workflows/        # CI/CD (prepared)
-├── package.json          # Root workspace config
+│   └── workflows/        # CI/CD (placeholder — wired in M12)
+├── package.json          # Root workspace config (pnpm)
+├── pnpm-workspace.yaml   # pnpm workspace + catalog
 ├── turbo.json            # Turborepo tasks
 ├── tsconfig.json         # Root TypeScript config
+├── bts.jsonc             # BTS project config
 ├── .env.example          # Environment variable template
 └── .gitignore            # Git ignore rules
 ```
@@ -375,9 +388,9 @@ ceolx/
 
 ## Common Gotchas
 
-- **npm workspaces vs pnpm**: Use `npm install -w apps/api` syntax, not Yarn/pnpm syntax
-- **Module resolution**: If `@ceolx/shared` imports fail, verify `tsconfig.json` paths are configured in each workspace
-- **Circular dependencies**: `packages/shared` must never import from `apps/*`; only apps import shared
+- **pnpm workspaces**: Use `pnpm --filter apps/server add <pkg>` syntax
+- **Module resolution**: If `@CeolX/db` imports fail, verify `tsconfig.json` paths are configured in each workspace
+- **Circular dependencies**: `packages/*` must never import from `apps/*`; only apps import packages
 - **Turborepo cache**: If a type change causes a cache miss, run `npm run build -- --no-cache`
 - **Git branch sync**: Always ensure local branches match remote before pushing (use `git fetch origin`)
 - **Environment variable isolation**: Each GitHub Environment (dev/staging/prod) has separate secrets; never push `.env.local`

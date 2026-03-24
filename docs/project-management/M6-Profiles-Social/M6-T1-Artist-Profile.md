@@ -1,11 +1,11 @@
 # M6-T1 · Artist Profile (Public + Edit)
 
-| Field | Value |
-|-------|-------|
-| **Milestone** | M6 — Profiles & Social |
-| **Status** | 🔲 To Do |
+| Field          | Value                                                                                                               |
+| -------------- | ------------------------------------------------------------------------------------------------------------------- |
+| **Milestone**  | M6 — Profiles & Social                                                                                              |
+| **Status**     | 🔲 To Do                                                                                                            |
 | **Depends on** | M2-T4 (artist_profiles table created), M4-T1 (events linked to artist), M10-T1 (image upload via presigned S3 URLs) |
-| **PRD Ref** | Section 6.1 (Artist Features), Section 9.3 (Data Model) |
+| **PRD Ref**    | Section 6.1 (Artist Features), Section 9.3 (Data Model)                                                             |
 
 ---
 
@@ -17,12 +17,12 @@ The Artist's public profile surfaces their identity, biography, genres, social m
 
 ## Affected Apps / Packages
 
-| App / Package | Role |
-|---------------|------|
-| `apps/api` | GET /api/v1/artists/:id (public profile), PUT /api/v1/artists/me (auth required, artist role only) |
-| `apps/mobile` | Public Artist Profile screen, Edit Profile screen (Artist persona only), image picker and S3 upload |
-| `packages/shared` | Artist profile types, genre enum, validation schemas |
-| AWS S3 + CloudFront | Profile image and cover image storage |
+| App / Package       | Role                                                                                                |
+| ------------------- | --------------------------------------------------------------------------------------------------- |
+| `apps/api`          | GET /api/v1/artists/:id (public profile), PUT /api/v1/artists/me (auth required, artist role only)  |
+| `apps/mobile`       | Public Artist Profile screen, Edit Profile screen (Artist persona only), image picker and S3 upload |
+| `packages/shared`   | Artist profile types, genre enum, validation schemas                                                |
+| AWS S3 + CloudFront | Profile image and cover image storage                                                               |
 
 ---
 
@@ -33,11 +33,13 @@ The Artist's public profile surfaces their identity, biography, genres, social m
 Fetch public artist profile by ID. Returns full profile with linked events.
 
 **Query Params:**
+
 ```
 None
 ```
 
 **Response (200 OK):**
+
 ```json
 {
   "id": "artist-profile-uuid",
@@ -81,6 +83,7 @@ None
 ```
 
 **Error Responses:**
+
 - `404 Not Found` — Artist profile does not exist OR is_active = false (inactive profile returns 404 to protect privacy)
 - `500 Internal Server Error` — Database error
 
@@ -93,6 +96,7 @@ Update authenticated artist's own profile. Profile image upload is a separate pr
 **Authentication:** Required, Artist role only
 
 **Request Body:**
+
 ```json
 {
   "display_name": "Síle Na Gealach",
@@ -112,6 +116,7 @@ Update authenticated artist's own profile. Profile image upload is a separate pr
 All fields optional. Only provided fields are updated.
 
 **Response (200 OK):**
+
 ```json
 {
   "id": "artist-profile-uuid",
@@ -134,6 +139,7 @@ All fields optional. Only provided fields are updated.
 ```
 
 **Error Responses:**
+
 - `400 Bad Request` — Invalid social_links format, genres not in enum, bio exceeds char limit
 - `401 Unauthorized` — Not authenticated or not in Artist persona
 - `404 Not Found` — Artist profile does not exist (user is not an artist)
@@ -146,11 +152,13 @@ All fields optional. Only provided fields are updated.
 Request a presigned S3 URL for uploading artist profile image. Image is stored in a user-scoped S3 prefix.
 
 **Query Params:**
+
 ```
 type=profile_image  (required)
 ```
 
 **Response (200 OK):**
+
 ```json
 {
   "upload_url": "https://ceolx-uploads.s3.amazonaws.com/artists/artist-uuid/profile.jpg?X-Amz-Algorithm=...",
@@ -166,6 +174,7 @@ After upload completes, call PUT /api/v1/artists/me with the returned cdn_url.
 ## Requirements
 
 ### Profile Display
+
 - R1: Public profile displays display_name, bio, genres (as tags), location, profile_image_url, cover_image_url, social_links, and follower count
 - R2: Upcoming events (status = active, date_start > now) displayed with title, date, and venue address
 - R3: Past events (status = archived, date_start < now) displayed separately with title and date only
@@ -174,6 +183,7 @@ After upload completes, call PUT /api/v1/artists/me with the returned cdn_url.
 - R6: Inactive profiles (is_active = false) return 404 to all users except the profile owner (who sees profile but cannot edit)
 
 ### Profile Editing
+
 - R7: Artist can edit all profile fields at any time without moderation
 - R8: Edit Profile screen shows form with all fields prefilled from database
 - R9: Profile image upload via presigned S3 URL (GET /api/v1/upload/presigned?type=profile_image)
@@ -182,12 +192,14 @@ After upload completes, call PUT /api/v1/artists/me with the returned cdn_url.
 - R12: Profile edits are NOT moderated — changes go live immediately
 
 ### Visibility & Access Control
+
 - R13: Follow button visible on all profiles (artist cannot follow themselves; button disabled if viewing own profile)
 - R14: Follower count displayed prominently on profile header
 - R15: Switching away from Artist persona sets is_active = false; profile returns 404 publicly but stays in database (no hard delete)
 - R16: Past approved events remain visible on the map/feed until their date passes, even if artist becomes inactive
 
 ### Role-Based UI
+
 - R17: Edit Profile button visible only when viewing own profile as Artist persona
 - R18: Spectators and Venues see read-only view of Artist profile
 - R19: Follow/Unfollow button state reflects real-time follow status
@@ -197,6 +209,7 @@ After upload completes, call PUT /api/v1/artists/me with the returned cdn_url.
 ## Acceptance Criteria
 
 ### Public Profile Rendering
+
 - [ ] Artist profile page renders with all fields populated (display_name, bio, genres, location, images)
 - [ ] Upcoming events listed in chronological order (active events only, date_start > now)
 - [ ] Past events section shows archived events (status = archived)
@@ -205,6 +218,7 @@ After upload completes, call PUT /api/v1/artists/me with the returned cdn_url.
 - [ ] Inactive profile (is_active = false) returns 404 with error message
 
 ### Profile Editing (Artist Only)
+
 - [ ] Edit Profile button visible only when logged in as Artist viewing own profile
 - [ ] Clicking Edit Profile opens form with all fields prefilled from database
 - [ ] Artist can edit display_name, bio, genres, location, social_links
@@ -213,6 +227,7 @@ After upload completes, call PUT /api/v1/artists/me with the returned cdn_url.
 - [ ] Profile updates reflected on public profile page after refresh
 
 ### Image Upload
+
 - [ ] GET /api/v1/upload/presigned?type=profile_image returns valid S3 presigned URL (expires in 15 min)
 - [ ] Mobile uploads image directly to S3 presigned URL (bypasses backend)
 - [ ] After upload, calling PUT /api/v1/artists/me with cdn_url updates profile
@@ -220,6 +235,7 @@ After upload completes, call PUT /api/v1/artists/me with the returned cdn_url.
 - [ ] CloudFront CDN URL returns image with proper MIME type and cache headers
 
 ### Follow Integration
+
 - [ ] Follow button visible and functional on all profiles (except own profile)
 - [ ] Clicking Follow creates entry in follows table; button toggles to "Following"
 - [ ] Follower count increments when follow created, decrements on unfollow
@@ -227,6 +243,7 @@ After upload completes, call PUT /api/v1/artists/me with the returned cdn_url.
 - [ ] Profile owner follows list accessible from /api/v1/users/me/following
 
 ### Profile Visibility
+
 - [ ] GET /api/v1/artists/:id returns 404 for inactive profiles (unless requester owns the profile)
 - [ ] Inactive artist profile remains in database (is_active = false)
 - [ ] Switching away from Artist persona triggers is_active = false transition
@@ -244,6 +261,7 @@ After upload completes, call PUT /api/v1/artists/me with the returned cdn_url.
 ## Technical Notes
 
 ### Database Schema (artist_profiles)
+
 ```sql
 CREATE TABLE artist_profiles (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -266,49 +284,47 @@ CREATE INDEX idx_artist_is_active ON artist_profiles(is_active);
 ```
 
 ### Hono Handler Example
+
 ```typescript
-import { Hono } from 'hono';
-import { db } from '../db';
-import { artistProfiles } from '../db/schema';
-import { eq } from 'drizzle-orm';
+import { Hono } from "hono";
+import { db } from "../db";
+import { artistProfiles } from "../db/schema";
+import { eq } from "drizzle-orm";
 
 const artistRouter = new Hono();
 
 // GET /artists/:id
-artistRouter.get('/:id', async (c) => {
-  const artistId = c.req.param('id');
+artistRouter.get("/:id", async (c) => {
+  const artistId = c.req.param("id");
 
   const profile = await db
     .select()
     .from(artistProfiles)
     .where(eq(artistProfiles.id, artistId))
-    .then(rows => rows[0]);
+    .then((rows) => rows[0]);
 
   if (!profile || !profile.is_active) {
-    return c.json({ error: 'Artist not found' }, 404);
+    return c.json({ error: "Artist not found" }, 404);
   }
 
   // Fetch linked events (status = active)
   const events = await db.query.events.findMany({
-    where: and(
-      eq(events.created_by, artistId),
-      eq(events.status, 'active')
-    ),
+    where: and(eq(events.created_by, artistId), eq(events.status, "active")),
     orderBy: asc(events.date_start),
   });
 
   return c.json({
     ...profile,
-    upcoming_events: events.filter(e => new Date(e.date_start) > new Date()),
-    past_events: events.filter(e => new Date(e.date_start) <= new Date()),
+    upcoming_events: events.filter((e) => new Date(e.date_start) > new Date()),
+    past_events: events.filter((e) => new Date(e.date_start) <= new Date()),
   });
 });
 
 // PUT /artists/me
-artistRouter.put('/me', async (c) => {
-  const user = c.get('user');
-  if (user.current_role !== 'artist') {
-    return c.json({ error: 'Not in artist persona' }, 401);
+artistRouter.put("/me", async (c) => {
+  const user = c.get("user");
+  if (user.current_role !== "artist") {
+    return c.json({ error: "Not in artist persona" }, 401);
   }
 
   const body = await c.req.json();
@@ -321,7 +337,7 @@ artistRouter.put('/me', async (c) => {
     })
     .where(eq(artistProfiles.user_id, user.id))
     .returning()
-    .then(rows => rows[0]);
+    .then((rows) => rows[0]);
 
   return c.json(updated, 200);
 });
@@ -330,6 +346,7 @@ export default artistRouter;
 ```
 
 ### React Native Component (Edit Profile)
+
 ```typescript
 import React, { useState, useEffect } from 'react';
 import { View, TextInput, Button, Image, ScrollView, Alert } from 'react-native';
@@ -448,10 +465,10 @@ export function EditArtistProfileScreen() {
 ```
 
 ### Common Gotchas
+
 - **Inactive profile 404**: Returning 404 for is_active = false protects artist privacy when they switch away. Profile owner can still fetch via context (check auth token).
 - **Social links flexibility**: Store social_links as JSONB to avoid schema updates when new platforms emerge. No validation of URL format in V1.
 - **Event filtering**: Always filter upcoming events by date_start > NOW() in the API, not on the client (clock skew can cause bugs).
 - **Profile image caching**: CloudFront CDN caches for 24h. Old images stay cached. Use querystring versioning in V2 if frequent updates needed.
 - **Empty bio**: Bio is optional — render gracefully when null. Don't show "Bio: null" or placeholder text.
 - **Concurrent edits**: Two simultaneous PUT /artists/me calls can race. Last-write-wins is acceptable for V1 scale.
-

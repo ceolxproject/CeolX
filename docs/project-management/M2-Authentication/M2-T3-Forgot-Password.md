@@ -1,11 +1,11 @@
 # M2-T3 · Forgot Password Flow
 
-| Field | Value |
-|-------|-------|
-| **Milestone** | M2 — Authentication & Persona System |
-| **Status** | 🔲 To Do |
+| Field          | Value                                                   |
+| -------------- | ------------------------------------------------------- |
+| **Milestone**  | M2 — Authentication & Persona System                    |
+| **Status**     | 🔲 To Do                                                |
 | **Depends on** | M2-T1 (email auth), M1-T2 (password_reset_tokens table) |
-| **PRD Ref** | Section 4.1 (Forgot Password) |
+| **PRD Ref**    | Section 4.1 (Forgot Password)                           |
 
 ---
 
@@ -17,10 +17,10 @@ Standard password reset via email link. Token-based, time-limited, single-use. U
 
 ## Affected Apps / Packages
 
-| App / Package | Role |
-|---------------|------|
-| `apps/api` | Reset token generation, validation, password update endpoints, rate limiting |
-| `apps/mobile` | Forgot Password screen, deep link handler, New Password screen |
+| App / Package | Role                                                                         |
+| ------------- | ---------------------------------------------------------------------------- |
+| `apps/api`    | Reset token generation, validation, password update endpoints, rate limiting |
+| `apps/mobile` | Forgot Password screen, deep link handler, New Password screen               |
 
 ---
 
@@ -31,6 +31,7 @@ Standard password reset via email link. Token-based, time-limited, single-use. U
 Request a password reset link. Returns generic success message whether or not email exists (security: prevent email enumeration).
 
 **Request Body:**
+
 ```json
 {
   "email": "user@example.com"
@@ -38,6 +39,7 @@ Request a password reset link. Returns generic success message whether or not em
 ```
 
 **Response (200 OK):**
+
 ```json
 {
   "success": true,
@@ -46,6 +48,7 @@ Request a password reset link. Returns generic success message whether or not em
 ```
 
 **Error Responses:**
+
 - `429 Too Many Requests` — Rate limited (max 3 requests per email per hour)
 
 ### POST /api/v1/auth/reset-password
@@ -53,6 +56,7 @@ Request a password reset link. Returns generic success message whether or not em
 Validate token and update password. Token must be valid, not expired, and not already used.
 
 **Request Body:**
+
 ```json
 {
   "token": "uuid-token",
@@ -61,6 +65,7 @@ Validate token and update password. Token must be valid, not expired, and not al
 ```
 
 **Response (200 OK):**
+
 ```json
 {
   "success": true,
@@ -69,6 +74,7 @@ Validate token and update password. Token must be valid, not expired, and not al
 ```
 
 **Error Responses:**
+
 - `400 Bad Request` — Token missing, password invalid, or password doesn't meet requirements
 - `410 Gone` — Token expired (15 minute window)
 - `409 Conflict` — Token already used (single-use enforcement)
@@ -144,25 +150,25 @@ Validate token and update password. Token must be valid, not expired, and not al
 ```typescript
 // apps/api/src/routes/auth.ts (forgot-password)
 
-import { Hono } from 'hono';
-import { zValidator } from '@hono/zod-validator';
-import { z } from 'zod';
-import { v4 as uuidv4 } from 'uuid';
-import { db } from '../lib/db';
-import { users, passwordResetTokens } from '../schema';
-import { sendPasswordResetEmail } from '../services/emailService';
-import { rateLimitByEmail } from '../middleware/rateLimit';
+import { Hono } from "hono";
+import { zValidator } from "@hono/zod-validator";
+import { z } from "zod";
+import { v4 as uuidv4 } from "uuid";
+import { db } from "../lib/db";
+import { users, passwordResetTokens } from "../schema";
+import { sendPasswordResetEmail } from "../services/emailService";
+import { rateLimitByEmail } from "../middleware/rateLimit";
 
 const forgotPasswordSchema = z.object({
   email: z.string().email(),
 });
 
 app.post(
-  '/forgot-password',
-  zValidator('json', forgotPasswordSchema),
+  "/forgot-password",
+  zValidator("json", forgotPasswordSchema),
   rateLimitByEmail({ maxRequests: 3, windowMinutes: 60 }),
   async (c) => {
-    const { email } = c.req.valid('json');
+    const { email } = c.req.valid("json");
     const emailLower = email.toLowerCase();
 
     // Check if user exists (do NOT return different response if not found)
@@ -175,7 +181,7 @@ app.post(
       return c.json({
         success: true,
         message:
-          'If an account exists, a password reset link has been sent to your email.',
+          "If an account exists, a password reset link has been sent to your email.",
       });
     }
 
@@ -198,9 +204,9 @@ app.post(
     return c.json({
       success: true,
       message:
-        'If an account exists, a password reset link has been sent to your email.',
+        "If an account exists, a password reset link has been sent to your email.",
     });
-  }
+  },
 );
 ```
 
@@ -209,24 +215,24 @@ app.post(
 ```typescript
 // apps/api/src/routes/auth.ts (reset-password)
 
-import * as bcrypt from 'bcryptjs';
+import * as bcrypt from "bcryptjs";
 
 const resetPasswordSchema = z.object({
   token: z.string().uuid(),
   newPassword: z
     .string()
     .min(8)
-    .regex(/[A-Z]/, 'Must contain uppercase letter')
-    .regex(/[a-z]/, 'Must contain lowercase letter')
-    .regex(/[0-9]/, 'Must contain number')
-    .regex(/[!@#$%^&*]/, 'Must contain special character'),
+    .regex(/[A-Z]/, "Must contain uppercase letter")
+    .regex(/[a-z]/, "Must contain lowercase letter")
+    .regex(/[0-9]/, "Must contain number")
+    .regex(/[!@#$%^&*]/, "Must contain special character"),
 });
 
 app.post(
-  '/reset-password',
-  zValidator('json', resetPasswordSchema),
+  "/reset-password",
+  zValidator("json", resetPasswordSchema),
   async (c) => {
-    const { token, newPassword } = c.req.valid('json');
+    const { token, newPassword } = c.req.valid("json");
 
     // Find token
     const resetToken = await db.query.passwordResetTokens.findFirst({
@@ -236,10 +242,10 @@ app.post(
     if (!resetToken) {
       return c.json(
         {
-          error: 'INVALID_TOKEN',
-          message: 'Invalid or expired password reset link',
+          error: "INVALID_TOKEN",
+          message: "Invalid or expired password reset link",
         },
-        400
+        400,
       );
     }
 
@@ -247,10 +253,10 @@ app.post(
     if (resetToken.expiresAt < new Date()) {
       return c.json(
         {
-          error: 'TOKEN_EXPIRED',
-          message: 'Password reset link has expired. Request a new one.',
+          error: "TOKEN_EXPIRED",
+          message: "Password reset link has expired. Request a new one.",
         },
-        410
+        410,
       );
     }
 
@@ -258,10 +264,10 @@ app.post(
     if (resetToken.usedAt !== null) {
       return c.json(
         {
-          error: 'TOKEN_ALREADY_USED',
-          message: 'This password reset link has already been used.',
+          error: "TOKEN_ALREADY_USED",
+          message: "This password reset link has already been used.",
         },
-        409
+        409,
       );
     }
 
@@ -282,9 +288,9 @@ app.post(
 
     return c.json({
       success: true,
-      message: 'Password reset successfully. You can now sign in.',
+      message: "Password reset successfully. You can now sign in.",
     });
-  }
+  },
 );
 ```
 
@@ -293,8 +299,8 @@ app.post(
 ```typescript
 // apps/api/src/middleware/rateLimit.ts
 
-import { Context, Next } from 'hono';
-import { LRUCache } from 'lru-cache';
+import { Context, Next } from "hono";
+import { LRUCache } from "lru-cache";
 
 interface RateLimitOptions {
   maxRequests: number;
@@ -307,8 +313,7 @@ const cache = new LRUCache<string, { count: number; resetAt: number }>({
 });
 
 export const rateLimitByEmail =
-  (options: RateLimitOptions) =>
-  async (c: Context, next: Next) => {
+  (options: RateLimitOptions) => async (c: Context, next: Next) => {
     const body = await c.req.json();
     const email = body.email?.toLowerCase();
 
@@ -328,10 +333,10 @@ export const rateLimitByEmail =
     if (entry.count >= options.maxRequests) {
       return c.json(
         {
-          error: 'RATE_LIMITED',
-          message: 'Too many requests. Try again later.',
+          error: "RATE_LIMITED",
+          message: "Too many requests. Try again later.",
         },
-        429
+        429,
       );
     }
 
@@ -662,11 +667,11 @@ export default ResetPasswordScreen;
 // apps/mobile/src/navigation/linking.ts
 
 export const linking = {
-  prefixes: ['ceolx://', 'https://ceolx.ie'],
+  prefixes: ["ceolx://", "https://ceolx.ie"],
   config: {
     screens: {
-      ResetPassword: 'reset-password?token=:token',
-      VerifyEmail: 'verify-email?token=:token',
+      ResetPassword: "reset-password?token=:token",
+      VerifyEmail: "verify-email?token=:token",
     },
   },
 };

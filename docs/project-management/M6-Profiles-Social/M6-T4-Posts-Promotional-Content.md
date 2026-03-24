@@ -1,11 +1,11 @@
 # M6-T4 · Posts & Promotional Content (All Media Types)
 
-| Field | Value |
-|-------|-------|
-| **Milestone** | M6 — Profiles & Social |
-| **Status** | 🔲 To Do |
+| Field          | Value                                                                                                                                |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| **Milestone**  | M6 — Profiles & Social                                                                                                               |
+| **Status**     | 🔲 To Do                                                                                                                             |
 | **Depends on** | M6-T1 (artist_profiles), M6-T2 (venue_profiles), M10-T1 (media upload — S3 presigned, Mux), M6-T3 (Follow System for feed inclusion) |
-| **PRD Ref** | Section 5.1 (End User Features), Section 6.1 (Artist Features), Section 7.1 (Venue Features), Section 9.3 (Data Model) |
+| **PRD Ref**    | Section 5.1 (End User Features), Section 6.1 (Artist Features), Section 7.1 (Venue Features), Section 9.3 (Data Model)               |
 
 ---
 
@@ -17,13 +17,13 @@ Posts enable Artists and Venues to publish lightweight promotional content to th
 
 ## Affected Apps / Packages
 
-| App / Package | Role |
-|---------------|------|
-| `apps/api` | POST /api/v1/posts (create), GET /api/v1/posts/feed (paginated feed), DELETE /api/v1/posts/:id (soft delete), POST/DELETE /api/v1/posts/:id/like, POST/GET /api/v1/posts/:id/comments, media endpoints for S3 presigned URLs and Mux upload URLs |
-| `apps/mobile` | Create Post screen, post rendering in Discover feed, artist/venue profile posts section, like/comment UI, image picker, video upload to Mux, audio player (expo-av) |
-| `packages/shared` | Post types, media type enum (image \| video \| audio \| text), comment types |
-| AWS S3 + CloudFront | Image and audio file storage and CDN delivery |
-| Mux | Video upload, transcoding, HLS playback, thumbnail generation |
+| App / Package       | Role                                                                                                                                                                                                                                             |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `apps/api`          | POST /api/v1/posts (create), GET /api/v1/posts/feed (paginated feed), DELETE /api/v1/posts/:id (soft delete), POST/DELETE /api/v1/posts/:id/like, POST/GET /api/v1/posts/:id/comments, media endpoints for S3 presigned URLs and Mux upload URLs |
+| `apps/mobile`       | Create Post screen, post rendering in Discover feed, artist/venue profile posts section, like/comment UI, image picker, video upload to Mux, audio player (expo-av)                                                                              |
+| `packages/shared`   | Post types, media type enum (image \| video \| audio \| text), comment types                                                                                                                                                                     |
+| AWS S3 + CloudFront | Image and audio file storage and CDN delivery                                                                                                                                                                                                    |
+| Mux                 | Video upload, transcoding, HLS playback, thumbnail generation                                                                                                                                                                                    |
 
 ---
 
@@ -36,6 +36,7 @@ Create a new post. Artist or Venue only. Media upload is a separate operation (p
 **Authentication:** Required, Artist or Venue persona only
 
 **Request Body:**
+
 ```json
 {
   "caption": "Come see us live at the Galway Arts Festival! 🎵",
@@ -48,6 +49,7 @@ Create a new post. Artist or Venue only. Media upload is a separate operation (p
 All fields optional except caption (must be non-empty or media must be present). At least one of caption or media_url must be provided.
 
 **Response (201 Created):**
+
 ```json
 {
   "id": "post-uuid",
@@ -67,6 +69,7 @@ All fields optional except caption (must be non-empty or media must be present).
 ```
 
 **Error Responses:**
+
 - `400 Bad Request` — No caption and no media, invalid media_type, caption exceeds length limit
 - `401 Unauthorized` — Not authenticated or not in Artist/Venue persona
 - `404 Not Found` — Artist/Venue profile not found
@@ -81,12 +84,14 @@ Paginated feed of posts from followed profiles and own posts. Chronological orde
 **Authentication:** Required
 
 **Query Params:**
+
 ```
 ?page=0              (optional: default 0)
 ?limit=20            (optional: default 20, max 50)
 ```
 
 **Response (200 OK):**
+
 ```json
 {
   "posts": [
@@ -118,12 +123,14 @@ Paginated feed of posts from followed profiles and own posts. Chronological orde
 List all posts by a specific artist. Paginated.
 
 **Query Params:**
+
 ```
 ?page=0    (optional: default 0)
 ?limit=20  (optional: default 20, max 50)
 ```
 
 **Response (200 OK):**
+
 ```json
 {
   "posts": [...],
@@ -139,6 +146,7 @@ List all posts by a specific artist. Paginated.
 List all posts by a specific venue. Paginated.
 
 **Query Params:**
+
 ```
 ?page=0    (optional: default 0)
 ?limit=20  (optional: default 20, max 50)
@@ -153,11 +161,13 @@ Soft-delete a post. Only the post creator can delete.
 **Authentication:** Required
 
 **Response (204 No Content):**
+
 ```
 (no body)
 ```
 
 **Error Responses:**
+
 - `401 Unauthorized` — Not authenticated or not the post creator
 - `404 Not Found` — Post not found or already deleted
 - `500 Internal Server Error` — Database error
@@ -171,11 +181,13 @@ Like a post. Only authenticated users.
 **Authentication:** Required
 
 **Request Body:**
+
 ```json
 {}
 ```
 
 **Response (201 Created):**
+
 ```json
 {
   "id": "like-uuid",
@@ -186,6 +198,7 @@ Like a post. Only authenticated users.
 ```
 
 **Error Responses:**
+
 - `401 Unauthorized` — Not authenticated
 - `404 Not Found` — Post not found
 - `409 Conflict` — Already liked this post
@@ -209,6 +222,7 @@ Add a comment to a post.
 **Authentication:** Required
 
 **Request Body:**
+
 ```json
 {
   "text": "Amazing performance! 🎸"
@@ -216,6 +230,7 @@ Add a comment to a post.
 ```
 
 **Response (201 Created):**
+
 ```json
 {
   "id": "comment-uuid",
@@ -229,6 +244,7 @@ Add a comment to a post.
 ```
 
 **Error Responses:**
+
 - `400 Bad Request` — Empty comment text
 - `401 Unauthorized` — Not authenticated
 - `404 Not Found` — Post not found
@@ -240,12 +256,14 @@ Add a comment to a post.
 List comments on a post. Chronological order (oldest first).
 
 **Query Params:**
+
 ```
 ?page=0    (optional: default 0)
 ?limit=50  (optional: default 50, max 100)
 ```
 
 **Response (200 OK):**
+
 ```json
 {
   "comments": [
@@ -275,6 +293,7 @@ Delete a comment. Only the comment author or post creator can delete.
 **Response (204 No Content):**
 
 **Error Responses:**
+
 - `401 Unauthorized` — Not authorized to delete this comment
 - `404 Not Found` — Comment not found
 
@@ -285,11 +304,13 @@ Delete a comment. Only the comment author or post creator can delete.
 Request presigned S3 URL for post image upload.
 
 **Query Params:**
+
 ```
 type=post_image  (required)
 ```
 
 **Response (200 OK):**
+
 ```json
 {
   "upload_url": "https://ceolx-uploads.s3.amazonaws.com/posts/...",
@@ -305,11 +326,13 @@ type=post_image  (required)
 Request Mux Direct Upload URL for video upload.
 
 **Query Params:**
+
 ```
 None
 ```
 
 **Response (200 OK):**
+
 ```json
 {
   "upload_url": "https://upload.mux.com/v1/uploads",
@@ -324,6 +347,7 @@ None
 ## Requirements
 
 ### Post Creation
+
 - R1: Only Artists and Venues can create posts (Spectators cannot)
 - R2: Post must have a caption (text) OR media; both optional but at least one required
 - R3: Caption max 500 characters (short promotional snippets, not long-form)
@@ -336,12 +360,14 @@ None
 - R10: Author profile info denormalized in posts table: author_name, author_image (for fast feed rendering)
 
 ### Image Upload
+
 - R11: Image formats: JPG, PNG, WebP; max 10 MB
 - R12: Presigned S3 upload URL valid for 15 minutes
 - R13: Mobile uploads directly to S3 presigned URL (bypasses backend)
 - R14: After upload, mobile calls POST /api/v1/posts with CloudFront CDN URL in media_url
 
 ### Video Upload
+
 - R15: Video formats: MP4, MOV; max 500 MB, max 10 minutes
 - R16: Mux Direct Upload URL used; expires in 60 minutes
 - R17: Mux processes upload asynchronously; webhook notification fires when ready (playback URL available)
@@ -350,6 +376,7 @@ None
 - R20: Video plays inline in feed via HLS streaming (react-native-video or expo-av)
 
 ### Audio Upload
+
 - R21: Audio formats: MP3, AAC; max 50 MB, max 5 minutes
 - R22: Presigned S3 upload URL valid for 15 minutes
 - R23: Mobile uploads directly to S3 presigned URL
@@ -357,6 +384,7 @@ None
 - R25: Audio player rendered in feed using expo-av (native media player)
 
 ### Post Display
+
 - R26: Posts appear in Discover feed for users following the creator
 - R27: Posts appear on creator's Artist/Venue profile under Posts section
 - R28: Post card shows: author image, author name, caption, media (if present), like count, comment count, created_at
@@ -364,6 +392,7 @@ None
 - R30: Deleted posts (soft delete) display as "Post deleted" placeholder in feed (preserve thread continuity)
 
 ### Likes
+
 - R31: Any authenticated user can like a post
 - R32: Each user can like a post at most once (unique constraint on user_id + post_id)
 - R33: Like count is denormalized on posts table and incremented/decremented on like/unlike
@@ -371,6 +400,7 @@ None
 - R35: Tapping like toggles state and updates count immediately (optimistic UI)
 
 ### Comments
+
 - R36: Any authenticated user can comment on a post
 - R37: Comment text max 300 characters
 - R38: Comments displayed below the post in chronological order (oldest first)
@@ -385,6 +415,7 @@ None
 ## Acceptance Criteria
 
 ### Post Creation
+
 - [ ] Artist can create text-only post (caption, no media)
 - [ ] Artist can create post with caption + image
 - [ ] Artist can create post with caption + video (Mux upload)
@@ -394,12 +425,14 @@ None
 - [ ] Post created with empty caption + no media returns 400 error
 
 ### Image Upload
+
 - [ ] GET /api/v1/upload/presigned?type=post_image returns valid presigned URL (15 min expiry)
 - [ ] Mobile uploads image directly to S3 (not through backend)
 - [ ] CloudFront CDN URL returned and stored in posts.media_url
 - [ ] Image renders correctly in feed
 
 ### Video Upload
+
 - [ ] GET /api/v1/upload/mux-url returns Mux Direct Upload URL (60 min expiry)
 - [ ] Mobile uploads video directly to Mux
 - [ ] Mux webhook confirms processing complete; posts.media_url updated with HLS URL
@@ -407,17 +440,20 @@ None
 - [ ] Video plays inline in feed with HLS streaming
 
 ### Audio Upload
+
 - [ ] Audio upload to S3 presigned URL works
 - [ ] CloudFront URL stored in posts.media_url
 - [ ] Audio player renders in feed using expo-av
 
 ### Feed Display
+
 - [ ] Posts appear in Discover feed /api/v1/posts/feed (only from followed profiles + own)
 - [ ] Posts appear on artist/venue profile under Posts section (/api/v1/artists/:id/posts)
 - [ ] Post card shows all fields (author image, name, caption, media, like/comment counts)
 - [ ] Images, videos, audio render correctly in feed
 
 ### Likes
+
 - [ ] Like button on post card; tapping increments like_count
 - [ ] Like icon/color toggles to indicate liked state
 - [ ] Unlike (tapping again) decrements like_count
@@ -425,6 +461,7 @@ None
 - [ ] Attempting to like twice returns 409 Conflict
 
 ### Comments
+
 - [ ] Comment count shown on post card
 - [ ] Tapping comment count expands comment list below post
 - [ ] Text input field visible for adding comment
@@ -434,6 +471,7 @@ None
 - [ ] Post creator can delete any comment on their post
 
 ### Deletion
+
 - [ ] Creator can delete their own post; post disappears from feed or shows "Post deleted"
 - [ ] Deleted post is soft-deleted (deleted_at timestamp set, post remains in DB)
 - [ ] Other users cannot delete posts they don't own (401 error)
@@ -451,6 +489,7 @@ None
 ## Technical Notes
 
 ### Database Schema (posts table)
+
 ```sql
 CREATE TABLE posts (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -507,45 +546,47 @@ CREATE INDEX idx_comments_author ON comments(author_user_id);
 ```
 
 ### Hono Handler Example (Post Creation)
+
 ```typescript
-import { Hono } from 'hono';
-import { db } from '../db';
-import { posts, artistProfiles, venueProfiles } from '../db/schema';
+import { Hono } from "hono";
+import { db } from "../db";
+import { posts, artistProfiles, venueProfiles } from "../db/schema";
 
 const postsRouter = new Hono();
 
 // POST /posts
-postsRouter.post('/', async (c) => {
-  const user = c.get('user');
-  if (!['artist', 'venue'].includes(user.current_role)) {
-    return c.json({ error: 'Only artists and venues can create posts' }, 401);
+postsRouter.post("/", async (c) => {
+  const user = c.get("user");
+  if (!["artist", "venue"].includes(user.current_role)) {
+    return c.json({ error: "Only artists and venues can create posts" }, 401);
   }
 
   const { caption, media_type, media_url, thumbnail_url } = await c.req.json();
 
   // Validate caption or media
-  if ((!caption || caption.trim() === '') && !media_url) {
-    return c.json({ error: 'Post must have caption or media' }, 400);
+  if ((!caption || caption.trim() === "") && !media_url) {
+    return c.json({ error: "Post must have caption or media" }, 400);
   }
 
   if (caption && caption.length > 500) {
-    return c.json({ error: 'Caption max 500 characters' }, 400);
+    return c.json({ error: "Caption max 500 characters" }, 400);
   }
 
-  if (!['image', 'video', 'audio', 'text'].includes(media_type)) {
-    return c.json({ error: 'Invalid media_type' }, 400);
+  if (!["image", "video", "audio", "text"].includes(media_type)) {
+    return c.json({ error: "Invalid media_type" }, 400);
   }
 
   // Get author profile
-  const profileTable = user.current_role === 'artist' ? artistProfiles : venueProfiles;
+  const profileTable =
+    user.current_role === "artist" ? artistProfiles : venueProfiles;
   const profile = await db
     .select()
     .from(profileTable)
     .where(eq(profileTable.user_id, user.id))
-    .then(rows => rows[0]);
+    .then((rows) => rows[0]);
 
   if (!profile) {
-    return c.json({ error: 'Profile not found' }, 404);
+    return c.json({ error: "Profile not found" }, 404);
   }
 
   // Create post
@@ -562,16 +603,16 @@ postsRouter.post('/', async (c) => {
       thumbnail_url,
     })
     .returning()
-    .then(rows => rows[0]);
+    .then((rows) => rows[0]);
 
   return c.json(newPost, 201);
 });
 
 // GET /posts/feed
-postsRouter.get('/feed', async (c) => {
-  const user = c.get('user');
-  const page = parseInt(c.req.query('page') || '0');
-  const limit = parseInt(c.req.query('limit') || '20');
+postsRouter.get("/feed", async (c) => {
+  const user = c.get("user");
+  const page = parseInt(c.req.query("page") || "0");
+  const limit = parseInt(c.req.query("limit") || "20");
   const offset = page * limit;
 
   // Get user's follows
@@ -579,14 +620,16 @@ postsRouter.get('/feed', async (c) => {
     where: eq(follows.follower_user_id, user.id),
   });
 
-  const followedProfileIds = userFollows.map(f => f.following_profile_id);
+  const followedProfileIds = userFollows.map((f) => f.following_profile_id);
 
   // Query posts from followed profiles + own
-  const userProfile = await db.query.artistProfiles.findFirst({
-    where: eq(artistProfiles.user_id, user.id),
-  }) || await db.query.venueProfiles.findFirst({
-    where: eq(venueProfiles.user_id, user.id),
-  });
+  const userProfile =
+    (await db.query.artistProfiles.findFirst({
+      where: eq(artistProfiles.user_id, user.id),
+    })) ||
+    (await db.query.venueProfiles.findFirst({
+      where: eq(venueProfiles.user_id, user.id),
+    }));
 
   const profileIds = [
     ...followedProfileIds,
@@ -599,8 +642,8 @@ postsRouter.get('/feed', async (c) => {
     .where(
       and(
         inArray(posts.author_profile_id, profileIds),
-        isNull(posts.deleted_at)
-      )
+        isNull(posts.deleted_at),
+      ),
     )
     .orderBy(desc(posts.created_at))
     .limit(limit)
@@ -614,16 +657,16 @@ postsRouter.get('/feed', async (c) => {
 });
 
 // POST /posts/:id/like
-postsRouter.post('/:id/like', async (c) => {
-  const user = c.get('user');
-  const postId = c.req.param('id');
+postsRouter.post("/:id/like", async (c) => {
+  const user = c.get("user");
+  const postId = c.req.param("id");
 
   const post = await db.query.posts.findFirst({
     where: eq(posts.id, postId),
   });
 
   if (!post) {
-    return c.json({ error: 'Post not found' }, 404);
+    return c.json({ error: "Post not found" }, 404);
   }
 
   // Check for duplicate like
@@ -632,7 +675,7 @@ postsRouter.post('/:id/like', async (c) => {
   });
 
   if (existingLike) {
-    return c.json({ error: 'Already liked' }, 409);
+    return c.json({ error: "Already liked" }, 409);
   }
 
   // Create like
@@ -640,7 +683,7 @@ postsRouter.post('/:id/like', async (c) => {
     .insert(postLikes)
     .values({ user_id: user.id, post_id: postId })
     .returning()
-    .then(rows => rows[0]);
+    .then((rows) => rows[0]);
 
   // Increment like_count
   await db
@@ -652,18 +695,18 @@ postsRouter.post('/:id/like', async (c) => {
 });
 
 // DELETE /posts/:id/like
-postsRouter.delete('/:id/like', async (c) => {
-  const user = c.get('user');
-  const postId = c.req.param('id');
+postsRouter.delete("/:id/like", async (c) => {
+  const user = c.get("user");
+  const postId = c.req.param("id");
 
   const like = await db
     .delete(postLikes)
     .where(and(eq(postLikes.user_id, user.id), eq(postLikes.post_id, postId)))
     .returning()
-    .then(rows => rows[0]);
+    .then((rows) => rows[0]);
 
   if (!like) {
-    return c.json({ error: 'Like not found' }, 404);
+    return c.json({ error: "Like not found" }, 404);
   }
 
   // Decrement like_count
@@ -679,6 +722,7 @@ export default postsRouter;
 ```
 
 ### React Native Post Creation Component
+
 ```typescript
 import React, { useState } from 'react';
 import { View, Button, TextInput, Image, Alert, ActivityIndicator } from 'react-native';
@@ -769,6 +813,7 @@ export function CreatePostScreen() {
 ```
 
 ### Common Gotchas
+
 - **Caption or media validation**: Enforce at API level that at least one of caption or media is provided. Don't allow empty text-only posts.
 - **Mux webhook handling**: Video playback URL is only available after Mux processing completes. During the wait, posts.media_url = null or a placeholder. Update posts table on webhook.
 - **Soft delete**: Comment and post deletion should set deleted_at, not hard-delete. Display "Post deleted" or "Comment deleted" placeholder in feed.
@@ -777,4 +822,3 @@ export function CreatePostScreen() {
 - **Comment author lookup**: Comment response should include author_name and author_image from users table, not denormalized.
 - **Video thumbnail**: Mux generates thumbnail automatically; don't ask user to upload separate thumbnail.
 - **Audio player library**: expo-av is the official React Native audio player. react-native-sound is deprecated.
-

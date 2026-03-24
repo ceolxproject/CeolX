@@ -1,21 +1,11 @@
-.env.*
-.claude
-.tmp.drivedownload
-.tmp.driveupload
-firebase-debug.log
-*.log
-
-mentor-project-management/
 # Dependencies
 node_modules
-.pnpm-store/
 .pnp
 .pnp.js
 
 # Build outputs
 dist
 build
-.next/
 *.tsbuildinfo
 
 # Environment variables
@@ -28,7 +18,6 @@ build
 !.vscode/tasks.json
 !.vscode/launch.json
 !.vscode/extensions.json
-!.vscode/mcp.json
 .idea
 *.swp
 *.swo
@@ -46,10 +35,7 @@ lerna-debug.log*
 
 # Turbo
 .turbo
-
-# SST
-.sst
-sst-env.d.ts
+.nx
 
 # Better-T-Stack
 .alchemy
@@ -58,24 +44,12 @@ sst-env.d.ts
 coverage
 .nyc_output
 
-# EnvX (encryption secret — shared manually, never committed)
-.envrc
-
-# Claude Code worktrees
-.claude/worktrees/
-.worktrees/
-
-# Design reference (large binary PDFs)
-docs/design-reference/
-
-# Playwright MCP
-.playwright-mcp/
-
 # Misc
 *.tgz
 .cache
 tmp
-temp.worktrees
-.dmux/
-.dmux-hooks/
-.demux-hooks/
+temp
+
+# AI Tools
+.agents
+.superpowers/*

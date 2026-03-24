@@ -1,0 +1,36 @@
+// Better-T-Stack
+//
+// Website: https://www.better-t-stack.dev/
+// Stack Builder: https://www.better-t-stack.dev/new
+// Analytics: https://www.better-t-stack.dev/analytics
+// Showcase: https://www.better-t-stack.dev/showcase
+// Sponsor: https://github.com/sponsors/AmanVarshney01
+//
+// Add new addons with: pnpm dlx create-better-t-stack add
+// This file is safe to delete
+
+{
+  "$schema": "https://r2.better-t-stack.dev/schema.json",
+  "version": "3.26.1",
+  "createdAt": "2026-03-23T09:16:47.113Z",
+  "reproducibleCommand": "pnpm create better-t-stack@latest . --frontend tanstack-router native-uniwind --backend hono --runtime node --database postgres --orm drizzle --api trpc --auth better-auth --payments none --addons husky mcp turborepo --examples none --db-setup docker --web-deploy none --server-deploy none --no-git --package-manager pnpm --no-install",
+  "database": "postgres",
+  "orm": "drizzle",
+  "backend": "hono",
+  "runtime": "node",
+  "frontend": ["tanstack-router", "native-uniwind"],
+  "addons": [
+		"husky",
+		"mcp",
+		"turborepo",
+		"skills"
+	],
+  "examples": [],
+  "auth": "better-auth",
+  "payments": "none",
+  "packageManager": "pnpm",
+  "dbSetup": "docker",
+  "api": "trpc",
+  "webDeploy": "none",
+  "serverDeploy": "none",
+}

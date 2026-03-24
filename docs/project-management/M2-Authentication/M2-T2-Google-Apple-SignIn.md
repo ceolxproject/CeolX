@@ -1,11 +1,11 @@
 # M2-T2 · Google Sign-In + Apple Sign-In (iOS)
 
-| Field | Value |
-|-------|-------|
-| **Milestone** | M2 — Authentication & Persona System |
-| **Status** | 🔲 To Do |
-| **Depends on** | M2-T1 (BetterAuth must be configured), M1-T4 (mobile app) |
-| **PRD Ref** | Section 4.1 (Apple Sign-In is mandatory for App Store compliance) |
+| Field          | Value                                                             |
+| -------------- | ----------------------------------------------------------------- |
+| **Milestone**  | M2 — Authentication & Persona System                              |
+| **Status**     | 🔲 To Do                                                          |
+| **Depends on** | M2-T1 (BetterAuth must be configured), M1-T4 (mobile app)         |
+| **PRD Ref**    | Section 4.1 (Apple Sign-In is mandatory for App Store compliance) |
 
 ---
 
@@ -17,9 +17,9 @@ Implement social login methods as an alternative to email/password. Google Sign-
 
 ## Affected Apps / Packages
 
-| App / Package | Role |
-|---------------|------|
-| `apps/api` | BetterAuth Google + Apple OAuth provider configuration, account linking logic |
+| App / Package | Role                                                                                            |
+| ------------- | ----------------------------------------------------------------------------------------------- |
+| `apps/api`    | BetterAuth Google + Apple OAuth provider configuration, account linking logic                   |
 | `apps/mobile` | OAuth flow implementation, social login buttons on Sign Up/Sign In screens, deep link callbacks |
 
 ---
@@ -31,6 +31,7 @@ Implement social login methods as an alternative to email/password. Google Sign-
 Initiate Google OAuth flow (mobile calls this to get authorization code).
 
 **Request Body:**
+
 ```json
 {
   "code": "auth_code_from_google",
@@ -39,6 +40,7 @@ Initiate Google OAuth flow (mobile calls this to get authorization code).
 ```
 
 **Response (200 OK):**
+
 ```json
 {
   "success": true,
@@ -57,6 +59,7 @@ Initiate Google OAuth flow (mobile calls this to get authorization code).
 ```
 
 **Error Responses:**
+
 - `400 Bad Request` — Invalid auth code
 - `401 Unauthorized` — OAuth provider error
 
@@ -65,6 +68,7 @@ Initiate Google OAuth flow (mobile calls this to get authorization code).
 Initiate Apple Sign-In flow (iOS only).
 
 **Request Body:**
+
 ```json
 {
   "identityToken": "identity_token_from_apple",
@@ -75,6 +79,7 @@ Initiate Apple Sign-In flow (iOS only).
 ```
 
 **Response (200 OK):**
+
 ```json
 {
   "success": true,
@@ -93,6 +98,7 @@ Initiate Apple Sign-In flow (iOS only).
 ```
 
 **Error Responses:**
+
 - `400 Bad Request` — Invalid identity token
 - `401 Unauthorized` — Apple verification failed
 
@@ -198,8 +204,8 @@ Initiate Apple Sign-In flow (iOS only).
 ```typescript
 // apps/api/src/lib/auth.ts
 
-import { betterAuth } from 'better-auth';
-import { google } from 'better-auth/providers';
+import { betterAuth } from "better-auth";
+import { google } from "better-auth/providers";
 
 export const auth = betterAuth({
   // ... other config
@@ -219,7 +225,7 @@ export const auth = betterAuth({
 ```typescript
 // apps/api/src/lib/auth.ts
 
-import { apple } from 'better-auth/providers';
+import { apple } from "better-auth/providers";
 
 export const auth = betterAuth({
   // ... other config
@@ -446,33 +452,30 @@ export default SignUpScreen;
 ```typescript
 // apps/mobile/src/screens/Auth/SignUpScreen.tsx (Apple portion)
 
-import { appleAuth } from '@invertase/react-native-apple-authentication';
-import { Platform } from 'react-native';
+import { appleAuth } from "@invertase/react-native-apple-authentication";
+import { Platform } from "react-native";
 
 const handleAppleSignIn = async () => {
-  if (Platform.OS !== 'ios') return;
+  if (Platform.OS !== "ios") return;
 
   try {
     const appleAuthRequestResponse = await appleAuth.performRequest({
       requestedOperation: appleAuth.Operation.LOGIN,
-      requestedScopes: [
-        appleAuth.Scope.EMAIL,
-        appleAuth.Scope.FULL_NAME,
-      ],
+      requestedScopes: [appleAuth.Scope.EMAIL, appleAuth.Scope.FULL_NAME],
     });
 
     const { identityToken, user } = appleAuthRequestResponse;
 
     if (!identityToken) {
-      throw new Error('Apple Sign-In failed - no identity token');
+      throw new Error("Apple Sign-In failed - no identity token");
     }
 
     // Send to backend for verification
     const response = await fetch(
       `${process.env.EXPO_PUBLIC_API_BASE_URL}/api/v1/auth/apple`,
       {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           identityToken,
           user: {
@@ -480,7 +483,7 @@ const handleAppleSignIn = async () => {
             email: user?.email,
           },
         }),
-      }
+      },
     );
 
     if (response.ok) {
@@ -489,7 +492,7 @@ const handleAppleSignIn = async () => {
       await login(data.session.token, data.user);
     }
   } catch (err) {
-    console.error('Apple authentication error:', err);
+    console.error("Apple authentication error:", err);
   }
 };
 ```

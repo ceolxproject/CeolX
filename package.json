@@ -1,0 +1,73 @@
+{
+  "name": "CeolX",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "type": "module",
+  "scripts": {
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "check-types": "turbo check-types",
+    "dev:native": "turbo -F native dev",
+    "dev:web": "turbo -F web dev",
+    "dev:server": "turbo -F server dev",
+    "db:push": "turbo -F @CeolX/db db:push",
+    "db:studio": "turbo -F @CeolX/db db:studio",
+    "db:generate": "turbo -F @CeolX/db db:generate",
+    "db:migrate": "turbo -F @CeolX/db db:migrate",
+    "db:start": "turbo -F @CeolX/db db:start",
+    "db:watch": "turbo -F @CeolX/db db:watch",
+    "db:stop": "turbo -F @CeolX/db db:stop",
+    "db:down": "turbo -F @CeolX/db db:down",
+    "prepare": "husky",
+    "commit": "czg"
+  },
+  "dependencies": {
+    "@CeolX/env": "workspace:*",
+    "dotenv": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@CeolX/config": "workspace:*",
+    "@commitlint/cli": "^20.5.0",
+    "@commitlint/config-conventional": "^20.5.0",
+    "@eslint/js": "^9.39.4",
+    "@types/node": "^22.13.14",
+    "commitlint": "^20.5.0",
+    "cz-git": "^1.12.0",
+    "czg": "^1.12.0",
+    "eslint": "^9.0.0",
+    "globals": "^17.4.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.4.0",
+    "prettier": "^3.0.0",
+    "turbo": "^2.8.12",
+    "typescript": "^5",
+    "typescript-eslint": "^8.57.2",
+    "validate-branch-name": "^1.3.2",
+    "vitest": "^3.0.0"
+  },
+  "lint-staged": {
+    "*.{ts,mts,cts,tsx,js,mjs,cjs,jsx}": [
+      "eslint --fix --max-warnings 0 --no-warn-ignored",
+      "prettier --write",
+      "vitest related --run --passWithNoTests"
+    ],
+    "*.{json,css,md}": [
+      "prettier --write"
+    ]
+  },
+  "packageManager": "pnpm@10.7.1",
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "msw"
+    ]
+  },
+  "validate-branch-name": {
+    "pattern": "^(main|master|develop|development|staging|production)$|^(feature|fix|hotfix|bugfix|release|chore|docs|refactor|test|ci)\\/[a-z0-9._-]+$",
+    "errorMsg": "Branch name must follow pattern: feature/*, fix/*, hotfix/*, bugfix/*, release/*, chore/*, docs/*, refactor/*, test/*, ci/* or be main/master/develop/development/staging/production"
+  }
+}

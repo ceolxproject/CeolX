@@ -1,0 +1,14 @@
+# Validate branch naming convention
+validate-branch-name
+
+# Run full test suite with coverage (blocks on failure)
+echo "🧪 Running full test suite with coverage..."
+pnpm test:coverage || {
+  echo "❌ Tests failed or coverage below 80%. Push blocked."
+  echo "💡 Fix failing tests or use 'git push --no-verify' to bypass (not recommended)."
+  exit 1
+}
+
+# Build all packages - push only succeeds if builds pass
+echo "🔨 Building..."
+pnpm turbo build

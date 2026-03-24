@@ -1,11 +1,11 @@
 # M12-T2 · iOS App Store & Android Play Store Submissions
 
-| Field | Value |
-|-------|-------|
-| **Milestone** | M12 — Launch Readiness |
-| **Status** | 🔲 To Do |
-| **Depends on** | M12-T1 (QA passed on real devices), M1-T4 (EAS Build configured) |
-| **PRD Ref** | Section 4.1 (Mobile App — Expo EAS), Section 10.2 (Infrastructure), GDPR (Privacy Policy) |
+| Field          | Value                                                                                     |
+| -------------- | ----------------------------------------------------------------------------------------- |
+| **Milestone**  | M12 — Launch Readiness                                                                    |
+| **Status**     | 🔲 To Do                                                                                  |
+| **Depends on** | M12-T1 (QA passed on real devices), M1-T4 (EAS Build configured)                          |
+| **PRD Ref**    | Section 4.1 (Mobile App — Expo EAS), Section 10.2 (Infrastructure), GDPR (Privacy Policy) |
 
 ---
 
@@ -17,10 +17,10 @@ Submit the CeolX mobile app to Apple App Store (iOS) and Google Play Store (Andr
 
 ## Affected Apps / Packages
 
-| App / Package | Role |
-|---------------|------|
-| `apps/mobile` | Production builds, app configuration, permissions, metadata |
-| `apps/admin` | Privacy Policy and Terms of Service pages (ceolx.ie/privacy, ceolx.ie/terms) must be live |
+| App / Package | Role                                                                                      |
+| ------------- | ----------------------------------------------------------------------------------------- |
+| `apps/mobile` | Production builds, app configuration, permissions, metadata                               |
+| `apps/admin`  | Privacy Policy and Terms of Service pages (ceolx.ie/privacy, ceolx.ie/terms) must be live |
 
 ---
 
@@ -235,29 +235,26 @@ No new endpoints. No API changes required for app store submission.
 ```typescript
 export default {
   expo: {
-    name: 'CeolX',
-    slug: 'ceolx',
-    version: '1.0.0',
+    name: "CeolX",
+    slug: "ceolx",
+    version: "1.0.0",
     ios: {
-      bundleIdentifier: 'ie.ceolx.app',
-      buildNumber: '1',
+      bundleIdentifier: "ie.ceolx.app",
+      buildNumber: "1",
       privacyManifest: {
         NSPrivacyTracking: false,
         NSPrivacyTrackingDomains: [],
       },
     },
     android: {
-      package: 'ie.ceolx.app',
+      package: "ie.ceolx.app",
       versionCode: 1,
     },
-    plugins: [
-      'expo-apple-authentication',
-      'expo-image-picker',
-    ],
+    plugins: ["expo-apple-authentication", "expo-image-picker"],
     permissions: [
-      'ios.NSLocationWhenInUseUsageDescription',
-      'ios.NSCameraUsageDescription',
-      'ios.NSPhotoLibraryUsageDescription',
+      "ios.NSLocationWhenInUseUsageDescription",
+      "ios.NSCameraUsageDescription",
+      "ios.NSPhotoLibraryUsageDescription",
     ],
   },
 };
@@ -266,19 +263,19 @@ export default {
 ### Linking to External Stripe Subscription Page (React Native)
 
 ```typescript
-import { Linking } from 'react-native';
+import { Linking } from "react-native";
 
 const openStripeSubscription = async () => {
-  const url = 'https://ceolx.ie/subscribe';
+  const url = "https://ceolx.ie/subscribe";
   try {
     const supported = await Linking.canOpenURL(url);
     if (supported) {
       await Linking.openURL(url);
     } else {
-      console.error('Cannot open URL:', url);
+      console.error("Cannot open URL:", url);
     }
   } catch (error) {
-    console.error('Error opening URL:', error);
+    console.error("Error opening URL:", error);
   }
 };
 ```
