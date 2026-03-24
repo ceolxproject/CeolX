@@ -19,7 +19,11 @@
       "Bash(nvm use:*)",
       "Bash(pnpm create:*)",
       "Bash(pnpm list:*)",
-      "Bash(git show-ref:*)"
+      "Bash(git show-ref:*)",
+      "Bash(pnpm install:*)",
+      "Bash(pnpm info:*)",
+      "Bash(pnpm:*)",
+      "Bash(ls /Users/priyayadav/Documents/Raftlabs/CeolX/.claude/worktrees/honoScaffolding/apps/server/.env*)"
     ]
   },
   "enabledMcpjsonServers": [
