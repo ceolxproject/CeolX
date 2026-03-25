@@ -17,142 +17,38 @@ Implement the base authentication method — email/password sign-up, email verif
 
 ## Affected Apps / Packages
 
-| App / Package     | Role                                                                                                   |
-| ----------------- | ------------------------------------------------------------------------------------------------------ |
-| `apps/api`        | BetterAuth configuration, sign-up/sign-in/logout endpoints, email verification logic, password hashing |
-| `apps/mobile`     | Sign Up screen, Sign In screen, email confirmation screen, session persistence via AuthContext         |
-| `packages/shared` | Shared error codes and response types                                                                  |
+| App / Package   | Role                                                                                                 |
+| --------------- | ---------------------------------------------------------------------------------------------------- |
+| `packages/auth` | BetterAuth configuration: email/password provider, Postmark email, Drizzle adapter, session settings |
+| `apps/server`   | Mounts BetterAuth HTTP handler at `/api/auth/*` — no custom routes needed                            |
+| `apps/mobile`   | Sign Up screen, Sign In screen, email confirmation screen, session persistence via AuthContext       |
 
 ---
 
 ## API Endpoints
 
-### POST /api/v1/auth/sign-up
+Auth is handled entirely by **BetterAuth's HTTP handler** mounted at `/api/auth/*`. There are no custom tRPC procedures or Hono routes for sign-up, sign-in, or sign-out.
 
-Create user account with email and password.
+The mobile app uses the **BetterAuth client SDK** (`@better-auth/expo`) — not raw fetch calls.
 
-**Request Body:**
+### BetterAuth endpoints (called internally by the client SDK)
 
-```json
-{
-  "email": "user@example.com",
-  "password": "SecurePass123!",
-  "name": "John Doe"
-}
-```
+| Method | Path                                | Action                                 |
+| ------ | ----------------------------------- | -------------------------------------- |
+| POST   | `/api/auth/sign-up/email`           | Create account (name, email, password) |
+| POST   | `/api/auth/sign-in/email`           | Authenticate, receive session token    |
+| POST   | `/api/auth/sign-out`                | Invalidate session                     |
+| GET    | `/api/auth/verify-email`            | Verify email from deep link token      |
+| POST   | `/api/auth/send-verification-email` | Resend verification email              |
 
-**Response (201 Created):**
+BetterAuth handles password hashing, session token generation, email sending (via Postmark), and token expiry. Do not re-implement any of this.
 
-```json
-{
-  "success": true,
-  "user": {
-    "id": "uuid",
-    "email": "user@example.com",
-    "name": "John Doe",
-    "emailVerified": false,
-    "createdAt": "2026-03-23T10:30:00Z"
-  },
-  "message": "Account created. Check your email to verify."
-}
-```
+**Error shape** (BetterAuth standard):
 
-**Error Responses:**
-
-- `400 Bad Request` — Missing required fields or invalid email format
-- `409 Conflict` — Email already registered
-- `422 Unprocessable Entity` — Password does not meet strength requirements
-
-### GET /api/v1/auth/verify-email?token=:token
-
-Mark user as verified using token from email link.
-
-**Response (200 OK):**
-
-```json
-{
-  "success": true,
-  "message": "Email verified. You can now sign in."
-}
-```
-
-**Error Responses:**
-
-- `400 Bad Request` — Token missing or invalid
-- `410 Gone` — Token expired (24 hour window)
-- `404 Not Found` — User not found
-
-### POST /api/v1/auth/sign-in
-
-Authenticate user with email and password. Returns BetterAuth session token.
-
-**Request Body:**
-
-```json
-{
-  "email": "user@example.com",
-  "password": "SecurePass123!"
-}
-```
-
-**Response (200 OK):**
-
-```json
-{
-  "success": true,
-  "session": {
-    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-    "expiresAt": "2026-03-23T15:30:00Z"
-  },
-  "user": {
-    "id": "uuid",
-    "email": "user@example.com",
-    "name": "John Doe",
-    "emailVerified": true,
-    "currentRole": "spectator"
-  }
-}
-```
-
-**Error Responses:**
-
-- `400 Bad Request` — Missing email or password
-- `401 Unauthorized` — Invalid credentials
-- `403 Forbidden` — Email not verified (include link to resend verification)
-
-### POST /api/v1/auth/resend-verification
-
-Resend verification email to a user's email address.
-
-**Request Body:**
-
-```json
-{
-  "email": "user@example.com"
-}
-```
-
-**Response (200 OK):**
-
-```json
-{
-  "success": true,
-  "message": "Verification email sent. Check your inbox."
-}
-```
-
-### POST /api/v1/auth/logout
-
-Terminate user session and invalidate token.
-
-**Response (200 OK):**
-
-```json
-{
-  "success": true,
-  "message": "Logged out successfully."
-}
-```
+- `400` — Missing/invalid fields
+- `401` — Invalid credentials
+- `403` — Email not verified
+- `409` — Email already registered
 
 ---
 
@@ -275,243 +171,63 @@ Terminate user session and invalidate token.
 
 ## Technical Notes
 
-### BetterAuth Configuration
+### BetterAuth Configuration (`packages/auth/src/index.ts`)
 
 ```typescript
-// apps/server/src/lib/auth.ts
-
 import { betterAuth } from "better-auth";
-import { postmark } from "better-auth/providers";
+import { expo } from "@better-auth/expo";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
-import { db } from "./db";
+import { db } from "@CeolX/db";
+import { env } from "@CeolX/env/server";
 
 export const auth = betterAuth({
-  database: drizzleAdapter(db, {
-    provider: "pg",
-  }),
+  database: drizzleAdapter(db, { provider: "pg" }),
+  secret: env.BETTER_AUTH_SECRET,
+  baseURL: env.BETTER_AUTH_URL,
+  trustedOrigins: env.CORS_ALLOWED_ORIGINS.split("|"),
   emailAndPassword: {
     enabled: true,
     minPasswordLength: 8,
+    // Postmark sends the verification email automatically
+    sendResetPassword: async ({ user, url }) => {
+      // TODO M2-T3: wire Postmark reset-password email
+    },
   },
-  providers: [
-    postmark({
-      apiKey: process.env.POSTMARK_API_TOKEN!,
-    }),
-  ],
-  socialProviders: {
-    // Google and Apple wired in M2-T2
+  emailVerification: {
+    sendOnSignUp: true,
+    sendVerificationEmail: async ({ user, url }) => {
+      // TODO M7-T3: wire Postmark verification email with deep link
+      // Deep link format: ceolx://verify-email?token=<token>
+    },
   },
+  plugins: [expo()],
   session: {
     expiresIn: 60 * 60 * 24 * 30, // 30 days
-    updateAge: 60 * 60 * 24, // Update after 1 day of inactivity
+    updateAge: 60 * 60 * 24, // refresh after 1 day of activity
+    cookieCache: { enabled: true, maxAge: 60 * 5 },
   },
 });
 ```
 
-### Sign-Up Endpoint
+BetterAuth handles: password hashing (bcrypt), session token generation, email verification tokens, and Postmark delivery. Do not re-implement any of this.
+
+### Mobile — BetterAuth Client SDK
 
 ```typescript
-// apps/server/src/routes/auth.ts (sign-up)
+// apps/mobile/src/lib/auth.ts
+import { createAuthClient } from "better-auth/react";
+import { expoClient } from "@better-auth/expo/client";
+import * as SecureStore from "expo-secure-store";
 
-import { Hono } from "hono";
-import { zValidator } from "@hono/zod-validator";
-import { z } from "zod";
-import * as bcrypt from "bcryptjs";
-import { v4 as uuidv4 } from "uuid";
-import { db } from "../lib/db";
-import { users, emailVerificationTokens } from "../schema";
-import { sendVerificationEmail } from "../services/emailService";
-
-const signUpSchema = z.object({
-  name: z.string().min(2).max(100),
-  email: z.string().email(),
-  password: z
-    .string()
-    .min(8)
-    .regex(/[A-Z]/, "Must contain uppercase letter")
-    .regex(/[a-z]/, "Must contain lowercase letter")
-    .regex(/[0-9]/, "Must contain number")
-    .regex(/[!@#$%^&*]/, "Must contain special character"),
-});
-
-const app = new Hono();
-
-app.post("/sign-up", zValidator("json", signUpSchema), async (c) => {
-  const { name, email, password } = c.req.valid("json");
-  const emailLower = email.toLowerCase();
-
-  // Check for duplicate email
-  const existing = await db.query.users.findFirst({
-    where: eq(users.email, emailLower),
-  });
-  if (existing) {
-    return c.json(
-      { error: "EMAIL_ALREADY_EXISTS", message: "Email already registered" },
-      409,
-    );
-  }
-
-  // Hash password
-  const passwordHash = await bcrypt.hash(password, 12);
-
-  // Create user
-  const userId = uuidv4();
-  const user = await db
-    .insert(users)
-    .values({
-      id: userId,
-      email: emailLower,
-      name,
-      passwordHash,
-      emailVerified: false,
-      currentRole: "spectator",
-    })
-    .returning();
-
-  // Generate verification token
-  const verificationToken = uuidv4();
-  await db.insert(emailVerificationTokens).values({
-    id: uuidv4(),
-    userId: userId,
-    token: verificationToken,
-    expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
-  });
-
-  // Send verification email
-  const deepLink = `ceolx://verify-email?token=${verificationToken}`;
-  await sendVerificationEmail(email, deepLink);
-
-  return c.json(
-    {
-      success: true,
-      user: {
-        id: user[0].id,
-        email: user[0].email,
-        name: user[0].name,
-        emailVerified: user[0].emailVerified,
-        createdAt: user[0].createdAt,
-      },
-      message: "Account created. Check your email to verify.",
-    },
-    201,
-  );
-});
-```
-
-### Email Verification Endpoint
-
-```typescript
-// apps/server/src/routes/auth.ts (verify-email)
-
-app.get("/verify-email", async (c) => {
-  const token = c.req.query("token");
-
-  if (!token) {
-    return c.json({ error: "INVALID_TOKEN", message: "Token required" }, 400);
-  }
-
-  // Find token
-  const verificationToken = await db.query.emailVerificationTokens.findFirst({
-    where: eq(emailVerificationTokens.token, token),
-  });
-
-  if (!verificationToken) {
-    return c.json(
-      { error: "INVALID_TOKEN", message: "Invalid verification token" },
-      400,
-    );
-  }
-
-  // Check expiry
-  if (verificationToken.expiresAt < new Date()) {
-    return c.json(
-      { error: "TOKEN_EXPIRED", message: "Verification token expired" },
-      410,
-    );
-  }
-
-  // Mark user as verified
-  await db
-    .update(users)
-    .set({ emailVerified: true })
-    .where(eq(users.id, verificationToken.userId));
-
-  // Delete token (single-use)
-  await db
-    .delete(emailVerificationTokens)
-    .where(eq(emailVerificationTokens.id, verificationToken.id));
-
-  return c.json({
-    success: true,
-    message: "Email verified. You can now sign in.",
-  });
-});
-```
-
-### Sign-In Endpoint
-
-```typescript
-// apps/server/src/routes/auth.ts (sign-in)
-
-const signInSchema = z.object({
-  email: z.string().email(),
-  password: z.string(),
-});
-
-app.post("/sign-in", zValidator("json", signInSchema), async (c) => {
-  const { email, password } = c.req.valid("json");
-  const emailLower = email.toLowerCase();
-
-  // Find user
-  const user = await db.query.users.findFirst({
-    where: eq(users.email, emailLower),
-  });
-
-  if (!user) {
-    return c.json(
-      { error: "INVALID_CREDENTIALS", message: "Invalid email or password" },
-      401,
-    );
-  }
-
-  // Check email verified
-  if (!user.emailVerified) {
-    return c.json(
-      {
-        error: "EMAIL_NOT_VERIFIED",
-        message: "Please verify your email before signing in",
-        code: "EMAIL_NOT_VERIFIED",
-      },
-      403,
-    );
-  }
-
-  // Verify password
-  const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
-  if (!isPasswordValid) {
-    return c.json(
-      { error: "INVALID_CREDENTIALS", message: "Invalid email or password" },
-      401,
-    );
-  }
-
-  // Create BetterAuth session (token generation handled by BetterAuth)
-  const session = await auth.createSession(user.id);
-
-  return c.json({
-    success: true,
-    session: {
-      token: session.token,
-      expiresAt: session.expiresAt.toISOString(),
-    },
-    user: {
-      id: user.id,
-      email: user.email,
-      name: user.name,
-      emailVerified: user.emailVerified,
-      currentRole: user.currentRole,
-    },
-  });
+export const authClient = createAuthClient({
+  baseURL: process.env.EXPO_PUBLIC_API_URL, // e.g. https://api.ceolx.ie
+  plugins: [
+    expoClient({
+      scheme: "ceolx",
+      storagePrefix: "ceolx",
+      storage: SecureStore,
+    }),
+  ],
 });
 ```
 
@@ -559,23 +275,17 @@ const SignUpScreen = ({ navigation }: any) => {
     if (!validateForm()) return;
 
     setLoading(true);
-    try {
-      const response = await fetch(`${process.env.EXPO_PUBLIC_API_BASE_URL}/api/v1/auth/sign-up`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email, password }),
-      });
+    const { data, error } = await authClient.signUp.email({
+      name,
+      email,
+      password,
+    });
 
-      if (response.ok) {
-        navigation.navigate('VerifyEmail', { email });
-      } else {
-        const data = await response.json();
-        setErrors({ submit: data.message });
-      }
-    } catch (err) {
-      setErrors({ submit: 'Network error' });
-    } finally {
-      setLoading(false);
+    setLoading(false);
+    if (error) {
+      setErrors({ submit: error.message ?? 'Sign up failed' });
+    } else {
+      navigation.navigate('VerifyEmail', { email });
     }
   };
 

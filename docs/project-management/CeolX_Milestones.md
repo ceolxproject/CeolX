@@ -69,18 +69,19 @@
 
 ---
 
-### M1-T3 · Hono API Scaffold + AWS Lambda Config
+### M1-T3 · tRPC API Scaffold (Hono Transport)
 
-**What**: Set up the backend API skeleton with all routes, middleware, and deployment config.
+**What**: Scaffold all feature procedures as tRPC stubs in `packages/api`; `apps/server` is a thin Hono host.
 
-| Sub-task        | Details                                                                                                   |
-| --------------- | --------------------------------------------------------------------------------------------------------- |
-| Hono scaffold   | TypeScript, in `apps/api`                                                                                 |
-| Route structure | `/auth`, `/events`, `/map`, `/users`, `/venues`, `/artists`, `/bookings`, `/posts`, `/admin`, `/webhooks` |
-| Lambda adapter  | Configure Hono's AWS Lambda adapter                                                                       |
-| Env management  | Dev / staging / prod environment variables                                                                |
-| Middleware      | CORS (for mobile + admin), request logging, error handler                                                 |
-| Health check    | `GET /health` endpoint                                                                                    |
+| Sub-task         | Details                                                                                          |
+| ---------------- | ------------------------------------------------------------------------------------------------ |
+| tRPC routers     | `events`, `artists`, `venues`, `bookings`, `admin` — stub procedures, no business logic yet      |
+| Procedure types  | `publicProcedure`, `protectedProcedure`, `adminProcedure` — enforced via tRPC context middleware |
+| BetterAuth mount | `/api/auth/*` — BetterAuth HTTP handler; no custom auth routes needed                            |
+| Webhook stub     | `POST /api/webhooks/stripe` — Hono route; raw body required (wired M8-T1)                        |
+| Env management   | Dev / staging / prod environment variables                                                       |
+| Middleware       | CORS (for mobile + admin), request logging, error handler (Hono-level only)                      |
+| Health check     | `GET /health` endpoint                                                                           |
 
 ---
 

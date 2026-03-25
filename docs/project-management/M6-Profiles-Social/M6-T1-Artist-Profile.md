@@ -19,101 +19,59 @@ The Artist's public profile surfaces their identity, biography, genres, social m
 
 | App / Package       | Role                                                                                                |
 | ------------------- | --------------------------------------------------------------------------------------------------- |
-| `apps/api`          | GET /api/v1/artists/:id (public profile), PUT /api/v1/artists/me (auth required, artist role only)  |
+| `packages/api`      | `artists.byId` (public), `artists.updateMe` (artist role only) — tRPC procedures                    |
 | `apps/mobile`       | Public Artist Profile screen, Edit Profile screen (Artist persona only), image picker and S3 upload |
-| `packages/shared`   | Artist profile types, genre enum, validation schemas                                                |
 | AWS S3 + CloudFront | Profile image and cover image storage                                                               |
 
 ---
 
-## API Endpoints
+## tRPC Procedures
 
-### GET /api/v1/artists/:id
+### `artists.byId` (publicProcedure · query)
 
-Fetch public artist profile by ID. Returns full profile with linked events.
+Fetch public artist profile. Returns `NOT_FOUND` if `is_active = false`.
 
-**Query Params:**
+**Input:** `{ id: string }`
 
-```
-None
-```
+**Output (key fields):**
 
-**Response (200 OK):**
-
-```json
+```typescript
 {
-  "id": "artist-profile-uuid",
-  "user_id": "user-uuid",
-  "display_name": "Síle Na Gealach",
-  "bio": "Traditional Irish fiddle player from Co. Galway",
-  "genres": ["traditional", "folk", "sean-nós"],
-  "location": "Galway, Ireland",
-  "profile_image_url": "https://d123.cloudfront.net/profiles/artist-uuid-profile.jpg",
-  "cover_image_url": "https://d123.cloudfront.net/profiles/artist-uuid-cover.jpg",
-  "social_links": {
-    "spotify": "https://open.spotify.com/artist/...",
-    "instagram": "https://instagram.com/silegealach",
-    "soundcloud": "https://soundcloud.com/silegealach"
-  },
-  "is_active": true,
-  "follower_count": 47,
-  "created_at": "2026-02-15T08:30:00Z",
-  "updated_at": "2026-03-20T14:15:00Z",
-  "upcoming_events": [
-    {
-      "id": "event-uuid-1",
-      "title": "Galway Arts Festival Session",
-      "date_start": "2026-04-10T19:00:00Z",
-      "date_end": "2026-04-10T23:00:00Z",
-      "venue_address": "The Quays, Galway",
-      "lat": 53.2707,
-      "lng": -9.0568,
-      "status": "active"
-    }
-  ],
-  "past_events": [
-    {
-      "id": "event-uuid-2",
-      "title": "Winter Céilí",
-      "date_start": "2026-01-15T20:00:00Z",
-      "status": "archived"
-    }
-  ]
+  id, userId,
+  displayName, bio,
+  genres: string[],
+  location: string,
+  profileImageUrl, coverImageUrl,
+  socialLinks: Record<string, string>,
+  isActive: boolean,
+  followerCount: number,
+  upcomingEvents: EventSummary[],
+  pastEvents: EventSummary[],
+  createdAt, updatedAt,
 }
 ```
 
-**Error Responses:**
+**tRPC errors:** `NOT_FOUND` — profile not found or inactive
 
-- `404 Not Found` — Artist profile does not exist OR is_active = false (inactive profile returns 404 to protect privacy)
-- `500 Internal Server Error` — Database error
+### `artists.updateMe` (protectedProcedure · mutation)
 
----
+Update the authenticated user's own artist profile. Artist role required. All fields optional — only provided fields updated. Profile image upload uses `events.getPresignedUrl` (same S3 pattern).
 
-### PUT /api/v1/artists/me
+**Input:**
 
-Update authenticated artist's own profile. Profile image upload is a separate presigned S3 request.
-
-**Authentication:** Required, Artist role only
-
-**Request Body:**
-
-```json
+```typescript
 {
-  "display_name": "Síle Na Gealach",
-  "bio": "Traditional Irish fiddle player from Co. Galway",
-  "genres": ["traditional", "folk", "sean-nós"],
-  "location": "Galway, Ireland",
-  "profile_image_url": "https://d123.cloudfront.net/profiles/artist-uuid-profile.jpg",
-  "cover_image_url": "https://d123.cloudfront.net/profiles/artist-uuid-cover.jpg",
-  "social_links": {
-    "spotify": "https://open.spotify.com/artist/...",
-    "instagram": "https://instagram.com/silegealach",
-    "soundcloud": "https://soundcloud.com/silegealach"
-  }
+  displayName?: string,
+  bio?: string,
+  genres?: string[],
+  location?: string,
+  profileImageUrl?: string,   // CloudFront CDN URL after direct S3 upload
+  coverImageUrl?: string,
+  socialLinks?: Record<string, string>,
 }
 ```
 
-All fields optional. Only provided fields are updated.
+**tRPC errors:** `FORBIDDEN` — not in Artist persona
 
 **Response (200 OK):**
 

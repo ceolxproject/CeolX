@@ -12,15 +12,10 @@ export const auth = betterAuth({
     schema: schema,
   }),
   trustedOrigins: [
-    env.CORS_ORIGIN,
+    ...env.CORS_ALLOWED_ORIGINS.split("|"),
     "CeolX://",
     ...(env.NODE_ENV === "development"
-      ? [
-          "exp://",
-          "exp://**",
-          "exp://192.168.*.*:*/**",
-          "http://localhost:8081",
-        ]
+      ? ["exp://", "exp://**", "exp://192.168.*.*:*/**"]
       : []),
   ],
   emailAndPassword: {

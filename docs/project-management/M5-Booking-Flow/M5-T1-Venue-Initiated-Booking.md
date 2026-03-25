@@ -17,118 +17,70 @@ Venue sends a binding booking invitation to a specific Artist for a specific eve
 
 ## Affected Apps / Packages
 
-- `apps/api` — Booking CRUD endpoints, status transitions, FCM push dispatch
+- `packages/api` — `bookings.create`, `bookings.update`, `bookings.list` — tRPC procedures, status machine, FCM push dispatch
 - `apps/mobile` — Booking invitation UI (Artist & Venue), Bookings tab (role-aware), artist search/selection modal for Venues
-- `packages/shared` — `BookingStatus` enum, `BookingDirection` enum, TypeScript types
 
 ---
 
-## API Endpoints
+## tRPC Procedures
 
-### POST /bookings
+### `bookings.create` (protectedProcedure · mutation)
 
-**Request Body:**
+**Input (venue-initiated):**
 
-```json
+```typescript
 {
-  "direction": "venue_to_artist",
-  "artist_id": "artist-profile-uuid",
-  "event_id": "event-uuid",
-  "message": "We'd love to have you perform at our Summer Festival!"
+  eventId: string,              // must be owned by the calling Venue
+  artistId: string,             // must be an active artist profile
+  direction: "venue_to_artist",
+  message?: string,
 }
 ```
 
-**Response (201 Created):**
+**tRPC errors:**
 
-```json
+- `BAD_REQUEST` — Invalid eventId/artistId; event not owned by calling Venue; artist inactive
+- `UNAUTHORIZED` — Not in Venue persona
+- `CONFLICT` — Duplicate booking already pending/accepted for this artist + event pair
+
+### `bookings.update` (protectedProcedure · mutation)
+
+**Input:**
+
+```typescript
 {
-  "id": "booking-uuid",
-  "artist_id": "artist-profile-uuid",
-  "venue_id": "venue-profile-uuid",
-  "event_id": "event-uuid",
-  "status": "pending",
-  "direction": "venue_to_artist",
-  "message": "We'd love to have you perform at our Summer Festival!",
-  "created_at": "2026-03-23T10:30:00Z",
-  "updated_at": "2026-03-23T10:30:00Z"
+  id: string,
+  status: "accepted" | "rejected" | "cancelled",
 }
 ```
 
-**Error Responses:**
+Valid transitions:
 
-- `400` — Invalid event_id or artist_id; event not owned by requesting Venue; artist_id references inactive profile
-- `401` — Not authenticated or not in Venue persona
-- `409` — Duplicate booking already pending or accepted for this artist + event pair
-
-### PATCH /bookings/:id
-
-**Request Body:**
-
-```json
-{
-  "status": "accepted"
-}
-```
-
-Valid status transitions:
-
-- `pending` → `accepted` (Artist only)
-- `pending` → `rejected` (Artist only)
+- `pending` → `accepted` or `rejected` (Artist only)
 - `accepted` → `cancelled` (Artist or Venue)
 
-**Response (200 OK):**
+**tRPC errors:**
 
-```json
+- `BAD_REQUEST` — Invalid transition (e.g. `pending → cancelled`)
+- `UNAUTHORIZED` — Not the Artist or Venue for this booking
+- `NOT_FOUND` — Booking not found
+
+### `bookings.list` (protectedProcedure · query)
+
+List bookings for the current user's active persona. Artists see incoming, Venues see outgoing.
+
+**Input (all optional):**
+
+```typescript
 {
-  "id": "booking-uuid",
-  "artist_id": "artist-profile-uuid",
-  "venue_id": "venue-profile-uuid",
-  "event_id": "event-uuid",
-  "status": "accepted",
-  "direction": "venue_to_artist",
-  "message": "We'd love to have you perform at our Summer Festival!",
-  "created_at": "2026-03-23T10:30:00Z",
-  "updated_at": "2026-03-23T12:15:00Z"
+  status?: "pending" | "accepted" | "rejected" | "cancelled",
+  direction?: "venue_to_artist" | "artist_to_venue",
 }
 ```
 
-**Error Responses:**
+**Output:** `{ bookings: BookingSummary[] }` — includes denormalised `artistName`, `venueName`, `eventTitle`
 
-- `400` — Invalid status; invalid state transition (e.g., pending → cancelled is not allowed)
-- `401` — Not authenticated; not the Artist or Venue for this booking
-- `404` — Booking not found
-
-### GET /bookings
-
-**Query Params:**
-
-```
-?status=pending          # Optional: filter by status (pending | accepted | rejected | cancelled)
-?direction=venue_to_artist  # Optional: filter by direction
-```
-
-**Response (200 OK):**
-
-```json
-{
-  "bookings": [
-    {
-      "id": "booking-uuid-1",
-      "artist_id": "artist-uuid",
-      "artist_name": "The Dubliners",
-      "venue_id": "venue-uuid",
-      "venue_name": "The Brazen Head",
-      "event_id": "event-uuid",
-      "event_title": "St. Patrick's Day Session",
-      "status": "pending",
-      "direction": "venue_to_artist",
-      "message": "We'd love to have you perform!",
-      "created_at": "2026-03-23T10:30:00Z",
-      "updated_at": "2026-03-23T10:30:00Z"
-    }
-  ]
-}
-```
+**tRPC errors:** `FORBIDDEN` — Spectator persona cannot view bookings
 
 ---
 

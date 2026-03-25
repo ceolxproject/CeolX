@@ -19,19 +19,18 @@ The Venue's public profile showcases their identity, location, upcoming events, 
 
 | App / Package       | Role                                                                                                                  |
 | ------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| `apps/api`          | GET /api/v1/venues/:id (public profile, subscription-gated), PUT /api/v1/venues/me (auth, venue role)                 |
+| `packages/api`      | `venues.byId` (public, subscription-gated), `venues.updateMe` (venue role only) — tRPC procedures                     |
 | `apps/mobile`       | Public Venue Profile screen, Edit Profile screen (Venue persona), resend activation email UI, image picker and upload |
-| `packages/shared`   | Venue profile types, validation schemas                                                                               |
 | AWS S3 + CloudFront | Profile and cover image storage                                                                                       |
 | Postmark            | Activation email with Stripe subscription link                                                                        |
 
 ---
 
-## API Endpoints
+## tRPC Procedures
 
-### GET /api/v1/venues/:id
+### `venues.byId` (publicProcedure · query)
 
-Fetch public venue profile. **Subscription-gated**: returns 404 if subscription_status != 'active' (unless requester is the venue owner viewing their own profile).
+Fetch public venue profile. **Subscription-gated**: returns `NOT_FOUND` if `subscription_status != 'active'`, unless the requester is the venue owner.
 
 **Query Params:**
 
@@ -85,57 +84,39 @@ None
 }
 ```
 
-**Error Responses:**
+**Input:** `{ id: string }`
 
-- `404 Not Found` — Venue does not exist, subscription_status != 'active', or is_active = false
-- `500 Internal Server Error` — Database error
+**tRPC errors:** `NOT_FOUND` — venue not found, subscription inactive (non-owner), or is_active = false
 
----
+When the authenticated user owns the venue, the response additionally includes:
 
-### GET /api/v1/venues/:id (Venue Owner View)
-
-When the authenticated user owns the venue, returns full profile including subscription status and activation message.
-
-**Response (200 OK):**
-
-```json
+```typescript
 {
-  "id": "venue-profile-uuid",
-  "user_id": "user-uuid",
-  "name": "The Brazen Head",
-  "subscription_status": "inactive",
-  "subscription_message": "Your profile is not yet visible to artists. Check your email to activate.",
-  "activation_email_sent_at": "2026-03-23T10:00:00Z",
-  ...rest of fields
+  subscriptionStatus: "inactive" | "active",
+  subscriptionMessage: string | null,   // e.g. "Check your email to activate"
+  activationEmailSentAt: string | null,
 }
 ```
 
----
+### `venues.updateMe` (protectedProcedure · mutation)
 
-### PUT /api/v1/venues/me
+Update authenticated venue's own profile. Venue role only. All fields optional.
 
-Update authenticated venue's own profile. Profile image upload is a separate presigned S3 request.
+**Input:**
 
-**Authentication:** Required, Venue role only
-
-**Request Body:**
-
-```json
+```typescript
 {
-  "name": "The Brazen Head",
-  "description": "Historic Dublin pub with traditional Irish music",
-  "address": "20 Bridge Street Lower, Dublin 8",
-  "county": "Dublin",
-  "lat": 53.3444,
-  "lng": -6.2739,
-  "profile_image_url": "https://d123.cloudfront.net/profiles/venue-uuid-profile.jpg",
-  "cover_image_url": "https://d123.cloudfront.net/profiles/venue-uuid-cover.jpg",
-  "website_url": "https://brazenhead.com",
-  "phone": "+353 1 679 5549",
-  "social_links": {
-    "instagram": "https://instagram.com/brazenhead",
-    "facebook": "https://facebook.com/BrazenHeadDublin"
-  }
+  name?: string,
+  description?: string,
+  address?: string,
+  county?: string,
+  lat?: number,
+  lng?: number,
+  profileImageUrl?: string,   // CloudFront CDN URL
+  coverImageUrl?: string,
+  websiteUrl?: string,
+  phone?: string,
+  socialLinks?: Record<string, string>,
 }
 ```
 

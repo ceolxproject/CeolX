@@ -25,61 +25,53 @@ The map renders natively on each platform (Apple Maps on iOS via MapKit, Google 
 
 ---
 
-## API Endpoints
+## tRPC Procedure
 
-### GET /events/map
+### `events.getMap` (public query)
 
 Fetch active upcoming events within a map viewport bounding box.
 
-**Query Parameters:**
+**Input:**
 
-```json
+```typescript
 {
-  "swLat": 52.5,
-  "swLng": -6.8,
-  "neLat": 53.5,
-  "neLng": -5.2,
-  "limit": 50
+  swLat: number,   // southwest latitude
+  swLng: number,   // southwest longitude
+  neLat: number,   // northeast latitude
+  neLng: number,   // northeast longitude
+  limit?: number,  // max 50, default 50
 }
 ```
 
-**Response (200 OK):**
+**Output:**
 
-```json
+```typescript
 {
-  "events": [
-    {
-      "id": "evt_123abc",
-      "title": "Live at Temple Bar",
-      "lat": 53.3432,
-      "lng": -6.2545,
-      "category": "trad_session",
-      "date_start": "2026-03-28T19:00:00Z",
-      "date_end": "2026-03-28T23:00:00Z",
-      "cover_image": "https://d1234.cloudfront.net/evt_123.jpg",
-      "venue_address": "Temple Bar, Dublin"
-    },
-    {
-      "id": "evt_456def",
-      "title": "Ceili Dance Night",
-      "lat": 53.3298,
-      "lng": -6.2571,
-      "category": "ceili",
-      "date_start": "2026-03-29T20:00:00Z",
-      "date_end": "2026-03-29T23:30:00Z",
-      "cover_image": "https://d1234.cloudfront.net/evt_456.jpg",
-      "venue_address": "Copper Alley, Dublin"
-    }
-  ],
-  "totalCount": 2
+  events: Array<{
+    id: string,
+    title: string,
+    lat: number,
+    lng: number,
+    category: string,
+    date_start: string,    // UTC ISO 8601
+    date_end: string | null,
+    cover_image: string | null,
+    venue_address: string | null,
+  }>,
+  totalCount: number,
 }
 ```
 
-**Error Responses:**
+**tRPC errors:**
 
-- `400` — Invalid bounding box parameters `{ "error": "swLat, swLng, neLat, neLng required and must be valid floats" }`
-- `401` — Unauthorized `{ "error": "Authentication required" }`
-- `500` — Database or GIST index error `{ "error": "Failed to query events by location" }`
+- `BAD_REQUEST` — Missing or invalid bounding box values
+- `INTERNAL_SERVER_ERROR` — Database or GIST index failure
+
+**Mobile call:**
+
+```typescript
+const { data } = await trpc.events.getMap.query({ swLat, swLng, neLat, neLng });
+```
 
 ---
 
@@ -153,63 +145,56 @@ Fetch active upcoming events within a map viewport bounding box.
 
 ## Technical Notes
 
-### Bounding Box Query — Drizzle + Neon
-
-The core query uses SQL `BETWEEN` with the GIST index:
+### Bounding Box Query — tRPC procedure + Drizzle + Neon
 
 ```typescript
-// apps/server/src/routes/events.ts
+// packages/api/src/routers/events.ts
 
-import { drizzle } from "drizzle-orm/postgres-js";
-import { events } from "@ceolx/shared/schema";
-import { sql } from "drizzle-orm";
+import { db } from "@CeolX/db";
+import { events } from "@CeolX/db/schema";
+import { sql, TRPCError } from "@trpc/server";
+import { publicProcedure, router } from "../index";
 
-export async function getEventsInViewport(
-  db: ReturnType<typeof drizzle>,
-  swLat: number,
-  swLng: number,
-  neLat: number,
-  neLng: number,
-  limit: number = 50,
-) {
-  const now = new Date().toISOString();
+export const eventsRouter = router({
+  getMap: publicProcedure.input(MapQueryInput).query(async ({ input }) => {
+    const { swLat, swLng, neLat, neLng, limit } = input;
+    const now = new Date().toISOString();
 
-  const result = await db
-    .select({
-      id: events.id,
-      title: events.title,
-      lat: events.lat,
-      lng: events.lng,
-      category: events.category,
-      date_start: events.date_start,
-      date_end: events.date_end,
-      cover_image: events.cover_image,
-      venue_address: events.venue_address,
-    })
-    .from(events)
-    .where(
-      sql`
-        ${events.status} = 'active'
-        AND ${events.date_start} >= ${now}
-        AND ${events.lat} BETWEEN ${swLat} AND ${neLat}
-        AND ${events.lng} BETWEEN ${swLng} AND ${neLng}
-      `,
-    )
-    .orderBy(
-      sql`
-      SQRT(
-        POW(${events.lat} - ${(swLat + neLat) / 2}, 2) +
-        POW(${events.lng} - ${(swLng + neLng) / 2}, 2)
+    const rows = await db
+      .select({
+        id: events.id,
+        title: events.title,
+        lat: events.lat,
+        lng: events.lng,
+        category: events.category,
+        date_start: events.date_start,
+        date_end: events.date_end,
+        cover_image: events.cover_image,
+        venue_address: events.venue_address,
+      })
+      .from(events)
+      .where(
+        sql`
+          ${events.status} = 'active'
+          AND ${events.date_start} >= ${now}
+          AND ${events.lat} BETWEEN ${swLat} AND ${neLat}
+          AND ${events.lng} BETWEEN ${swLng} AND ${neLng}
+        `,
       )
-    `,
-    )
-    .limit(limit);
+      .orderBy(
+        sql`SQRT(
+          POW(${events.lat} - ${(swLat + neLat) / 2}, 2) +
+          POW(${events.lng} - ${(swLng + neLng) / 2}, 2)
+        )`,
+      )
+      .limit(limit);
 
-  return result;
-}
+    return { events: rows, totalCount: rows.length };
+  }),
+});
 ```
 
-### React Native Maps Integration
+### React Native Maps Integration (tRPC client)
 
 ```typescript
 // apps/mobile/src/screens/MapScreen.tsx
@@ -218,34 +203,18 @@ import React, { useState, useCallback } from 'react';
 import MapView, { Marker, PROVIDER_GOOGLE, PROVIDER_APPLE } from 'react-native-maps';
 import { Platform, View, ActivityIndicator } from 'react-native';
 import { debounce } from 'lodash';
-import { api } from '../services/api';
-
-interface Event {
-  id: string;
-  title: string;
-  lat: number;
-  lng: number;
-  category: string;
-  cover_image: string;
-}
+import { trpc } from '../lib/trpc';
 
 export const MapScreen: React.FC = () => {
-  const [events, setEvents] = useState<Event[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [viewport, setViewport] = useState({ swLat: 0, swLng: 0, neLat: 0, neLng: 0 });
+
+  const { data, isLoading } = trpc.events.getMap.useQuery(viewport, {
+    enabled: viewport.neLat !== 0,
+  });
 
   const fetchEventsForViewport = useCallback(
-    debounce(async (swLat: number, swLng: number, neLat: number, neLng: number) => {
-      setLoading(true);
-      try {
-        const response = await api.get('/events/map', {
-          params: { swLat, swLng, neLat, neLng, limit: 50 },
-        });
-        setEvents(response.data.events);
-      } catch (error) {
-        console.error('Failed to fetch events:', error);
-      } finally {
-        setLoading(false);
-      }
+    debounce((swLat: number, swLng: number, neLat: number, neLng: number) => {
+      setViewport({ swLat, swLng, neLat, neLng });
     }, 400),
     []
   );
