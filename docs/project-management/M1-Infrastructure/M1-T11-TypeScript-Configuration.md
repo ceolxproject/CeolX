@@ -147,7 +147,7 @@ None — this is a configuration task.
 }
 ```
 
-### apps/mobile/tsconfig.json
+### apps/native/tsconfig.json
 
 ```json
 {
@@ -228,7 +228,7 @@ None — this is a configuration task.
 - [ ] Root `tsconfig.json` exists at repo root with all strict flags enabled
 - [ ] `apps/server/tsconfig.json` extends root; no DOM lib entries
 - [ ] `apps/admin/tsconfig.json` extends root; includes DOM lib and JSX support
-- [ ] `apps/mobile/tsconfig.json` extends root; includes React JSX support
+- [ ] `apps/native/tsconfig.json` extends root; includes React JSX support
 - [ ] `packages/shared/tsconfig.json` extends root; generates `.d.ts` files
 - [ ] `import { UserRole } from "@ceolx/shared"` resolves with IDE autocomplete in all three apps
 - [ ] `import { BoundingBox } from "@ceolx/shared/types"` resolves correctly

@@ -410,7 +410,7 @@ app.get("/me", authMiddleware, async (c) => {
 ### Mobile Onboarding Screen
 
 ```typescript
-// apps/mobile/src/screens/Onboarding/PersonaSelectionScreen.tsx
+// apps/native/src/screens/Onboarding/PersonaSelectionScreen.tsx
 
 import React, { useState } from 'react';
 import {
@@ -554,7 +554,7 @@ export default PersonaSelectionScreen;
 ### Mobile Switch Account Type Screen
 
 ```typescript
-// apps/mobile/src/screens/Settings/SwitchAccountTypeScreen.tsx
+// apps/native/src/screens/Settings/SwitchAccountTypeScreen.tsx
 
 import React, { useState } from 'react';
 import {

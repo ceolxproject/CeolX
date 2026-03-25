@@ -1,0 +1,67 @@
+const config = {
+  name: "CeolX",
+  slug: "ceolx",
+  owner: "ceolxprojects-organization",
+  version: "1.0.0",
+  orientation: "portrait",
+  icon: "./assets/images/icon.png",
+  userInterfaceStyle: "automatic",
+  scheme: "ceolx",
+  splash: {
+    image: "./assets/images/splash-icon.png",
+    resizeMode: "contain",
+    backgroundColor: "#ffffff",
+  },
+  assetBundlePatterns: ["**/*"],
+  ios: {
+    supportsTablet: false,
+    bundleIdentifier: "ie.ceolx.app",
+    infoPlist: {
+      NSLocationWhenInUseUsageDescription:
+        "CeolX uses your location to show nearby Irish music events",
+      NSCameraUsageDescription: "Upload videos of your performances",
+      NSPhotoLibraryUsageDescription: "Upload images and videos",
+      NSMicrophoneUsageDescription: "Record audio for posts",
+    },
+  },
+  android: {
+    adaptiveIcon: {
+      foregroundImage: "./assets/images/android-icon-foreground.png",
+      backgroundImage: "./assets/images/android-icon-background.png",
+      monochromeImage: "./assets/images/android-icon-monochrome.png",
+    },
+    package: "ie.ceolx.app",
+    permissions: [
+      "android.permission.ACCESS_FINE_LOCATION",
+      "android.permission.CAMERA",
+      "android.permission.READ_EXTERNAL_STORAGE",
+      "android.permission.RECORD_AUDIO",
+    ],
+  },
+  web: {
+    bundler: "metro",
+  },
+  plugins: [
+    "expo-font",
+    [
+      "expo-location",
+      {
+        locationWhenInUsePermission:
+          "Allow CeolX to use your location to show nearby Irish music events",
+      },
+    ],
+    "expo-secure-store",
+    "expo-notifications",
+  ],
+  experiments: {
+    typedRoutes: true,
+    reactCompiler: true,
+  },
+  extra: {
+    eas: {
+      projectId: "91f9219e-c91c-47f2-b55a-5ee1db979b66",
+    },
+  },
+};
+
+export default config;

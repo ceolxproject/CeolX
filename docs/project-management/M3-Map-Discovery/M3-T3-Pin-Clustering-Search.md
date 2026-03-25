@@ -162,7 +162,7 @@ Search events by text (county, city, artist name, category) with optional spatia
 ### Clustering Configuration
 
 ```typescript
-// apps/mobile/src/screens/MapScreen.tsx
+// apps/native/src/screens/MapScreen.tsx
 
 import MapView, { Marker, Cluster } from 'react-native-maps';
 import React from 'react';
@@ -214,7 +214,7 @@ import ClusteredMapView from 'react-native-maps-clustering';
 ### Search Implementation with Text Parsing
 
 ```typescript
-// apps/mobile/src/hooks/useEventSearch.ts
+// apps/native/src/hooks/useEventSearch.ts
 
 import { useState, useCallback } from "react";
 import { api } from "../services/api";
@@ -259,7 +259,7 @@ export const useEventSearch = () => {
 ### Search Bar Component with Suggestions
 
 ```typescript
-// apps/mobile/src/components/MapSearchBar.tsx
+// apps/native/src/components/MapSearchBar.tsx
 
 import React, { useState } from 'react';
 import {
@@ -451,7 +451,7 @@ app.get("/search", async (c) => {
 ### Environment Variables Required
 
 ```
-# apps/mobile/.env
+# apps/native/.env
 REACT_APP_API_BASE_URL=https://api.ceolx.ie
 
 # apps/server/.env.local

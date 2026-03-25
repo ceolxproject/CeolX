@@ -516,7 +516,7 @@ app.delete("/collections/:id", async (c) => {
 ### My Events Screen (React Native)
 
 ```typescript
-// apps/mobile/src/screens/MyEventsScreen.tsx
+// apps/native/src/screens/MyEventsScreen.tsx
 
 import React, { useState, useEffect } from 'react';
 import {

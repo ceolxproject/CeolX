@@ -194,7 +194,7 @@ Deregister token on logout.
 ### Expo-Notifications Hook (Mobile)
 
 ```typescript
-// apps/mobile/hooks/useNotifications.ts
+// apps/native/hooks/useNotifications.ts
 import * as Notifications from "expo-notifications";
 import { useEffect, useRef } from "react";
 import { useAuth } from "@/context/AuthContext";

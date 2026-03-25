@@ -197,7 +197,7 @@ export const eventsRouter = router({
 ### React Native Maps Integration (tRPC client)
 
 ```typescript
-// apps/mobile/src/screens/MapScreen.tsx
+// apps/native/src/screens/MapScreen.tsx
 
 import React, { useState, useCallback } from 'react';
 import MapView, { Marker, PROVIDER_GOOGLE, PROVIDER_APPLE } from 'react-native-maps';
@@ -297,7 +297,7 @@ The plan should show `Index Scan using events_lat_lng_gist_idx` — not `Seq Sca
 # apps/server/.env.local
 DATABASE_URL=postgresql://user:password@ep-xxxxx.neon.tech/ceolx_db
 
-# apps/mobile/.env
+# apps/native/.env
 REACT_APP_API_BASE_URL=https://api.ceolx.ie
 ```
 
