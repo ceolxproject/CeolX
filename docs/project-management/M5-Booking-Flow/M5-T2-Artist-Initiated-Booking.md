@@ -17,94 +17,48 @@ Artists discover gig opportunity events (`is_gig_opportunity: true`) posted by V
 
 ## Affected Apps / Packages
 
-- `apps/api` — Artist-initiated booking creation, duplicate prevention, Venue response logic, FCM notifications
+- `packages/api` — `bookings.create` (artist-initiated variant), `bookings.update`, `bookings.list` — same tRPC procedures as M5-T1; direction field distinguishes flow
 - `apps/mobile` — Apply button on gig opportunity Event Detail screen, application tracking in Bookings tab, Venue application queue UI
-- `packages/shared` — `BookingDirection` enum, TypeScript booking types
 
 ---
 
-## API Endpoints
+## tRPC Procedures
 
-### POST /bookings
+Same three procedures as M5-T1 (`bookings.create`, `bookings.update`, `bookings.list`). The `direction` field in `bookings.create` distinguishes artist-initiated from venue-initiated.
 
-**Request Body (Artist applying to gig):**
+### `bookings.create` — artist-initiated variant
 
-```json
+**Input:**
+
+```typescript
 {
-  "direction": "artist_to_venue",
-  "event_id": "event-uuid"
+  eventId: string,              // must be a gig opportunity (is_gig_opportunity: true)
+  artistId: string,             // calling user's own artist profile id
+  direction: "artist_to_venue",
 }
 ```
 
-**Response (201 Created):**
+**tRPC errors:**
 
-```json
-{
-  "id": "booking-uuid",
-  "artist_id": "artist-profile-uuid",
-  "venue_id": "venue-profile-uuid",
-  "event_id": "event-uuid",
-  "status": "pending",
-  "direction": "artist_to_venue",
-  "message": null,
-  "created_at": "2026-03-23T14:20:00Z",
-  "updated_at": "2026-03-23T14:20:00Z"
-}
-```
+- `BAD_REQUEST` — Event is not a gig opportunity; artist is already a collaborator on the event
+- `UNAUTHORIZED` — Not in Artist persona
+- `CONFLICT` — Duplicate application already pending/accepted
 
-**Error Responses:**
+### `bookings.update` — venue response to application
 
-- `400` — Event not a gig opportunity (`is_gig_opportunity: false`); Artist already a collaborator on this event; event_id not found
-- `401` — Not authenticated or not in Artist persona
-- `409` — Duplicate application already pending or accepted for this artist + event pair
-
-### PATCH /bookings/:id
-
-**Request Body (Venue responding to application):**
-
-```json
-{
-  "status": "accepted"
-}
-```
-
-Valid status transitions (for artist_to_venue bookings):
+Valid transitions for `artist_to_venue` bookings:
 
 - `pending` → `accepted` (Venue only)
 - `pending` → `rejected` (Venue only)
 - `accepted` → `cancelled` (Artist or Venue)
 
-**Response (200 OK):**
+### `bookings.list` — filter to applications only
 
-```json
-{
-  "id": "booking-uuid",
-  "artist_id": "artist-profile-uuid",
-  "venue_id": "venue-profile-uuid",
-  "event_id": "event-uuid",
-  "status": "accepted",
-  "direction": "artist_to_venue",
-  "message": null,
-  "created_at": "2026-03-23T14:20:00Z",
-  "updated_at": "2026-03-23T15:45:00Z"
-}
+```typescript
+trpc.bookings.list.query({ direction: "artist_to_venue" });
 ```
 
-**Error Responses:**
-
-- `400` — Invalid status transition
-- `401` — Not authenticated or not the Venue for this event
-- `404` — Booking not found
-
-### GET /bookings
-
-**Query Params:**
-
-```
-?direction=artist_to_venue  # Optional: filter to see only applications
-```
-
-**Response (200 OK):**
+**Output includes** (for artist_to_venue bookings):
 
 ```json
 {

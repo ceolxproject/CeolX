@@ -320,7 +320,7 @@ export default function AccountPage() {
 ### Hono Portal Session Endpoint
 
 ```typescript
-// apps/api/routes/v1/stripe.ts (extended)
+// apps/server/routes/v1/stripe.ts (extended)
 import { Hono } from "hono";
 import Stripe from "stripe";
 import { db } from "@/db";

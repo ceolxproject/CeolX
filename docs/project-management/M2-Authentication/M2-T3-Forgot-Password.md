@@ -148,7 +148,7 @@ Validate token and update password. Token must be valid, not expired, and not al
 ### Forgot Password Endpoint
 
 ```typescript
-// apps/api/src/routes/auth.ts (forgot-password)
+// apps/server/src/routes/auth.ts (forgot-password)
 
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
@@ -213,7 +213,7 @@ app.post(
 ### Reset Password Endpoint
 
 ```typescript
-// apps/api/src/routes/auth.ts (reset-password)
+// apps/server/src/routes/auth.ts (reset-password)
 
 import * as bcrypt from "bcryptjs";
 
@@ -297,7 +297,7 @@ app.post(
 ### Rate Limiting Middleware
 
 ```typescript
-// apps/api/src/middleware/rateLimit.ts
+// apps/server/src/middleware/rateLimit.ts
 
 import { Context, Next } from "hono";
 import { LRUCache } from "lru-cache";

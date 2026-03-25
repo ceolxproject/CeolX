@@ -95,7 +95,7 @@ None — this is a configuration task.
 }
 ```
 
-### apps/api/tsconfig.json
+### apps/server/tsconfig.json
 
 ```json
 {
@@ -226,7 +226,7 @@ None — this is a configuration task.
 ## Acceptance Criteria
 
 - [ ] Root `tsconfig.json` exists at repo root with all strict flags enabled
-- [ ] `apps/api/tsconfig.json` extends root; no DOM lib entries
+- [ ] `apps/server/tsconfig.json` extends root; no DOM lib entries
 - [ ] `apps/admin/tsconfig.json` extends root; includes DOM lib and JSX support
 - [ ] `apps/mobile/tsconfig.json` extends root; includes React JSX support
 - [ ] `packages/shared/tsconfig.json` extends root; generates `.d.ts` files
@@ -257,7 +257,7 @@ The monorepo uses two levels of path aliases:
 **Level 2 — App-level aliases** (internal to each app):
 
 ```typescript
-// apps/api/tsconfig.json — resolves @/routes/* within apps/api/src
+// apps/server/tsconfig.json — resolves @/routes/* within apps/server/src
 "@/routes/*": ["routes/*"]
 ```
 

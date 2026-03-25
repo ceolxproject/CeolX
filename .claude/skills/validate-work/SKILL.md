@@ -71,7 +71,7 @@ For each task being validated:
 
 If the task has **API Endpoints** defined, check that:
 
-- The endpoint exists in `apps/server/` (or `apps/api/`)
+- The endpoint exists in `apps/server/` (or `apps/server/`)
 - Request/response shapes match the spec
 - Error cases are handled
 

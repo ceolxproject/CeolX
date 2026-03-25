@@ -69,18 +69,19 @@
 
 ---
 
-### M1-T3 · Hono API Scaffold + AWS Lambda Config
+### M1-T3 · tRPC API Scaffold (Hono Transport)
 
-**What**: Set up the backend API skeleton with all routes, middleware, and deployment config.
+**What**: Scaffold all feature procedures as tRPC stubs in `packages/api`; `apps/server` is a thin Hono host.
 
-| Sub-task        | Details                                                                                                   |
-| --------------- | --------------------------------------------------------------------------------------------------------- |
-| Hono scaffold   | TypeScript, in `apps/api`                                                                                 |
-| Route structure | `/auth`, `/events`, `/map`, `/users`, `/venues`, `/artists`, `/bookings`, `/posts`, `/admin`, `/webhooks` |
-| Lambda adapter  | Configure Hono's AWS Lambda adapter                                                                       |
-| Env management  | Dev / staging / prod environment variables                                                                |
-| Middleware      | CORS (for mobile + admin), request logging, error handler                                                 |
-| Health check    | `GET /health` endpoint                                                                                    |
+| Sub-task         | Details                                                                                          |
+| ---------------- | ------------------------------------------------------------------------------------------------ |
+| tRPC routers     | `events`, `artists`, `venues`, `bookings`, `admin` — stub procedures, no business logic yet      |
+| Procedure types  | `publicProcedure`, `protectedProcedure`, `adminProcedure` — enforced via tRPC context middleware |
+| BetterAuth mount | `/api/auth/*` — BetterAuth HTTP handler; no custom auth routes needed                            |
+| Webhook stub     | `POST /api/webhooks/stripe` — Hono route; raw body required (wired M8-T1)                        |
+| Env management   | Dev / staging / prod environment variables                                                       |
+| Middleware       | CORS (for mobile + admin), request logging, error handler (Hono-level only)                      |
+| Health check     | `GET /health` endpoint                                                                           |
 
 ---
 
@@ -181,11 +182,11 @@
 
 ### M1.5-T1 · Drizzle ORM Setup + Enum Definitions
 
-**What**: Create the `apps/api/src/db/schema/` directory structure and declare all PostgreSQL enum types before any tables are defined. Mirror enums in `packages/shared` for use across mobile and admin.
+**What**: Create the `apps/server/src/db/schema/` directory structure and declare all PostgreSQL enum types before any tables are defined. Mirror enums in `packages/shared` for use across mobile and admin.
 
 | Sub-task         | Details                                                                                                                      |
 | ---------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| Schema directory | `apps/api/src/db/schema/` with `enums.ts`, `index.ts` barrel                                                                 |
+| Schema directory | `apps/server/src/db/schema/` with `enums.ts`, `index.ts` barrel                                                              |
 | PostgreSQL enums | 7 enums: `user_role`, `event_status`, `booking_status`, `booking_direction`, `subscription_status`, `media_type`, `platform` |
 | Shared TS enums  | `packages/shared/src/types/enums.ts` — `const` object mirrors for mobile + admin                                             |
 

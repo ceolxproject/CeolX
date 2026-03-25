@@ -197,7 +197,7 @@ CREATE TABLE resend_email_log (
 ### Hono Backend — Subscription Status Endpoint
 
 ```typescript
-// apps/api/routes/v1/users.ts
+// apps/server/routes/v1/users.ts
 import { Hono } from "hono";
 import { db } from "@/db";
 import { users, venueProfiles } from "@/db/schema";
@@ -245,7 +245,7 @@ router.get("/users/me", async (c) => {
 ### Resend Activation Email Endpoint
 
 ```typescript
-// apps/api/routes/v1/venues.ts
+// apps/server/routes/v1/venues.ts
 import { Hono } from "hono";
 import { db } from "@/db";
 import { venueProfiles, resendEmailLog } from "@/db/schema";

@@ -1,14 +1,19 @@
-import { protectedProcedure, publicProcedure, router } from "../index";
+import { router } from "../index";
+
+import { adminRouter } from "./admin";
+import { artistsRouter } from "./artists";
+import { bookingsRouter } from "./bookings";
+import { eventsRouter } from "./events";
+import { stripeRouter } from "./stripe";
+import { venuesRouter } from "./venues";
 
 export const appRouter = router({
-  healthCheck: publicProcedure.query(() => {
-    return "OK";
-  }),
-  privateData: protectedProcedure.query(({ ctx }) => {
-    return {
-      message: "This is private",
-      user: ctx.session.user,
-    };
-  }),
+  events: eventsRouter,
+  artists: artistsRouter,
+  venues: venuesRouter,
+  bookings: bookingsRouter,
+  stripe: stripeRouter,
+  admin: adminRouter,
 });
+
 export type AppRouter = typeof appRouter;

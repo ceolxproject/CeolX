@@ -16,6 +16,7 @@
     "@CeolX/env": "workspace:*",
     "@hono/node-server": "^1.14.4",
     "@hono/trpc-server": "^0.4.0",
+    "@hono/zod-validator": "^0.7.6",
     "@trpc/server": "catalog:",
     "better-auth": "catalog:",
     "dotenv": "catalog:",

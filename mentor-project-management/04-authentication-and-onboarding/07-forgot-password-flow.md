@@ -99,7 +99,7 @@ This is a generic auth limiter, not a dedicated per-email forgot-password limite
 
 - `packages/auth/src/index.ts` (`emailAndPassword.sendResetPassword`)
 - `packages/auth/src/client.ts`
-- `apps/api/src/app.ts` (auth route mounting and rate limiter)
+- `apps/server/src/app.ts` (auth route mounting and rate limiter)
 - `packages/cache/src/rate-limit.ts` (`RATE_LIMIT_TIERS.authLogin`)
 - `packages/email/src/templates/password-reset.tsx`
 - `packages/email/src/__tests__/render.test.ts`

@@ -22,7 +22,7 @@ Set up the database layer infrastructure across all three environments before an
 
 ## Affected Apps / Packages
 
-- `apps/api` — Drizzle config, DB connection module, migration runner
+- `apps/server` — Drizzle config, DB connection module, migration runner
 - `docker-compose.yml` — root-level, shared across all apps
 - `packages/shared` — no changes here; enums live in schema (M1.5-T1)
 
@@ -58,12 +58,12 @@ Set up the database layer infrastructure across all three environments before an
 ### 3. Drizzle ORM Configuration
 
 - Install: `drizzle-orm`, `drizzle-kit`, `@neondatabase/serverless`, `pg` (for local Docker)
-- `apps/api/src/db/client.ts` — single DB client export that reads `DATABASE_URL` from env:
+- `apps/server/src/db/client.ts` — single DB client export that reads `DATABASE_URL` from env:
   - Uses `@neondatabase/serverless` driver when `DATABASE_URL` contains `neon.tech`
   - Uses `pg` driver (node-postgres) for local Docker connection
-- `apps/api/drizzle.config.ts` — Drizzle Kit config pointing to schema file and migrations folder
-- `apps/api/.env.local` — local DATABASE_URL (gitignored)
-- `apps/api/.env.example` — template with placeholder values (committed)
+- `apps/server/drizzle.config.ts` — Drizzle Kit config pointing to schema file and migrations folder
+- `apps/server/.env.local` — local DATABASE_URL (gitignored)
+- `apps/server/.env.example` — template with placeholder values (committed)
 
 ### 4. Verify Connection
 
@@ -79,7 +79,7 @@ Set up the database layer infrastructure across all three environments before an
   docker-compose.yml
   docker-compose.override.yml   ← optional; local overrides (gitignored)
 
-apps/api/
+apps/server/
   drizzle.config.ts
   .env.local                    ← gitignored
   .env.example                  ← committed
@@ -142,7 +142,7 @@ export default {
 ## DB Client (Reference)
 
 ```typescript
-// apps/api/src/db/client.ts
+// apps/server/src/db/client.ts
 import { drizzle } from "drizzle-orm/node-postgres";
 import { drizzle as drizzleNeon } from "drizzle-orm/neon-serverless";
 import { Pool } from "pg";
@@ -159,7 +159,7 @@ export const db = url.includes("neon.tech")
 
 ## npm Scripts (Reference)
 
-Add to `apps/api/package.json`:
+Add to `apps/server/package.json`:
 
 ```json
 {

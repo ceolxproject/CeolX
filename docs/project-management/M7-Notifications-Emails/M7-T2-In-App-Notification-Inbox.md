@@ -205,7 +205,7 @@ Get unread notification badge count.
 ### Hono Backend — Notification Endpoints
 
 ```typescript
-// apps/api/routes/v1/notifications.ts
+// apps/server/routes/v1/notifications.ts
 import { Hono } from "hono";
 import { db } from "@/db";
 import { notifications } from "@/db/schema";

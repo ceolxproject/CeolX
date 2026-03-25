@@ -233,7 +233,7 @@ Reject a pending event with a written reason.
 ### Moderation Endpoints (Hono Backend)
 
 ```typescript
-// apps/api/src/routes/admin.ts
+// apps/server/src/routes/admin.ts
 
 import { Hono } from "hono";
 import { getAuth } from "hono/better-auth";
@@ -703,7 +703,7 @@ export default function PendingEventsPage() {
 ### Firebase FCM Notification Service
 
 ```typescript
-// apps/api/src/services/fcm.ts
+// apps/server/src/services/fcm.ts
 
 import admin from "firebase-admin";
 

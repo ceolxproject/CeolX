@@ -61,4 +61,6 @@ temp
 # AI Tools
 .agents
 .superpowers/*
+
+# Claude
 .claude/settings.local.json

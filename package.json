@@ -68,7 +68,8 @@
   "packageManager": "pnpm@10.7.1",
   "pnpm": {
     "overrides": {
-      "envx-cli>chalk": "4.1.2"
+      "envx-cli>chalk": "4.1.2",
+      "rolldown": "1.0.0-beta.52"
     },
     "onlyBuiltDependencies": [
       "esbuild",

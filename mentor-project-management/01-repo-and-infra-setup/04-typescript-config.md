@@ -118,7 +118,7 @@ Set up comprehensive TypeScript configuration across the monorepo with root-leve
 
 ### App-Level TypeScript Configurations
 
-#### apps/api/tsconfig.json
+#### apps/server/tsconfig.json
 
 ```json
 {

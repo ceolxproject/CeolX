@@ -202,7 +202,7 @@ Return authenticated user with current role and active profile data.
 ### Onboarding Endpoint
 
 ```typescript
-// apps/api/src/routes/users.ts (POST /onboarding)
+// apps/server/src/routes/users.ts (POST /onboarding)
 
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
@@ -266,7 +266,7 @@ app.post(
 ### Role Switch Endpoint
 
 ```typescript
-// apps/api/src/routes/users.ts (PATCH /role)
+// apps/server/src/routes/users.ts (PATCH /role)
 
 const switchRoleSchema = z.object({
   role: z.enum(["spectator", "artist", "venue"]),
@@ -372,7 +372,7 @@ app.patch(
 ### Get User Endpoint
 
 ```typescript
-// apps/api/src/routes/users.ts (GET /me)
+// apps/server/src/routes/users.ts (GET /me)
 
 app.get("/me", authMiddleware, async (c) => {
   const userId = c.get("userId");

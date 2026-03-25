@@ -17,111 +17,79 @@ Artists and Venues (but not Spectators) can create new events and edit existing 
 
 ## Affected Apps / Packages
 
-| App / Package     | Role                                                                                                                                |
-| ----------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
-| `apps/api`        | POST /events (create), PUT /events/:id (edit), presigned S3 URL generation, validation, status transitions                          |
-| `apps/mobile`     | Create Event form screen, Edit Event screen, image picker (expo-image-picker), embedded map (react-native-maps), image upload to S3 |
-| `packages/shared` | Event and EventStatus types, category enum, validation schemas                                                                      |
+| App / Package  | Role                                                                                                                                |
+| -------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `packages/api` | `events.create`, `events.update`, `events.getPresignedUrl` — tRPC procedures, Zod input validation, status transition enforcement   |
+| `apps/mobile`  | Create Event form screen, Edit Event screen, image picker (expo-image-picker), embedded map (react-native-maps), image upload to S3 |
 
 ---
 
-## API Endpoints
+## tRPC Procedures
 
-### POST /api/v1/events
+### `events.create` (protectedProcedure · mutation)
 
-Create a new event.
+Create a new event. Sets `status = pending_review` automatically.
 
-**Request Body:**
+**Input:**
 
-```json
+```typescript
 {
-  "title": "string (required, max 150 chars)",
-  "description": "string (optional, max 5000 chars)",
-  "cover_image": "string (optional, CloudFront CDN URL after S3 upload)",
-  "date_start": "ISO 8601 datetime (required)",
-  "date_end": "ISO 8601 datetime (optional, must be >= date_start)",
-  "lat": "number (required if venue_address is empty)",
-  "lng": "number (required if venue_address is empty)",
-  "venue_address": "string (optional, free-text fallback if no venue_id)",
-  "venue_id": "UUID (optional, FK to venues table)",
-  "category": "enum: 'trad_session' | 'ceili' | 'concert' | 'workshop' | 'competition' | ... (required)",
-  "ticket_link": "string (optional, external URL only)",
-  "is_gig_opportunity": "boolean (optional, default false, venue-only)",
-  "collection_id": "UUID (optional, FK to collections, venue-only)",
-  "collaborators": "array of artist profile UUIDs (optional)"
+  title: string,              // required, max 150 chars
+  description?: string,       // max 5000 chars
+  coverImage?: string,        // CloudFront CDN URL after S3 upload
+  dateStart: string,          // ISO 8601 datetime, must be >= now
+  dateEnd?: string,           // ISO 8601 datetime, must be >= dateStart
+  lat?: number,               // required if venueAddress empty
+  lng?: number,               // required if venueAddress empty
+  venueAddress?: string,      // max 255 chars
+  venueId?: string,           // FK to venues table
+  category: string,           // required, from pre-seeded categories
+  collaborators?: string[],   // array of artist profile UUIDs, max 10
+  ticketLink?: string,        // external URL only
+  isGigOpportunity?: boolean, // default false, venue-only
 }
 ```
 
-**Response (201 Created):**
+**tRPC errors:**
 
-```json
-{
-  "id": "evt_abc123def456",
-  "created_by": "artist_or_venue_profile_id",
-  "title": "Live at Temple Bar",
-  "description": "...",
-  "cover_image": "https://d1234.cloudfront.net/evt_abc123.jpg",
-  "date_start": "2026-03-28T19:00:00Z",
-  "date_end": "2026-03-28T23:00:00Z",
-  "lat": 53.3432,
-  "lng": -6.2545,
-  "venue_address": "Temple Bar, Dublin",
-  "venue_id": null,
-  "category": "trad_session",
-  "ticket_link": "https://ticketmaster.ie/...",
-  "is_gig_opportunity": false,
-  "collection_id": null,
-  "collaborators": ["artist_001", "artist_002"],
-  "status": "pending_review",
-  "rejection_reason": null,
-  "created_at": "2026-03-20T10:30:00Z",
-  "updated_at": "2026-03-20T10:30:00Z"
-}
-```
+- `BAD_REQUEST` — Missing required fields, invalid dates, invalid location
+- `UNAUTHORIZED` — Not authenticated
+- `FORBIDDEN` — Not in artist or venue persona, or persona is inactive
 
-**Error Responses:**
+### `events.update` (protectedProcedure · mutation)
 
-- `400 Bad Request`: Missing required fields or invalid input (validation errors returned in detail)
-- `401 Unauthorized`: User not authenticated or does not have artist/venue persona
-- `403 Forbidden`: User trying to create as an inactive persona (e.g., artist with `is_active: false`)
-- `413 Payload Too Large`: Cover image exceeds size limit (max 10MB)
+Edit an existing event. All fields optional (only provided fields updated). Editing resets `rejected` events back to `pending_review`.
 
-### PUT /api/v1/events/:id
+**Input:** `{ id: string, data: Partial<CreateEventInput> }`
 
-Edit an existing event.
+**tRPC errors:**
 
-**Request Body:** Same structure as POST, but all fields optional (only provided fields are updated).
+- `BAD_REQUEST` — Invalid input
+- `UNAUTHORIZED` — Not authenticated
+- `FORBIDDEN` — Not the event creator, or `status = active | archived`
+- `NOT_FOUND` — Event not found
 
-**Response (200 OK):** Updated event object (same structure as POST response).
+### `events.getPresignedUrl` (protectedProcedure · query)
 
-**Error Responses:**
+Generate a presigned S3 URL for direct cover image upload from mobile. Wired in M10-T1 when S3 is configured.
 
-- `400 Bad Request`: Invalid input
-- `401 Unauthorized`: User not authenticated
-- `403 Forbidden`: User is not the event creator, or event status is `active` or `archived`
-- `404 Not Found`: Event not found
+**Input:** `{ filename: string, contentType: string }`
 
-### GET /api/v1/events/:id/presigned-url
+**Output:** `{ uploadUrl: string, cdnUrl: string, expiry: number }`
 
-Get a presigned S3 URL for uploading cover image.
+**Mobile usage:**
 
-**Query Parameters:**
+```typescript
+// 1. Get presigned URL
+const { uploadUrl, cdnUrl } = await trpc.events.getPresignedUrl.query({
+  filename: "cover.jpg", contentType: "image/jpeg"
+});
 
-```json
-{
-  "filename": "string (original filename, e.g., 'photo.jpg')",
-  "content_type": "string (MIME type, e.g., 'image/jpeg')"
-}
-```
+// 2. Upload directly to S3
+await fetch(uploadUrl, { method: "PUT", body: imageBlob });
 
-**Response (200 OK):**
-
-```json
-{
-  "upload_url": "https://ceolx-uploads.s3.eu-west-1.amazonaws.com/...?AWSAccessKeyId=...",
-  "cdn_url": "https://d1234.cloudfront.net/evt_abc123def456/photo.jpg",
-  "expiry": 3600
-}
+// 3. Submit event with CDN URL
+await trpc.events.create.mutate({ ..., coverImage: cdnUrl });
 ```
 
 ---
@@ -245,7 +213,7 @@ Get a presigned S3 URL for uploading cover image.
 ### S3 Presigned URL Generation (Hono Backend)
 
 ```typescript
-// apps/api/src/routes/events.ts
+// apps/server/src/routes/events.ts
 
 import { Hono } from "hono";
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
@@ -296,7 +264,7 @@ app.get("/events/presigned-url", async (c) => {
 ### Create Event Handler (Hono)
 
 ```typescript
-// apps/api/src/routes/events.ts
+// apps/server/src/routes/events.ts
 
 import { z } from "zod";
 import { zValidator } from "@hono/zod-validator";

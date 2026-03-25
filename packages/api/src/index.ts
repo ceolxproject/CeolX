@@ -23,3 +23,20 @@ export const protectedProcedure = t.procedure.use(({ ctx, next }) => {
     },
   });
 });
+
+// Admin role guard — always throws until M9-T1 wires the BetterAuth admin plugin.
+// TODO M9-T1: replace the FORBIDDEN throw with:
+//   if (ctx.session.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN' });
+//   return next({ ctx: { ...ctx, session: ctx.session } });
+export const adminProcedure = t.procedure.use(({ ctx }) => {
+  if (!ctx.session) {
+    throw new TRPCError({
+      code: "UNAUTHORIZED",
+      message: "Authentication required",
+    });
+  }
+  throw new TRPCError({
+    code: "FORBIDDEN",
+    message: "Admin access not yet configured — complete M9-T1 first",
+  });
+});

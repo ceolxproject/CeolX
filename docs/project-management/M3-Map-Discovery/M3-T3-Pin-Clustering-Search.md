@@ -378,7 +378,7 @@ const styles = StyleSheet.create({
 ### Backend Search Endpoint (Hono)
 
 ```typescript
-// apps/api/src/routes/events.ts
+// apps/server/src/routes/events.ts
 
 import { Hono } from "hono";
 import { db } from "../db";
@@ -454,7 +454,7 @@ app.get("/search", async (c) => {
 # apps/mobile/.env
 REACT_APP_API_BASE_URL=https://api.ceolx.ie
 
-# apps/api/.env.local
+# apps/server/.env.local
 DATABASE_URL=postgresql://user:password@ep-xxxxx.neon.tech/ceolx_db
 ```
 
