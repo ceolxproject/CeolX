@@ -64,3 +64,6 @@ temp
 
 # Claude
 .claude/settings.local.json
+
+#misc
+mentor-project-management

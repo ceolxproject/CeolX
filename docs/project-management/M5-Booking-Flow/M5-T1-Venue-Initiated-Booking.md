@@ -434,7 +434,7 @@ bookingsRouter.get("/", async (c) => {
 export default bookingsRouter;
 ```
 
-### React Native Component (apps/mobile/src/screens/BookingsTab.tsx)
+### React Native Component (apps/native/src/screens/BookingsTab.tsx)
 
 ```typescript
 import React, { useState, useCallback } from 'react';

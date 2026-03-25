@@ -6,20 +6,18 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 
 import { AppThemeProvider } from "@/contexts/app-theme-context";
+import { AuthProvider } from "@/contexts/auth-context";
 import { queryClient } from "@/utils/trpc";
 
 export const unstable_settings = {
-  initialRouteName: "(drawer)",
+  initialRouteName: "(auth)",
 };
 
-function StackLayout() {
+function RootStack() {
   return (
-    <Stack screenOptions={{}}>
-      <Stack.Screen name="(drawer)" options={{ headerShown: false }} />
-      <Stack.Screen
-        name="modal"
-        options={{ title: "Modal", presentation: "modal" }}
-      />
+    <Stack screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="(auth)" />
+      <Stack.Screen name="(app)" />
     </Stack>
   );
 }
@@ -31,7 +29,9 @@ export default function Layout() {
         <KeyboardProvider>
           <AppThemeProvider>
             <HeroUINativeProvider>
-              <StackLayout />
+              <AuthProvider>
+                <RootStack />
+              </AuthProvider>
             </HeroUINativeProvider>
           </AppThemeProvider>
         </KeyboardProvider>

@@ -97,7 +97,7 @@ None — this is a tooling configuration task.
   "overrides": [
     {
       // React/JSX rules for admin and mobile apps
-      "files": ["apps/admin/**/*.tsx", "apps/mobile/**/*.tsx"],
+      "files": ["apps/admin/**/*.tsx", "apps/native/**/*.tsx"],
       "plugins": ["react", "react-hooks"],
       "extends": ["plugin:react/recommended", "plugin:react-hooks/recommended"],
       "rules": {

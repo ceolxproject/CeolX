@@ -360,7 +360,7 @@ function calculateDistance(
 ### Feed Screen Component (React Native)
 
 ```typescript
-// apps/mobile/src/screens/FeedScreen.tsx
+// apps/native/src/screens/FeedScreen.tsx
 
 import React, { useState, useEffect, useCallback } from 'react';
 import {
@@ -588,7 +588,7 @@ const styles = StyleSheet.create({
 ### Environment Variables Required
 
 ```
-# apps/mobile/.env
+# apps/native/.env
 REACT_APP_API_BASE_URL=https://api.ceolx.ie
 
 # apps/server/.env.local

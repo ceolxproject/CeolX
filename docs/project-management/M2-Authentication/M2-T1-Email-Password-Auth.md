@@ -214,7 +214,7 @@ BetterAuth handles: password hashing (bcrypt), session token generation, email v
 ### Mobile — BetterAuth Client SDK
 
 ```typescript
-// apps/mobile/src/lib/auth.ts
+// apps/native/src/lib/auth.ts
 import { createAuthClient } from "better-auth/react";
 import { expoClient } from "@better-auth/expo/client";
 import * as SecureStore from "expo-secure-store";
@@ -234,7 +234,7 @@ export const authClient = createAuthClient({
 ### Mobile Sign-Up Screen
 
 ```typescript
-// apps/mobile/src/screens/Auth/SignUpScreen.tsx
+// apps/native/src/screens/Auth/SignUpScreen.tsx
 
 import React, { useState } from 'react';
 import {
