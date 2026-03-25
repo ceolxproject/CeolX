@@ -1,35 +1,23 @@
 import { createContext } from "@CeolX/api/context";
 import { appRouter } from "@CeolX/api/routers/index";
 import { auth } from "@CeolX/auth";
+import { env } from "@CeolX/env/server";
 import { trpcServer } from "@hono/trpc-server";
 import { serve } from "@hono/node-server";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
 
-import { authMiddleware } from "./middleware/auth";
 import { errorHandler } from "./middleware/errorHandler";
-import authRoutes from "./routes/auth";
-import eventsRoutes from "./routes/events";
-import artistsRoutes from "./routes/artists";
-import bookingsRoutes from "./routes/bookings";
-import adminRoutes from "./routes/admin";
 import webhooksRoutes from "./routes/webhooks";
 
-type Variables = { userId: string | null; currentRole: string | null };
-
-const app = new Hono<{ Variables: Variables }>();
+const app = new Hono();
 
 app.use(logger());
 app.use(
   "/*",
   cors({
-    origin: [
-      "https://app.ceolx.ie",
-      "https://admin.ceolx.ie",
-      "http://localhost:3000",
-      "http://localhost:8081",
-    ],
+    origin: env.CORS_ALLOWED_ORIGINS.split("|"),
     credentials: true,
   }),
 );
@@ -43,10 +31,10 @@ app.get("/health", (c) =>
   }),
 );
 
-// BetterAuth handler — untouched from M1-T2
+// BetterAuth — sign-up, sign-in, sign-out, email verification, OAuth callbacks
 app.on(["POST", "GET"], "/api/auth/*", (c) => auth.handler(c.req.raw));
 
-// tRPC — untouched from M1-T2
+// tRPC — all feature procedures (events, artists, bookings, admin) live in packages/api
 app.use(
   "/trpc/*",
   trpcServer({
@@ -55,16 +43,8 @@ app.use(
   }),
 );
 
-// Stub auth middleware for all REST routes (fully wired in M2-T1)
-app.use("/api/*", authMiddleware);
-
-// REST routes
-app.route("/api/v1/auth", authRoutes);
-app.route("/api/v1/events", eventsRoutes);
-app.route("/api/v1/artists", artistsRoutes);
-app.route("/api/v1/bookings", bookingsRoutes);
-app.route("/api/v1/admin", adminRoutes);
-app.route("/api/v1/webhooks", webhooksRoutes);
+// Stripe webhook — raw body required, cannot go through tRPC (wired in M8-T2)
+app.route("/api/webhooks", webhooksRoutes);
 
 app.onError(errorHandler);
 app.notFound((c) =>

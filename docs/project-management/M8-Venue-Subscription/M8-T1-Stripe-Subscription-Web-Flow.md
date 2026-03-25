@@ -17,42 +17,39 @@ Build the Venue subscription flow at `ceolx.ie/subscribe`. Unlike in-app purchas
 
 ## Affected Apps / Packages
 
-| App / Package | Role                                                                                  |
-| ------------- | ------------------------------------------------------------------------------------- |
-| `apps/admin`  | `/subscribe` route (public, no auth required initially) + login for CeolX credentials |
-| `apps/api`    | `POST /api/v1/stripe/checkout-session` endpoint, Stripe webhook handler               |
+| App / Package  | Role                                                                                  |
+| -------------- | ------------------------------------------------------------------------------------- |
+| `apps/admin`   | `/subscribe` route (public, no auth required initially) + login for CeolX credentials |
+| `packages/api` | `stripe.createCheckoutSession` tRPC mutation                                          |
+| `apps/server`  | `POST /api/webhooks/stripe` — raw Hono route (Stripe signature verification, no tRPC) |
 
 ---
 
-## API Endpoints
+## API
 
-### POST /api/v1/stripe/checkout-session
+### `stripe.createCheckoutSession` (protectedProcedure · mutation)
 
-Create a Stripe Checkout session for Venue subscription.
+Create a Stripe Checkout session for Venue subscription. Called from the `/subscribe` web page.
 
-**Request Body:**
+**Input:**
 
-```json
+```typescript
 {
-  "venueProfileId": "uuid"
+  venueProfileId: string;
 }
 ```
 
-**Response (2xx):**
+**Output:**
 
-```json
-{
-  "checkoutUrl": "https://checkout.stripe.com/pay/cs_live_xxx",
-  "sessionId": "cs_live_xxx"
-}
+```typescript
+{ checkoutUrl: string, sessionId: string }
 ```
 
-**Error Responses:**
+**tRPC errors:**
 
-- `400 Bad Request`: Missing venueProfileId or venue not found
-- `401 Unauthorized`: Not authenticated
-- `409 Conflict`: Venue already has active subscription
-- `500 Internal Server Error`: Stripe API error
+- `BAD_REQUEST` — missing venueProfileId or venue not found
+- `UNAUTHORIZED` — not authenticated
+- `CONFLICT` — venue already has active subscription
 
 ### POST /api/webhooks/stripe
 
@@ -95,7 +92,7 @@ Handle Stripe webhook events (e.g., `checkout.session.completed`).
 ### Checkout Session Creation
 
 - R3.1: Authenticated Venue user clicks "Subscribe Now" button
-- R3.2: Button POSTs to `/api/v1/stripe/checkout-session` with authenticated session
+- R3.2: Button calls `trpc.stripe.createCheckoutSession.mutate({ venueProfileId })` with authenticated session
 - R3.3: Backend validates: user is authenticated, has Venue profile, subscription_status ≠ active
 - R3.4: Stripe API call: `stripe.checkout.sessions.create()` with:
   - Mode: `subscription`
@@ -235,15 +232,10 @@ export default function SubscribePage() {
     setLoading(true);
 
     try {
-      const res = await fetch('/api/v1/stripe/checkout-session', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          venueProfileId: session?.user?.venueProfileId,
-        }),
+      const data = await trpc.stripe.createCheckoutSession.mutate({
+        venueProfileId: session?.user?.venueProfileId,
       });
 
-      const data = await res.json();
       if (data.checkoutUrl) {
         window.location.href = data.checkoutUrl;
       }
@@ -311,70 +303,58 @@ export default function SubscribePage() {
 }
 ```
 
-### Hono Checkout Session Endpoint
+### tRPC Checkout Session Procedure
 
 ```typescript
-// apps/api/routes/v1/stripe.ts
-import { Hono } from "hono";
+// packages/api/src/routers/stripe.ts
+import { router, protectedProcedure } from "../index";
+import { z } from "zod";
+import { TRPCError } from "@trpc/server";
 import Stripe from "stripe";
-import { db } from "@/db";
-import { venueProfiles } from "@/db/schema";
+import { db } from "@ceolx/db";
+import { venueProfiles } from "@ceolx/db/schema";
 import { eq } from "drizzle-orm";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
-const router = new Hono();
 
-router.post("/stripe/checkout-session", async (c) => {
-  const userId = c.get("user")?.id;
-  if (!userId) return c.json({ error: "Unauthorized" }, 401);
+export const stripeRouter = router({
+  createCheckoutSession: protectedProcedure
+    .input(z.object({ venueProfileId: z.string().min(1) }))
+    .mutation(async ({ ctx, input }) => {
+      const userId = ctx.session.user.id;
 
-  const { venueProfileId } = await c.req.json();
-  if (!venueProfileId) return c.json({ error: "Missing venueProfileId" }, 400);
+      const venue = await db
+        .select()
+        .from(venueProfiles)
+        .where(eq(venueProfiles.id, input.venueProfileId))
+        .then((rows) => rows[0]);
 
-  try {
-    // Validate Venue profile
-    const venue = await db
-      .select()
-      .from(venueProfiles)
-      .where(eq(venueProfiles.id, venueProfileId));
+      if (!venue || venue.userId !== userId) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Venue not found",
+        });
+      }
 
-    if (!venue.length || venue[0].userId !== userId) {
-      return c.json({ error: "Venue not found" }, 400);
-    }
+      if (venue.subscriptionStatus === "active") {
+        throw new TRPCError({
+          code: "CONFLICT",
+          message: "Already subscribed",
+        });
+      }
 
-    if (venue[0].subscriptionStatus === "active") {
-      return c.json({ error: "Already subscribed" }, 409);
-    }
+      const session = await stripe.checkout.sessions.create({
+        mode: "subscription",
+        customer_email: ctx.session.user.email,
+        line_items: [{ price: process.env.STRIPE_PRICE_ID!, quantity: 1 }],
+        success_url: `${process.env.APP_URL}/subscribe?success=true`,
+        cancel_url: `${process.env.APP_URL}/subscribe?cancelled=true`,
+        metadata: { venueProfileId: input.venueProfileId, userId },
+      });
 
-    // Create Stripe Checkout session
-    const session = await stripe.checkout.sessions.create({
-      mode: "subscription",
-      customer_email: c.get("user").email,
-      line_items: [
-        {
-          price: process.env.STRIPE_PRICE_ID!,
-          quantity: 1,
-        },
-      ],
-      success_url: `${process.env.APP_URL}/subscribe?success=true`,
-      cancel_url: `${process.env.APP_URL}/subscribe?cancelled=true`,
-      metadata: {
-        venueProfileId,
-        userId,
-      },
-    });
-
-    return c.json({
-      checkoutUrl: session.url,
-      sessionId: session.id,
-    });
-  } catch (error) {
-    console.error("Checkout session error:", error);
-    return c.json({ error: "Failed to create checkout session" }, 500);
-  }
+      return { checkoutUrl: session.url!, sessionId: session.id };
+    }),
 });
-
-export default router;
 ```
 
 ### Stripe Webhook Handler (Checkout Completion)

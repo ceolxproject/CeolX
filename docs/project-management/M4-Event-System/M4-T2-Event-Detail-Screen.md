@@ -17,96 +17,68 @@ The full event detail view — the canonical source of event information. Access
 
 ## Affected Apps / Packages
 
-| App / Package     | Role                                                                                                          |
-| ----------------- | ------------------------------------------------------------------------------------------------------------- |
-| `apps/api`        | GET /events/:id (detail), POST/DELETE /events/:id/save (saving), optional view tracking                       |
-| `apps/mobile`     | Event Detail screen (full screen modal), bottom sheet variant (from map pin), save/calendar/share integration |
-| `packages/shared` | Event detail and saved_events types                                                                           |
+| App / Package  | Role                                                                                                          |
+| -------------- | ------------------------------------------------------------------------------------------------------------- |
+| `packages/api` | `events.byId`, `events.save`, `events.unsave` — tRPC procedures                                               |
+| `apps/mobile`  | Event Detail screen (full screen modal), bottom sheet variant (from map pin), save/calendar/share integration |
 
 ---
 
-## API Endpoints
+## tRPC Procedures
 
-### GET /api/v1/events/:id
+### `events.byId` (publicProcedure · query)
 
-Fetch full event detail with user context.
+Fetch full event detail. Visibility rules apply server-side: `pending_review` / `rejected` / `archived` events return `NOT_FOUND` to non-creators.
 
-**Response (200 OK):**
+**Input:** `{ id: string }`
 
-```json
+**Output** (key fields):
+
+```typescript
 {
-  "id": "evt_abc123def456",
-  "created_by": "artist_or_venue_profile_id",
-  "creator": {
-    "id": "artist_123",
-    "name": "Padraig O'Brien",
-    "type": "artist" | "venue",
-    "profile_picture": "https://d1234.cloudfront.net/profiles/artist_123.jpg"
-  },
-  "title": "Live Trad Session at Temple Bar",
-  "description": "A lively evening of traditional Irish music featuring...",
-  "cover_image": "https://d1234.cloudfront.net/evt_abc123.jpg",
-  "date_start": "2026-03-28T19:00:00Z",
-  "date_end": "2026-03-28T23:00:00Z",
-  "lat": 53.3432,
-  "lng": -6.2545,
-  "venue_address": "Temple Bar, Dublin",
-  "venue_id": null,
-  "category": "trad_session",
-  "ticket_link": "https://ticketmaster.ie/events/123",
-  "is_gig_opportunity": false,
-  "collection_id": null,
-  "status": "active" | "pending_review" | "rejected" | "archived",
-  "rejection_reason": "Venue address unclear, please update",
-  "collaborators": [
-    {
-      "id": "artist_001",
-      "name": "Sean Murphy",
-      "profile_picture": "https://d1234.cloudfront.net/profiles/artist_001.jpg"
-    }
-  ],
-  "is_saved": true,
-  "view_count": 347,
-  "created_at": "2026-03-20T10:30:00Z",
-  "updated_at": "2026-03-21T14:20:00Z"
+  id, title, description, coverImage,
+  dateStart, dateEnd, lat, lng, venueAddress,
+  category, ticketLink, isGigOpportunity,
+  status: "active" | "pending_review" | "rejected" | "archived",
+  rejectionReason: string | null,
+  creator: { id, name, type: "artist" | "venue", profilePicture },
+  collaborators: Array<{ id, name, profilePicture }>,
+  isSaved: boolean,   // false if caller is unauthenticated
+  createdAt, updatedAt,
 }
 ```
 
-**Error Responses:**
+**tRPC errors:**
 
-- `404 Not Found`: Event not found or archived (and viewer is not creator)
-- `401 Unauthorized`: User not authenticated (optional — can be public)
+- `NOT_FOUND` — Event not found, archived (non-creator), or not yet approved (non-creator)
 
-### POST /api/v1/events/:id/save
+### `events.save` (protectedProcedure · mutation)
 
-Save an event to the user's saved list.
+Save event to current user's saved list.
 
-**Response (201 Created):**
+**Input:** `{ id: string }`
 
-```json
-{
-  "event_id": "evt_abc123def456",
-  "user_id": "user_xyz",
-  "saved_at": "2026-03-25T10:15:00Z"
+**tRPC errors:** `NOT_FOUND` — event not found; `BAD_REQUEST` — already saved
+
+### `events.unsave` (protectedProcedure · mutation)
+
+Remove event from current user's saved list.
+
+**Input:** `{ id: string }`
+
+**Mobile usage:**
+
+```typescript
+// Fetch detail
+const event = await trpc.events.byId.query({ id: eventId });
+
+// Toggle save (optimistic)
+if (event.isSaved) {
+  await trpc.events.unsave.mutate({ id: eventId });
+} else {
+  await trpc.events.save.mutate({ id: eventId });
 }
 ```
-
-**Error Responses:**
-
-- `400 Bad Request`: Event already saved
-- `401 Unauthorized`: User not authenticated
-- `404 Not Found`: Event not found
-
-### DELETE /api/v1/events/:id/save
-
-Unsave an event.
-
-**Response (204 No Content):** Empty response on success.
-
-**Error Responses:**
-
-- `401 Unauthorized`: User not authenticated
-- `404 Not Found`: Event or save relationship not found
 
 ---
 
