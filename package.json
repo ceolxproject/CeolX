@@ -17,6 +17,7 @@
     "db:studio": "turbo -F @CeolX/db db:studio",
     "db:generate": "turbo -F @CeolX/db db:generate",
     "db:migrate": "turbo -F @CeolX/db db:migrate",
+    "db:check": "turbo -F @CeolX/db db:check",
     "db:start": "turbo -F @CeolX/db db:start",
     "db:watch": "turbo -F @CeolX/db db:watch",
     "db:stop": "turbo -F @CeolX/db db:stop",

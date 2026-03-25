@@ -1,23 +1,23 @@
-name: CeolX
+name: ceolx
 
 services:
   postgres:
-    image: postgres
-    container_name: CeolX-postgres
+    image: postgres:16-alpine
+    container_name: ceolx_postgres
     environment:
-      POSTGRES_DB: CeolX
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: password
+      POSTGRES_USER: ceolx
+      POSTGRES_PASSWORD: ceolx_local
+      POSTGRES_DB: ceolx_dev
     ports:
       - "5432:5432"
     volumes:
-      - CeolX_postgres_data:/var/lib/postgresql
+      - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 10s
+      test: ["CMD-SHELL", "pg_isready -U ceolx -d ceolx_dev"]
+      interval: 5s
       timeout: 5s
       retries: 5
     restart: unless-stopped
 
 volumes:
-  CeolX_postgres_data:
+  postgres_data:
