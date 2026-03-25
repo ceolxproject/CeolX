@@ -25,7 +25,11 @@
       "Bash(npx tsc:*)",
       "Bash(find /Users/priyayadav/Documents/Raftlabs/CeolX/.claude/worktrees/dbInfra -name .envrc* -o -name envx.config* -o -name .envx*)",
       "Bash(grep -v .git echo \"---\" ls /Users/priyayadav/Documents/Raftlabs/CeolX/.claude/worktrees/dbInfra/apps/)",
-      "Bash(sort echo:*)"
+      "Bash(sort echo:*)",
+      "Bash(git commit:*)",
+      "Bash(cat commitlint.config.*)",
+      "Bash(cat .commitlintrc*)",
+      "Bash(git push:*)"
     ]
   },
   "enabledMcpjsonServers": [
