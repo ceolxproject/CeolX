@@ -68,7 +68,7 @@
   "pnpm": {
     "overrides": {
       "envx-cli>chalk": "4.1.2",
-      "unrun>rolldown": "1.0.0-beta.52"
+      "rolldown": "1.0.0-beta.52"
     },
     "onlyBuiltDependencies": [
       "esbuild",

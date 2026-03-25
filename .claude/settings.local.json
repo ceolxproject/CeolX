@@ -23,7 +23,12 @@
       "Bash(pnpm install:*)",
       "Bash(pnpm info:*)",
       "Bash(pnpm:*)",
-      "Bash(ls /Users/priyayadav/Documents/Raftlabs/CeolX/.claude/worktrees/honoScaffolding/apps/server/.env*)"
+      "Bash(ls /Users/priyayadav/Documents/Raftlabs/CeolX/.claude/worktrees/honoScaffolding/apps/server/.env*)",
+      "Bash(git push:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git -C /Users/priyayadav/Documents/Raftlabs/CeolX add package.json pnpm-lock.yaml)",
+      "Bash(git -C:*)"
     ]
   },
   "enabledMcpjsonServers": [
