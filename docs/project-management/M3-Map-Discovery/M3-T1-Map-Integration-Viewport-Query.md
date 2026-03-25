@@ -294,7 +294,7 @@ The plan should show `Index Scan using events_lat_lng_gist_idx` — not `Seq Sca
 ### Environment Variables Required
 
 ```
-# apps/api/.env.local
+# apps/server/.env.local
 DATABASE_URL=postgresql://user:password@ep-xxxxx.neon.tech/ceolx_db
 
 # apps/mobile/.env

@@ -106,7 +106,7 @@ Add these to `.env.example` in `apps/api`.
 | `data-export.process`      | User requests GDPR data export    | Query DB, generate JSON, upload to S3 signed URL  |
 | `data-export.notify`       | Export file ready                 | Email user the S3 download link                   |
 
-### Directory Structure (`apps/api/src/`)
+### Directory Structure (`apps/server/src/`)
 
 ```
 src/
@@ -399,7 +399,7 @@ webhooks.post("/qstash", verifyQStashSignature, async (c) => {
 export default webhooks;
 ```
 
-Register in `apps/api/src/index.ts`:
+Register in `apps/server/src/index.ts`:
 
 ```typescript
 import webhooksRoutes from "./routes/webhooks";
@@ -461,7 +461,7 @@ await publishJob("notification.push", {
 
 ## Acceptance Criteria
 
-- [ ] `QSTASH_TOKEN`, `QSTASH_CURRENT_SIGNING_KEY`, `QSTASH_NEXT_SIGNING_KEY` documented in `apps/api/.env.example`
+- [ ] `QSTASH_TOKEN`, `QSTASH_CURRENT_SIGNING_KEY`, `QSTASH_NEXT_SIGNING_KEY` documented in `apps/server/.env.example`
 - [ ] `qstashClient` initialises without errors when env vars are present
 - [ ] All 9 job types defined with TypeScript payload schemas and Zod validation
 - [ ] `publishJob()` correctly publishes a message to QStash (verified in Upstash console)

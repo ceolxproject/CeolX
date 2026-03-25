@@ -34,7 +34,7 @@ Code-evidence sweep for `04-authentication-and-onboarding` to align project-mana
 
 - Better Auth + providers + lockout hooks: `packages/auth/src/index.ts`
 - Apple secret generation: `packages/auth/src/apple-secret.ts`
-- API auth routes and Better Auth handler mount: `apps/api/src/app.ts`
+- API auth routes and Better Auth handler mount: `apps/server/src/app.ts`
 - Email verification resend + rate limiting: `packages/api/src/routers/auth.ts`, `packages/api/src/routers/__tests__/auth.test.ts`
 - Sessions API: `packages/api/src/routers/sessions.ts`
 - RBAC middleware and role routes: `packages/api/src/middleware/rbac.ts`, `packages/api/src/routers/roles.ts`

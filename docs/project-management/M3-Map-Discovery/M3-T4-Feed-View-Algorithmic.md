@@ -168,7 +168,7 @@ Fetch algorithmically ranked events with pagination.
 ### Ranking Algorithm Implementation
 
 ```typescript
-// apps/api/src/services/feedRanking.ts
+// apps/server/src/services/feedRanking.ts
 
 import { Event } from "@ceolx/shared/schema";
 
@@ -234,7 +234,7 @@ function calculateDistance(
 ### Feed Endpoint — Hono Handler
 
 ```typescript
-// apps/api/src/routes/feed.ts
+// apps/server/src/routes/feed.ts
 
 import { Hono } from "hono";
 import { getAuth } from "hono/better-auth";
@@ -591,7 +591,7 @@ const styles = StyleSheet.create({
 # apps/mobile/.env
 REACT_APP_API_BASE_URL=https://api.ceolx.ie
 
-# apps/api/.env.local
+# apps/server/.env.local
 DATABASE_URL=postgresql://user:password@ep-xxxxx.neon.tech/ceolx_db
 ```
 

@@ -307,7 +307,7 @@ npx qstash
 
 ### Scheduled Job Handler
 
-**Location:** `apps/api/src/jobs/notification-batch-flush.ts`
+**Location:** `apps/server/src/jobs/notification-batch-flush.ts`
 
 ```typescript
 import { getMessaging } from "@/lib/firebase";
@@ -454,7 +454,7 @@ async function rescheduleBatch(batchId: string, flushTime: Date) {
 
 ### QStash Route Handler
 
-**Location:** `apps/api/src/routes/jobs/notification-batch-flush.ts`
+**Location:** `apps/server/src/routes/jobs/notification-batch-flush.ts`
 
 ```typescript
 import { Hono } from "hono";
@@ -496,7 +496,7 @@ export default route;
 
 ### Schedule Batch Flush Function
 
-**Location:** `apps/api/src/lib/qstash.ts`
+**Location:** `apps/server/src/lib/qstash.ts`
 
 ```typescript
 import { Client } from "@upstash/qstash";
@@ -631,7 +631,7 @@ interface NotificationBatchingPreferencesProps {
 
 ### Cron Job: Archive Old Batches
 
-**Location:** `apps/api/src/jobs/cleanup-old-batches.ts`
+**Location:** `apps/server/src/jobs/cleanup-old-batches.ts`
 
 ```typescript
 export async function cleanupOldBatches() {

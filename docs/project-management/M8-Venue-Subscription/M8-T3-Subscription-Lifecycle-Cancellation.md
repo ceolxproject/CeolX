@@ -130,7 +130,7 @@ Extend the Stripe webhook handler to manage the full subscription lifecycle beyo
 ### Extended Stripe Webhook Handler
 
 ```typescript
-// apps/api/routes/webhooks/stripe.ts (extended)
+// apps/server/routes/webhooks/stripe.ts (extended)
 import { Hono } from "hono";
 import Stripe from "stripe";
 import { db } from "@/db";

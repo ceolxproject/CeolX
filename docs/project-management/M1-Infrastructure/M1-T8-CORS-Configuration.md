@@ -94,7 +94,7 @@ Development origins are injected automatically when `NODE_ENV=development` — n
 ### CORS Config Module
 
 ```typescript
-// apps/api/src/config/cors.ts
+// apps/server/src/config/cors.ts
 
 export function buildAllowedOrigins(): string[] {
   const envOrigins = process.env.CORS_ALLOWED_ORIGINS ?? "";
@@ -125,7 +125,7 @@ export function isAllowedOrigin(origin: string): boolean {
 ### Hono CORS Middleware
 
 ```typescript
-// apps/api/src/index.ts (replace the stub cors() call)
+// apps/server/src/index.ts (replace the stub cors() call)
 
 import { cors } from "hono/cors";
 import { buildAllowedOrigins, isAllowedOrigin } from "./config/cors";

@@ -116,7 +116,7 @@ No new endpoints. Postmark dispatch is invoked internally by existing endpoints 
 
 ### Email Dispatch Service
 
-- R8.1: Create shared Postmark client service in `apps/api/services/email.ts` — all code paths call this, not Postmark directly
+- R8.1: Create shared Postmark client service in `apps/server/services/email.ts` — all code paths call this, not Postmark directly
 - R8.2: Template IDs from Postmark stored as env vars: `POSTMARK_VERIFICATION_TEMPLATE_ID`, `POSTMARK_PASSWORD_RESET_TEMPLATE_ID`, etc.
 - R8.3: Send via `postmark.sendEmailWithTemplate({ From, To, TemplateAlias, TemplateModel })`
 - R8.4: All transactional emails sent within **5 seconds** of trigger (no queueing for V1; queue if latency becomes issue)
@@ -138,7 +138,7 @@ No new endpoints. Postmark dispatch is invoked internally by existing endpoints 
 - [ ] All emails render correctly on iOS Mail, Gmail, Outlook (tested in Postmark preview)
 - [ ] Sender address is `hello@ceolx.ie` (branded, not Postmark default)
 - [ ] Bounce and complaint handling enabled; future sends to bounced addresses suppressed
-- [ ] Email dispatch service centralised in `apps/api/services/email.ts`
+- [ ] Email dispatch service centralised in `apps/server/services/email.ts`
 
 ---
 
@@ -155,7 +155,7 @@ No new endpoints. Postmark dispatch is invoked internally by existing endpoints 
 ### Postmark Client Setup
 
 ```typescript
-// apps/api/services/email.ts
+// apps/server/services/email.ts
 import postmark from "postmark";
 
 const client = new postmark.ServerClient(process.env.POSTMARK_API_KEY!);
@@ -206,7 +206,7 @@ export async function sendEmail(payload: EmailPayload) {
 ### Email Verification on Sign-Up
 
 ```typescript
-// apps/api/routes/v1/auth.ts
+// apps/server/routes/v1/auth.ts
 import { sendEmail } from "@/services/email";
 import { generateToken } from "@/utils/tokens";
 
@@ -246,7 +246,7 @@ export async function signUp(email: string, password: string) {
 ### Venue Activation Email
 
 ```typescript
-// apps/api/routes/v1/venues.ts
+// apps/server/routes/v1/venues.ts
 import { sendEmail } from "@/services/email";
 
 export async function createVenueProfile(userId: string, profileData: any) {
@@ -277,7 +277,7 @@ export async function createVenueProfile(userId: string, profileData: any) {
 ### Payment Confirmation Email (Stripe Webhook)
 
 ```typescript
-// apps/api/handlers/stripeWebhook.ts
+// apps/server/handlers/stripeWebhook.ts
 import { sendEmail } from "@/services/email";
 
 export async function handleInvoicePaid(invoice: Stripe.Invoice) {

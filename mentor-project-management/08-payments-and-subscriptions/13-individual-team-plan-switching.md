@@ -22,12 +22,12 @@ The billing page has no way to switch between Individual and Team plan types. `P
 | ------ | ---------------------------------------------------------------------- | ----------------------------------------------------------------- |
 | Modify | `packages/validators/src/subscription.ts`                              | Add `switchPlanTypeSchema`                                        |
 | Modify | `packages/api/src/routers/subscriptions.ts`                            | Add `switchPlanType` procedure + expose `planType` in `getStatus` |
-| Modify | `apps/api/src/routes/webhooks/stripe.ts`                               | Auto-cancel old individual sub when team checkout succeeds        |
+| Modify | `apps/server/src/routes/webhooks/stripe.ts`                            | Auto-cancel old individual sub when team checkout succeeds        |
 | Create | `apps/web-learner/src/components/billing/plan-type-switch-section.tsx` | New UI component                                                  |
 | Modify | `apps/web-learner/src/components/billing/plan-change-section.tsx`      | Filter same-planType plans only                                   |
 | Modify | `apps/web-learner/src/app/(app)/settings/billing/page.tsx`             | Mount new component + add `planType` to `Plan` type               |
 | Modify | `packages/api/src/routers/__tests__/subscriptions.test.ts`             | Tests for `switchPlanType`                                        |
-| Modify | `apps/api/src/routes/webhooks/__tests__/stripe.test.ts`                | Tests for auto-cancel webhook handler                             |
+| Modify | `apps/server/src/routes/webhooks/__tests__/stripe.test.ts`             | Tests for auto-cancel webhook handler                             |
 
 ---
 
@@ -277,7 +277,7 @@ switchPlanType: protectedProcedure
 
 **Files:**
 
-- Modify: `apps/api/src/routes/webhooks/stripe.ts`
+- Modify: `apps/server/src/routes/webhooks/stripe.ts`
 
 The `handleCheckoutSessionCompleted` currently only processes course purchases (early-returns when `courseId` is absent). We need a second handler for subscription checkouts that carries `cancelOldSubscriptionId` in metadata.
 
@@ -717,7 +717,7 @@ const teamMonthlyPlan = {
 
 **Files:**
 
-- Modify: `apps/api/src/routes/webhooks/__tests__/stripe.test.ts`
+- Modify: `apps/server/src/routes/webhooks/__tests__/stripe.test.ts`
 
 - [ ] Read existing test file to understand mock setup
 - [ ] Add test for `checkout.session.completed` with `cancelOldSubscriptionId` in metadata:

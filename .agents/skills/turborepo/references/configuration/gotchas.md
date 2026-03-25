@@ -161,7 +161,7 @@ When you need to create a task (build, lint, test, typecheck, etc.):
 // apps/web/package.json
 { "scripts": { "build": "next build", "lint": "eslint .", "test": "vitest" } }
 
-// apps/api/package.json
+// apps/server/package.json
 { "scripts": { "build": "tsc", "lint": "eslint .", "test": "vitest" } }
 
 // packages/ui/package.json

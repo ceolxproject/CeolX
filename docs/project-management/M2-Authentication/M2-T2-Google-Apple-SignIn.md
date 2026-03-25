@@ -202,7 +202,7 @@ Initiate Apple Sign-In flow (iOS only).
 ### BetterAuth Google Provider
 
 ```typescript
-// apps/api/src/lib/auth.ts
+// apps/server/src/lib/auth.ts
 
 import { betterAuth } from "better-auth";
 import { google } from "better-auth/providers";
@@ -223,7 +223,7 @@ export const auth = betterAuth({
 ### BetterAuth Apple Provider
 
 ```typescript
-// apps/api/src/lib/auth.ts
+// apps/server/src/lib/auth.ts
 
 import { apple } from "better-auth/providers";
 

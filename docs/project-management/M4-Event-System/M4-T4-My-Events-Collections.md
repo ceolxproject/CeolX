@@ -286,7 +286,7 @@ Delete a collection. Associated events are NOT deleted — their `collection_id`
 ### My Created Events Endpoint (Hono)
 
 ```typescript
-// apps/api/src/routes/users.ts
+// apps/server/src/routes/users.ts
 
 import { Hono } from "hono";
 import { getAuth } from "hono/better-auth";
@@ -373,7 +373,7 @@ app.get("/users/me/saved-events", async (c) => {
 ### Collections CRUD (Hono)
 
 ```typescript
-// apps/api/src/routes/collections.ts
+// apps/server/src/routes/collections.ts
 
 import { Hono } from "hono";
 import { getAuth } from "hono/better-auth";
