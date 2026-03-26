@@ -3,7 +3,7 @@
 | Field          | Value                                                                                                             |
 | -------------- | ----------------------------------------------------------------------------------------------------------------- |
 | **Milestone**  | M1 — Project Setup & Infrastructure                                                                               |
-| **Status**     | 🔲 To Do                                                                                                          |
+| **Status**     | ✅ Code Complete — Postmark account setup pending (no domain access yet)                                          |
 | **Depends on** | M1-T1 (Turborepo + monorepo structure)                                                                            |
 | **Blocks**     | M2-T1 (email verification), M2-T3 (forgot password), M8-T1 (venue activation email), M8-T2 (payment confirmation) |
 | **PRD Ref**    | Section 10.1 (Postmark — transactional email), Authentication flows                                               |
@@ -12,18 +12,20 @@
 
 ## Description
 
-Configure Postmark as the transactional email provider and establish the shared email-sending module in `packages/shared`. All CeolX transactional emails — email verification, password reset, venue activation link, and payment confirmation — are sent via Postmark. This task sets up the Postmark account, configures sender identity, and creates the reusable `sendEmail()` utility that every downstream milestone imports. No templates are implemented here — only the sending infrastructure.
+Configure Postmark as the transactional email provider and establish the `packages/email` workspace package. All CeolX transactional emails — email verification, password reset, venue activation link, and payment confirmation — are sent via Postmark. This task sets up the Postmark account, configures sender identity, and creates the reusable `sendEmail()` utility that every downstream milestone imports. No templates are implemented here — only the sending infrastructure.
 
-Postmark was chosen for deliverability and reliability (dedicated IP option) over SendGrid or Mailgun. The shared module keeps email logic in one place so `apps/api` never calls Postmark directly.
+Postmark was chosen for deliverability and reliability (dedicated IP option) over SendGrid or Mailgun. The dedicated `packages/email` package keeps all email transport logic in one place so `apps/server` and future callers never reference Postmark directly.
+
+Local development always routes through **Mailpit** (SMTP) — regardless of whether `POSTMARK_API_TOKEN` is set — to prevent accidental emails to real users.
 
 ---
 
 ## Affected Apps / Packages
 
-| App / Package     | Role                                                                                 |
-| ----------------- | ------------------------------------------------------------------------------------ |
-| `packages/shared` | New `email/` subdirectory — Postmark client, `sendEmail()` utility, TypeScript types |
-| `apps/api`        | Imports `sendEmail()` from shared; wires calls in M2–M8                              |
+| App / Package    | Role                                                                               |
+| ---------------- | ---------------------------------------------------------------------------------- |
+| `packages/email` | New workspace package — transport factory, `sendEmail()` utility, TypeScript types |
+| `apps/server`    | Imports `sendEmail()` from `@CeolX/email`; wires calls in M2–M8                    |
 
 ---
 
@@ -33,31 +35,47 @@ Postmark was chosen for deliverability and reliability (dedicated IP option) ove
 
 - Create Postmark account (or use existing RaftLabs account) with a dedicated **Server** for CeolX
 - Configure **Sender Signature** for `noreply@ceolx.ie` — verify domain DNS records (SPF, DKIM, DMARC)
-- Set up two **Message Streams**:
+- Set up one **Message Stream**:
   - `outbound` — all transactional emails (verification, reset, notifications)
   - Do NOT use the broadcast stream in V1
 - Store `POSTMARK_API_TOKEN` (Server API Token) as environment variable — never hardcoded
-- Configure bounce and spam complaint webhooks pointing to `POST /api/v1/webhooks/postmark` (stub in M1-T3, wired in M7)
+- Configure bounce and spam complaint webhooks pointing to `POST /api/webhooks/postmark` (stub added in this task, wired in M7)
 
-### 2. Email Utility in `packages/shared`
+### 2. `packages/email` Workspace Package
 
-Create `packages/shared/src/email/`:
+Create `packages/email/` as a new Turborepo workspace:
 
 ```
-packages/shared/src/email/
-  client.ts       — Postmark ServerClient singleton
-  send.ts         — sendEmail() function with error handling
-  types.ts        — EmailPayload TypeScript types
-  index.ts        — barrel export
+packages/email/
+  package.json      — name: @CeolX/email, deps: postmark, nodemailer
+  tsconfig.json
+  src/
+    index.ts        — barrel export
+    client.ts       — EmailTransport interface + transport factory
+    constants.ts    — SENDER_EMAIL, SENDER_NAME, SUPPORT_EMAIL
+    send.ts         — sendEmail() entry point
+    types.ts        — EmailTag, SendEmailOptions
 ```
 
-- Use official `postmark` npm package
-- `sendEmail()` accepts `{ to, subject, htmlBody, textBody, tag }` — tag is used for Postmark stream analytics
-- Log success and failure with structured context (recipient, tag, timestamp) — do NOT log email body content
-- On Postmark error: throw typed `EmailDeliveryError` with Postmark error code attached; caller decides retry logic
-- Add `POSTMARK_API_TOKEN` to the `apps/api` `.env` template
+- `sendEmail()` accepts `{ to, subject, htmlBody, textBody, tag }` — tag used for Postmark stream analytics
+- Log success and failure with structured context `{ tag, to, timestamp }` — do NOT log subject or body content (PII risk)
+- On error: log and re-throw — callers decide retry logic
+- No `EmailDeliveryError` wrapper class — plain re-throw keeps the stack clean
 
-### 3. Email Types Needed (V1)
+### 3. Transport Factory (`client.ts`)
+
+The transport is selected at startup based on `NODE_ENV`:
+
+| Environment              | Transport                 | Notes                                      |
+| ------------------------ | ------------------------- | ------------------------------------------ |
+| `development`            | nodemailer → Mailpit SMTP | Always, regardless of `POSTMARK_API_TOKEN` |
+| `staging` / `production` | Postmark `ServerClient`   | Throws at startup if token missing         |
+
+- `EmailTransport` interface: `send({ from, to, subject, html, text }): Promise<void>`
+- Lazy singleton — instantiated once per process/Lambda context
+- Postmark: `MessageStream: "outbound"` on every send
+
+### 4. Email Tags (V1)
 
 | Email                 | Trigger                        | Tag                    |
 | --------------------- | ------------------------------ | ---------------------- |
@@ -68,118 +86,155 @@ packages/shared/src/email/
 
 Templates for each email are implemented in the milestone that triggers them (M2, M8). This task only wires the sending infrastructure.
 
-### 4. Environment Variables
+### 5. Environment Variables
 
 ```bash
-# apps/api .env
-POSTMARK_API_TOKEN=your-postmark-server-token
+# apps/server .env
+POSTMARK_API_TOKEN=your-postmark-server-token   # absent in local dev — Mailpit used instead
 POSTMARK_FROM_ADDRESS=noreply@ceolx.ie
+SMTP_HOST=localhost                              # local dev Mailpit
+SMTP_PORT=1025                                  # local dev Mailpit
 ```
 
-Both vars must be present in dev, staging, and prod Lambda environments.
+Add `POSTMARK_API_TOKEN`, `POSTMARK_FROM_ADDRESS`, `SMTP_HOST`, `SMTP_PORT` to `packages/env/src/server.ts` Zod schema (all optional except `POSTMARK_FROM_ADDRESS` which defaults to `noreply@ceolx.ie`).
 
-### 5. Local Development
+### 6. Local Development — Mailpit
 
-- In development (`NODE_ENV=development`): log email content to console instead of sending — use a `DRY_RUN` env flag or check `NODE_ENV`
-- Prevents accidental emails to real users during local testing
-- Postmark sandbox mode is available as an alternative for integration tests
+Run Mailpit via Docker for local email catching:
+
+```bash
+docker run -d -p 1025:1025 -p 8025:8025 axllent/mailpit
+```
+
+- SMTP on port 1025 (nodemailer target)
+- Web UI on `http://localhost:8025` — inspect all outgoing emails
+
+In `development`, `getTransport()` always returns the SMTP transport. `POSTMARK_API_TOKEN` is intentionally not required locally.
+
+### 7. Postmark Webhook Stub
+
+Add stub route to `apps/server/src/routes/webhooks.ts`:
+
+```
+POST /api/webhooks/postmark
+```
+
+Returns `{ message: "not implemented" }` for now. Wired in M7 to handle bounce and spam complaint events.
 
 ---
 
 ## Acceptance Criteria
 
-- [ ] Postmark account created with `ceolx` Server and sender signature verified for `noreply@ceolx.ie`
-- [ ] SPF, DKIM, DMARC DNS records added and verified in Postmark dashboard
-- [ ] `packages/shared/src/email/` module created and exported from `packages/shared`
-- [ ] `sendEmail()` function implemented with error handling and structured logging
-- [ ] `POSTMARK_API_TOKEN` and `POSTMARK_FROM_ADDRESS` added to `.env` template files
-- [ ] In development mode, emails log to console instead of sending (no accidental emails)
-- [ ] TypeScript compilation passes with zero errors across the monorepo
-- [ ] Smoke test: call `sendEmail()` from a test script — email received in Postmark test inbox
+- [ ] Postmark account created with `ceolx` Server and sender signature verified for `noreply@ceolx.ie` ⏳ pending domain access
+- [ ] SPF, DKIM, DMARC DNS records added and verified in Postmark dashboard ⏳ pending domain access
+- [x] `packages/email` workspace created and resolvable as `@CeolX/email` — PR #5
+- [x] `sendEmail()` implemented with transport factory, structured logging (no body/subject in logs) — PR #5
+- [x] `NODE_ENV=development` always routes to Mailpit — no accidental real emails — PR #5
+- [x] `POSTMARK_API_TOKEN`, `POSTMARK_FROM_ADDRESS`, `SMTP_HOST`, `SMTP_PORT` added to env schema and `.env` templates — PR #5
+- [x] `POST /api/webhooks/postmark` stub route added to `apps/server` — PR #5
+- [x] TypeScript compilation passes with zero errors across the monorepo — PR #5
+- [ ] Smoke test (local): call `sendEmail()` → email appears in Mailpit at `http://localhost:8025` ⏳ manual verification pending
+- [ ] Smoke test (Postmark): set real token in staging → email received in Postmark test inbox ⏳ pending Postmark account
 
 ---
 
 ## Technical Notes
 
-### Postmark Client
+### Transport Factory
 
 ```typescript
-// packages/shared/src/email/client.ts
+// packages/email/src/client.ts
 
+import nodemailer from "nodemailer";
 import { ServerClient } from "postmark";
 
-let client: ServerClient | null = null;
+export interface EmailTransport {
+  send(options: {
+    from: string;
+    to: string;
+    subject: string;
+    html: string;
+    text: string;
+  }): Promise<void>;
+}
 
-export function getPostmarkClient(): ServerClient {
-  if (!client) {
+function createPostmarkTransport(token: string): EmailTransport {
+  const client = new ServerClient(token);
+  return {
+    async send({ from, to, subject, html, text }) {
+      await client.sendEmail({
+        From: from,
+        To: to,
+        Subject: subject,
+        HtmlBody: html,
+        TextBody: text,
+        MessageStream: "outbound",
+      });
+    },
+  };
+}
+
+function createSmtpTransport(): EmailTransport {
+  const transporter = nodemailer.createTransport({
+    host: process.env.SMTP_HOST ?? "localhost",
+    port: Number(process.env.SMTP_PORT ?? 1025),
+    secure: false,
+  });
+  return {
+    async send({ from, to, subject, html, text }) {
+      await transporter.sendMail({ from, to, subject, html, text });
+    },
+  };
+}
+
+let transport: EmailTransport | undefined;
+
+export function getTransport(): EmailTransport {
+  if (transport) return transport;
+  if (process.env.NODE_ENV === "development") {
+    transport = createSmtpTransport();
+  } else {
     const token = process.env.POSTMARK_API_TOKEN;
-    if (!token) {
-      throw new Error("POSTMARK_API_TOKEN environment variable is not set");
-    }
-    client = new ServerClient(token);
+    if (!token)
+      throw new Error(
+        "POSTMARK_API_TOKEN is required in non-development environments",
+      );
+    transport = createPostmarkTransport(token);
   }
-  return client;
+  return transport;
 }
 ```
 
 ### sendEmail Utility
 
 ```typescript
-// packages/shared/src/email/send.ts
+// packages/email/src/send.ts
 
-import { getPostmarkClient } from "./client";
-import type { EmailPayload } from "./types";
+import { getTransport } from "./client";
+import { SENDER_EMAIL, SENDER_NAME } from "./constants";
+import type { SendEmailOptions } from "./types";
 
-export class EmailDeliveryError extends Error {
-  constructor(
-    message: string,
-    public readonly postmarkErrorCode?: number,
-  ) {
-    super(message);
-    this.name = "EmailDeliveryError";
-  }
-}
-
-export async function sendEmail(payload: EmailPayload): Promise<void> {
-  const { to, subject, htmlBody, textBody, tag } = payload;
-
-  // Dry-run in development
-  if (process.env.NODE_ENV === "development") {
-    console.log("[Email DRY RUN]", {
+export async function sendEmail({
+  to,
+  subject,
+  htmlBody,
+  textBody,
+  tag,
+}: SendEmailOptions): Promise<void> {
+  const transport = getTransport();
+  try {
+    await transport.send({
+      from: `${SENDER_NAME} <${SENDER_EMAIL}>`,
       to,
       subject,
-      tag,
-      timestamp: new Date().toISOString(),
+      html: htmlBody,
+      text: textBody,
     });
-    return;
-  }
-
-  const client = getPostmarkClient();
-  const fromAddress = process.env.POSTMARK_FROM_ADDRESS ?? "noreply@ceolx.ie";
-
-  try {
-    await client.sendEmail({
-      From: fromAddress,
-      To: to,
-      Subject: subject,
-      HtmlBody: htmlBody,
-      TextBody: textBody,
-      Tag: tag,
-      MessageStream: "outbound",
-    });
-
-    console.log("[Email sent]", {
-      to,
-      tag,
-      timestamp: new Date().toISOString(),
-    });
-  } catch (err: unknown) {
-    const code = (err as { code?: number })?.code;
-    console.error("[Email failed]", { to, tag, error: (err as Error).message });
-    throw new EmailDeliveryError(
-      `Failed to send email: ${(err as Error).message}`,
-      code,
-    );
+    console.log("[email]", { tag, to, timestamp: new Date().toISOString() });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error("[email] failed", { tag, to, error: message });
+    throw error;
   }
 }
 ```
@@ -187,21 +242,21 @@ export async function sendEmail(payload: EmailPayload): Promise<void> {
 ### TypeScript Types
 
 ```typescript
-// packages/shared/src/email/types.ts
-
-export interface EmailPayload {
-  to: string;
-  subject: string;
-  htmlBody: string;
-  textBody: string;
-  tag: EmailTag;
-}
+// packages/email/src/types.ts
 
 export type EmailTag =
   | "email-verification"
   | "password-reset"
   | "venue-activation"
   | "payment-confirmation";
+
+export interface SendEmailOptions {
+  to: string;
+  subject: string;
+  htmlBody: string;
+  textBody: string;
+  tag: EmailTag;
+}
 ```
 
 ---
@@ -209,7 +264,8 @@ export type EmailTag =
 ## Common Gotchas
 
 - **Domain verification**: Postmark requires SPF + DKIM DNS records verified before sending from a custom domain — allow 24–48 hours for DNS propagation
-- **Singleton client**: Postmark SDK creates an HTTP connection pool; instantiate once per Lambda execution context (not per request)
-- **Do NOT log email bodies**: HTML bodies can contain PII (email addresses, reset tokens) — log only metadata
-- **Postmark error codes**: Code `422` means invalid recipient; code `406` means inactive recipient — handle these differently from transient failures
+- **Singleton transport**: Postmark SDK creates an HTTP connection pool; instantiate once per Lambda execution context (not per request)
+- **Do NOT log email bodies or subjects**: they can contain PII (email addresses, reset tokens) — log only `{ tag, to, timestamp }`
+- **Mailpit always in dev**: `getTransport()` checks `NODE_ENV` first — `POSTMARK_API_TOKEN` is irrelevant locally
 - **Apple rule**: Venue activation email contains the Stripe subscription URL. This is sent from `noreply@ceolx.ie` (outside the app) — not shown inside the iOS app. This is intentional and compliant with Apple Rule 3.1.1.
+- **Webhook path**: route is `/api/webhooks/postmark` (no `/v1`) — matches the existing Hono routing convention in `apps/server`

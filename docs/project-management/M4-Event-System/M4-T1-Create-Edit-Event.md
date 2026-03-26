@@ -430,7 +430,7 @@ app.put(
 ### Create Event Screen (React Native)
 
 ```typescript
-// apps/mobile/src/screens/CreateEventScreen.tsx
+// apps/native/src/screens/CreateEventScreen.tsx
 
 import React, { useState } from 'react';
 import {

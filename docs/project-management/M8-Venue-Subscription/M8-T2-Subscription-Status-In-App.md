@@ -323,7 +323,7 @@ export default router;
 ### React Native Polling Hook
 
 ```typescript
-// apps/mobile/hooks/useSubscriptionPolling.ts
+// apps/native/hooks/useSubscriptionPolling.ts
 import { useEffect, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRole } from "@/context/RoleContext";
@@ -381,7 +381,7 @@ export function useSubscriptionPolling() {
 ### Pending Activation Screen Component
 
 ```typescript
-// apps/mobile/screens/PendingActivationScreen.tsx
+// apps/native/screens/PendingActivationScreen.tsx
 import { View, Text, TouchableOpacity } from 'react-native';
 import { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';

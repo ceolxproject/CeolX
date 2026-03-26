@@ -154,7 +154,7 @@ Resolve approximate location from client IP address (optional — can be done cl
 ### GPS Resolution with Timeout
 
 ```typescript
-// apps/mobile/src/hooks/useLocationPermission.ts
+// apps/native/src/hooks/useLocationPermission.ts
 
 import * as Location from "expo-location";
 import { useState, useEffect } from "react";
@@ -277,7 +277,7 @@ async function resolveIPGeolocation() {
 ### Location Banner Component
 
 ```typescript
-// apps/mobile/src/components/LocationBanner.tsx
+// apps/native/src/components/LocationBanner.tsx
 
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
@@ -336,7 +336,7 @@ const styles = StyleSheet.create({
 ### Permissions Caching in Device Storage
 
 ```typescript
-// apps/mobile/src/utils/locationStorage.ts
+// apps/native/src/utils/locationStorage.ts
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
@@ -372,7 +372,7 @@ export async function getCachedLocation(): Promise<{
 ### Environment Variables Required
 
 ```
-# apps/mobile/.env
+# apps/native/.env
 IPAPI_ENDPOINT=https://ipapi.co/json/
 ```
 

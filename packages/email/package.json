@@ -1,0 +1,30 @@
+{
+  "name": "@CeolX/email",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "default": "./src/index.ts"
+    },
+    "./*": {
+      "default": "./src/*.ts"
+    }
+  },
+  "scripts": {
+    "check-types": "tsc -b",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "nodemailer": "^6.10.1",
+    "postmark": "^4.0.5"
+  },
+  "devDependencies": {
+    "@CeolX/config": "workspace:*",
+    "@types/node": "^22.13.14",
+    "@types/nodemailer": "^6.4.17",
+    "typescript": "^5",
+    "vitest": "^3.0.0"
+  }
+}

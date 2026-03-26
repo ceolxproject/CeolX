@@ -325,7 +325,7 @@ export default router;
 ### React Native Notification Centre Component
 
 ```typescript
-// apps/mobile/screens/NotificationCentreScreen.tsx
+// apps/native/screens/NotificationCentreScreen.tsx
 import { FlatList, View, Text, TouchableOpacity } from 'react-native';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRole } from '@/context/RoleContext';
@@ -414,7 +414,7 @@ export function NotificationCentreScreen() {
 ### Unread Badge Hook
 
 ```typescript
-// apps/mobile/hooks/useUnreadBadgeCount.ts
+// apps/native/hooks/useUnreadBadgeCount.ts
 import { useQuery } from "@tanstack/react-query";
 import { useEffect } from "react";
 

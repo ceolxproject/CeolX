@@ -321,7 +321,7 @@ app.delete("/events/:id/save", async (c) => {
 ### Event Detail Screen Component (React Native)
 
 ```typescript
-// apps/mobile/src/screens/EventDetailScreen.tsx
+// apps/native/src/screens/EventDetailScreen.tsx
 
 import React, { useState, useEffect } from 'react';
 import {

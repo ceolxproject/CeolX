@@ -349,7 +349,7 @@ export const rateLimitByEmail =
 ### Mobile Forgot Password Screen
 
 ```typescript
-// apps/mobile/src/screens/Auth/ForgotPasswordScreen.tsx
+// apps/native/src/screens/Auth/ForgotPasswordScreen.tsx
 
 import React, { useState } from 'react';
 import {
@@ -512,7 +512,7 @@ export default ForgotPasswordScreen;
 ### Mobile Reset Password Screen
 
 ```typescript
-// apps/mobile/src/screens/Auth/ResetPasswordScreen.tsx
+// apps/native/src/screens/Auth/ResetPasswordScreen.tsx
 
 import React, { useState } from 'react';
 import {
@@ -664,7 +664,7 @@ export default ResetPasswordScreen;
 ### Deep Link Configuration
 
 ```typescript
-// apps/mobile/src/navigation/linking.ts
+// apps/native/src/navigation/linking.ts
 
 export const linking = {
   prefixes: ["ceolx://", "https://ceolx.ie"],

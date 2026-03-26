@@ -244,7 +244,7 @@ export const auth = betterAuth({
 ### Mobile Google Sign-In Screen
 
 ```typescript
-// apps/mobile/src/screens/Auth/SignUpScreen.tsx
+// apps/native/src/screens/Auth/SignUpScreen.tsx
 
 import React, { useState } from 'react';
 import {
@@ -450,7 +450,7 @@ export default SignUpScreen;
 ### Mobile Apple Sign-In (iOS only)
 
 ```typescript
-// apps/mobile/src/screens/Auth/SignUpScreen.tsx (Apple portion)
+// apps/native/src/screens/Auth/SignUpScreen.tsx (Apple portion)
 
 import { appleAuth } from "@invertase/react-native-apple-authentication";
 import { Platform } from "react-native";

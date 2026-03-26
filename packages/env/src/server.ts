@@ -11,6 +11,10 @@ export const env = createEnv({
     NODE_ENV: z
       .enum(["development", "production", "test"])
       .default("development"),
+    POSTMARK_API_TOKEN: z.string().optional(),
+    POSTMARK_FROM_ADDRESS: z.string().default("noreply@ceolx.ie"),
+    SMTP_HOST: z.string().default("localhost"),
+    SMTP_PORT: z.coerce.number().default(1025),
   },
   runtimeEnv: process.env,
   emptyStringAsUndefined: true,

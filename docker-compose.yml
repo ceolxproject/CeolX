@@ -1,0 +1,31 @@
+name: ceolx
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: ceolx_postgres
+    environment:
+      POSTGRES_USER: ceolx
+      POSTGRES_PASSWORD: ceolx_local
+      POSTGRES_DB: ceolx_dev
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ceolx -d ceolx_dev"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: ceolx_mailpit
+    ports:
+      - "1025:1025" # SMTP — nodemailer target in local dev
+      - "8025:8025" # Web UI — http://localhost:8025
+    restart: unless-stopped
+
+volumes:
+  postgres_data:

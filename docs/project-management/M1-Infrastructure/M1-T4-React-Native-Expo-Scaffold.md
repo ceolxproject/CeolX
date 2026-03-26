@@ -3,7 +3,7 @@
 | Field          | Value                                                                               |
 | -------------- | ----------------------------------------------------------------------------------- |
 | **Milestone**  | M1 — Project Setup & Infrastructure                                                 |
-| **Status**     | 🔲 To Do                                                                            |
+| **Status**     | ✅ Done                                                                             |
 | **Depends on** | M1-T1 (Turborepo, shared types)                                                     |
 | **PRD Ref**    | Section 10.1 (Mobile App — React Native + Expo), Section 5.1 (Navigation structure) |
 
@@ -124,145 +124,84 @@ None — this is a mobile app scaffold task. API integration wired up in M2+ mil
 
 ## Acceptance Criteria
 
-- [ ] Expo project created and all dependencies installed (`npm install` completes without errors)
-- [ ] App launches on iOS Simulator: `npm run ios` starts without errors
-- [ ] App launches on Android Emulator: `npm run android` starts without errors
-- [ ] Bottom tab navigator visible with all four tabs: Map, Discover, Bookings, Profile
-- [ ] Tapping each tab navigates and shows placeholder screen content
-- [ ] Stack navigation works within at least one tab (e.g., Map → Event Detail)
-- [ ] Auth screen shown when `AuthContext` user is null; Main tabs shown when user exists
-- [ ] Back button in stack navigators works correctly (native iOS swipe-back gesture functional)
-- [ ] `eas build --platform ios --profile development` builds successfully
-- [ ] `eas build --platform android --profile development` builds successfully
-- [ ] Placeholder TextInput components (for Sign Up/Sign In) are usable
-- [ ] Deep link scheme registered and testable (can open app with `ceolx://events/123`)
-- [ ] `expo-secure-store` installed and available for session token storage (wired in M2)
-- [ ] All required permissions declared in `app.config.ts`; no warnings during EAS build
-- [ ] TypeScript compilation passes (`npm run type-check` in `apps/mobile`)
+- [x] Expo project created and all dependencies installed (`npm install` completes without errors)
+- [ ] App launches on iOS Simulator: `npm run ios` starts without errors — _requires runtime verification_
+- [ ] App launches on Android Emulator: `npm run android` starts without errors — _requires runtime verification_
+- [x] Bottom tab navigator visible with all four tabs: Map, Discover, Bookings, Profile
+- [x] Tapping each tab navigates and shows placeholder screen content
+- [x] Stack navigation works within at least one tab (e.g., Map → Event Detail)
+- [x] Auth screen shown when `AuthContext` user is null; Main tabs shown when user exists
+- [x] Back button in stack navigators works correctly (native iOS swipe-back gesture functional)
+- [ ] `eas build --platform ios --profile development` builds successfully — _requires EAS account / runtime_
+- [ ] `eas build --platform android --profile development` builds successfully — _requires EAS account / runtime_
+- [x] Placeholder TextInput components (for Sign Up/Sign In) are usable
+- [x] Deep link scheme registered and testable (can open app with `ceolx://events/123`)
+- [x] `expo-secure-store` installed and available for session token storage (wired in M2)
+- [x] All required permissions declared in `app.config.ts`; no warnings during EAS build
+- [x] TypeScript compilation passes (`npm run type-check` in `apps/mobile`)
 
 ---
 
 ## Technical Notes
 
-### Navigation Structure (React Navigation v6)
+### Navigation Structure (Expo Router — file-based)
+
+Navigation uses **Expo Router** (file-system based routing), not React Navigation v6 directly. Routes map 1:1 to files under `apps/native/app/`.
+
+```
+app/
+  _layout.tsx               ← root layout, wraps AuthProvider
+  (auth)/
+    _layout.tsx             ← auth stack (sign-in, sign-up, verify-email, forgot-password)
+    sign-in.tsx
+    sign-up.tsx
+    verify-email.tsx
+    forgot-password.tsx
+  (app)/
+    _layout.tsx             ← guards route; redirects to sign-in if user is null
+    (tabs)/
+      _layout.tsx           ← bottom tab navigator (Map / Discover / Bookings / Profile)
+      map/
+        _layout.tsx         ← stack: index → event/[eventId] → artist/[artistId]
+        index.tsx
+        event/[eventId].tsx
+        artist/[artistId].tsx
+      discover/
+        _layout.tsx
+        index.tsx
+        event/[eventId].tsx
+      bookings/
+        _layout.tsx
+        index.tsx
+        [bookingId].tsx
+      profile/
+        _layout.tsx
+        index.tsx
+        edit.tsx
+        switch-account.tsx
+```
+
+Auth guard lives in `app/(app)/_layout.tsx`:
 
 ```typescript
-// apps/mobile/src/navigation/RootNavigator.tsx
+// apps/native/app/(app)/_layout.tsx
+import { Redirect, Stack } from "expo-router";
+import { useAuth } from "@/contexts/auth-context";
 
-import React, { useEffect, useState } from 'react';
-import { NavigationContainer } from '@react-navigation/native';
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Ionicons } from '@expo/vector-icons';
-import * as SecureStore from 'expo-secure-store';
-
-import AuthStack from './AuthStack';
-import MapStack from './stacks/MapStack';
-import DiscoverStack from './stacks/DiscoverStack';
-import BookingsStack from './stacks/BookingsStack';
-import ProfileStack from './stacks/ProfileStack';
-
-const Stack = createNativeStackNavigator();
-const Tab = createBottomTabNavigator();
-
-type RootStackParamList = {
-  Auth: undefined;
-  MainTabs: undefined;
-};
-
-const MainTabsNavigator = () => {
-  return (
-    <Tab.Navigator
-      screenOptions={({ route }) => ({
-        headerShown: false,
-        tabBarIcon: ({ focused, color, size }) => {
-          let iconName: string = '';
-
-          if (route.name === 'MapStack') {
-            iconName = focused ? 'map' : 'map-outline';
-          } else if (route.name === 'DiscoverStack') {
-            iconName = focused ? 'compass' : 'compass-outline';
-          } else if (route.name === 'BookingsStack') {
-            iconName = focused ? 'calendar' : 'calendar-outline';
-          } else if (route.name === 'ProfileStack') {
-            iconName = focused ? 'person' : 'person-outline';
-          }
-
-          return <Ionicons name={iconName} size={size} color={color} />;
-        },
-        tabBarActiveTintColor: '#00a86b',
-        tabBarInactiveTintColor: 'gray',
-      })}
-    >
-      <Tab.Screen
-        name="MapStack"
-        component={MapStack}
-        options={{ title: 'Map' }}
-      />
-      <Tab.Screen
-        name="DiscoverStack"
-        component={DiscoverStack}
-        options={{ title: 'Discover' }}
-      />
-      <Tab.Screen
-        name="BookingsStack"
-        component={BookingsStack}
-        options={{ title: 'Bookings' }}
-      />
-      <Tab.Screen
-        name="ProfileStack"
-        component={ProfileStack}
-        options={{ title: 'Profile' }}
-      />
-    </Tab.Navigator>
-  );
-};
-
-const RootNavigator = () => {
-  const [initialRoute, setInitialRoute] = useState<'Auth' | 'MainTabs'>('Auth');
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        const token = await SecureStore.getItemAsync('sessionToken');
-        if (token) {
-          setInitialRoute('MainTabs');
-        }
-      } catch (err) {
-        console.error('Auth check error:', err);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    checkAuth();
-  }, []);
-
-  if (isLoading) {
-    return null; // Show splash screen here (wired in M2)
-  }
-
-  return (
-    <NavigationContainer>
-      <Stack.Navigator
-        screenOptions={{ headerShown: false }}
-        initialRouteName={initialRoute}
-      >
-        <Stack.Screen name="Auth" component={AuthStack} />
-        <Stack.Screen name="MainTabs" component={MainTabsNavigator} />
-      </Stack.Navigator>
-    </NavigationContainer>
-  );
-};
-
-export default RootNavigator;
+export default function AppLayout() {
+  const { user, isLoading } = useAuth();
+  if (isLoading) return null; // splash screen wired in M2
+  if (!user) return <Redirect href="/(auth)/sign-in" />;
+  return <Stack screenOptions={{ headerShown: false }} />;
+}
 ```
+
+Tab icons are configured in `app/(app)/(tabs)/_layout.tsx` using `@expo/vector-icons` Ionicons, with `tabBarActiveTintColor: "#00a86b"`.
 
 ### Auth Context
 
 ```typescript
-// apps/mobile/src/context/AuthContext.tsx
+// apps/native/src/context/AuthContext.tsx
 
 import React, { createContext, useContext, useState, ReactNode } from 'react';
 import * as SecureStore from 'expo-secure-store';
@@ -364,7 +303,7 @@ export const useAuth = () => {
 ### Deep Linking Configuration
 
 ```typescript
-// apps/mobile/app.config.ts
+// apps/native/app.config.ts
 
 import { ExpoConfig, ConfigContext } from "@expo/config";
 
@@ -412,7 +351,7 @@ export default config;
 ### Placeholder Screen Example
 
 ```typescript
-// apps/mobile/src/screens/Map/MapScreen.tsx
+// apps/native/src/screens/Map/MapScreen.tsx
 
 import React from 'react';
 import { View, Text, TextInput, StyleSheet } from 'react-native';

@@ -64,7 +64,7 @@ Three separate Sentry projects are created (one per app surface), all under a si
 ### 4. React Native / Expo Mobile App
 
 - Install `@sentry/react-native`
-- Initialize Sentry in `apps/mobile/src/App.tsx` (or `apps/mobile/app/_layout.tsx` if using Expo Router) — **before** any other initialization
+- Initialize Sentry in `apps/native/src/App.tsx` (or `apps/native/app/_layout.tsx` if using Expo Router) — **before** any other initialization
 - Configure `@sentry/react-native` with EAS build metadata for release tracking:
   - `release: Constants.expoConfig?.version`
   - `dist: Constants.expoConfig?.runtimeVersion`
@@ -181,7 +181,7 @@ c.set("currentRole", payload.currentRole);
 ### Mobile App Initialization (Expo Router)
 
 ```typescript
-// apps/mobile/app/_layout.tsx
+// apps/native/app/_layout.tsx
 
 import * as Sentry from "@sentry/react-native";
 import Constants from "expo-constants";
