@@ -3,7 +3,7 @@
 | Field          | Value                                                                           |
 | -------------- | ------------------------------------------------------------------------------- |
 | **Milestone**  | M1 — Project Setup & Infrastructure                                             |
-| **Status**     | 🔲 To Do                                                                        |
+| **Status**     | ✅ Complete — PR #8                                                             |
 | **Depends on** | M1-T3 (Hono API scaffold — basic CORS stub is in place)                         |
 | **PRD Ref**    | Section 10.1 (Backend API — middleware), Section 10.3 (Mobile App cross-origin) |
 
@@ -115,18 +115,18 @@ Development origins are injected automatically when `NODE_ENV=development` — n
 
 ## Acceptance Criteria
 
-- [ ] `apps/server/src/config/cors.ts` created with `buildAllowedOrigins()` and `isAllowedOrigin()` exports
-- [ ] `CORS_ALLOWED_ORIGINS` env var parsed at startup; dev origins auto-injected when `NODE_ENV=development`
-- [ ] Stub `cors()` in `apps/server/src/index.ts` replaced with full production config
-- [ ] Requests from whitelisted origins receive `Access-Control-Allow-Origin` matching the request origin
-- [ ] Requests from non-whitelisted origins receive no `Access-Control-Allow-Origin` header + `WARN` log
-- [ ] `Access-Control-Allow-Credentials: true` present on all CORS responses
-- [ ] `OPTIONS` preflight requests return `204 No Content` with correct CORS headers
-- [ ] `X-RateLimit-*` headers exposed to browser clients via `Access-Control-Expose-Headers`
-- [ ] `preflight cache: 86400s` — verify with `Access-Control-Max-Age: 86400` header
-- [ ] Expo dev client (`http://localhost:8081`) works in development without CORS errors — verified without adding localhost to `CORS_ALLOWED_ORIGINS` env var
-- [ ] `.env.example` updated — `CORS_ALLOWED_ORIGINS` shows production-only origins; dev origins documented as auto-injected
-- [ ] TypeScript compilation passes with zero errors
+- [x] `apps/server/src/config/cors.ts` created with `buildAllowedOrigins()` and `isAllowedOrigin()` exports
+- [x] `CORS_ALLOWED_ORIGINS` env var parsed at startup; dev origins auto-injected when `NODE_ENV=development`
+- [x] Stub `cors()` in `apps/server/src/index.ts` replaced with full production config
+- [x] Requests from whitelisted origins receive `Access-Control-Allow-Origin` matching the request origin
+- [x] Requests from non-whitelisted origins receive no `Access-Control-Allow-Origin` header + `WARN` log
+- [x] `Access-Control-Allow-Credentials: true` present on all CORS responses
+- [x] `OPTIONS` preflight requests return `204 No Content` with correct CORS headers
+- [x] `X-RateLimit-*` headers exposed to browser clients via `Access-Control-Expose-Headers`
+- [x] `preflight cache: 86400s` — verify with `Access-Control-Max-Age: 86400` header
+- [x] Expo dev client (`http://localhost:8081`) works in development without CORS errors — verified without adding localhost to `CORS_ALLOWED_ORIGINS` env var
+- [x] `.env.example` updated — `CORS_ALLOWED_ORIGINS` shows production-only origins; dev origins documented as auto-injected
+- [x] TypeScript compilation passes with zero errors
 
 ---
 
