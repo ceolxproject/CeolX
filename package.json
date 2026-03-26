@@ -31,6 +31,7 @@
   },
   "dependencies": {
     "@CeolX/env": "workspace:*",
+    "@rolldown/binding-darwin-arm64": "1.0.0-rc.12",
     "dotenv": "catalog:",
     "zod": "catalog:"
   },
@@ -43,6 +44,7 @@
     "commitlint": "^20.5.0",
     "cz-git": "^1.12.0",
     "czg": "^1.12.0",
+    "envx-cli": "^1.3.1",
     "eslint": "^9.0.0",
     "globals": "^17.4.0",
     "husky": "^9.1.7",
@@ -52,8 +54,7 @@
     "typescript": "^5",
     "typescript-eslint": "^8.57.2",
     "validate-branch-name": "^1.3.2",
-    "vitest": "^3.0.0",
-    "envx-cli": "^1.3.1"
+    "vitest": "^3.0.0"
   },
   "lint-staged": {
     "*.{ts,mts,cts,tsx,js,mjs,cjs,jsx}": [
