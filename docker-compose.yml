@@ -19,5 +19,13 @@ services:
       retries: 5
     restart: unless-stopped
 
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: ceolx_mailpit
+    ports:
+      - "1025:1025" # SMTP — nodemailer target in local dev
+      - "8025:8025" # Web UI — http://localhost:8025
+    restart: unless-stopped
+
 volumes:
   postgres_data:
