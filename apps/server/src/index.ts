@@ -1,6 +1,7 @@
 import { createContext } from "@CeolX/api/context";
 import { appRouter } from "@CeolX/api/routers/index";
 import { auth } from "@CeolX/auth";
+import { rateLimiter, RATE_LIMIT_TIERS } from "@CeolX/cache";
 import { env } from "@CeolX/env/server";
 import { trpcServer } from "@hono/trpc-server";
 import { serve } from "@hono/node-server";
@@ -22,7 +23,7 @@ app.use(
   }),
 );
 
-// Health check — no auth required
+// Health check — no rate limit, no auth required
 app.get("/health", (c) =>
   c.json({
     status: "ok",
@@ -32,9 +33,11 @@ app.get("/health", (c) =>
 );
 
 // BetterAuth — sign-up, sign-in, sign-out, email verification, OAuth callbacks
+app.use("/api/auth/*", rateLimiter(RATE_LIMIT_TIERS.authLogin));
 app.on(["POST", "GET"], "/api/auth/*", (c) => auth.handler(c.req.raw));
 
 // tRPC — all feature procedures (events, artists, bookings, admin) live in packages/api
+app.use("/trpc/*", rateLimiter(RATE_LIMIT_TIERS.authenticatedGeneral));
 app.use(
   "/trpc/*",
   trpcServer({
