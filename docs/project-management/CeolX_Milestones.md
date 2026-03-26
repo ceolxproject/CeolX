@@ -133,15 +133,20 @@
 
 ### M1-T7 · API Rate Limiting
 
-**What**: Protect Hono API endpoints from brute-force and abuse. Auth endpoints rate-limited by IP; general authenticated routes rate-limited by user ID.
+**What**: Protect Hono API endpoints from brute-force and abuse using two-layer rate limiting. Layer 1 applies broad limits to route groups via Hono middleware. Layer 2 adds per-procedure granular limits keyed by email for sensitive operations (forgot-password, resend emails).
 
-| Sub-task          | Details                                                                                        |
-| ----------------- | ---------------------------------------------------------------------------------------------- |
-| AWS API Gateway   | Stage-level burst + rate limits (500 burst, 1000 req/s) — no code required                     |
-| Hono middleware   | `createRateLimiter()` factory with sliding window, `ipRateLimiter` + `userRateLimiter` helpers |
-| Counter store     | DynamoDB `ceolx-rate-limits` table with TTL; in-memory `Map` fallback for development          |
-| Route integration | Auth routes: 10 req/15 min (IP); authenticated routes: 120 req/min (user); webhooks: excluded  |
-| Response headers  | `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset`, `Retry-After` on 429        |
+| Sub-task              | Details                                                                                                                 |
+| --------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| Counter store         | `@upstash/ratelimit` + `@upstash/redis` (HTTP-based, Lambda-compatible). No-op when Upstash env vars absent (local dev) |
+| Layer 1 middleware    | `rateLimiter()` Hono middleware factory — sliding window, singleton Map cache per process, `X-RateLimit-*` headers      |
+| Layer 2 per-procedure | `rl:forgot-password:{email}`, `rl:resend-verify:{email}`, `rl:resend-activation:{userId}` — Redis incr/expire pattern   |
+| Route integration     | `/api/auth/*` → 10 req/15 min (IP); `/rpc/*` → 500 req/min (userId); webhooks outside rate-limited prefixes             |
+| Rate limit tiers      | `authLogin`, `authenticatedGeneral`, `publicCatalog`, `adminGeneral`, `muxUpload` — defined in `packages/cache`         |
+| IP allowlist          | `RATE_LIMIT_IP_ALLOWLIST` env var (comma-separated) — bypasses all limits for internal/test IPs                         |
+| Response headers      | `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset` on all responses; `Retry-After` on 429 only           |
+| Bypass conditions     | `NODE_ENV=test`, `RATE_LIMIT_ENABLED=false`, or missing Upstash vars → no-op (no errors thrown)                         |
+| Webhooks              | Stripe/Mux/Postmark webhook routes fall outside rate-limited prefixes; signature verification handles abuse             |
+| Env vars              | `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN`, `RATE_LIMIT_ENABLED`, `RATE_LIMIT_IP_ALLOWLIST`                   |
 
 ---
 
@@ -149,13 +154,15 @@
 
 **What**: Replace the M1-T3 CORS stub with hardened, environment-aware CORS rules. Ensures admin dashboard and Expo dev client work correctly without introducing security vulnerabilities.
 
-| Sub-task         | Details                                                                             |
-| ---------------- | ----------------------------------------------------------------------------------- |
-| Origin whitelist | `CORS_ALLOWED_ORIGINS` env var (pipe-separated); dev origins injected automatically |
-| Hono config      | Dynamic origin validation function — no wildcards; reject with `WARN` log           |
-| Credentials      | `Access-Control-Allow-Credentials: true` required for BetterAuth session cookies    |
-| Preflight        | OPTIONS returns `204 No Content`, `Access-Control-Max-Age: 86400`                   |
-| Exposed headers  | `X-RateLimit-*` headers exposed to browser clients                                  |
+| Sub-task           | Details                                                                                                                   |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------- |
+| `config/cors.ts`   | New `apps/server/src/config/cors.ts` — `buildAllowedOrigins()` + `isAllowedOrigin()`; isolated and testable               |
+| Origin whitelist   | `CORS_ALLOWED_ORIGINS` env var (pipe-separated, staging/prod only); dev origins auto-injected when `NODE_ENV=development` |
+| Hono config        | Replace stub `cors()` (index.ts:17-23) with dynamic origin function — no wildcards; reject with `WARN` log                |
+| Full options       | `allowMethods`, `allowHeaders: [Content-Type, Authorization]`, `exposeHeaders: [X-RateLimit-*]`, `maxAge: 86400`          |
+| Credentials        | `Access-Control-Allow-Credentials: true` required for BetterAuth session cookies                                          |
+| Preflight          | OPTIONS returns `204 No Content`, `Access-Control-Max-Age: 86400`                                                         |
+| `.env.example` fix | Remove hardcoded dev origins from `CORS_ALLOWED_ORIGINS`; document auto-injection via `NODE_ENV=development`              |
 
 ---
 
