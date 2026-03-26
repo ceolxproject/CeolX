@@ -3,7 +3,7 @@
 | Field          | Value                                                                                                             |
 | -------------- | ----------------------------------------------------------------------------------------------------------------- |
 | **Milestone**  | M1 — Project Setup & Infrastructure                                                                               |
-| **Status**     | 🔲 To Do                                                                                                          |
+| **Status**     | ✅ Code Complete — Postmark account setup pending (no domain access yet)                                          |
 | **Depends on** | M1-T1 (Turborepo + monorepo structure)                                                                            |
 | **Blocks**     | M2-T1 (email verification), M2-T3 (forgot password), M8-T1 (venue activation email), M8-T2 (payment confirmation) |
 | **PRD Ref**    | Section 10.1 (Postmark — transactional email), Authentication flows                                               |
@@ -125,16 +125,16 @@ Returns `{ message: "not implemented" }` for now. Wired in M7 to handle bounce a
 
 ## Acceptance Criteria
 
-- [ ] Postmark account created with `ceolx` Server and sender signature verified for `noreply@ceolx.ie`
-- [ ] SPF, DKIM, DMARC DNS records added and verified in Postmark dashboard
-- [ ] `packages/email` workspace created and resolvable as `@CeolX/email`
-- [ ] `sendEmail()` implemented with transport factory, structured logging (no body/subject in logs)
-- [ ] `NODE_ENV=development` always routes to Mailpit — no accidental real emails
-- [ ] `POSTMARK_API_TOKEN`, `POSTMARK_FROM_ADDRESS`, `SMTP_HOST`, `SMTP_PORT` added to env schema and `.env` templates
-- [ ] `POST /api/webhooks/postmark` stub route added to `apps/server`
-- [ ] TypeScript compilation passes with zero errors across the monorepo
-- [ ] Smoke test (local): call `sendEmail()` → email appears in Mailpit at `http://localhost:8025`
-- [ ] Smoke test (Postmark): set real token in staging → email received in Postmark test inbox
+- [ ] Postmark account created with `ceolx` Server and sender signature verified for `noreply@ceolx.ie` ⏳ pending domain access
+- [ ] SPF, DKIM, DMARC DNS records added and verified in Postmark dashboard ⏳ pending domain access
+- [x] `packages/email` workspace created and resolvable as `@CeolX/email` — PR #5
+- [x] `sendEmail()` implemented with transport factory, structured logging (no body/subject in logs) — PR #5
+- [x] `NODE_ENV=development` always routes to Mailpit — no accidental real emails — PR #5
+- [x] `POSTMARK_API_TOKEN`, `POSTMARK_FROM_ADDRESS`, `SMTP_HOST`, `SMTP_PORT` added to env schema and `.env` templates — PR #5
+- [x] `POST /api/webhooks/postmark` stub route added to `apps/server` — PR #5
+- [x] TypeScript compilation passes with zero errors across the monorepo — PR #5
+- [ ] Smoke test (local): call `sendEmail()` → email appears in Mailpit at `http://localhost:8025` ⏳ manual verification pending
+- [ ] Smoke test (Postmark): set real token in staging → email received in Postmark test inbox ⏳ pending Postmark account
 
 ---
 
