@@ -118,15 +118,16 @@
 
 ### M1-T6 · Postmark Email Service Setup
 
-**What**: Configure Postmark account, verify sender domain, and create the shared `sendEmail()` utility in `packages/shared`. This is a prerequisite for all email flows in M2 and M8.
+**What**: Configure Postmark account, verify sender domain, and create the `packages/email` workspace package with the reusable `sendEmail()` utility. Prerequisite for all email flows in M2 and M8.
 
-| Sub-task         | Details                                                                                    |
-| ---------------- | ------------------------------------------------------------------------------------------ |
-| Postmark account | Create server for CeolX, verify `noreply@ceolx.ie` sender signature (SPF, DKIM, DMARC)     |
-| Email utility    | `packages/shared/src/email/` — Postmark client singleton, `sendEmail()`, TypeScript types  |
-| Email tags       | Define: `email-verification`, `password-reset`, `venue-activation`, `payment-confirmation` |
-| Dev dry-run      | Log email content to console in `development` — no real sends                              |
-| Env vars         | `POSTMARK_API_TOKEN`, `POSTMARK_FROM_ADDRESS` added to `.env` template                     |
+| Sub-task         | Details                                                                                                            |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------ |
+| Postmark account | Create server for CeolX, verify `noreply@ceolx.ie` sender signature (SPF, DKIM, DMARC)                             |
+| Email package    | `packages/email` (`@CeolX/email`) — transport factory, `sendEmail()`, TypeScript types                             |
+| Transport        | `NODE_ENV=development` → Mailpit SMTP always; staging/prod → Postmark `ServerClient` (`MessageStream: "outbound"`) |
+| Email tags       | Define: `email-verification`, `password-reset`, `venue-activation`, `payment-confirmation`                         |
+| Webhook stub     | `POST /api/webhooks/postmark` stub in `apps/server` (wired in M7)                                                  |
+| Env vars         | `POSTMARK_API_TOKEN`, `POSTMARK_FROM_ADDRESS`, `SMTP_HOST`, `SMTP_PORT` added to env schema + `.env` template      |
 
 ---
 
