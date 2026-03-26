@@ -2,12 +2,14 @@ import { createContext } from "@CeolX/api/context";
 import { appRouter } from "@CeolX/api/routers/index";
 import { auth } from "@CeolX/auth";
 import { rateLimiter, RATE_LIMIT_TIERS } from "@CeolX/cache";
-import { env } from "@CeolX/env/server";
+import "@CeolX/env/server"; // validates required env vars at startup
 import { trpcServer } from "@hono/trpc-server";
 import { serve } from "@hono/node-server";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
+
+import { isAllowedOrigin } from "./config/cors";
 
 import { errorHandler } from "./middleware/errorHandler";
 import webhooksRoutes from "./routes/webhooks";
@@ -18,8 +20,23 @@ app.use(logger());
 app.use(
   "/*",
   cors({
-    origin: env.CORS_ALLOWED_ORIGINS.split("|"),
+    origin: (origin) => {
+      // No Origin header = native mobile or same-origin — allow (no CORS headers needed)
+      if (!origin) return null;
+      if (isAllowedOrigin(origin)) return origin;
+      // Log rejected origins at warn level (not error — common from scanners)
+      console.warn("[CORS] Rejected origin:", origin);
+      return null; // Hono treats null as "deny"
+    },
     credentials: true,
+    allowMethods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
+    allowHeaders: ["Content-Type", "Authorization"],
+    exposeHeaders: [
+      "X-RateLimit-Limit",
+      "X-RateLimit-Remaining",
+      "X-RateLimit-Reset",
+    ],
+    maxAge: 86400,
   }),
 );
 
