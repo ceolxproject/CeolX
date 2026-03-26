@@ -1,0 +1,42 @@
+import { Button } from "@CeolX/ui/components/button";
+import { LogOut, User } from "lucide-react";
+import { useState } from "react";
+
+export function AdminHeader() {
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  return (
+    <header className="bg-white border-b border-gray-200 px-6 py-3 shrink-0">
+      <div className="flex justify-between items-center">
+        <div className="md:hidden w-8" /> {/* spacer for mobile menu button */}
+        <div className="hidden md:block" />
+        <div className="flex items-center gap-3 relative">
+          <button
+            onClick={() => setMenuOpen(!menuOpen)}
+            className="flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-gray-100 text-sm"
+            aria-label="Admin menu"
+          >
+            <User size={18} className="text-gray-600" />
+            <span className="font-medium text-gray-700">Admin</span>
+          </button>
+          {menuOpen && (
+            <div className="absolute right-0 top-full mt-1 w-44 bg-white border border-gray-200 rounded-lg shadow-lg z-10">
+              <Button
+                variant="ghost"
+                className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50"
+                onClick={() => {
+                  // Logout wired in M9
+                  console.log("Logout clicked");
+                  setMenuOpen(false);
+                }}
+              >
+                <LogOut size={15} className="mr-2" />
+                Logout
+              </Button>
+            </div>
+          )}
+        </div>
+      </div>
+    </header>
+  );
+}

@@ -1,19 +1,21 @@
 {
-  "name": "web",
+  "name": "@ceolx/admin",
   "version": "0.0.0",
   "private": true,
   "type": "module",
   "scripts": {
     "dev": "vite dev",
     "build": "vite build",
-    "serve": "vite preview",
-    "start": "vite",
+    "preview": "vite preview",
+    "lint": "eslint . --ext ts,tsx",
+    "type-check": "tsc --noEmit",
     "check-types": "vite build && tsc --noEmit"
   },
   "dependencies": {
     "@CeolX/api": "workspace:*",
     "@CeolX/auth": "workspace:*",
     "@CeolX/env": "workspace:*",
+    "@CeolX/shared": "workspace:*",
     "@CeolX/ui": "workspace:*",
     "@hookform/resolvers": "^5.1.1",
     "@tailwindcss/vite": "^4.1.18",
