@@ -258,51 +258,48 @@ CREATE INDEX idx_follows_following ON follows(following_profile_id, following_pr
 ### Hono Handler Example
 
 ```typescript
-import { Hono } from "hono";
-import { db } from "../db";
-import { follows, artistProfiles, venueProfiles } from "../db/schema";
-import { eq, and } from "drizzle-orm";
+import { Hono } from 'hono';
+import { db } from '../db';
+import { follows, artistProfiles, venueProfiles } from '../db/schema';
+import { eq, and } from 'drizzle-orm';
 
 const followRouter = new Hono();
 
 // POST /follows
-followRouter.post("/", async (c) => {
-  const user = c.get("user");
+followRouter.post('/', async (c) => {
+  const user = c.get('user');
   const { profile_id, profile_type } = await c.req.json();
 
-  if (!["artist", "venue"].includes(profile_type)) {
-    return c.json({ error: "Invalid profile_type" }, 400);
+  if (!['artist', 'venue'].includes(profile_type)) {
+    return c.json({ error: 'Invalid profile_type' }, 400);
   }
 
   // Check if profile exists and is active
-  const profileTable =
-    profile_type === "artist" ? artistProfiles : venueProfiles;
+  const profileTable = profile_type === 'artist' ? artistProfiles : venueProfiles;
   const profile = await db
     .select()
     .from(profileTable)
-    .where(
-      and(eq(profileTable.id, profile_id), eq(profileTable.is_active, true)),
-    )
+    .where(and(eq(profileTable.id, profile_id), eq(profileTable.is_active, true)))
     .then((rows) => rows[0]);
 
   if (!profile) {
-    return c.json({ error: "Profile not found or inactive" }, 404);
+    return c.json({ error: 'Profile not found or inactive' }, 404);
   }
 
   // Prevent self-follow
-  if (profile_type === "artist") {
+  if (profile_type === 'artist') {
     const artistProfile = await db.query.artistProfiles.findFirst({
       where: eq(artistProfiles.user_id, user.id),
     });
     if (artistProfile?.id === profile_id) {
-      return c.json({ error: "Cannot follow yourself" }, 400);
+      return c.json({ error: 'Cannot follow yourself' }, 400);
     }
-  } else if (profile_type === "venue") {
+  } else if (profile_type === 'venue') {
     const venueProfile = await db.query.venueProfiles.findFirst({
       where: eq(venueProfiles.user_id, user.id),
     });
     if (venueProfile?.id === profile_id) {
-      return c.json({ error: "Cannot follow yourself" }, 400);
+      return c.json({ error: 'Cannot follow yourself' }, 400);
     }
   }
 
@@ -314,13 +311,13 @@ followRouter.post("/", async (c) => {
       and(
         eq(follows.follower_user_id, user.id),
         eq(follows.following_profile_id, profile_id),
-        eq(follows.following_profile_type, profile_type),
-      ),
+        eq(follows.following_profile_type, profile_type)
+      )
     )
     .then((rows) => rows[0]);
 
   if (existingFollow) {
-    return c.json({ error: "Already following this profile" }, 409);
+    return c.json({ error: 'Already following this profile' }, 409);
   }
 
   // Create follow
@@ -344,32 +341,26 @@ followRouter.post("/", async (c) => {
 });
 
 // DELETE /follows/:profileId
-followRouter.delete("/:profileId", async (c) => {
-  const user = c.get("user");
-  const profileId = c.req.param("profileId");
+followRouter.delete('/:profileId', async (c) => {
+  const user = c.get('user');
+  const profileId = c.req.param('profileId');
 
   // Find the follow relationship
   const follow = await db
     .select()
     .from(follows)
-    .where(
-      and(
-        eq(follows.follower_user_id, user.id),
-        eq(follows.following_profile_id, profileId),
-      ),
-    )
+    .where(and(eq(follows.follower_user_id, user.id), eq(follows.following_profile_id, profileId)))
     .then((rows) => rows[0]);
 
   if (!follow) {
-    return c.json({ error: "Follow not found" }, 404);
+    return c.json({ error: 'Follow not found' }, 404);
   }
 
   // Delete follow
   await db.delete(follows).where(eq(follows.id, follow.id));
 
   // Decrement follower_count
-  const profileTable =
-    follow.following_profile_type === "artist" ? artistProfiles : venueProfiles;
+  const profileTable = follow.following_profile_type === 'artist' ? artistProfiles : venueProfiles;
   await db
     .update(profileTable)
     .set({ follower_count: db.raw(`MAX(0, follower_count - 1)`) })
@@ -379,31 +370,24 @@ followRouter.delete("/:profileId", async (c) => {
 });
 
 // GET /users/me/following
-followRouter.get("/me/following", async (c) => {
-  const user = c.get("user");
-  const profileType = c.req.query("profile_type");
-  const limit = parseInt(c.req.query("limit") || "50");
-  const offset = parseInt(c.req.query("offset") || "0");
+followRouter.get('/me/following', async (c) => {
+  const user = c.get('user');
+  const profileType = c.req.query('profile_type');
+  const limit = parseInt(c.req.query('limit') || '50');
+  const offset = parseInt(c.req.query('offset') || '0');
 
-  let query = db
-    .select()
-    .from(follows)
-    .where(eq(follows.follower_user_id, user.id));
+  let query = db.select().from(follows).where(eq(follows.follower_user_id, user.id));
 
-  if (profileType && ["artist", "venue"].includes(profileType)) {
+  if (profileType && ['artist', 'venue'].includes(profileType)) {
     query = query.where(eq(follows.following_profile_type, profileType));
   }
 
-  const results = await query
-    .limit(limit)
-    .offset(offset)
-    .orderBy(desc(follows.created_at));
+  const results = await query.limit(limit).offset(offset).orderBy(desc(follows.created_at));
 
   // Fetch profile data for each follow
   const following = await Promise.all(
     results.map(async (f) => {
-      const profileTable =
-        f.following_profile_type === "artist" ? artistProfiles : venueProfiles;
+      const profileTable = f.following_profile_type === 'artist' ? artistProfiles : venueProfiles;
       const profile = await db
         .select()
         .from(profileTable)
@@ -414,7 +398,7 @@ followRouter.get("/me/following", async (c) => {
         ...f,
         profile,
       };
-    }),
+    })
   );
 
   return c.json({

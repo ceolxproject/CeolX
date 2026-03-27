@@ -157,58 +157,55 @@ apps/server/src/
 ### `apps/server/src/index.ts`
 
 ```typescript
-import { createContext } from "@CeolX/api/context";
-import { appRouter } from "@CeolX/api/routers/index";
-import { auth } from "@CeolX/auth";
-import { env } from "@CeolX/env/server";
-import { trpcServer } from "@hono/trpc-server";
-import { serve } from "@hono/node-server";
-import { Hono } from "hono";
-import { cors } from "hono/cors";
-import { logger } from "hono/logger";
+import { createContext } from '@CeolX/api/context';
+import { appRouter } from '@CeolX/api/routers/index';
+import { auth } from '@CeolX/auth';
+import { env } from '@CeolX/env/server';
+import { trpcServer } from '@hono/trpc-server';
+import { serve } from '@hono/node-server';
+import { Hono } from 'hono';
+import { cors } from 'hono/cors';
+import { logger } from 'hono/logger';
 
-import { errorHandler } from "./middleware/errorHandler";
-import webhooksRoutes from "./routes/webhooks";
+import { errorHandler } from './middleware/errorHandler';
+import webhooksRoutes from './routes/webhooks';
 
 const app = new Hono();
 
 app.use(logger());
-app.use(
-  "/*",
-  cors({ origin: env.CORS_ALLOWED_ORIGINS.split("|"), credentials: true }),
-);
+app.use('/*', cors({ origin: env.CORS_ALLOWED_ORIGINS.split('|'), credentials: true }));
 
-app.get("/health", (c) =>
+app.get('/health', (c) =>
   c.json({
-    status: "ok",
+    status: 'ok',
     timestamp: new Date().toISOString(),
-    version: "1.0.0",
-  }),
+    version: '1.0.0',
+  })
 );
 
-app.on(["POST", "GET"], "/api/auth/*", (c) => auth.handler(c.req.raw));
+app.on(['POST', 'GET'], '/api/auth/*', (c) => auth.handler(c.req.raw));
 
 app.use(
-  "/trpc/*",
+  '/trpc/*',
   trpcServer({
     router: appRouter,
     createContext: (_opts, context) => createContext({ context }),
-  }),
+  })
 );
 
-app.route("/api/webhooks", webhooksRoutes);
+app.route('/api/webhooks', webhooksRoutes);
 
 app.onError(errorHandler);
 app.notFound((c) =>
   c.json(
     {
-      error: "NotFound",
-      code: "ROUTE_NOT_FOUND",
-      message: "Endpoint not found",
+      error: 'NotFound',
+      code: 'ROUTE_NOT_FOUND',
+      message: 'Endpoint not found',
       statusCode: 404,
     },
-    404,
-  ),
+    404
+  )
 );
 
 serve({ fetch: app.fetch, port: Number(process.env.PORT) || 3001 }, () => {
@@ -219,8 +216,8 @@ serve({ fetch: app.fetch, port: Number(process.env.PORT) || 3001 }, () => {
 ### `packages/api/src/index.ts`
 
 ```typescript
-import { initTRPC, TRPCError } from "@trpc/server";
-import type { Context } from "./context";
+import { initTRPC, TRPCError } from '@trpc/server';
+import type { Context } from './context';
 
 export const t = initTRPC.context<Context>().create();
 export const router = t.router;
@@ -229,8 +226,8 @@ export const publicProcedure = t.procedure;
 export const protectedProcedure = t.procedure.use(({ ctx, next }) => {
   if (!ctx.session)
     throw new TRPCError({
-      code: "UNAUTHORIZED",
-      message: "Authentication required",
+      code: 'UNAUTHORIZED',
+      message: 'Authentication required',
     });
   return next({ ctx: { ...ctx, session: ctx.session } });
 });
@@ -239,8 +236,8 @@ export const protectedProcedure = t.procedure.use(({ ctx, next }) => {
 export const adminProcedure = t.procedure.use(({ ctx, next }) => {
   if (!ctx.session)
     throw new TRPCError({
-      code: "UNAUTHORIZED",
-      message: "Authentication required",
+      code: 'UNAUTHORIZED',
+      message: 'Authentication required',
     });
   return next({ ctx: { ...ctx, session: ctx.session } });
 });
@@ -249,11 +246,11 @@ export const adminProcedure = t.procedure.use(({ ctx, next }) => {
 ### `packages/api/src/routers/index.ts`
 
 ```typescript
-import { router } from "../index";
-import { adminRouter } from "./admin";
-import { artistsRouter } from "./artists";
-import { bookingsRouter } from "./bookings";
-import { eventsRouter } from "./events";
+import { router } from '../index';
+import { adminRouter } from './admin';
+import { artistsRouter } from './artists';
+import { bookingsRouter } from './bookings';
+import { eventsRouter } from './events';
 
 export const appRouter = router({
   events: eventsRouter,

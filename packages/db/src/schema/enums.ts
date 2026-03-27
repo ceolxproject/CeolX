@@ -1,58 +1,26 @@
-import { pgEnum } from "drizzle-orm/pg-core";
+import { pgEnum } from 'drizzle-orm/pg-core';
 
-// User persona/role
-export const userRoleEnum = pgEnum("user_role", [
-  "spectator",
-  "artist",
-  "venue",
-  "super_admin",
-]);
+import {
+  USER_ROLES,
+  EVENT_STATUSES,
+  BOOKING_STATUSES,
+  BOOKING_DIRECTIONS,
+  SUBSCRIPTION_STATUSES,
+} from '@CeolX/shared';
 
-// Event lifecycle
-export const eventStatusEnum = pgEnum("event_status", [
-  "draft",
-  "pending_review",
-  "rejected",
-  "active",
-  "archived",
-]);
+export const userRoleEnum = pgEnum('user_role', USER_ROLES);
+export const eventStatusEnum = pgEnum('event_status', EVENT_STATUSES);
+export const bookingStatusEnum = pgEnum('booking_status', BOOKING_STATUSES);
+export const bookingDirectionEnum = pgEnum('booking_direction', BOOKING_DIRECTIONS);
+export const subscriptionStatusEnum = pgEnum('subscription_status', SUBSCRIPTION_STATUSES);
 
-// Booking between Artist and Venue
-export const bookingStatusEnum = pgEnum("booking_status", [
-  "pending",
-  "accepted",
-  "rejected",
-  "cancelled",
-]);
-
-// Who initiated the booking
-export const bookingDirectionEnum = pgEnum("booking_direction", [
-  "venue_to_artist",
-  "artist_to_venue",
-]);
-
-// Venue subscription via Stripe
-export const subscriptionStatusEnum = pgEnum("subscription_status", [
-  "inactive",
-  "active",
-  "past_due",
-  "cancelled",
-]);
-
-// Media asset types
-export const mediaTypeEnum = pgEnum("media_type", [
-  "image",
-  "video",
-  "audio",
-  "text",
-]);
-
-// Push/in-app notification types
-export const notificationTypeEnum = pgEnum("notification_type", [
-  "event_approved",
-  "event_rejected",
-  "booking_invitation",
-  "booking_update",
-  "artist_message",
-  "venue_message",
+// media_type and notification_type are db-internal — not needed in shared
+export const mediaTypeEnum = pgEnum('media_type', ['image', 'video', 'audio', 'text']);
+export const notificationTypeEnum = pgEnum('notification_type', [
+  'event_approved',
+  'event_rejected',
+  'booking_invitation',
+  'booking_update',
+  'artist_message',
+  'venue_message',
 ]);

@@ -131,57 +131,47 @@ Extend the Stripe webhook handler to manage the full subscription lifecycle beyo
 
 ```typescript
 // apps/server/routes/webhooks/stripe.ts (extended)
-import { Hono } from "hono";
-import Stripe from "stripe";
-import { db } from "@/db";
-import { venueProfiles, venueSubscriptions, users } from "@/db/schema";
-import { eq } from "drizzle-orm";
-import { sendEmail } from "@/services/email";
-import { fcmDispatcher } from "@/services/fcmDispatcher";
+import { Hono } from 'hono';
+import Stripe from 'stripe';
+import { db } from '@/db';
+import { venueProfiles, venueSubscriptions, users } from '@/db/schema';
+import { eq } from 'drizzle-orm';
+import { sendEmail } from '@/services/email';
+import { fcmDispatcher } from '@/services/fcmDispatcher';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 const router = new Hono();
 
-router.post("/webhooks/stripe", async (c) => {
+router.post('/webhooks/stripe', async (c) => {
   const body = await c.req.text();
-  const sig = c.req.header("stripe-signature");
+  const sig = c.req.header('stripe-signature');
 
-  if (!sig) return c.json({ error: "No signature" }, 400);
+  if (!sig) return c.json({ error: 'No signature' }, 400);
 
   let event;
   try {
-    event = stripe.webhooks.constructEvent(
-      body,
-      sig,
-      process.env.STRIPE_WEBHOOK_SECRET!,
-    );
+    event = stripe.webhooks.constructEvent(body, sig, process.env.STRIPE_WEBHOOK_SECRET!);
   } catch (error) {
-    console.error("Webhook signature verification failed:", error);
-    return c.json({ error: "Invalid signature" }, 400);
+    console.error('Webhook signature verification failed:', error);
+    return c.json({ error: 'Invalid signature' }, 400);
   }
 
   try {
     switch (event.type) {
-      case "checkout.session.completed":
-        await handleCheckoutSessionCompleted(
-          event.data.object as Stripe.Checkout.Session,
-        );
+      case 'checkout.session.completed':
+        await handleCheckoutSessionCompleted(event.data.object as Stripe.Checkout.Session);
         break;
 
-      case "invoice.payment_succeeded":
-        await handleInvoicePaymentSucceeded(
-          event.data.object as Stripe.Invoice,
-        );
+      case 'invoice.payment_succeeded':
+        await handleInvoicePaymentSucceeded(event.data.object as Stripe.Invoice);
         break;
 
-      case "invoice.payment_failed":
+      case 'invoice.payment_failed':
         await handleInvoicePaymentFailed(event.data.object as Stripe.Invoice);
         break;
 
-      case "customer.subscription.deleted":
-        await handleSubscriptionDeleted(
-          event.data.object as Stripe.Subscription,
-        );
+      case 'customer.subscription.deleted':
+        await handleSubscriptionDeleted(event.data.object as Stripe.Subscription);
         break;
 
       default:
@@ -190,20 +180,18 @@ router.post("/webhooks/stripe", async (c) => {
 
     return c.json({ received: true });
   } catch (error) {
-    console.error("Webhook processing error:", error);
-    return c.json({ error: "Processing failed" }, 500);
+    console.error('Webhook processing error:', error);
+    return c.json({ error: 'Processing failed' }, 500);
   }
 });
 
-async function handleCheckoutSessionCompleted(
-  session: Stripe.Checkout.Session,
-) {
+async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) {
   const { venueProfileId, userId } = session.metadata as any;
 
   await db
     .update(venueProfiles)
     .set({
-      subscriptionStatus: "active",
+      subscriptionStatus: 'active',
       stripeCustomerId: session.customer as string,
       isActive: true,
     })
@@ -213,7 +201,7 @@ async function handleCheckoutSessionCompleted(
     venueProfileId,
     stripeCustomerId: session.customer as string,
     stripeSubscriptionId: session.subscription as string,
-    status: "active",
+    status: 'active',
   });
 
   const user = await db.query.users.findFirst({
@@ -227,28 +215,28 @@ async function handleCheckoutSessionCompleted(
   // Send confirmation email
   await sendEmail({
     to: user.email,
-    templateAlias: "payment-confirmation",
+    templateAlias: 'payment-confirmation',
     templateModel: {
       venueName: venue.name,
-      Amount: "€29.99",
-      PlanName: "CeolX Pro",
-      ManageLink: "https://ceolx.ie/account",
+      Amount: '€29.99',
+      PlanName: 'CeolX Pro',
+      ManageLink: 'https://ceolx.ie/account',
     },
-  }).catch((error) => console.error("Email send failed:", error));
+  }).catch((error) => console.error('Email send failed:', error));
 
   // Send FCM notification
   await fcmDispatcher
     .sendNotification({
       userId,
-      title: "Subscription Activated ✓",
-      body: "Your profile is now live. Start accepting bookings!",
+      title: 'Subscription Activated ✓',
+      body: 'Your profile is now live. Start accepting bookings!',
       data: {
-        persona: "venue",
-        route: "/profile",
-        action: "view_subscription",
+        persona: 'venue',
+        route: '/profile',
+        action: 'view_subscription',
       },
     })
-    .catch((error) => console.error("FCM send failed:", error));
+    .catch((error) => console.error('FCM send failed:', error));
 }
 
 async function handleInvoicePaymentSucceeded(invoice: Stripe.Invoice) {
@@ -268,7 +256,7 @@ async function handleInvoicePaymentSucceeded(invoice: Stripe.Invoice) {
   await db
     .update(venueSubscriptions)
     .set({
-      status: "active",
+      status: 'active',
       currentPeriodStart: new Date(invoice.period_start * 1000),
       currentPeriodEnd: new Date(invoice.period_end * 1000),
       updatedAt: new Date(),
@@ -278,7 +266,7 @@ async function handleInvoicePaymentSucceeded(invoice: Stripe.Invoice) {
   await db
     .update(venueProfiles)
     .set({
-      subscriptionStatus: "active",
+      subscriptionStatus: 'active',
       isActive: true,
       updatedAt: new Date(),
     })
@@ -291,36 +279,34 @@ async function handleInvoicePaymentSucceeded(invoice: Stripe.Invoice) {
 
   // Send confirmation email
   const amount = (invoice.amount_paid / 100).toFixed(2);
-  const planName = invoice.lines.data[0]?.description || "CeolX Pro";
+  const planName = invoice.lines.data[0]?.description || 'CeolX Pro';
 
   await sendEmail({
     to: user.email,
-    templateAlias: "payment-confirmation",
+    templateAlias: 'payment-confirmation',
     templateModel: {
       venueName: venue.name,
       Amount: `€${amount}`,
       PlanName: planName,
-      NextBillingDate: new Date(invoice.period_end * 1000)
-        .toISOString()
-        .split("T")[0],
-      ManageLink: "https://ceolx.ie/account",
+      NextBillingDate: new Date(invoice.period_end * 1000).toISOString().split('T')[0],
+      ManageLink: 'https://ceolx.ie/account',
       InvoiceLink: invoice.hosted_invoice_url,
     },
-  }).catch((error) => console.error("Email send failed:", error));
+  }).catch((error) => console.error('Email send failed:', error));
 
   // Send FCM notification
   await fcmDispatcher
     .sendNotification({
       userId: venue.userId,
-      title: "Payment Received ✓",
+      title: 'Payment Received ✓',
       body: `Your subscription renewal of €${amount} has been processed`,
       data: {
-        persona: "venue",
-        route: "/profile",
-        action: "view_subscription",
+        persona: 'venue',
+        route: '/profile',
+        action: 'view_subscription',
       },
     })
-    .catch((error) => console.error("FCM send failed:", error));
+    .catch((error) => console.error('FCM send failed:', error));
 }
 
 async function handleInvoicePaymentFailed(invoice: Stripe.Invoice) {
@@ -340,7 +326,7 @@ async function handleInvoicePaymentFailed(invoice: Stripe.Invoice) {
   await db
     .update(venueSubscriptions)
     .set({
-      status: "past_due",
+      status: 'past_due',
       updatedAt: new Date(),
     })
     .where(eq(venueSubscriptions.stripeCustomerId, customerId));
@@ -348,7 +334,7 @@ async function handleInvoicePaymentFailed(invoice: Stripe.Invoice) {
   await db
     .update(venueProfiles)
     .set({
-      subscriptionStatus: "past_due",
+      subscriptionStatus: 'past_due',
       isActive: false,
       updatedAt: new Date(),
     })
@@ -362,16 +348,14 @@ async function handleInvoicePaymentFailed(invoice: Stripe.Invoice) {
   // Send failure email
   await sendEmail({
     to: user.email,
-    templateAlias: "payment-failed",
+    templateAlias: 'payment-failed',
     templateModel: {
       venueName: venue.name,
-      ManageLink: "https://ceolx.ie/account",
+      ManageLink: 'https://ceolx.ie/account',
     },
-  }).catch((error) => console.error("Email send failed:", error));
+  }).catch((error) => console.error('Email send failed:', error));
 
-  console.error(
-    `Payment failed for venue ${venue.id}; subscription marked past_due`,
-  );
+  console.error(`Payment failed for venue ${venue.id}; subscription marked past_due`);
 }
 
 async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
@@ -391,7 +375,7 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
   await db
     .update(venueSubscriptions)
     .set({
-      status: "cancelled",
+      status: 'cancelled',
       updatedAt: new Date(),
     })
     .where(eq(venueSubscriptions.stripeCustomerId, customerId));
@@ -399,7 +383,7 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
   await db
     .update(venueProfiles)
     .set({
-      subscriptionStatus: "cancelled",
+      subscriptionStatus: 'cancelled',
       isActive: false,
       updatedAt: new Date(),
     })
@@ -413,12 +397,12 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
   // Send cancellation email
   await sendEmail({
     to: user.email,
-    templateAlias: "subscription-cancelled",
+    templateAlias: 'subscription-cancelled',
     templateModel: {
       venueName: venue.name,
-      ReactivateLink: "https://ceolx.ie/subscribe",
+      ReactivateLink: 'https://ceolx.ie/subscribe',
     },
-  }).catch((error) => console.error("Email send failed:", error));
+  }).catch((error) => console.error('Email send failed:', error));
 
   console.log(`Subscription cancelled for venue ${venue.id}`);
 }

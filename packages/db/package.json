@@ -22,6 +22,7 @@
   },
   "dependencies": {
     "@CeolX/env": "workspace:*",
+    "@CeolX/shared": "workspace:*",
     "@neondatabase/serverless": "^0.10.4",
     "dotenv": "catalog:",
     "drizzle-orm": "^0.45.1",

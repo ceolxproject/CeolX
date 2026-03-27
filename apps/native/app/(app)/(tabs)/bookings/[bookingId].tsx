@@ -1,8 +1,8 @@
-import { useLocalSearchParams } from "expo-router";
-import { StyleSheet, Text, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { useLocalSearchParams } from 'expo-router';
+import { StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { layout, ph, typography } from "@/styles/shared";
+import { layout, ph, typography } from '@/styles/shared';
 
 export default function BookingDetailScreen() {
   const { bookingId } = useLocalSearchParams<{ bookingId: string }>();
@@ -38,22 +38,22 @@ export default function BookingDetailScreen() {
 
 const styles = StyleSheet.create({
   statusChip: {
-    alignSelf: "flex-start",
-    backgroundColor: "#fff3cd",
+    alignSelf: 'flex-start',
+    backgroundColor: '#fff3cd',
     borderRadius: 6,
     paddingHorizontal: 10,
     paddingVertical: 4,
     marginBottom: 16,
   },
-  statusText: { fontSize: 13, color: "#856404", fontWeight: "500" },
-  id: { fontSize: 16, fontWeight: "600", marginBottom: 16 },
-  row: { flexDirection: "row", gap: 12, marginBottom: 16 },
+  statusText: { fontSize: 13, color: '#856404', fontWeight: '500' },
+  id: { fontSize: 16, fontWeight: '600', marginBottom: 16 },
+  row: { flexDirection: 'row', gap: 12, marginBottom: 16 },
   partyCard: {
     flex: 1,
-    backgroundColor: "#f5f5f5",
+    backgroundColor: '#f5f5f5',
     borderRadius: 8,
     padding: 12,
   },
-  partyLabel: { fontSize: 12, color: "#999", marginBottom: 4 },
-  partyName: { fontSize: 14, fontWeight: "500" },
+  partyLabel: { fontSize: 12, color: '#999', marginBottom: 4 },
+  partyName: { fontSize: 14, fontWeight: '500' },
 });

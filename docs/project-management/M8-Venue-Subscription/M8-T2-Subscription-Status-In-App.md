@@ -198,16 +198,16 @@ CREATE TABLE resend_email_log (
 
 ```typescript
 // apps/server/routes/v1/users.ts
-import { Hono } from "hono";
-import { db } from "@/db";
-import { users, venueProfiles } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { Hono } from 'hono';
+import { db } from '@/db';
+import { users, venueProfiles } from '@/db/schema';
+import { eq } from 'drizzle-orm';
 
 const router = new Hono();
 
-router.get("/users/me", async (c) => {
-  const userId = c.get("user")?.id;
-  if (!userId) return c.json({ error: "Unauthorized" }, 401);
+router.get('/users/me', async (c) => {
+  const userId = c.get('user')?.id;
+  if (!userId) return c.json({ error: 'Unauthorized' }, 401);
 
   try {
     const user = await db.query.users.findFirst({
@@ -215,7 +215,7 @@ router.get("/users/me", async (c) => {
     });
 
     let venueProfile = null;
-    if (user.currentRole === "venue") {
+    if (user.currentRole === 'venue') {
       venueProfile = await db.query.venueProfiles.findFirst({
         where: eq(venueProfiles.userId, userId),
       });
@@ -236,8 +236,8 @@ router.get("/users/me", async (c) => {
         : null,
     });
   } catch (error) {
-    console.error("User fetch error:", error);
-    return c.json({ error: "Failed to fetch user" }, 500);
+    console.error('User fetch error:', error);
+    return c.json({ error: 'Failed to fetch user' }, 500);
   }
 });
 ```
@@ -246,17 +246,17 @@ router.get("/users/me", async (c) => {
 
 ```typescript
 // apps/server/routes/v1/venues.ts
-import { Hono } from "hono";
-import { db } from "@/db";
-import { venueProfiles, resendEmailLog } from "@/db/schema";
-import { eq } from "drizzle-orm";
-import { sendEmail } from "@/services/email";
+import { Hono } from 'hono';
+import { db } from '@/db';
+import { venueProfiles, resendEmailLog } from '@/db/schema';
+import { eq } from 'drizzle-orm';
+import { sendEmail } from '@/services/email';
 
 const router = new Hono();
 
-router.post("/venues/me/resend-activation", async (c) => {
-  const userId = c.get("user")?.id;
-  if (!userId) return c.json({ error: "Unauthorized" }, 401);
+router.post('/venues/me/resend-activation', async (c) => {
+  const userId = c.get('user')?.id;
+  if (!userId) return c.json({ error: 'Unauthorized' }, 401);
 
   try {
     // Get Venue profile
@@ -265,7 +265,7 @@ router.post("/venues/me/resend-activation", async (c) => {
     });
 
     if (!venue) {
-      return c.json({ error: "Venue profile not found" }, 400);
+      return c.json({ error: 'Venue profile not found' }, 400);
     }
 
     // Check rate limit: count resends in last 60 minutes
@@ -274,17 +274,11 @@ router.post("/venues/me/resend-activation", async (c) => {
       .select()
       .from(resendEmailLog)
       .where(
-        and(
-          eq(resendEmailLog.venueProfileId, venue.id),
-          gt(resendEmailLog.sentAt, oneHourAgo),
-        ),
+        and(eq(resendEmailLog.venueProfileId, venue.id), gt(resendEmailLog.sentAt, oneHourAgo))
       );
 
     if (recentResends.length >= 3) {
-      return c.json(
-        { error: "Too many resend requests. Please wait 1 hour." },
-        429,
-      );
+      return c.json({ error: 'Too many resend requests. Please wait 1 hour.' }, 429);
     }
 
     // Get user email
@@ -295,10 +289,10 @@ router.post("/venues/me/resend-activation", async (c) => {
     // Send email
     await sendEmail({
       to: user.email,
-      templateAlias: "venue-activation",
+      templateAlias: 'venue-activation',
       templateModel: {
         venueName: venue.name,
-        ActivationLink: "https://ceolx.ie/subscribe",
+        ActivationLink: 'https://ceolx.ie/subscribe',
       },
     });
 
@@ -309,11 +303,11 @@ router.post("/venues/me/resend-activation", async (c) => {
 
     return c.json({
       success: true,
-      message: "Activation email sent",
+      message: 'Activation email sent',
     });
   } catch (error) {
-    console.error("Resend activation error:", error);
-    return c.json({ error: "Failed to send email" }, 500);
+    console.error('Resend activation error:', error);
+    return c.json({ error: 'Failed to send email' }, 500);
   }
 });
 
@@ -324,9 +318,9 @@ export default router;
 
 ```typescript
 // apps/native/hooks/useSubscriptionPolling.ts
-import { useEffect, useRef } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useRole } from "@/context/RoleContext";
+import { useEffect, useRef } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useRole } from '@/context/RoleContext';
 
 export function useSubscriptionPolling() {
   const { currentRole } = useRole();
@@ -334,7 +328,7 @@ export function useSubscriptionPolling() {
   const pollInterval = useRef<NodeJS.Timeout | null>(null);
 
   const { data: user } = useQuery({
-    queryKey: ["user", "me"],
+    queryKey: ['user', 'me'],
     queryFn: () => fetch(`${API_URL}/api/v1/users/me`).then((r) => r.json()),
   });
 
@@ -342,12 +336,9 @@ export function useSubscriptionPolling() {
     const venueProfile = user?.venueProfile;
 
     // Start polling if Venue is inactive
-    if (
-      currentRole === "venue" &&
-      venueProfile?.subscriptionStatus === "inactive"
-    ) {
+    if (currentRole === 'venue' && venueProfile?.subscriptionStatus === 'inactive') {
       pollInterval.current = setInterval(() => {
-        queryClient.invalidateQueries({ queryKey: ["user", "me"] });
+        queryClient.invalidateQueries({ queryKey: ['user', 'me'] });
       }, 30000); // Poll every 30s
     } else {
       // Stop polling if activated or role changed
@@ -358,11 +349,11 @@ export function useSubscriptionPolling() {
     }
 
     // Detect activation
-    if (venueProfile?.subscriptionStatus === "active" && pollInterval.current) {
+    if (venueProfile?.subscriptionStatus === 'active' && pollInterval.current) {
       clearInterval(pollInterval.current);
       Toast.show({
-        type: "success",
-        text1: "Profile activated!",
+        type: 'success',
+        text1: 'Profile activated!',
         text2: "You're ready to accept bookings.",
         duration: 3000,
       });

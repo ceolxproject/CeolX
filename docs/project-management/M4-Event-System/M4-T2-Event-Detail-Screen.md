@@ -205,15 +205,15 @@ if (event.isSaved) {
 ```typescript
 // apps/server/src/routes/events.ts
 
-import { Hono } from "hono";
-import { getAuth } from "hono/better-auth";
-import { db } from "../db";
-import { events, saved_events, artist_profiles } from "@ceolx/shared/schema";
-import { eq } from "drizzle-orm";
+import { Hono } from 'hono';
+import { getAuth } from 'hono/better-auth';
+import { db } from '../db';
+import { events, saved_events, artist_profiles } from '@ceolx/shared/schema';
+import { eq } from 'drizzle-orm';
 
-app.get("/events/:id", async (c) => {
+app.get('/events/:id', async (c) => {
   const auth = getAuth(c); // Optional for public events
-  const eventId = c.req.param("id");
+  const eventId = c.req.param('id');
 
   // Fetch event with creator details
   const event = await db.query.events.findFirst({
@@ -233,17 +233,17 @@ app.get("/events/:id", async (c) => {
   });
 
   if (!event) {
-    return c.json({ error: "Event not found" }, 404);
+    return c.json({ error: 'Event not found' }, 404);
   }
 
   // Check visibility
   if (
-    event.status === "archived" ||
-    event.status === "rejected" ||
-    event.status === "pending_review"
+    event.status === 'archived' ||
+    event.status === 'rejected' ||
+    event.status === 'pending_review'
   ) {
     if (!auth || auth.user.id !== event.created_by) {
-      return c.json({ error: "Event not found" }, 404);
+      return c.json({ error: 'Event not found' }, 404);
     }
   }
 
@@ -265,9 +265,9 @@ app.get("/events/:id", async (c) => {
   });
 });
 
-app.post("/events/:id/save", async (c) => {
+app.post('/events/:id/save', async (c) => {
   const auth = await requireAuth(c);
-  const eventId = c.req.param("id");
+  const eventId = c.req.param('id');
 
   // Check event exists
   const event = await db.query.events.findFirst({
@@ -275,7 +275,7 @@ app.post("/events/:id/save", async (c) => {
   });
 
   if (!event) {
-    return c.json({ error: "Event not found" }, 404);
+    return c.json({ error: 'Event not found' }, 404);
   }
 
   // Check if already saved
@@ -285,7 +285,7 @@ app.post("/events/:id/save", async (c) => {
   });
 
   if (existing) {
-    return c.json({ error: "Event already saved" }, 400);
+    return c.json({ error: 'Event already saved' }, 400);
   }
 
   // Insert save
@@ -302,15 +302,15 @@ app.post("/events/:id/save", async (c) => {
   return c.json(saved[0]);
 });
 
-app.delete("/events/:id/save", async (c) => {
+app.delete('/events/:id/save', async (c) => {
   const auth = await requireAuth(c);
-  const eventId = c.req.param("id");
+  const eventId = c.req.param('id');
 
   // Delete save relationship
   await db
     .delete(saved_events)
     .where((saved, { and, eq }) =>
-      and(eq(saved.user_id, auth.user.id), eq(saved.event_id, eventId)),
+      and(eq(saved.user_id, auth.user.id), eq(saved.event_id, eventId))
     );
 
   setResponseStatus(c, 204);

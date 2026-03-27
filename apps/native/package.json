@@ -15,7 +15,9 @@
     "build:preview": "eas build --platform all --profile preview",
     "build:prod": "eas build --platform all --profile production",
     "submit": "eas submit --platform all",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix"
   },
   "dependencies": {
     "@CeolX/api": "workspace:*",

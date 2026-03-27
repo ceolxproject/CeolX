@@ -1,12 +1,12 @@
-import { z } from "zod";
+import { z } from 'zod';
 
-import { protectedProcedure, publicProcedure, router } from "../index";
+import { protectedProcedure, publicProcedure, router } from '../index';
 
 export const venuesRouter = router({
   // TODO M6-T2: subscription-gated — returns 404 if subscription_status != 'active'
   // (exception: venue owner viewing their own profile always sees it)
   byId: publicProcedure.input(z.object({ id: z.string() })).query(() => {
-    return { message: "not implemented" };
+    return { message: 'not implemented' };
   }),
 
   // TODO M6-T2: update authenticated venue's own profile (venue role only)
@@ -24,9 +24,9 @@ export const venuesRouter = router({
         websiteUrl: z.url().optional(),
         phone: z.string().optional(),
         socialLinks: z.record(z.string(), z.string()).optional(),
-      }),
+      })
     )
     .mutation(() => {
-      return { message: "not implemented" };
+      return { message: 'not implemented' };
     }),
 });

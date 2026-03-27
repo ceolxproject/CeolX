@@ -1,6 +1,7 @@
-import { Button } from "@CeolX/ui/components/button";
-import { LogOut, User } from "lucide-react";
-import { useState } from "react";
+import { LogOut, User } from 'lucide-react';
+import { useState } from 'react';
+
+import { Button } from '@CeolX/ui/components/button';
 
 export function AdminHeader() {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -26,7 +27,8 @@ export function AdminHeader() {
                 className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50"
                 onClick={() => {
                   // Logout wired in M9
-                  console.log("Logout clicked");
+                  // eslint-disable-next-line no-console
+                  console.log('Logout clicked');
                   setMenuOpen(false);
                 }}
               >

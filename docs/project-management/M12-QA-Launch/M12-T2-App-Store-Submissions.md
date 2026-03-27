@@ -235,26 +235,26 @@ No new endpoints. No API changes required for app store submission.
 ```typescript
 export default {
   expo: {
-    name: "CeolX",
-    slug: "ceolx",
-    version: "1.0.0",
+    name: 'CeolX',
+    slug: 'ceolx',
+    version: '1.0.0',
     ios: {
-      bundleIdentifier: "ie.ceolx.app",
-      buildNumber: "1",
+      bundleIdentifier: 'ie.ceolx.app',
+      buildNumber: '1',
       privacyManifest: {
         NSPrivacyTracking: false,
         NSPrivacyTrackingDomains: [],
       },
     },
     android: {
-      package: "ie.ceolx.app",
+      package: 'ie.ceolx.app',
       versionCode: 1,
     },
-    plugins: ["expo-apple-authentication", "expo-image-picker"],
+    plugins: ['expo-apple-authentication', 'expo-image-picker'],
     permissions: [
-      "ios.NSLocationWhenInUseUsageDescription",
-      "ios.NSCameraUsageDescription",
-      "ios.NSPhotoLibraryUsageDescription",
+      'ios.NSLocationWhenInUseUsageDescription',
+      'ios.NSCameraUsageDescription',
+      'ios.NSPhotoLibraryUsageDescription',
     ],
   },
 };
@@ -263,19 +263,19 @@ export default {
 ### Linking to External Stripe Subscription Page (React Native)
 
 ```typescript
-import { Linking } from "react-native";
+import { Linking } from 'react-native';
 
 const openStripeSubscription = async () => {
-  const url = "https://ceolx.ie/subscribe";
+  const url = 'https://ceolx.ie/subscribe';
   try {
     const supported = await Linking.canOpenURL(url);
     if (supported) {
       await Linking.openURL(url);
     } else {
-      console.error("Cannot open URL:", url);
+      console.error('Cannot open URL:', url);
     }
   } catch (error) {
-    console.error("Error opening URL:", error);
+    console.error('Error opening URL:', error);
   }
 };
 ```

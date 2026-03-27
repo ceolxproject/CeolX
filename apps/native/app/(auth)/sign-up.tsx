@@ -1,27 +1,19 @@
-import { Link } from "expo-router";
-import { useState } from "react";
-import {
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { Link } from 'expo-router';
+import { useState } from 'react';
+import { StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { form, layout, typography } from "@/styles/shared";
+import { form, layout, typography } from '@/styles/shared';
 
 export default function SignUpScreen() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
 
   return (
     <SafeAreaView style={layout.container}>
       <View style={styles.inner}>
         <Text style={typography.authTitle}>Create Account</Text>
-        <Text style={typography.authSubtitle}>
-          Join CeolX to discover Irish music
-        </Text>
+        <Text style={typography.authSubtitle}>Join CeolX to discover Irish music</Text>
 
         <TextInput
           style={form.input}
@@ -56,13 +48,8 @@ export default function SignUpScreen() {
         <TouchableOpacity style={styles.socialButton} disabled>
           <Text style={styles.socialButtonText}>Continue with Google</Text>
         </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.socialButton, styles.appleButton]}
-          disabled
-        >
-          <Text style={[styles.socialButtonText, styles.appleButtonText]}>
-            Continue with Apple
-          </Text>
+        <TouchableOpacity style={[styles.socialButton, styles.appleButton]} disabled>
+          <Text style={[styles.socialButtonText, styles.appleButtonText]}>Continue with Apple</Text>
         </TouchableOpacity>
 
         <View style={[form.footer, { marginTop: 8 }]}>
@@ -77,23 +64,23 @@ export default function SignUpScreen() {
 }
 
 const styles = StyleSheet.create({
-  inner: { flex: 1, padding: 24, justifyContent: "center" },
+  inner: { flex: 1, padding: 24, justifyContent: 'center' },
   dividerRow: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     marginVertical: 12,
   },
-  divider: { flex: 1, height: 1, backgroundColor: "#e0e0e0" },
-  dividerText: { marginHorizontal: 12, color: "#999", fontSize: 14 },
+  divider: { flex: 1, height: 1, backgroundColor: '#e0e0e0' },
+  dividerText: { marginHorizontal: 12, color: '#999', fontSize: 14 },
   socialButton: {
     borderWidth: 1,
-    borderColor: "#ddd",
+    borderColor: '#ddd',
     borderRadius: 10,
     paddingVertical: 14,
-    alignItems: "center",
+    alignItems: 'center',
     marginBottom: 12,
   },
-  socialButtonText: { fontSize: 16, color: "#333", fontWeight: "500" },
-  appleButton: { backgroundColor: "#000", borderColor: "#000" },
-  appleButtonText: { color: "#fff" },
+  socialButtonText: { fontSize: 16, color: '#333', fontWeight: '500' },
+  appleButton: { backgroundColor: '#000', borderColor: '#000' },
+  appleButtonText: { color: '#fff' },
 });

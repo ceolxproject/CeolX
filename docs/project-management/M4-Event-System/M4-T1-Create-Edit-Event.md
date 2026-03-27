@@ -215,23 +215,23 @@ await trpc.events.create.mutate({ ..., coverImage: cdnUrl });
 ```typescript
 // apps/server/src/routes/events.ts
 
-import { Hono } from "hono";
-import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
-import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
-import { v4 as uuidv4 } from "uuid";
+import { Hono } from 'hono';
+import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import { v4 as uuidv4 } from 'uuid';
 
-const s3 = new S3Client({ region: "eu-west-1" });
+const s3 = new S3Client({ region: 'eu-west-1' });
 
 export const generatePresignedUrl = async (
   filename: string,
   contentType: string,
-  eventId?: string,
+  eventId?: string
 ): Promise<{ uploadUrl: string; cdnUrl: string; expiry: number }> => {
   const fileId = uuidv4();
-  const key = `events/${eventId || "temp"}/${fileId}_${filename}`;
+  const key = `events/${eventId || 'temp'}/${fileId}_${filename}`;
 
   const command = new PutObjectCommand({
-    Bucket: "ceolx-uploads",
+    Bucket: 'ceolx-uploads',
     Key: key,
     ContentType: contentType,
   });
@@ -247,13 +247,13 @@ export const generatePresignedUrl = async (
 };
 
 // GET /events/presigned-url endpoint
-app.get("/events/presigned-url", async (c) => {
+app.get('/events/presigned-url', async (c) => {
   const auth = await requireAuth(c);
-  const filename = c.req.query("filename");
-  const contentType = c.req.query("content_type") || "image/jpeg";
+  const filename = c.req.query('filename');
+  const contentType = c.req.query('content_type') || 'image/jpeg';
 
   if (!filename) {
-    return c.json({ error: "filename required" }, 400);
+    return c.json({ error: 'filename required' }, 400);
   }
 
   const result = await generatePresignedUrl(filename, contentType);
@@ -266,8 +266,8 @@ app.get("/events/presigned-url", async (c) => {
 ```typescript
 // apps/server/src/routes/events.ts
 
-import { z } from "zod";
-import { zValidator } from "@hono/zod-validator";
+import { z } from 'zod';
+import { zValidator } from '@hono/zod-validator';
 
 const EventCreateSchema = z.object({
   title: z.string().min(1).max(150),
@@ -279,42 +279,36 @@ const EventCreateSchema = z.object({
   lng: z.number().min(-180).max(180).optional(),
   venue_address: z.string().max(255).optional(),
   venue_id: z.string().uuid().optional(),
-  category: z.enum([
-    "trad_session",
-    "ceili",
-    "concert",
-    "workshop",
-    "competition",
-  ]),
+  category: z.enum(['trad_session', 'ceili', 'concert', 'workshop', 'competition']),
   ticket_link: z.string().url().optional(),
   is_gig_opportunity: z.boolean().optional().default(false),
   collection_id: z.string().uuid().optional(),
   collaborators: z.array(z.string().uuid()).max(10).optional(),
 });
 
-app.post("/events", zValidator("json", EventCreateSchema), async (c) => {
+app.post('/events', zValidator('json', EventCreateSchema), async (c) => {
   const auth = await requireAuth(c);
-  const data = c.req.valid("json");
+  const data = c.req.valid('json');
 
   // Verify artist or venue persona
   const user = await db.query.users.findFirst({
     where: (users, { eq }) => eq(users.id, auth.user.id),
   });
 
-  if (!user || !["artist", "venue"].includes(user.current_role)) {
-    return c.json({ error: "Only artists or venues can create events" }, 403);
+  if (!user || !['artist', 'venue'].includes(user.current_role)) {
+    return c.json({ error: 'Only artists or venues can create events' }, 403);
   }
 
   // Validate location
   if (!data.lat || !data.lng) {
     if (!data.venue_address) {
-      return c.json({ error: "Either lat/lng or venue_address required" }, 400);
+      return c.json({ error: 'Either lat/lng or venue_address required' }, 400);
     }
   }
 
   // Venue-only fields
-  if (data.is_gig_opportunity && user.current_role !== "venue") {
-    return c.json({ error: "Only venues can create gig opportunities" }, 403);
+  if (data.is_gig_opportunity && user.current_role !== 'venue') {
+    return c.json({ error: 'Only venues can create gig opportunities' }, 403);
   }
 
   // Create event
@@ -322,7 +316,7 @@ app.post("/events", zValidator("json", EventCreateSchema), async (c) => {
     .insert(events)
     .values({
       created_by:
-        user.current_role === "artist"
+        user.current_role === 'artist'
           ? (await getArtistProfile(user.id)).id
           : (await getVenueProfile(user.id)).id,
       title: data.title,
@@ -338,7 +332,7 @@ app.post("/events", zValidator("json", EventCreateSchema), async (c) => {
       ticket_link: data.ticket_link || null,
       is_gig_opportunity: data.is_gig_opportunity || false,
       collection_id: data.collection_id || null,
-      status: "pending_review",
+      status: 'pending_review',
       rejection_reason: null,
       created_at: new Date(),
       updated_at: new Date(),
@@ -351,7 +345,7 @@ app.post("/events", zValidator("json", EventCreateSchema), async (c) => {
       data.collaborators.map((collab_id) => ({
         event_id: event[0].id,
         artist_id: collab_id,
-      })),
+      }))
     );
   }
 
@@ -363,68 +357,52 @@ app.post("/events", zValidator("json", EventCreateSchema), async (c) => {
 ### Edit Event Handler (Hono)
 
 ```typescript
-app.put(
-  "/events/:id",
-  zValidator("json", EventCreateSchema.partial()),
-  async (c) => {
-    const auth = await requireAuth(c);
-    const eventId = c.req.param("id");
-    const data = c.req.valid("json");
+app.put('/events/:id', zValidator('json', EventCreateSchema.partial()), async (c) => {
+  const auth = await requireAuth(c);
+  const eventId = c.req.param('id');
+  const data = c.req.valid('json');
 
-    // Fetch event and verify ownership
-    const event = await db.query.events.findFirst({
-      where: (events, { eq }) => eq(events.id, eventId),
-    });
+  // Fetch event and verify ownership
+  const event = await db.query.events.findFirst({
+    where: (events, { eq }) => eq(events.id, eventId),
+  });
 
-    if (!event) {
-      return c.json({ error: "Event not found" }, 404);
-    }
+  if (!event) {
+    return c.json({ error: 'Event not found' }, 404);
+  }
 
-    if (event.created_by !== auth.user.id) {
-      return c.json({ error: "You can only edit your own events" }, 403);
-    }
+  if (event.created_by !== auth.user.id) {
+    return c.json({ error: 'You can only edit your own events' }, 403);
+  }
 
-    // Check status
-    if (!["draft", "pending_review", "rejected"].includes(event.status)) {
-      return c.json(
-        { error: `Cannot edit event with status ${event.status}` },
-        403,
-      );
-    }
+  // Check status
+  if (!['draft', 'pending_review', 'rejected'].includes(event.status)) {
+    return c.json({ error: `Cannot edit event with status ${event.status}` }, 403);
+  }
 
-    // Update event
-    const updated = await db
-      .update(events)
-      .set({
-        title: data.title !== undefined ? data.title : event.title,
-        description:
-          data.description !== undefined ? data.description : event.description,
-        cover_image:
-          data.cover_image !== undefined ? data.cover_image : event.cover_image,
-        date_start: data.date_start
-          ? new Date(data.date_start)
-          : event.date_start,
-        date_end: data.date_end ? new Date(data.date_end) : event.date_end,
-        lat: data.lat !== undefined ? data.lat : event.lat,
-        lng: data.lng !== undefined ? data.lng : event.lng,
-        venue_address:
-          data.venue_address !== undefined
-            ? data.venue_address
-            : event.venue_address,
-        category: data.category !== undefined ? data.category : event.category,
-        ticket_link:
-          data.ticket_link !== undefined ? data.ticket_link : event.ticket_link,
-        status: event.status === "rejected" ? "pending_review" : event.status,
-        rejection_reason:
-          event.status === "rejected" ? null : event.rejection_reason,
-        updated_at: new Date(),
-      })
-      .where(eq(events.id, eventId))
-      .returning();
+  // Update event
+  const updated = await db
+    .update(events)
+    .set({
+      title: data.title !== undefined ? data.title : event.title,
+      description: data.description !== undefined ? data.description : event.description,
+      cover_image: data.cover_image !== undefined ? data.cover_image : event.cover_image,
+      date_start: data.date_start ? new Date(data.date_start) : event.date_start,
+      date_end: data.date_end ? new Date(data.date_end) : event.date_end,
+      lat: data.lat !== undefined ? data.lat : event.lat,
+      lng: data.lng !== undefined ? data.lng : event.lng,
+      venue_address: data.venue_address !== undefined ? data.venue_address : event.venue_address,
+      category: data.category !== undefined ? data.category : event.category,
+      ticket_link: data.ticket_link !== undefined ? data.ticket_link : event.ticket_link,
+      status: event.status === 'rejected' ? 'pending_review' : event.status,
+      rejection_reason: event.status === 'rejected' ? null : event.rejection_reason,
+      updated_at: new Date(),
+    })
+    .where(eq(events.id, eventId))
+    .returning();
 
-    return c.json(updated[0]);
-  },
-);
+  return c.json(updated[0]);
+});
 ```
 
 ### Create Event Screen (React Native)

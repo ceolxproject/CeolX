@@ -1,8 +1,8 @@
-import { useLocalSearchParams } from "expo-router";
-import { StyleSheet, Text, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { useLocalSearchParams } from 'expo-router';
+import { StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { layout, ph, typography } from "@/styles/shared";
+import { layout, ph, typography } from '@/styles/shared';
 
 export default function EventDetailScreen() {
   const { eventId } = useLocalSearchParams<{ eventId: string }>();
@@ -22,5 +22,5 @@ export default function EventDetailScreen() {
 }
 
 const styles = StyleSheet.create({
-  id: { fontSize: 16, fontWeight: "600", marginBottom: 16 },
+  id: { fontSize: 16, fontWeight: '600', marginBottom: 16 },
 });

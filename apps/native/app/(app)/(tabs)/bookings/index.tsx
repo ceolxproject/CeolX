@@ -1,7 +1,7 @@
-import { StyleSheet, Text, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { layout, typography } from "@/styles/shared";
+import { layout, typography } from '@/styles/shared';
 
 export default function BookingsScreen() {
   return (
@@ -13,9 +13,7 @@ export default function BookingsScreen() {
 
       <View style={styles.empty}>
         <Text style={styles.emptyText}>No bookings yet</Text>
-        <Text style={styles.emptySubtext}>
-          Your artist and venue bookings will appear here
-        </Text>
+        <Text style={styles.emptySubtext}>Your artist and venue bookings will appear here</Text>
       </View>
     </SafeAreaView>
   );
@@ -24,10 +22,10 @@ export default function BookingsScreen() {
 const styles = StyleSheet.create({
   empty: {
     flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
+    justifyContent: 'center',
+    alignItems: 'center',
     padding: 32,
   },
-  emptyText: { fontSize: 18, fontWeight: "600", marginBottom: 8 },
-  emptySubtext: { fontSize: 14, color: "#999", textAlign: "center" },
+  emptyText: { fontSize: 18, fontWeight: '600', marginBottom: 8 },
+  emptySubtext: { fontSize: 14, color: '#999', textAlign: 'center' },
 });

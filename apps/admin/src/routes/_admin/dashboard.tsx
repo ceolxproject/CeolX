@@ -1,15 +1,16 @@
-import { Card } from "@CeolX/ui/components/card";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute } from '@tanstack/react-router';
 
-export const Route = createFileRoute("/_admin/dashboard")({
+import { Card } from '@CeolX/ui/components/card';
+
+export const Route = createFileRoute('/_admin/dashboard')({
   component: DashboardPage,
 });
 
 const kpiCards = [
-  { label: "Total Users", value: "0" },
-  { label: "Total Events", value: "0" },
-  { label: "Pending Events", value: "0" },
-  { label: "Active Venues", value: "0" },
+  { label: 'Total Users', value: '0' },
+  { label: 'Total Events', value: '0' },
+  { label: 'Pending Events', value: '0' },
+  { label: 'Active Venues', value: '0' },
 ] as const;
 
 function DashboardPage() {

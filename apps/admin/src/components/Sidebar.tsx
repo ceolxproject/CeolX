@@ -1,12 +1,12 @@
-import { Link } from "@tanstack/react-router";
-import { BarChart3, Clock, Menu, Settings, Users, X } from "lucide-react";
-import { useState } from "react";
+import { Link } from '@tanstack/react-router';
+import { BarChart3, Clock, Menu, Settings, Users, X } from 'lucide-react';
+import { useState } from 'react';
 
 const navItems = [
-  { name: "Dashboard", to: "/dashboard", icon: BarChart3 },
-  { name: "Users", to: "/users", icon: Users },
-  { name: "Pending Events", to: "/events/pending", icon: Clock },
-  { name: "Account", to: "/account", icon: Settings },
+  { name: 'Dashboard', to: '/dashboard', icon: BarChart3 },
+  { name: 'Users', to: '/users', icon: Users },
+  { name: 'Pending Events', to: '/events/pending', icon: Clock },
+  { name: 'Account', to: '/account', icon: Settings },
 ] as const;
 
 export function Sidebar() {
@@ -23,7 +23,7 @@ export function Sidebar() {
             className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-700 hover:bg-gray-100 transition-colors"
             activeProps={{
               className:
-                "flex items-center gap-3 px-3 py-2 rounded-lg text-sm bg-green-100 text-green-700 font-medium",
+                'flex items-center gap-3 px-3 py-2 rounded-lg text-sm bg-green-100 text-green-700 font-medium',
             }}
             onClick={() => setMobileOpen(false)}
           >
@@ -57,15 +57,12 @@ export function Sidebar() {
       {/* Mobile drawer */}
       <aside
         className={`md:hidden fixed inset-y-0 left-0 z-30 w-64 bg-white border-r border-gray-200 transform transition-transform duration-200 ${
-          mobileOpen ? "translate-x-0" : "-translate-x-full"
+          mobileOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
         <div className="flex items-center justify-between p-5">
           <h1 className="text-xl font-bold text-green-600">CeolX</h1>
-          <button
-            onClick={() => setMobileOpen(false)}
-            aria-label="Close navigation"
-          >
+          <button onClick={() => setMobileOpen(false)} aria-label="Close navigation">
             <X size={20} />
           </button>
         </div>

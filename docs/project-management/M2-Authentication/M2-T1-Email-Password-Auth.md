@@ -174,17 +174,17 @@ BetterAuth handles password hashing, session token generation, email sending (vi
 ### BetterAuth Configuration (`packages/auth/src/index.ts`)
 
 ```typescript
-import { betterAuth } from "better-auth";
-import { expo } from "@better-auth/expo";
-import { drizzleAdapter } from "better-auth/adapters/drizzle";
-import { db } from "@CeolX/db";
-import { env } from "@CeolX/env/server";
+import { betterAuth } from 'better-auth';
+import { expo } from '@better-auth/expo';
+import { drizzleAdapter } from 'better-auth/adapters/drizzle';
+import { db } from '@CeolX/db';
+import { env } from '@CeolX/env/server';
 
 export const auth = betterAuth({
-  database: drizzleAdapter(db, { provider: "pg" }),
+  database: drizzleAdapter(db, { provider: 'pg' }),
   secret: env.BETTER_AUTH_SECRET,
   baseURL: env.BETTER_AUTH_URL,
-  trustedOrigins: env.CORS_ALLOWED_ORIGINS.split("|"),
+  trustedOrigins: env.CORS_ALLOWED_ORIGINS.split('|'),
   emailAndPassword: {
     enabled: true,
     minPasswordLength: 8,
@@ -215,16 +215,16 @@ BetterAuth handles: password hashing (bcrypt), session token generation, email v
 
 ```typescript
 // apps/native/src/lib/auth.ts
-import { createAuthClient } from "better-auth/react";
-import { expoClient } from "@better-auth/expo/client";
-import * as SecureStore from "expo-secure-store";
+import { createAuthClient } from 'better-auth/react';
+import { expoClient } from '@better-auth/expo/client';
+import * as SecureStore from 'expo-secure-store';
 
 export const authClient = createAuthClient({
   baseURL: process.env.EXPO_PUBLIC_API_URL, // e.g. https://api.ceolx.ie
   plugins: [
     expoClient({
-      scheme: "ceolx",
-      storagePrefix: "ceolx",
+      scheme: 'ceolx',
+      storagePrefix: 'ceolx',
       storage: SecureStore,
     }),
   ],

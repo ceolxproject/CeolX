@@ -158,9 +158,9 @@ data: EmailTemplateMap[T]
  const strings = await getStrings(template, locale);
 const element = createTemplateElement(template, data, strings);  
  const [html, text] = await Promise.all([
- render(element),
+render(element),
 render(element, { plainText: true }),
- ]);  
+]);  
  return { html, text, subject: interpolateSubject(strings.subject, data) };
 }
 

@@ -334,18 +334,18 @@ CREATE INDEX idx_venue_is_active ON venue_profiles(is_active);
 ### Hono Handler Example
 
 ```typescript
-import { Hono } from "hono";
-import { db } from "../db";
-import { venueProfiles } from "../db/schema";
-import { eq } from "drizzle-orm";
-import { sendPostmarkEmail } from "../services/postmark";
+import { Hono } from 'hono';
+import { db } from '../db';
+import { venueProfiles } from '../db/schema';
+import { eq } from 'drizzle-orm';
+import { sendPostmarkEmail } from '../services/postmark';
 
 const venueRouter = new Hono();
 
 // GET /venues/:id
-venueRouter.get("/:id", async (c) => {
-  const venueId = c.req.param("id");
-  const user = c.get("user"); // authenticated user, may be null
+venueRouter.get('/:id', async (c) => {
+  const venueId = c.req.param('id');
+  const user = c.get('user'); // authenticated user, may be null
 
   const profile = await db
     .select()
@@ -354,13 +354,13 @@ venueRouter.get("/:id", async (c) => {
     .then((rows) => rows[0]);
 
   if (!profile) {
-    return c.json({ error: "Venue not found" }, 404);
+    return c.json({ error: 'Venue not found' }, 404);
   }
 
   // Gating: if not the owner, check subscription_status
   const isOwner = user && user.id === profile.user_id;
-  if (!isOwner && profile.subscription_status !== "active") {
-    return c.json({ error: "Venue not found" }, 404);
+  if (!isOwner && profile.subscription_status !== 'active') {
+    return c.json({ error: 'Venue not found' }, 404);
   }
 
   // Fetch linked events
@@ -369,14 +369,9 @@ venueRouter.get("/:id", async (c) => {
   });
 
   const upcomingEvents = events.filter(
-    (e) =>
-      e.status === "active" &&
-      !e.is_gig_opportunity &&
-      new Date(e.date_start) > new Date(),
+    (e) => e.status === 'active' && !e.is_gig_opportunity && new Date(e.date_start) > new Date()
   );
-  const gigOpportunities = events.filter(
-    (e) => e.status === "active" && e.is_gig_opportunity,
-  );
+  const gigOpportunities = events.filter((e) => e.status === 'active' && e.is_gig_opportunity);
 
   return c.json({
     ...profile,
@@ -386,10 +381,10 @@ venueRouter.get("/:id", async (c) => {
 });
 
 // PUT /venues/me
-venueRouter.put("/me", async (c) => {
-  const user = c.get("user");
-  if (user.current_role !== "venue") {
-    return c.json({ error: "Not in venue persona" }, 401);
+venueRouter.put('/me', async (c) => {
+  const user = c.get('user');
+  if (user.current_role !== 'venue') {
+    return c.json({ error: 'Not in venue persona' }, 401);
   }
 
   const body = await c.req.json();
@@ -408,10 +403,10 @@ venueRouter.put("/me", async (c) => {
 });
 
 // POST /venues/me/resend-activation
-venueRouter.post("/me/resend-activation", async (c) => {
-  const user = c.get("user");
-  if (user.current_role !== "venue") {
-    return c.json({ error: "Not in venue persona" }, 401);
+venueRouter.post('/me/resend-activation', async (c) => {
+  const user = c.get('user');
+  if (user.current_role !== 'venue') {
+    return c.json({ error: 'Not in venue persona' }, 401);
   }
 
   const profile = await db
@@ -421,24 +416,24 @@ venueRouter.post("/me/resend-activation", async (c) => {
     .then((rows) => rows[0]);
 
   if (!profile) {
-    return c.json({ error: "Venue profile not found" }, 404);
+    return c.json({ error: 'Venue profile not found' }, 404);
   }
 
-  if (profile.subscription_status === "active") {
-    return c.json({ error: "Subscription already active" }, 400);
+  if (profile.subscription_status === 'active') {
+    return c.json({ error: 'Subscription already active' }, 400);
   }
 
   // Resend activation email
   await sendPostmarkEmail({
     to: user.email,
-    template: "venue-activation",
+    template: 'venue-activation',
     data: {
       venue_name: profile.name,
-      activation_link: "https://ceolx.ie/subscribe",
+      activation_link: 'https://ceolx.ie/subscribe',
     },
   });
 
-  return c.json({ message: "Activation email sent", sent_at: new Date() }, 200);
+  return c.json({ message: 'Activation email sent', sent_at: new Date() }, 200);
 });
 
 export default venueRouter;

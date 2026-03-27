@@ -104,11 +104,11 @@ services:
       POSTGRES_PASSWORD: ceolx_local
       POSTGRES_DB: ceolx_dev
     ports:
-      - "5432:5432"
+      - '5432:5432'
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ceolx -d ceolx_dev"]
+      test: ['CMD-SHELL', 'pg_isready -U ceolx -d ceolx_dev']
       interval: 5s
       timeout: 5s
       retries: 5
@@ -122,15 +122,15 @@ volumes:
 ## drizzle.config.ts (Reference)
 
 ```typescript
-import type { Config } from "drizzle-kit";
-import * as dotenv from "dotenv";
+import type { Config } from 'drizzle-kit';
+import * as dotenv from 'dotenv';
 
-dotenv.config({ path: ".env.local" });
+dotenv.config({ path: '.env.local' });
 
 export default {
-  schema: "./src/db/schema",
-  out: "./drizzle/migrations",
-  dialect: "postgresql",
+  schema: './src/db/schema',
+  out: './drizzle/migrations',
+  dialect: 'postgresql',
   dbCredentials: {
     url: process.env.DATABASE_URL!,
   },
@@ -143,14 +143,14 @@ export default {
 
 ```typescript
 // apps/server/src/db/client.ts
-import { drizzle } from "drizzle-orm/node-postgres";
-import { drizzle as drizzleNeon } from "drizzle-orm/neon-serverless";
-import { Pool } from "pg";
-import { neon } from "@neondatabase/serverless";
+import { drizzle } from 'drizzle-orm/node-postgres';
+import { drizzle as drizzleNeon } from 'drizzle-orm/neon-serverless';
+import { Pool } from 'pg';
+import { neon } from '@neondatabase/serverless';
 
 const url = process.env.DATABASE_URL!;
 
-export const db = url.includes("neon.tech")
+export const db = url.includes('neon.tech')
   ? drizzleNeon(neon(url))
   : drizzle(new Pool({ connectionString: url }));
 ```

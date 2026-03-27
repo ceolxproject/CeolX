@@ -204,8 +204,8 @@ Initiate Apple Sign-In flow (iOS only).
 ```typescript
 // apps/server/src/lib/auth.ts
 
-import { betterAuth } from "better-auth";
-import { google } from "better-auth/providers";
+import { betterAuth } from 'better-auth';
+import { google } from 'better-auth/providers';
 
 export const auth = betterAuth({
   // ... other config
@@ -225,7 +225,7 @@ export const auth = betterAuth({
 ```typescript
 // apps/server/src/lib/auth.ts
 
-import { apple } from "better-auth/providers";
+import { apple } from 'better-auth/providers';
 
 export const auth = betterAuth({
   // ... other config
@@ -452,11 +452,11 @@ export default SignUpScreen;
 ```typescript
 // apps/native/src/screens/Auth/SignUpScreen.tsx (Apple portion)
 
-import { appleAuth } from "@invertase/react-native-apple-authentication";
-import { Platform } from "react-native";
+import { appleAuth } from '@invertase/react-native-apple-authentication';
+import { Platform } from 'react-native';
 
 const handleAppleSignIn = async () => {
-  if (Platform.OS !== "ios") return;
+  if (Platform.OS !== 'ios') return;
 
   try {
     const appleAuthRequestResponse = await appleAuth.performRequest({
@@ -467,24 +467,21 @@ const handleAppleSignIn = async () => {
     const { identityToken, user } = appleAuthRequestResponse;
 
     if (!identityToken) {
-      throw new Error("Apple Sign-In failed - no identity token");
+      throw new Error('Apple Sign-In failed - no identity token');
     }
 
     // Send to backend for verification
-    const response = await fetch(
-      `${process.env.EXPO_PUBLIC_API_BASE_URL}/api/v1/auth/apple`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          identityToken,
-          user: {
-            name: user?.name,
-            email: user?.email,
-          },
-        }),
-      },
-    );
+    const response = await fetch(`${process.env.EXPO_PUBLIC_API_BASE_URL}/api/v1/auth/apple`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        identityToken,
+        user: {
+          name: user?.name,
+          email: user?.email,
+        },
+      }),
+    });
 
     if (response.ok) {
       const data = await response.json();
@@ -492,7 +489,7 @@ const handleAppleSignIn = async () => {
       await login(data.session.token, data.user);
     }
   } catch (err) {
-    console.error("Apple authentication error:", err);
+    console.error('Apple authentication error:', err);
   }
 };
 ```

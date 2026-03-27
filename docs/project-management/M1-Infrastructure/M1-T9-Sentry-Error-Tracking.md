@@ -126,17 +126,17 @@ Configure `ignoreErrors` in Sentry config to filter known noise.
 ```typescript
 // apps/server/src/instrumentation.ts — import FIRST in src/index.ts
 
-import * as Sentry from "@sentry/node";
+import * as Sentry from '@sentry/node';
 
 Sentry.init({
   dsn: process.env.SENTRY_DSN_API,
-  environment: process.env.SENTRY_ENVIRONMENT ?? "development",
-  enabled: process.env.NODE_ENV !== "development",
-  tracesSampleRate: process.env.NODE_ENV === "production" ? 0.1 : 1.0,
+  environment: process.env.SENTRY_ENVIRONMENT ?? 'development',
+  enabled: process.env.NODE_ENV !== 'development',
+  tracesSampleRate: process.env.NODE_ENV === 'production' ? 0.1 : 1.0,
   ignoreErrors: [
     // Expected client errors — not bugs
-    "ValidationError",
-    "AuthenticationError",
+    'ValidationError',
+    'AuthenticationError',
   ],
 });
 ```
@@ -146,9 +146,9 @@ Sentry.init({
 ```typescript
 // apps/server/src/middleware/errorHandler.ts
 
-import * as Sentry from "@sentry/node";
-import { Context } from "hono";
-import { HTTPException } from "hono/http-exception";
+import * as Sentry from '@sentry/node';
+import { Context } from 'hono';
+import { HTTPException } from 'hono/http-exception';
 
 export const errorHandler = (err: Error, c: Context) => {
   // Only capture unexpected server errors — not expected 4xx
@@ -170,12 +170,12 @@ export const errorHandler = (err: Error, c: Context) => {
 ```typescript
 // apps/server/src/middleware/auth.ts — after verifying token
 
-import * as Sentry from "@sentry/node";
+import * as Sentry from '@sentry/node';
 
 // After successful token verification:
 Sentry.setUser({ id: payload.userId });
-c.set("userId", payload.userId);
-c.set("currentRole", payload.currentRole);
+c.set('userId', payload.userId);
+c.set('currentRole', payload.currentRole);
 ```
 
 ### Mobile App Initialization (Expo Router)
@@ -183,19 +183,17 @@ c.set("currentRole", payload.currentRole);
 ```typescript
 // apps/native/app/_layout.tsx
 
-import * as Sentry from "@sentry/react-native";
-import Constants from "expo-constants";
+import * as Sentry from '@sentry/react-native';
+import Constants from 'expo-constants';
 
 Sentry.init({
-  dsn: "https://xxxxx@o000000.ingest.sentry.io/0000002",
-  environment: __DEV__ ? "development" : "production",
+  dsn: 'https://xxxxx@o000000.ingest.sentry.io/0000002',
+  environment: __DEV__ ? 'development' : 'production',
   enabled: !__DEV__,
   tracesSampleRate: 0.1,
   release: Constants.expoConfig?.version,
   dist: String(
-    Constants.expoConfig?.ios?.buildNumber ??
-      Constants.expoConfig?.android?.versionCode ??
-      1,
+    Constants.expoConfig?.ios?.buildNumber ?? Constants.expoConfig?.android?.versionCode ?? 1
   ),
 });
 

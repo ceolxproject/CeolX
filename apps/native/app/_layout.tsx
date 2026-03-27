@@ -1,16 +1,16 @@
-import "@/global.css";
-import { QueryClientProvider } from "@tanstack/react-query";
-import { Stack } from "expo-router";
-import { HeroUINativeProvider } from "heroui-native";
-import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { KeyboardProvider } from "react-native-keyboard-controller";
+import '@/global.css';
+import { QueryClientProvider } from '@tanstack/react-query';
+import { Stack } from 'expo-router';
+import { HeroUINativeProvider } from 'heroui-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { KeyboardProvider } from 'react-native-keyboard-controller';
 
-import { AppThemeProvider } from "@/contexts/app-theme-context";
-import { AuthProvider } from "@/contexts/auth-context";
-import { queryClient } from "@/utils/trpc";
+import { AppThemeProvider } from '@/contexts/app-theme-context';
+import { AuthProvider } from '@/contexts/auth-context';
+import { queryClient } from '@/utils/trpc';
 
 export const unstable_settings = {
-  initialRouteName: "(auth)",
+  initialRouteName: '(auth)',
 };
 
 function RootStack() {

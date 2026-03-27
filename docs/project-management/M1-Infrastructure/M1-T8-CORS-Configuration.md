@@ -3,7 +3,7 @@
 | Field          | Value                                                                           |
 | -------------- | ------------------------------------------------------------------------------- |
 | **Milestone**  | M1 — Project Setup & Infrastructure                                             |
-| **Status**     | 🔲 To Do                                                                        |
+| **Status**     | ✅ Complete — PR #8                                                             |
 | **Depends on** | M1-T3 (Hono API scaffold — basic CORS stub is in place)                         |
 | **PRD Ref**    | Section 10.1 (Backend API — middleware), Section 10.3 (Mobile App cross-origin) |
 
@@ -21,9 +21,41 @@ CORS misconfiguration is a common security vulnerability. This task ensures the 
 
 | App / Package | Role                                                                                 |
 | ------------- | ------------------------------------------------------------------------------------ |
-| `apps/api`    | Replace stub `cors()` call in `src/index.ts` with production CORS config             |
-| `apps/api`    | New `src/config/cors.ts` — origin list builder, isolated and testable                |
+| `apps/server` | Replace stub `cors()` call in `src/index.ts` with production CORS config             |
+| `apps/server` | New `src/config/cors.ts` — origin list builder, isolated and testable                |
+| `apps/server` | Update `.env.example` — remove hardcoded dev origins from `CORS_ALLOWED_ORIGINS`     |
 | `apps/admin`  | Vite dev proxy config if needed for local dev (production CORS handled at API level) |
+
+> **Note**: The monorepo uses `apps/server` (not `apps/api` as originally drafted). All paths below reflect `apps/server`.
+
+---
+
+## Current State & Gaps (as of 2026-03-26)
+
+The M1-T3 stub at `apps/server/src/index.ts:17-23` is:
+
+```typescript
+app.use(
+  '/*',
+  cors({
+    origin: env.CORS_ALLOWED_ORIGINS.split('|'),
+    credentials: true,
+  })
+);
+```
+
+`CORS_ALLOWED_ORIGINS` is declared in `packages/env/src/server.ts`. The `.env.example` currently hardcodes dev origins inside this variable — this is incorrect; dev origins should be auto-injected by `NODE_ENV=development`, not listed in the env var.
+
+| Gap                                      | Detail                                                                             |
+| ---------------------------------------- | ---------------------------------------------------------------------------------- |
+| No `src/config/cors.ts` module           | Origin logic is inline; not isolated or testable                                   |
+| Array origin instead of dynamic function | No per-request WARN logging on rejected origins                                    |
+| No dev-origin auto-injection             | Dev origins hardcoded in `.env.example` instead of injected by `NODE_ENV`          |
+| Missing `allowMethods`                   | Only GET/POST handled; PATCH, DELETE, OPTIONS not explicitly listed                |
+| Missing `allowHeaders`                   | `Content-Type` and `Authorization` not declared                                    |
+| Missing `exposeHeaders`                  | `X-RateLimit-*` headers not exposed to browser clients                             |
+| Missing `maxAge`                         | No `Access-Control-Max-Age: 86400` — preflight not cached                          |
+| `.env.example` misleading                | Shows dev origins in `CORS_ALLOWED_ORIGINS` — implies they must be listed manually |
 
 ---
 
@@ -61,9 +93,15 @@ CORS misconfiguration is a common security vulnerability. This task ensures the 
 ### 4. Environment Variables
 
 ```bash
-# apps/api .env
+# apps/server/.env.example — production-style values only
+# Dev origins (localhost:3000, :3001, :8081, :19006) are auto-injected when NODE_ENV=development
+# Only set this for staging/prod:
 CORS_ALLOWED_ORIGINS=https://admin.ceolx.ie|https://app.ceolx.ie
 ```
+
+**Local dev**: leave `CORS_ALLOWED_ORIGINS` empty (or omit it) in `.env.development`. The `buildAllowedOrigins()` function will inject all dev origins automatically because `NODE_ENV=development`.
+
+**Staging**: set `CORS_ALLOWED_ORIGINS=https://admin.staging.ceolx.ie|https://app.staging.ceolx.ie` in `.env.staging`.
 
 Development origins are injected automatically when `NODE_ENV=development` — no need to add them to `.env`.
 
@@ -77,15 +115,18 @@ Development origins are injected automatically when `NODE_ENV=development` — n
 
 ## Acceptance Criteria
 
-- [ ] `CORS_ALLOWED_ORIGINS` environment variable read and parsed at startup
-- [ ] Requests from whitelisted origins receive `Access-Control-Allow-Origin` matching the request origin
-- [ ] Requests from non-whitelisted origins receive no `Access-Control-Allow-Origin` header
-- [ ] `Access-Control-Allow-Credentials: true` present on all CORS responses
-- [ ] `OPTIONS` preflight requests return `204 No Content` with correct CORS headers
-- [ ] `X-RateLimit-*` headers exposed to browser clients via `Access-Control-Expose-Headers`
-- [ ] `preflight cache: 86400s` — verify with `Access-Control-Max-Age: 86400` header
-- [ ] Expo dev client (`http://localhost:8081`) works in development without CORS errors
-- [ ] TypeScript compilation passes with zero errors
+- [x] `apps/server/src/config/cors.ts` created with `buildAllowedOrigins()` and `isAllowedOrigin()` exports
+- [x] `CORS_ALLOWED_ORIGINS` env var parsed at startup; dev origins auto-injected when `NODE_ENV=development`
+- [x] Stub `cors()` in `apps/server/src/index.ts` replaced with full production config
+- [x] Requests from whitelisted origins receive `Access-Control-Allow-Origin` matching the request origin
+- [x] Requests from non-whitelisted origins receive no `Access-Control-Allow-Origin` header + `WARN` log
+- [x] `Access-Control-Allow-Credentials: true` present on all CORS responses
+- [x] `OPTIONS` preflight requests return `204 No Content` with correct CORS headers
+- [x] `X-RateLimit-*` headers exposed to browser clients via `Access-Control-Expose-Headers`
+- [x] `preflight cache: 86400s` — verify with `Access-Control-Max-Age: 86400` header
+- [x] Expo dev client (`http://localhost:8081`) works in development without CORS errors — verified without adding localhost to `CORS_ALLOWED_ORIGINS` env var
+- [x] `.env.example` updated — `CORS_ALLOWED_ORIGINS` shows production-only origins; dev origins documented as auto-injected
+- [x] TypeScript compilation passes with zero errors
 
 ---
 
@@ -94,22 +135,22 @@ Development origins are injected automatically when `NODE_ENV=development` — n
 ### CORS Config Module
 
 ```typescript
-// apps/server/src/config/cors.ts
+// apps/server/src/config/cors.ts  (new file)
 
 export function buildAllowedOrigins(): string[] {
-  const envOrigins = process.env.CORS_ALLOWED_ORIGINS ?? "";
+  const envOrigins = process.env.CORS_ALLOWED_ORIGINS ?? '';
   const configured = envOrigins
-    .split("|")
+    .split('|')
     .map((o) => o.trim())
     .filter(Boolean);
 
   const devOrigins =
-    process.env.NODE_ENV === "development"
+    process.env.NODE_ENV === 'development'
       ? [
-          "http://localhost:3000",
-          "http://localhost:3001",
-          "http://localhost:8081", // Expo dev client
-          "http://localhost:19006", // Expo web
+          'http://localhost:3000',
+          'http://localhost:3001',
+          'http://localhost:8081', // Expo dev client
+          'http://localhost:19006', // Expo web
         ]
       : [];
 
@@ -125,10 +166,10 @@ export function isAllowedOrigin(origin: string): boolean {
 ### Hono CORS Middleware
 
 ```typescript
-// apps/server/src/index.ts (replace the stub cors() call)
+// apps/server/src/index.ts — replace the stub cors() call at line 17-23
 
-import { cors } from "hono/cors";
-import { buildAllowedOrigins, isAllowedOrigin } from "./config/cors";
+import { cors } from 'hono/cors';
+import { buildAllowedOrigins, isAllowedOrigin } from './config/cors';
 
 app.use(
   cors({
@@ -138,19 +179,15 @@ app.use(
       if (isAllowedOrigin(origin)) return origin;
 
       // Log rejected origins at warn level (not error)
-      console.warn("[CORS] Rejected origin:", origin);
+      console.warn('[CORS] Rejected origin:', origin);
       return null; // Hono treats null as "deny"
     },
     credentials: true,
-    allowMethods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
-    allowHeaders: ["Content-Type", "Authorization"],
-    exposeHeaders: [
-      "X-RateLimit-Limit",
-      "X-RateLimit-Remaining",
-      "X-RateLimit-Reset",
-    ],
+    allowMethods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowHeaders: ['Content-Type', 'Authorization'],
+    exposeHeaders: ['X-RateLimit-Limit', 'X-RateLimit-Remaining', 'X-RateLimit-Reset'],
     maxAge: 86400,
-  }),
+  })
 );
 ```
 

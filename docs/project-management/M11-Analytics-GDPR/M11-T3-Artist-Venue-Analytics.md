@@ -232,16 +232,16 @@ Retrieve analytics for the authenticated Venue. Includes all artist metrics plus
 ### Event View Count Increment (Hono Endpoint)
 
 ```typescript
-app.get("/api/v1/events/:eventId", async (c) => {
-  const eventId = c.req.param("eventId");
-  const userId = c.get("userId"); // from auth middleware, nullable for Spectators
+app.get('/api/v1/events/:eventId', async (c) => {
+  const eventId = c.req.param('eventId');
+  const userId = c.get('userId'); // from auth middleware, nullable for Spectators
 
   const event = await db.query.events.findFirst({
     where: eq(events.id, eventId),
   });
 
   if (!event) {
-    return c.json({ error: "Event not found" }, 404);
+    return c.json({ error: 'Event not found' }, 404);
   }
 
   // Increment view count if user is NOT the creator
@@ -259,8 +259,8 @@ app.get("/api/v1/events/:eventId", async (c) => {
 ### Artist Analytics Endpoint (Hono)
 
 ```typescript
-app.get("/api/v1/artists/me/analytics", authMiddleware, async (c) => {
-  const userId = c.get("userId");
+app.get('/api/v1/artists/me/analytics', authMiddleware, async (c) => {
+  const userId = c.get('userId');
 
   // Verify artist profile exists
   const artistProfile = await db.query.artistProfiles.findFirst({
@@ -268,7 +268,7 @@ app.get("/api/v1/artists/me/analytics", authMiddleware, async (c) => {
   });
 
   if (!artistProfile) {
-    return c.json({ error: "Artist profile not found" }, 403);
+    return c.json({ error: 'Artist profile not found' }, 403);
   }
 
   // Check cache
@@ -278,71 +278,65 @@ app.get("/api/v1/artists/me/analytics", authMiddleware, async (c) => {
   }
 
   // Fetch analytics in parallel
-  const [postLikes, topPosts, eventReach, eventSaves, bookings, followers] =
-    await Promise.all([
-      // Total likes
-      db
-        .select({ total: sql`sum(${postLikes.count})` })
-        .from(postLikes)
-        .innerJoin(posts, eq(posts.id, postLikes.postId))
-        .where(eq(posts.createdBy, userId)),
+  const [postLikes, topPosts, eventReach, eventSaves, bookings, followers] = await Promise.all([
+    // Total likes
+    db
+      .select({ total: sql`sum(${postLikes.count})` })
+      .from(postLikes)
+      .innerJoin(posts, eq(posts.id, postLikes.postId))
+      .where(eq(posts.createdBy, userId)),
 
-      // Top 3 posts
-      db
-        .select({
-          postId: posts.id,
-          title: posts.title,
-          likes: sql`count(${postLikes.id})`,
-          createdAt: posts.createdAt,
-        })
-        .from(posts)
-        .leftJoin(postLikes, eq(postLikes.postId, posts.id))
-        .where(eq(posts.createdBy, userId))
-        .groupBy(posts.id)
-        .orderBy(desc(sql`count(${postLikes.id})`))
-        .limit(3),
+    // Top 3 posts
+    db
+      .select({
+        postId: posts.id,
+        title: posts.title,
+        likes: sql`count(${postLikes.id})`,
+        createdAt: posts.createdAt,
+      })
+      .from(posts)
+      .leftJoin(postLikes, eq(postLikes.postId, posts.id))
+      .where(eq(posts.createdBy, userId))
+      .groupBy(posts.id)
+      .orderBy(desc(sql`count(${postLikes.id})`))
+      .limit(3),
 
-      // Event views + saves
-      db
-        .select({
-          totalViews: sql`sum(${events.viewCount})`,
-          totalEvents: count(),
-        })
-        .from(events)
-        .where(eq(events.createdBy, userId)),
+    // Event views + saves
+    db
+      .select({
+        totalViews: sql`sum(${events.viewCount})`,
+        totalEvents: count(),
+      })
+      .from(events)
+      .where(eq(events.createdBy, userId)),
 
-      // Event saves
-      db
-        .select({ count: count() })
-        .from(savedEvents)
-        .innerJoin(events, eq(events.id, savedEvents.eventId))
-        .where(eq(events.createdBy, userId)),
+    // Event saves
+    db
+      .select({ count: count() })
+      .from(savedEvents)
+      .innerJoin(events, eq(events.id, savedEvents.eventId))
+      .where(eq(events.createdBy, userId)),
 
-      // Bookings by status
-      db
-        .select({
-          status: bookings.status,
-          count: count(),
-        })
-        .from(bookings)
-        .where(eq(bookings.artistId, userId))
-        .groupBy(bookings.status),
+    // Bookings by status
+    db
+      .select({
+        status: bookings.status,
+        count: count(),
+      })
+      .from(bookings)
+      .where(eq(bookings.artistId, userId))
+      .groupBy(bookings.status),
 
-      // Follower count
-      db
-        .select({ count: count() })
-        .from(follows)
-        .where(eq(follows.followedId, userId)),
-    ]);
+    // Follower count
+    db.select({ count: count() }).from(follows).where(eq(follows.followedId, userId)),
+  ]);
 
   const analytics = {
     posts: {
       totalLikes: postLikes[0]?.total || 0,
       totalPosts: topPosts.length,
       avgLikesPerPost:
-        topPosts.length > 0
-          ? topPosts.reduce((sum, p) => sum + p.likes, 0) / topPosts.length
-          : 0,
+        topPosts.length > 0 ? topPosts.reduce((sum, p) => sum + p.likes, 0) / topPosts.length : 0,
       topPosts: topPosts.map((p) => ({
         postId: p.postId,
         title: p.title,
@@ -369,11 +363,7 @@ app.get("/api/v1/artists/me/analytics", authMiddleware, async (c) => {
   };
 
   // Cache for 30 minutes
-  await redis.setex(
-    `analytics:artist:${userId}`,
-    1800,
-    JSON.stringify(analytics),
-  );
+  await redis.setex(`analytics:artist:${userId}`, 1800, JSON.stringify(analytics));
 
   return c.json(analytics);
 });

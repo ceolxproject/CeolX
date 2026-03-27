@@ -1,6 +1,6 @@
-import { getTransport } from "./client.js";
-import { SENDER_EMAIL, SENDER_NAME } from "./constants.js";
-import type { SendEmailOptions } from "./types.js";
+import { getTransport } from './client.js';
+import { SENDER_EMAIL, SENDER_NAME } from './constants.js';
+import type { SendEmailOptions } from './types.js';
 
 export async function sendEmail({
   to,
@@ -18,10 +18,10 @@ export async function sendEmail({
       html: htmlBody,
       text: textBody,
     });
-    console.log("[email]", { tag, to, timestamp: new Date().toISOString() });
+    console.warn('[email] sent', { tag, to });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    console.error("[email] failed", { tag, to, error: message });
+    console.error('[email] failed', { tag, to, error: message });
     throw error;
   }
 }

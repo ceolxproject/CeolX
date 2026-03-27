@@ -239,56 +239,56 @@ None — this is the first task in the project.
 // packages/shared/src/enums/index.ts
 
 export enum UserRole {
-  SPECTATOR = "spectator",
-  ARTIST = "artist",
-  VENUE = "venue",
-  SUPER_ADMIN = "super_admin",
+  SPECTATOR = 'spectator',
+  ARTIST = 'artist',
+  VENUE = 'venue',
+  SUPER_ADMIN = 'super_admin',
 }
 
 export enum EventStatus {
-  DRAFT = "draft",
-  PENDING_REVIEW = "pending_review",
-  REJECTED = "rejected",
-  ACTIVE = "active",
-  ARCHIVED = "archived",
+  DRAFT = 'draft',
+  PENDING_REVIEW = 'pending_review',
+  REJECTED = 'rejected',
+  ACTIVE = 'active',
+  ARCHIVED = 'archived',
 }
 
 export enum BookingStatus {
-  PENDING = "pending",
-  ACCEPTED = "accepted",
-  REJECTED = "rejected",
-  CANCELLED = "cancelled",
+  PENDING = 'pending',
+  ACCEPTED = 'accepted',
+  REJECTED = 'rejected',
+  CANCELLED = 'cancelled',
 }
 
 export enum BookingDirection {
-  VENUE_TO_ARTIST = "venue_to_artist",
-  ARTIST_TO_VENUE = "artist_to_venue",
+  VENUE_TO_ARTIST = 'venue_to_artist',
+  ARTIST_TO_VENUE = 'artist_to_venue',
 }
 
 export enum SubscriptionStatus {
-  INACTIVE = "inactive",
-  ACTIVE = "active",
-  PAST_DUE = "past_due",
-  CANCELLED = "cancelled",
+  INACTIVE = 'inactive',
+  ACTIVE = 'active',
+  PAST_DUE = 'past_due',
+  CANCELLED = 'cancelled',
 }
 
 export enum MediaType {
-  IMAGE = "image",
-  VIDEO = "video",
-  AUDIO = "audio",
-  TEXT = "text",
+  IMAGE = 'image',
+  VIDEO = 'video',
+  AUDIO = 'audio',
+  TEXT = 'text',
 }
 
 export enum NotificationType {
-  EVENT_APPROVED = "event_approved",
-  EVENT_REJECTED = "event_rejected",
-  BOOKING_INVITATION = "booking_invitation",
-  BOOKING_UPDATE = "booking_update",
-  ARTIST_MESSAGE = "artist_message",
-  VENUE_MESSAGE = "venue_message",
+  EVENT_APPROVED = 'event_approved',
+  EVENT_REJECTED = 'event_rejected',
+  BOOKING_INVITATION = 'booking_invitation',
+  BOOKING_UPDATE = 'booking_update',
+  ARTIST_MESSAGE = 'artist_message',
+  VENUE_MESSAGE = 'venue_message',
 }
 
-export * as Enums from "./index";
+export * as Enums from './index';
 ```
 
 ### GitHub Branch Protection Configuration

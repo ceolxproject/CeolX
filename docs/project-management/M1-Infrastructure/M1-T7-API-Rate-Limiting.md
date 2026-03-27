@@ -1,141 +1,105 @@
-# Task 8: API Rate Limiting Middleware
+# M1-T7 · API Rate Limiting
 
 ## Description
 
-Implement comprehensive API rate limiting for the Hono API using Upstash Redis as the backing store. Rate limiting protects against brute-force attacks, API abuse, and ensures fair usage across all platform users. Implements per-route, per-user, and per-role rate limits with configurable thresholds. Uses a sliding window algorithm for accurate rate counting and includes special handling for authentication endpoints, webhook receivers, and admin operations.
+Implement two-layer API rate limiting for the Hono API using Upstash Redis as the backing store.
+
+- **Layer 1** — Hono middleware applied to route groups (broad limits by IP or userId)
+- **Layer 2** — Per-procedure Redis counters inside sensitive handlers (keyed by email/userId)
+
+Uses sliding window algorithm via `@upstash/ratelimit`. Gracefully no-ops in local dev when Upstash credentials are absent.
 
 ## Affected Apps/Packages
 
-- Backend: `apps/api` (Hono) — middleware integration
-- Shared: `packages/cache` (`@mentor/cache`) — Redis client for rate limit counters
-- Shared: `packages/auth` (`@mentor/auth`) — role-based rate limit tiers
+- `apps/api` — middleware wiring in `app.ts`, per-procedure limits in auth handlers
+- `packages/cache` (`@CeolX/cache`) — `rateLimiter()` middleware factory, `RATE_LIMIT_TIERS`, Redis client
+- `packages/env` (`@CeolX/env`) — Upstash env var definitions
 
-## API Endpoints Affected
+## Rate Limit Tiers (Layer 1)
 
-All API endpoints, with specific limits per category:
+| Tier                   | Tokens | Window | Key    | Route group         |
+| ---------------------- | ------ | ------ | ------ | ------------------- |
+| `authLogin`            | 10     | 15 min | IP     | `/api/auth/*`       |
+| `authenticatedGeneral` | 500    | 1 min  | userId | `/rpc/*`            |
+| `publicCatalog`        | 200    | 1 min  | IP     | `/api-reference/*`  |
+| `adminGeneral`         | 500    | 1 min  | userId | `/admin/*` (future) |
+| `muxUpload`            | 5      | 60s    | userId | applied per-route   |
 
-| Endpoint Category           | Rate Limit | Window | Key                |
-| --------------------------- | ---------- | ------ | ------------------ |
-| Auth: Login/Signup          | 10 req     | 15 min | IP                 |
-| Auth: Password Reset        | 5 req      | 1 hour | IP                 |
-| Auth: Email Verification    | 5 req      | 15 min | IP                 |
-| Public: Course Catalog      | 60 req     | 1 min  | IP                 |
-| Public: Search              | 30 req     | 1 min  | IP                 |
-| Authenticated: General      | 120 req    | 1 min  | User ID            |
-| Authenticated: Writes       | 30 req     | 1 min  | User ID            |
-| Instructor: Course Mgmt     | 60 req     | 1 min  | User ID            |
-| Instructor: Video Upload    | 10 req     | 1 hour | User ID            |
-| Admin: General              | 300 req    | 1 min  | User ID            |
-| Admin: Bulk Operations      | 10 req     | 1 min  | User ID            |
-| Webhooks: Stripe/Mux/QStash | No limit   | —      | Verified signature |
+## Per-Procedure Limits (Layer 2)
 
-## Requirements
+| Operation                 | Key pattern                     | Limit        |
+| ------------------------- | ------------------------------- | ------------ |
+| Forgot password           | `rl:forgot-password:{email}`    | 5 per hour   |
+| Resend email verification | `rl:resend-verify:{email}`      | 3 per 15 min |
+| Resend venue activation   | `rl:resend-activation:{userId}` | 3 per 15 min |
 
-### Middleware Implementation
+Layer 2 uses raw Redis `incr`/`expire` — not `@upstash/ratelimit` — so the key is set with a TTL only on the first increment.
 
-- Create Hono middleware factory: `createRateLimiter(options)`
-- Use sliding window algorithm via `@upstash/ratelimit` SDK
-- Support multiple rate limit tiers applied per route group
-- Return standard rate limit headers:
-  - `X-RateLimit-Limit`: Maximum requests allowed
-  - `X-RateLimit-Remaining`: Requests remaining in window
-  - `X-RateLimit-Reset`: Timestamp when window resets (Unix epoch seconds)
-  - `Retry-After`: Seconds until next request allowed (only on 429)
-- Return `429 Too Many Requests` with JSON error body when exceeded
+```ts
+const key = `rl:resend-activation:${userId}`;
+const count = await redis.incr(key);
+if (count === 1) await redis.expire(key, 900); // 15 min TTL
+if (count > 3) throw new HTTPException(429, { message: 'Too many requests' });
+```
 
-### Rate Limit Key Strategy
+## Middleware Design (`packages/cache/src/rate-limit.ts`)
 
-- **Unauthenticated requests**: Key by IP address (via `X-Forwarded-For` header on Vercel)
-- **Authenticated requests**: Key by user ID (extracted from session)
-- **Role-based tiers**: Admin users get higher limits than learners/instructors
+| Concern          | Implementation                                                                                 |
+| ---------------- | ---------------------------------------------------------------------------------------------- |
+| Algorithm        | `Ratelimit.slidingWindow(tokens, window)`                                                      |
+| Key strategy     | `"ip"` → `X-Forwarded-For` / `X-Real-IP`; `"userId"` → session user ID, falls back to IP       |
+| No-op conditions | `NODE_ENV=test`, `RATE_LIMIT_ENABLED=false`, or missing Upstash env vars — no errors thrown    |
+| IP allowlist     | `RATE_LIMIT_IP_ALLOWLIST` env var (comma-separated) — bypasses all limits                      |
+| Limiter caching  | `Map<string, Ratelimit>` singleton per process — avoids re-instantiating Redis clients         |
+| Response headers | `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset` on all; `Retry-After` on 429 |
+| 429 response     | `{ error: "Too Many Requests" }` JSON with `Retry-After` header                                |
 
-### Redis Storage
+## Wiring in `apps/api/src/app.ts`
 
-- Use existing Upstash Redis instance from `@mentor/cache` package
-- Rate limit keys prefixed with `rl:` namespace
-- TTL automatically managed by `@upstash/ratelimit`
-- Monitor Redis memory usage for rate limit keys
+```ts
+app.use('/api/auth/*', rateLimiter(RATE_LIMIT_TIERS.authLogin));
+app.use('/rpc/*', rateLimiter(RATE_LIMIT_TIERS.authenticatedGeneral));
+app.use('/api-reference/*', rateLimiter(RATE_LIMIT_TIERS.publicCatalog));
+// Health check (/) — no rate limit
+// Webhooks (/api/webhooks/*) — outside rate-limited prefixes; signature verification handles abuse
+```
 
-### Security Considerations
+## Webhook Bypass
 
-- Bypass rate limiting for verified webhook signatures (Stripe, Mux, QStash)
-- Implement IP allowlisting for internal services and monitoring
-- Log rate limit violations to audit trail (IP, user ID, endpoint, timestamp)
-- Alert on sustained rate limit violations (potential attack detection)
-- Handle `X-Forwarded-For` header safely (trust Vercel's proxy, not client-provided)
+Stripe, Mux, and Postmark webhook routes (`/api/webhooks/*`) are **not under any rate-limited prefix**. Abuse is prevented by signature verification middleware on each webhook route.
 
-### Developer API
+## Env Variables (`packages/env/src/server.ts`)
 
-```typescript
-// Route-level rate limiting
-import { rateLimiter } from "@mentor/cache";
-
-// Apply to auth routes
-app.use(
-  "/api/auth/*",
-  rateLimiter({
-    tier: "auth",
-    limit: 10,
-    window: "15m",
-    keyBy: "ip",
-  }),
-);
-
-// Apply to authenticated API routes
-app.use(
-  "/api/v1/*",
-  rateLimiter({
-    tier: "authenticated",
-    limit: 120,
-    window: "1m",
-    keyBy: "userId",
-  }),
-);
+```
+UPSTASH_REDIS_REST_URL=...
+UPSTASH_REDIS_REST_TOKEN=...
+RATE_LIMIT_ENABLED=true          # optional, defaults to enabled
+RATE_LIMIT_IP_ALLOWLIST=127.0.0.1,10.0.0.1  # optional
 ```
 
 ## Acceptance Criteria
 
-- [x] Rate limiting middleware applies to all API route groups — auth, rpc, api-reference routes covered (`app.ts:63-65`)
-- [x] Authentication endpoints limited to 10 requests per 15 minutes per IP — `RATE_LIMIT_TIERS.authLogin` (`rate-limit.ts:17-22`)
-- [x] Authenticated endpoints limited to 120 requests per minute per user — `RATE_LIMIT_TIERS.authenticatedGeneral` (`rate-limit.ts:23-28`)
-- [ ] Admin endpoints allow 300 requests per minute per user — no admin tier defined yet (deferred to Milestone 04 RBAC)
-- [x] Webhook endpoints bypass rate limiting when signature is valid — webhook routes fall outside rate-limited prefixes; QStash uses `qstashVerify()` middleware
-- [x] `429 Too Many Requests` returned with correct headers when limit exceeded — (`rate-limit.ts:132-137`)
-- [x] `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset` headers present on all responses — (`rate-limit.ts:128-130`)
-- [x] `Retry-After` header present on 429 responses — (`rate-limit.ts:133`)
-- [x] Rate limit counters stored in Upstash Redis with correct TTLs — `@upstash/ratelimit` sliding window (`rate-limit.ts:63-74`)
-- [ ] Rate limit violations logged to audit trail — currently `console.warn` only; no DB audit log write
-- [x] Unit tests for each rate limit tier — 3 tiers tested in `rate-limit.test.ts`; admin tier deferred
-- [ ] Integration test confirming 429 after exceeding limit — unit test with mock exists; no multi-request integration test
-- [x] IP allowlist bypasses rate limiting for configured addresses — `RATE_LIMIT_IP_ALLOWLIST` env var (`rate-limit.ts:86-90`)
-- [x] No rate limiting applied in test environment (configurable) — `NODE_ENV=test` or `RATE_LIMIT_ENABLED=false` bypasses (`rate-limit.ts:77-84`)
+- [ ] `rateLimiter()` middleware factory implemented in `packages/cache/src/rate-limit.ts`
+- [ ] All 5 tiers defined in `RATE_LIMIT_TIERS` constant
+- [ ] Layer 1 applied to `/api/auth/*`, `/rpc/*`, `/api-reference/*` in `app.ts`
+- [ ] Layer 2 per-procedure limits on forgot-password, resend-verify, resend-activation handlers
+- [ ] No-op when `NODE_ENV=test` or `RATE_LIMIT_ENABLED=false` or Upstash vars absent
+- [ ] IP allowlist bypasses all limits
+- [ ] `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset` headers on all responses
+- [ ] `Retry-After` header on 429 responses only
+- [ ] `429 Too Many Requests` with JSON error body when limit exceeded
+- [ ] Webhook routes (`/api/webhooks/*`) excluded from rate limiting
+- [ ] Upstash env vars added to `packages/env/src/server.ts`
+- [ ] Unit tests for each tier (mock Upstash client)
 
 ## Dependencies
 
-- Upstash Redis provisioned (Milestone 01 or 03, Task 10: Cache Adapter)
-- Hono API scaffolded (Milestone 01, Task 02)
-- BetterAuth session middleware (Milestone 04, Task 01) for user ID extraction
+- Upstash Redis provisioned (M1-T10 Cache Adapter)
+- Hono API scaffolded (M1-T3)
+- BetterAuth session middleware (M4) — needed for userId extraction in Layer 1
 
-## Technical Notes
+## Key Files
 
-### Why @upstash/ratelimit?
-
-- Purpose-built for serverless environments
-- Sliding window algorithm (more accurate than fixed window)
-- Atomic Redis operations (no race conditions)
-- Built-in support for multiple rate limit tiers
-- Zero configuration for Upstash Redis integration
-
-### Sliding Window vs Fixed Window
-
-- Fixed window: Allows burst at window boundaries (e.g., 120 requests at 0:59 + 120 at 1:00)
-- Sliding window: Distributes limit evenly across time, preventing burst abuse
-- QStash uses sliding window — more accurate and fairer
-
-### Common Gotchas
-
-- Vercel serverless: IP address is in `X-Forwarded-For` header, not `req.ip`
-- Multiple Vercel regions may have separate Redis connections — use global Upstash endpoint
-- Rate limit headers should be set even on successful requests (for client awareness)
-- Don't rate limit health check endpoints (`/api/health`)
-- In development, set higher limits or disable entirely via `RATE_LIMIT_ENABLED=false`
+1. `packages/cache/src/rate-limit.ts` — middleware factory + tiers
+2. `apps/api/src/app.ts` — route-group wiring
+3. `packages/env/src/server.ts` — env var definitions

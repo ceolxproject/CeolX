@@ -156,13 +156,13 @@ Resolve approximate location from client IP address (optional — can be done cl
 ```typescript
 // apps/native/src/hooks/useLocationPermission.ts
 
-import * as Location from "expo-location";
-import { useState, useEffect } from "react";
+import * as Location from 'expo-location';
+import { useState, useEffect } from 'react';
 
 interface LocationResult {
   lat: number;
   lng: number;
-  source: "gps" | "ip" | "default";
+  source: 'gps' | 'ip' | 'default';
   accuracy?: string;
 }
 
@@ -175,43 +175,40 @@ export const useLocationPermission = () => {
       try {
         // Step 1: Request permission
         const { status } = await Location.requestForegroundPermissionsAsync();
-        if (status === "granted") {
+        if (status === 'granted') {
           // Step 2: GPS resolution with 10-second timeout
           try {
             const gpsPromise = Location.getCurrentPositionAsync({
               accuracy: Location.Accuracy.Balanced,
             });
             const timeoutPromise = new Promise((_, reject) =>
-              setTimeout(() => reject(new Error("GPS timeout")), 10000),
+              setTimeout(() => reject(new Error('GPS timeout')), 10000)
             );
             const gpsResult = await Promise.race([gpsPromise, timeoutPromise]);
 
             setLocation({
               lat: gpsResult.coords.latitude,
               lng: gpsResult.coords.longitude,
-              source: "gps",
-              accuracy: "precise",
+              source: 'gps',
+              accuracy: 'precise',
             });
           } catch (gpsError) {
-            console.warn(
-              "GPS failed, falling back to IP geolocation:",
-              gpsError,
-            );
+            console.warn('GPS failed, falling back to IP geolocation:', gpsError);
             const ipResult = await resolveIPGeolocation();
             if (ipResult) {
               setLocation({
                 lat: ipResult.lat,
                 lng: ipResult.lng,
-                source: "ip",
-                accuracy: "city",
+                source: 'ip',
+                accuracy: 'city',
               });
             } else {
               // Ireland default
               setLocation({
                 lat: 53.1424,
                 lng: -7.6921,
-                source: "default",
-                accuracy: "country",
+                source: 'default',
+                accuracy: 'country',
               });
             }
           }
@@ -222,26 +219,26 @@ export const useLocationPermission = () => {
             setLocation({
               lat: ipResult.lat,
               lng: ipResult.lng,
-              source: "ip",
-              accuracy: "city",
+              source: 'ip',
+              accuracy: 'city',
             });
           } else {
             setLocation({
               lat: 53.1424,
               lng: -7.6921,
-              source: "default",
-              accuracy: "country",
+              source: 'default',
+              accuracy: 'country',
             });
           }
         }
       } catch (error) {
-        console.error("Location resolution failed:", error);
+        console.error('Location resolution failed:', error);
         // Final fallback
         setLocation({
           lat: 53.1424,
           lng: -7.6921,
-          source: "default",
-          accuracy: "country",
+          source: 'default',
+          accuracy: 'country',
         });
       } finally {
         setLoading(false);
@@ -256,7 +253,7 @@ export const useLocationPermission = () => {
 
 async function resolveIPGeolocation() {
   try {
-    const response = await fetch("https://ipapi.co/json/");
+    const response = await fetch('https://ipapi.co/json/');
     const data = await response.json();
     if (data.latitude && data.longitude) {
       return {
@@ -268,7 +265,7 @@ async function resolveIPGeolocation() {
     }
     return null;
   } catch (error) {
-    console.error("IP geolocation failed:", error);
+    console.error('IP geolocation failed:', error);
     return null;
   }
 }
@@ -338,9 +335,9 @@ const styles = StyleSheet.create({
 ```typescript
 // apps/native/src/utils/locationStorage.ts
 
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const LOCATION_CACHE_KEY = "ceolx_location_cache";
+const LOCATION_CACHE_KEY = 'ceolx_location_cache';
 const LOCATION_CACHE_TTL_MS = 3600000; // 1 hour
 
 export async function cacheLocation(lat: number, lng: number) {

@@ -3,7 +3,7 @@
 | Field          | Value                                                 |
 | -------------- | ----------------------------------------------------- |
 | **Milestone**  | M1 — Project Setup & Infrastructure                   |
-| **Status**     | 🔲 To Do                                              |
+| **Status**     | ✅ Complete — PR #9                                   |
 | **Depends on** | M1-T11 (TypeScript configuration)                     |
 | **PRD Ref**    | Section 10.1 (Monorepo — Turborepo, code consistency) |
 
@@ -56,31 +56,18 @@ None — this is a tooling configuration task.
   ],
   "rules": {
     // TypeScript
-    "@typescript-eslint/no-unused-vars": [
-      "error",
-      { "argsIgnorePattern": "^_" }
-    ],
+    "@typescript-eslint/no-unused-vars": ["error", { "argsIgnorePattern": "^_" }],
     "@typescript-eslint/no-explicit-any": "error",
     "@typescript-eslint/no-floating-promises": "error",
     "@typescript-eslint/no-misused-promises": "error",
-    "@typescript-eslint/consistent-type-imports": [
-      "error",
-      { "prefer": "type-imports" }
-    ],
+    "@typescript-eslint/consistent-type-imports": ["error", { "prefer": "type-imports" }],
     "@typescript-eslint/no-non-null-assertion": "warn",
 
     // Imports
     "import/order": [
       "error",
       {
-        "groups": [
-          "builtin",
-          "external",
-          "internal",
-          "parent",
-          "sibling",
-          "index"
-        ],
+        "groups": ["builtin", "external", "internal", "parent", "sibling", "index"],
         "newlines-between": "always",
         "alphabetize": { "order": "asc", "caseInsensitive": true }
       }
@@ -119,14 +106,7 @@ None — this is a tooling configuration task.
       }
     }
   ],
-  "ignorePatterns": [
-    "node_modules",
-    "dist",
-    ".turbo",
-    ".expo",
-    "*.gen.ts",
-    "routeTree.gen.ts"
-  ]
+  "ignorePatterns": ["node_modules", "dist", ".turbo", ".expo", "*.gen.ts", "routeTree.gen.ts"]
 }
 ```
 

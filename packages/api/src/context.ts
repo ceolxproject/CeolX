@@ -1,5 +1,6 @@
-import { auth } from "@CeolX/auth";
-import type { Context as HonoContext } from "hono";
+import type { Context as HonoContext } from 'hono';
+
+import { auth } from '@CeolX/auth';
 
 export type CreateContextOptions = {
   context: HonoContext;

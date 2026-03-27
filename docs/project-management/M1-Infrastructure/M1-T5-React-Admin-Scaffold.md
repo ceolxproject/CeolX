@@ -163,16 +163,16 @@ apps/admin/
 ```typescript
 // apps/admin/vite.config.ts
 
-import { defineConfig } from "vite";
-import react from "@vitejs/plugin-react";
-import { TanStackRouterVite } from "@tanstack/router-plugin/vite";
-import path from "path";
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+import { TanStackRouterVite } from '@tanstack/router-plugin/vite';
+import path from 'path';
 
 export default defineConfig({
-  plugins: [TanStackRouterVite({ routesDirectory: "./src/routes" }), react()],
+  plugins: [TanStackRouterVite({ routesDirectory: './src/routes' }), react()],
   resolve: {
     alias: {
-      "@": path.resolve(__dirname, "./src"),
+      '@': path.resolve(__dirname, './src'),
     },
   },
   server: {
@@ -186,12 +186,12 @@ export default defineConfig({
 ```typescript
 // apps/admin/src/router.ts
 
-import { createRouter } from "@tanstack/react-router";
-import { routeTree } from "./routeTree.gen";
+import { createRouter } from '@tanstack/react-router';
+import { routeTree } from './routeTree.gen';
 
 export const router = createRouter({ routeTree });
 
-declare module "@tanstack/react-router" {
+declare module '@tanstack/react-router' {
   interface Register {
     router: typeof router;
   }
@@ -233,11 +233,11 @@ export const Route = createRootRoute({
 ```typescript
 // apps/admin/src/routes/index.tsx
 
-import { createFileRoute, redirect } from "@tanstack/react-router";
+import { createFileRoute, redirect } from '@tanstack/react-router';
 
-export const Route = createFileRoute("/")({
+export const Route = createFileRoute('/')({
   beforeLoad: () => {
-    throw redirect({ to: "/dashboard" });
+    throw redirect({ to: '/dashboard' });
   },
 });
 ```

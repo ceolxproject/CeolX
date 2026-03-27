@@ -170,7 +170,7 @@ Fetch algorithmically ranked events with pagination.
 ```typescript
 // apps/server/src/services/feedRanking.ts
 
-import { Event } from "@ceolx/shared/schema";
+import { Event } from '@ceolx/shared/schema';
 
 interface LocationCoords {
   lat: number;
@@ -183,7 +183,7 @@ const DAYS_FOR_RECENCY = 30;
 export function calculateRankingScore(
   event: Event,
   userLocation: LocationCoords,
-  isFollowingCreator: boolean,
+  isFollowingCreator: boolean
 ): number {
   // Recency score (40%)
   const now = Date.now();
@@ -192,30 +192,19 @@ export function calculateRankingScore(
   const recencyScore = Math.max(0, 1 - daysSince / DAYS_FOR_RECENCY);
 
   // Distance score (40%)
-  const distanceKm = calculateDistance(
-    userLocation.lat,
-    userLocation.lng,
-    event.lat,
-    event.lng,
-  );
+  const distanceKm = calculateDistance(userLocation.lat, userLocation.lng, event.lat, event.lng);
   const distanceScore = Math.max(0, 1 - distanceKm / MAX_DISTANCE_KM);
 
   // Social score (20%)
   const socialScore = isFollowingCreator ? 1.0 : 0.0;
 
   // Final score
-  const finalScore =
-    0.4 * recencyScore + 0.4 * distanceScore + 0.2 * socialScore;
+  const finalScore = 0.4 * recencyScore + 0.4 * distanceScore + 0.2 * socialScore;
 
   return finalScore;
 }
 
-function calculateDistance(
-  lat1: number,
-  lng1: number,
-  lat2: number,
-  lng2: number,
-): number {
+function calculateDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
   // Haversine formula
   const R = 6371; // Earth radius in km
   const dLat = ((lat2 - lat1) * Math.PI) / 180;
@@ -236,29 +225,29 @@ function calculateDistance(
 ```typescript
 // apps/server/src/routes/feed.ts
 
-import { Hono } from "hono";
-import { getAuth } from "hono/better-auth";
-import { db } from "../db";
-import { events, follows, saved_events } from "@ceolx/shared/schema";
-import { eq, sql, and } from "drizzle-orm";
-import { calculateRankingScore } from "../services/feedRanking";
+import { Hono } from 'hono';
+import { getAuth } from 'hono/better-auth';
+import { db } from '../db';
+import { events, follows, saved_events } from '@ceolx/shared/schema';
+import { eq, sql, and } from 'drizzle-orm';
+import { calculateRankingScore } from '../services/feedRanking';
 
 const app = new Hono();
 
-app.get("/feed", async (c) => {
+app.get('/feed', async (c) => {
   const auth = getAuth(c);
   if (!auth) {
-    return c.json({ error: "Unauthorized" }, 401);
+    return c.json({ error: 'Unauthorized' }, 401);
   }
 
-  const latitude = parseFloat(c.req.query("latitude") || "");
-  const longitude = parseFloat(c.req.query("longitude") || "");
-  const limit = parseInt(c.req.query("limit") || "15", 10);
-  const offset = parseInt(c.req.query("offset") || "0", 10);
-  const persona = c.req.query("persona") || "spectator";
+  const latitude = parseFloat(c.req.query('latitude') || '');
+  const longitude = parseFloat(c.req.query('longitude') || '');
+  const limit = parseInt(c.req.query('limit') || '15', 10);
+  const offset = parseInt(c.req.query('offset') || '0', 10);
+  const persona = c.req.query('persona') || 'spectator';
 
   if (isNaN(latitude) || isNaN(longitude)) {
-    return c.json({ error: "latitude and longitude required" }, 400);
+    return c.json({ error: 'latitude and longitude required' }, 400);
   }
 
   try {
@@ -268,12 +257,10 @@ app.get("/feed", async (c) => {
         event: events,
       })
       .from(events)
-      .where(
-        and(eq(events.status, "active"), sql`${events.date_start} >= NOW()`),
-      );
+      .where(and(eq(events.status, 'active'), sql`${events.date_start} >= NOW()`));
 
     // Hide gig opportunities from non-artists
-    if (persona !== "artist") {
+    if (persona !== 'artist') {
       query = query.where(eq(events.is_gig_opportunity, false));
     }
 
@@ -294,7 +281,7 @@ app.get("/feed", async (c) => {
         ranking_score: calculateRankingScore(
           e.event,
           { lat: latitude, lng: longitude },
-          followedCreatorIds.has(e.event.created_by),
+          followedCreatorIds.has(e.event.created_by)
         ),
         is_followed_creator: followedCreatorIds.has(e.event.created_by),
       }))
@@ -332,17 +319,12 @@ app.get("/feed", async (c) => {
       totalCount: rankedEvents.length,
     });
   } catch (error) {
-    console.error("Feed fetch error:", error);
-    return c.json({ error: "Failed to fetch feed" }, 500);
+    console.error('Feed fetch error:', error);
+    return c.json({ error: 'Failed to fetch feed' }, 500);
   }
 });
 
-function calculateDistance(
-  lat1: number,
-  lng1: number,
-  lat2: number,
-  lng2: number,
-): number {
+function calculateDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
   const R = 6371;
   const dLat = ((lat2 - lat1) * Math.PI) / 180;
   const dLng = ((lng2 - lng1) * Math.PI) / 180;
