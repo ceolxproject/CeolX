@@ -12,10 +12,8 @@ import { AuthProvider } from '@/contexts/auth-context';
 import { queryClient } from '@/utils/trpc';
 
 // Initialise Sentry before any component mounts.
-// DSN is intentionally embedded — Sentry DSNs are write-only (events in, no data out).
-// Replace PLACEHOLDER_DSN with the real ceolx-mobile DSN once the Sentry project is created.
 Sentry.init({
-  dsn: 'PLACEHOLDER_DSN',
+  dsn: process.env.EXPO_PUBLIC_SENTRY_DSN,
   environment: __DEV__ ? 'development' : 'production',
   enabled: !__DEV__,
   tracesSampleRate: 0.1,
