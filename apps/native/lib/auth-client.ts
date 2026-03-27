@@ -1,8 +1,9 @@
-import { expoClient } from "@better-auth/expo/client";
-import { env } from "@CeolX/env/native";
-import { createAuthClient } from "better-auth/react";
-import Constants from "expo-constants";
-import * as SecureStore from "expo-secure-store";
+import { expoClient } from '@better-auth/expo/client';
+import { createAuthClient } from 'better-auth/react';
+import Constants from 'expo-constants';
+import * as SecureStore from 'expo-secure-store';
+
+import { env } from '@CeolX/env/native';
 
 export const authClient = createAuthClient({
   baseURL: env.EXPO_PUBLIC_SERVER_URL,

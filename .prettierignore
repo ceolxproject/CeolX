@@ -1,2 +1,15 @@
 # Auto-generated files — do not format
 **/routeTree.gen.ts
+*.gen.ts
+
+# Build outputs and dependencies
+node_modules
+dist
+.turbo
+.expo
+
+# Lock files and binary assets
+pnpm-lock.yaml
+*.docx
+*.png
+*.jpg
