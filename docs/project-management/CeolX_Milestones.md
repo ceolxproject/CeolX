@@ -44,7 +44,7 @@
 
 | Sub-task          | Details                                                                                         |
 | ----------------- | ----------------------------------------------------------------------------------------------- |
-| Turborepo init    | Create `apps/mobile`, `apps/admin`, `apps/api`, `packages/shared`                               |
+| Turborepo init    | Create `apps/native`, `apps/admin`, `apps/server`, `packages/shared`                            |
 | TypeScript config | Project references across all workspaces                                                        |
 | Shared package    | Enum value arrays + derived types, shared interfaces, constants, utility functions (see M1-T10) |
 | GitHub repo       | Three branches: `dev`, `staging`, `main`                                                        |
@@ -184,16 +184,19 @@
 
 **What**: Scaffold `packages/shared` as the single source of truth for all domain enum values, shared TypeScript types, business constants, and utility functions. `packages/db` imports raw enum arrays from here to construct Drizzle `pgEnum` definitions — no duplication between the TypeScript types and the database schema.
 
-| Sub-task             | Details                                                                                                                  |
-| -------------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| Enum values          | `src/enums.ts` — `as const` arrays + derived string literal union types for all domain enums                             |
-| Shared types         | `src/types.ts` — geo, pagination, API envelope, domain summaries (EventSummary, ArtistSummary, etc.)                     |
-| Constants            | `src/constants.ts` — map pins, debounce, Ireland coords, GDPR timings, pagination defaults                               |
-| Utils                | `src/utils/` — `string.ts` (slugify, capitalize, truncate), `date.ts` (format, upcoming/past), `geo.ts` (bbox, distance) |
-| `packages/db` update | Update `packages/db/src/schema/enums.ts` to import `USER_ROLES`, `EVENT_STATUSES`, etc. from `@CeolX/shared`             |
-| Barrel exports       | `src/index.ts` + `src/utils/index.ts` re-export all public APIs                                                          |
-| Package config       | `package.json` with sub-path exports (`./enums`, `./types`, `./constants`, `./utils`); zero runtime dependencies         |
-| README               | Documents purpose, public API surface, and the `packages/shared` → `packages/db` enum relationship                       |
+| Sub-task                   | Details                                                                                                                  |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| Migrate `types/user.ts`    | Move `User` → `src/types.ts`, `UserRole` → `src/enums.ts` as `USER_ROLES as const`; delete `src/types/user.ts`           |
+| Enum values                | `src/enums.ts` — `as const` arrays + derived string literal union types for all domain enums                             |
+| Shared types               | `src/types.ts` — geo, pagination, API envelope, domain summaries (EventSummary, ArtistSummary, etc.)                     |
+| Constants                  | `src/constants.ts` — map pins, debounce, Ireland coords, GDPR timings, pagination defaults                               |
+| Utils                      | `src/utils/` — `string.ts` (slugify, capitalize, truncate), `date.ts` (format, upcoming/past), `geo.ts` (bbox, distance) |
+| `packages/db` dependency   | Add `"@CeolX/shared": "workspace:*"` to `packages/db/package.json` dependencies                                          |
+| `packages/db` enums update | Update `packages/db/src/schema/enums.ts` to import `USER_ROLES`, `EVENT_STATUSES`, etc. from `@CeolX/shared`             |
+| `apps/server` dependency   | Add `"@CeolX/shared": "workspace:*"` to `apps/server/package.json` dependencies                                          |
+| Barrel exports             | `src/index.ts` + `src/utils/index.ts` re-export all public APIs                                                          |
+| Package config             | `package.json` with sub-path exports (`./enums`, `./types`, `./constants`, `./utils`); add `type-check` script           |
+| README                     | Documents purpose, public API surface, and the `packages/shared` → `packages/db` enum relationship                       |
 
 > See full task spec: `M1-Infrastructure/M1-T10-Shared-Package-Scaffolding.md`
 
