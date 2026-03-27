@@ -1,3 +1,11 @@
 {
-  "extends": "@CeolX/config/tsconfig.base.json"
+  "extends": "@CeolX/config/tsconfig.base.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@ceolx/shared": ["packages/shared/src"],
+      "@ceolx/shared/*": ["packages/shared/src/*"]
+    }
+  },
+  "exclude": ["node_modules", "**/dist", "**/.turbo", "**/.expo"]
 }

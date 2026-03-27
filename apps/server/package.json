@@ -17,6 +17,7 @@
   "dependencies": {
     "@CeolX/api": "workspace:*",
     "@CeolX/auth": "workspace:*",
+    "@CeolX/shared": "workspace:*",
     "@CeolX/cache": "workspace:*",
     "@CeolX/db": "workspace:*",
     "@CeolX/env": "workspace:*",

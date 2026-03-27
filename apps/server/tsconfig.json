@@ -2,10 +2,16 @@
   "extends": "@CeolX/config/tsconfig.base.json",
   "compilerOptions": {
     "composite": true,
+    "sourceMap": true,
     "outDir": "dist",
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@/routes/*": ["./src/routes/*"],
+      "@/middleware/*": ["./src/middleware/*"],
+      "@/services/*": ["./src/services/*"],
+      "@/schemas/*": ["./src/schemas/*"],
+      "@/lib/*": ["./src/lib/*"]
     },
     "jsx": "react-jsx",
     "jsxImportSource": "hono/jsx"

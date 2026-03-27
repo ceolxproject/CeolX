@@ -417,6 +417,9 @@ importers:
       '@CeolX/env':
         specifier: workspace:*
         version: link:../../packages/env
+      '@CeolX/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
       '@hono/node-server':
         specifier: ^1.14.4
         version: 1.19.11(hono@4.12.8)
@@ -555,6 +558,9 @@ importers:
       '@CeolX/env':
         specifier: workspace:*
         version: link:../env
+      '@CeolX/shared':
+        specifier: workspace:*
+        version: link:../shared
       '@neondatabase/serverless':
         specifier: ^0.10.4
         version: 0.10.4

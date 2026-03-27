@@ -3,7 +3,7 @@
 | Field          | Value                                                       |
 | -------------- | ----------------------------------------------------------- |
 | **Milestone**  | M1 — Project Setup & Infrastructure                         |
-| **Status**     | 🔲 To Do                                                    |
+| **Status**     | 🔧 In Progress                                              |
 | **Depends on** | M1-T1 (Turborepo init), M1-T10 (Shared package scaffolding) |
 | **PRD Ref**    | Section 10.1 (Tech Stack — TypeScript-first throughout)     |
 
@@ -11,19 +11,25 @@
 
 ## Description
 
-Establish the TypeScript configuration hierarchy across the entire monorepo: one root `tsconfig.json` that defines all strict settings and path aliases, with per-app configs that extend it and add only app-specific overrides (JSX mode, lib targets, path aliases). This task ensures consistent type safety from day one and enables IDE autocomplete for `@ceolx/shared` imports across all three apps.
+Establish the TypeScript configuration hierarchy across the entire monorepo using a **two-level architecture**:
+
+- **Level 1 — Shared base** (`packages/config/tsconfig.base.json`): all compiler options, strict flags, and shared settings. Every app and package extends this.
+- **Level 2 — App / package overrides**: per-app configs that extend the base and add only what is specific to that app (JSX mode, lib targets, path aliases, `noEmit`).
+
+The root `/tsconfig.json` is a thin delegator that extends the base and adds the monorepo-level `@ceolx/shared` path alias (which requires `baseUrl: "."` at the repo root). This task ensures consistent type safety from day one and enables IDE autocomplete for `@ceolx/shared` imports across all three apps.
 
 ---
 
 ## Affected Apps / Packages
 
-| App / Package     | Role                                                        |
-| ----------------- | ----------------------------------------------------------- |
-| `/tsconfig.json`  | Root — defines strict settings, shared package path aliases |
-| `apps/api`        | Extends root — Node.js target, no DOM libs                  |
-| `apps/admin`      | Extends root — React JSX, DOM libs, Vite-compatible         |
-| `apps/mobile`     | Extends root — React Native JSX, no DOM libs                |
-| `packages/shared` | Extends root — library mode, generates `.d.ts` declarations |
+| App / Package                        | Role                                                              |
+| ------------------------------------ | ----------------------------------------------------------------- |
+| `packages/config/tsconfig.base.json` | Shared base — all strict flags, module resolution, common options |
+| `/tsconfig.json`                     | Root — extends base, adds `@ceolx/shared` path alias              |
+| `apps/server`                        | Extends base — Node.js/Hono target, no DOM libs                   |
+| `apps/admin`                         | Extends base — React JSX, DOM libs, Vite-compatible               |
+| `apps/native`                        | Extends `expo/tsconfig.base` — React Native, Expo types           |
+| `packages/shared`                    | Extends base — library mode, generates `.d.ts` declarations       |
 
 ---
 
@@ -35,14 +41,17 @@ None — this is a configuration task.
 
 ## Requirements
 
-### Root TypeScript Configuration (`/tsconfig.json`)
+### packages/config/tsconfig.base.json
+
+The real shared base. All apps and packages (except `apps/native`) extend this.
 
 ```json
 {
+  "$schema": "https://json.schemastore.org/tsconfig",
   "compilerOptions": {
     // Language and Environment
-    "target": "ES2020",
-    "lib": ["ES2020"],
+    "target": "ESNext",
+    "lib": ["ESNext"],
     "useDefineForClassFields": true,
 
     // Module Resolution
@@ -50,19 +59,14 @@ None — this is a configuration task.
     "moduleResolution": "bundler",
     "resolveJsonModule": true,
     "isolatedModules": true,
+    "verbatimModuleSyntax": true,
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,
 
-    // Strict Type-Checking (all on)
+    // Strict Type-Checking
     "strict": true,
-    "noImplicitAny": true,
-    "strictNullChecks": true,
-    "strictFunctionTypes": true,
-    "strictBindCallApply": true,
-    "strictPropertyInitialization": true,
-    "noImplicitThis": true,
-    "useUnknownInCatchVariables": true,
-    "alwaysStrict": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
 
     // Completeness
     "noImplicitReturns": true,
@@ -70,28 +74,32 @@ None — this is a configuration task.
     "noImplicitOverride": true,
     "allowUnusedLabels": false,
     "allowUnreachableCode": false,
-    "forceConsistentCasingInFileNames": true,
-    "skipLibCheck": true,
+    "useUnknownInCatchVariables": true,
+    "noUncheckedIndexedAccess": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
 
-    // Emit
-    "declaration": true,
-    "declarationMap": true,
-    "sourceMap": true,
-    "outDir": "./dist",
-    "noEmit": false,
+    // Runtime types
+    "types": ["node"]
+  }
+}
+```
 
-    // Incremental
-    "incremental": true,
-    "tsBuildInfoFile": ".tsbuildinfo",
+### Root `/tsconfig.json`
 
-    // Monorepo path aliases — @ceolx/shared resolves to packages/shared/src
+Thin delegator — extends base and adds the monorepo-wide `@ceolx/shared` path alias (requires `baseUrl: "."` at repo root).
+
+```json
+{
+  "extends": "@CeolX/config/tsconfig.base.json",
+  "compilerOptions": {
     "baseUrl": ".",
     "paths": {
       "@ceolx/shared": ["packages/shared/src"],
       "@ceolx/shared/*": ["packages/shared/src/*"]
     }
   },
-  "exclude": ["node_modules", "**/dist", "**/.next", "**/.turbo", "**/.expo"]
+  "exclude": ["node_modules", "**/dist", "**/.turbo", "**/.expo"]
 }
 ```
 
@@ -99,46 +107,48 @@ None — this is a configuration task.
 
 ```json
 {
-  "extends": "../../tsconfig.json",
+  "extends": "@CeolX/config/tsconfig.base.json",
   "compilerOptions": {
-    "lib": ["ES2020"],
-    "module": "ESNext",
-    "target": "ES2020",
-    "baseUrl": "./src",
+    "jsx": "react-jsx",
+    "jsxImportSource": "hono/jsx",
+    "composite": true,
+    "outDir": "dist",
+    "baseUrl": ".",
     "paths": {
-      "@/*": ["*"],
-      "@/routes/*": ["routes/*"],
-      "@/middleware/*": ["middleware/*"],
-      "@/services/*": ["services/*"],
-      "@/schemas/*": ["schemas/*"],
-      "@/lib/*": ["lib/*"]
-    },
-    "outDir": "./dist",
-    "noEmit": false
+      "@/*": ["./src/*"],
+      "@/routes/*": ["./src/routes/*"],
+      "@/middleware/*": ["./src/middleware/*"],
+      "@/services/*": ["./src/services/*"],
+      "@/schemas/*": ["./src/schemas/*"],
+      "@/lib/*": ["./src/lib/*"]
+    }
   },
   "include": ["src/**/*.ts"],
   "exclude": ["node_modules", "dist"]
 }
 ```
 
+> **Note:** `jsx: "react-jsx"` + `jsxImportSource: "hono/jsx"` enables Hono's JSX HTML rendering. `composite: true` enables TypeScript project references for incremental builds.
+
 ### apps/admin/tsconfig.json
 
 ```json
 {
-  "extends": "../../tsconfig.json",
+  "extends": "../../packages/config/tsconfig.base.json",
   "compilerOptions": {
-    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "lib": ["ESNext", "DOM", "DOM.Iterable"],
     "jsx": "react-jsx",
     "jsxImportSource": "react",
-    "module": "ESNext",
-    "moduleResolution": "bundler",
-    "baseUrl": "./src",
+    "types": ["vite/client"],
+    "rootDirs": ["."],
+    "baseUrl": ".",
     "paths": {
-      "@/*": ["*"],
-      "@/components/*": ["components/*"],
-      "@/routes/*": ["routes/*"],
-      "@/lib/*": ["lib/*"],
-      "@/hooks/*": ["hooks/*"]
+      "@/*": ["./src/*"],
+      "@/components/*": ["./src/components/*"],
+      "@/routes/*": ["./src/routes/*"],
+      "@/lib/*": ["./src/lib/*"],
+      "@/hooks/*": ["./src/hooks/*"],
+      "@CeolX/ui/*": ["../../packages/ui/src/*"]
     },
     "noEmit": true
   },
@@ -147,45 +157,43 @@ None — this is a configuration task.
 }
 ```
 
+> **Note:** `types: ["vite/client"]` provides Vite's `import.meta.env` types. `noEmit: true` — Vite handles compilation output; tsc runs for type-checking only.
+
 ### apps/native/tsconfig.json
 
 ```json
 {
-  "extends": "../../tsconfig.json",
+  "extends": "expo/tsconfig.base",
   "compilerOptions": {
-    "lib": ["ES2020"],
-    "jsx": "react-jsx",
-    "jsxImportSource": "react",
-    "module": "ESNext",
-    "moduleResolution": "bundler",
-    "baseUrl": "./src",
+    "strict": true,
+    "baseUrl": ".",
     "paths": {
-      "@/*": ["*"],
-      "@/components/*": ["components/*"],
-      "@/screens/*": ["screens/*"],
-      "@/navigation/*": ["navigation/*"],
-      "@/hooks/*": ["hooks/*"],
-      "@/context/*": ["context/*"],
-      "@/lib/*": ["lib/*"]
-    },
-    "noEmit": true
+      "@/*": ["./*"],
+      "@/components/*": ["./components/*"],
+      "@/screens/*": ["./screens/*"],
+      "@/navigation/*": ["./navigation/*"],
+      "@/hooks/*": ["./hooks/*"],
+      "@/context/*": ["./context/*"],
+      "@/lib/*": ["./lib/*"]
+    }
   },
-  "include": ["**/*.ts", "**/*.tsx", ".expo/types/**/*.ts"],
+  "include": ["**/*.ts", "**/*.tsx", ".expo/types/**/*.ts", "expo-env.d.ts"],
   "exclude": ["node_modules", "dist", ".expo"]
 }
 ```
+
+> **Note:** `apps/native` extends `expo/tsconfig.base` (not the CeolX base) because Expo ships its own compiler options and React Native type overrides that must come first. Strict mode is re-declared explicitly since Expo's base does not enable it.
 
 ### packages/shared/tsconfig.json
 
 ```json
 {
-  "extends": "../../tsconfig.json",
+  "extends": "@CeolX/config/tsconfig.base.json",
   "compilerOptions": {
-    "lib": ["ES2020"],
-    "baseUrl": "./src",
-    "outDir": "./dist",
+    "outDir": "dist",
     "declaration": true,
     "declarationMap": true,
+    "sourceMap": true,
     "noEmit": false
   },
   "include": ["src/**/*.ts"],
@@ -223,49 +231,98 @@ None — this is a configuration task.
 
 ---
 
+## Gaps — What Still Needs to Be Done
+
+The following items have been identified as missing or incorrect in the current codebase. These must be completed before the acceptance criteria can be signed off.
+
+| #   | File                                 | Gap                                                                                                                       | Fix                                                         |
+| --- | ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------- |
+| 1   | `.vscode/settings.json`              | File does not exist (only `.vscode/mcp.json` present)                                                                     | Create per spec above                                       |
+| 2   | `/tsconfig.json`                     | No `baseUrl` or `@ceolx/shared` paths — alias not resolvable                                                              | Add `baseUrl: "."` and `@ceolx/shared` paths                |
+| 3   | `packages/config/tsconfig.base.json` | Missing `noImplicitReturns`, `noImplicitOverride`, `allowUnreachableCode`, `allowUnusedLabels`, `useDefineForClassFields` | Add flags per spec above                                    |
+| 4   | `packages/shared/tsconfig.json`      | Missing `declaration: true`, `declarationMap: true`, `sourceMap: true`                                                    | Add flags; other library packages already have them         |
+| 5   | `packages/shared/package.json`       | No `check-types` script — turbo skips it                                                                                  | Add `"check-types": "tsc --noEmit"`                         |
+| 6   | `apps/admin/tsconfig.json`           | Standalone config — does not extend CeolX base                                                                            | Refactor to extend base, keep admin-specific overrides only |
+| 7   | `apps/admin/tsconfig.json`           | Missing specific path aliases (`@/components/*`, `@/routes/*`, `@/lib/*`, `@/hooks/*`)                                    | Add per spec above                                          |
+| 8   | `apps/server/tsconfig.json`          | Missing specific path aliases (`@/routes/*`, `@/middleware/*`, `@/services/*`, `@/schemas/*`, `@/lib/*`)                  | Add per spec above                                          |
+| 9   | `apps/native/tsconfig.json`          | Missing specific path aliases for all internal directories                                                                | Add per spec above                                          |
+| 10  | `apps/native/package.json`           | Script named `type-check` — turbo's `check-types` task skips native app                                                   | Rename to `check-types`                                     |
+| 11  | `apps/native/package.json`           | Missing `"type": "module"`                                                                                                | Add field                                                   |
+
+---
+
 ## Acceptance Criteria
 
-- [ ] Root `tsconfig.json` exists at repo root with all strict flags enabled
-- [ ] `apps/server/tsconfig.json` extends root; no DOM lib entries
-- [ ] `apps/admin/tsconfig.json` extends root; includes DOM lib and JSX support
-- [ ] `apps/native/tsconfig.json` extends root; includes React JSX support
-- [ ] `packages/shared/tsconfig.json` extends root; generates `.d.ts` files
+- [ ] `packages/config/tsconfig.base.json` contains all completeness flags (`noImplicitReturns`, `noImplicitOverride`, `allowUnreachableCode: false`, `allowUnusedLabels: false`, `useDefineForClassFields: true`)
+- [ ] Root `tsconfig.json` extends base and adds `@ceolx/shared` / `@ceolx/shared/*` path aliases with `baseUrl: "."`
+- [ ] `apps/server/tsconfig.json` extends base; has Hono JSX settings and specific `@/` path aliases
+- [ ] `apps/admin/tsconfig.json` extends base; includes DOM lib, JSX support, and specific `@/` path aliases
+- [ ] `apps/native/tsconfig.json` extends `expo/tsconfig.base`; has specific `@/` path aliases
+- [ ] `packages/shared/tsconfig.json` extends base; generates `.d.ts` files (`declaration: true`, `declarationMap: true`)
 - [ ] `import { UserRole } from "@ceolx/shared"` resolves with IDE autocomplete in all three apps
 - [ ] `import { BoundingBox } from "@ceolx/shared/types"` resolves correctly
 - [ ] `tsc --noEmit` from root completes with zero errors across all workspaces
-- [ ] `turbo run type-check` passes across all packages
+- [ ] `turbo run check-types` passes across all packages (including `apps/native` and `packages/shared`)
 - [ ] `noImplicitAny` catches missing type annotations in API service files
 - [ ] `strictNullChecks` forces null-safe access on database query results
-- [ ] Source maps generated for `apps/api` (needed for Sentry in M1-T9)
+- [ ] Source maps generated for `apps/server` (needed for Sentry in M1-T9)
 - [ ] `.vscode/settings.json` committed so IDE uses workspace TypeScript version
+- [ ] `apps/native/package.json` has `"type": "module"` and `check-types` script
+- [ ] `packages/shared/package.json` has `check-types` script
 
 ---
 
 ## Technical Notes
 
+### Three-Level Configuration Hierarchy
+
+```
+packages/config/tsconfig.base.json     ← all shared compiler options
+        ↑
+/tsconfig.json                          ← extends base + @ceolx/shared alias
+        ↑
+apps/server/tsconfig.json              ← extends base directly (server-specific)
+apps/admin/tsconfig.json               ← extends base directly (DOM + JSX)
+packages/shared/tsconfig.json          ← extends base directly (library emit)
+
+expo/tsconfig.base                      ← Expo-managed (separate tree)
+        ↑
+apps/native/tsconfig.json              ← extends Expo base (RN-specific)
+```
+
+`apps/native` sits outside the CeolX base hierarchy because Expo's base must own the React Native compiler settings. Strict mode is re-enabled explicitly in `apps/native/tsconfig.json`.
+
 ### Two-Level Path Alias Strategy
 
-The monorepo uses two levels of path aliases:
-
-**Level 1 — Root aliases** (packages across the monorepo):
+**Level 1 — Monorepo aliases** (in root `tsconfig.json`, resolves across packages):
 
 ```typescript
-// tsconfig.json root — resolves @ceolx/shared to packages/shared/src
+// /tsconfig.json — resolves @ceolx/shared to packages/shared/src
 "@ceolx/shared": ["packages/shared/src"]
 ```
 
-**Level 2 — App-level aliases** (internal to each app):
+**Level 2 — App-internal aliases** (in each app's tsconfig, resolves within that app's src):
 
 ```typescript
 // apps/server/tsconfig.json — resolves @/routes/* within apps/server/src
-"@/routes/*": ["routes/*"]
+"@/routes/*": ["./src/routes/*"]
 ```
 
 Never define `@ceolx/*` aliases in app-level configs — they inherit from root.
 
+### Turbo Task Name
+
+The turbo task is named **`check-types`** (not `type-check`). Run with:
+
+```bash
+pnpm turbo run check-types
+```
+
+All `package.json` scripts must use `check-types` to be picked up by turborepo.
+
 ### `moduleResolution: "bundler"` Explained
 
-`bundler` resolution is the correct choice when your code is processed by a bundler (esbuild for the API, Vite for admin, Metro for mobile) rather than Node.js directly. It allows:
+`bundler` resolution is the correct choice when code is processed by a bundler (esbuild for the API, Vite for admin, Metro for mobile) rather than Node.js directly. It allows:
 
 - Importing `"@ceolx/shared"` without the full file path
 - Imports without file extensions
@@ -276,21 +333,17 @@ Do **not** use `"node16"` or `"nodenext"` — those require `.js` extensions on 
 ### Strict Mode Implications
 
 | Setting                      | What it catches                                                                                 |
-| ---------------------------- | ----------------------------------------------------------------------------------------------- |
+| ---------------------------- | ----------------------------------------------------------------------------------------------- | ------------------------------------------------ |
 | `noImplicitAny`              | Parameters without type annotations                                                             |
 | `strictNullChecks`           | Accessing properties on values that might be `undefined` (e.g., DB query results)               |
 | `noImplicitReturns`          | Missing `return` in a branch of a function                                                      |
 | `useUnknownInCatchVariables` | `catch (err)` where `err` is typed as `unknown`, forcing you to narrow the type before using it |
 | `noImplicitOverride`         | Class methods that override a base class method must be annotated with `override`               |
+| `noUncheckedIndexedAccess`   | Array/object index access returns `T                                                            | undefined`, preventing silent out-of-bounds bugs |
 
 ### Incremental Builds
 
-`incremental: true` writes a `.tsbuildinfo` cache file on first compile. Subsequent `tsc` invocations only recompile changed files. Add `.tsbuildinfo` to `.gitignore`:
-
-```
-# .gitignore
-*.tsbuildinfo
-```
+`*.tsbuildinfo` is already in `.gitignore`. For packages using `composite: true` (e.g., `apps/server`), tsc uses project references and caches build info automatically.
 
 ### `skipLibCheck: true`
 
@@ -302,7 +355,9 @@ Set to `true` to skip type-checking of `.d.ts` files in `node_modules`. This pre
 
 - **`paths` in tsconfig ≠ runtime module resolution** — TypeScript path aliases only apply at compile time. At runtime, the bundler (esbuild, Vite, Metro) also needs to know the alias. Vite uses `resolve.alias`, Metro uses `moduleNameMapper`; check each app's bundler config matches the tsconfig paths.
 - **`noEmit: true` on app tsconfigs** — Admin and mobile apps let their bundler (Vite, Metro) handle compilation output; setting `noEmit: true` prevents `tsc` from writing redundant build output while still catching type errors.
-- **`"type": "module"` in package.json** — All packages use ESM. If a package is missing `"type": "module"`, TypeScript may resolve imports incorrectly in monorepo context.
-- **Order of `include` in mobile tsconfig** — `**/*.ts` and `**/*.tsx` must come before `.expo/types/**/*.ts` or Expo-generated types won't override correctly.
+- **`"type": "module"` in package.json** — All packages and apps use ESM. `apps/native` currently missing this field — must be added.
+- **Order of `include` in native tsconfig** — `**/*.ts` and `**/*.tsx` must come before `.expo/types/**/*.ts` so Expo-generated types can override correctly.
+- **`verbatimModuleSyntax`** — Inherited from base. Requires `import type` for type-only imports. All new code must follow this pattern.
+- **`apps/admin` extends path** — Use `../../packages/config/tsconfig.base.json` (relative path) rather than the package name, since admin's `tsconfig.json` resolves differently than bundled code.
 
 ---
