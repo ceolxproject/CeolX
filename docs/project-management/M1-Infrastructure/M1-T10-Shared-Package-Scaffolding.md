@@ -1,17 +1,17 @@
 # M1-T10 · Shared Package Scaffolding (`packages/shared`)
 
-| Field          | Value                                               |
-| -------------- | --------------------------------------------------- |
-| **Milestone**  | M1 — Project Setup & Infrastructure                 |
-| **Status**     | 🔲 To Do                                            |
-| **Depends on** | M1-T1 (Turborepo monorepo init)                     |
-| **PRD Ref**    | Section 10.1 (Monorepo Structure — packages/shared) |
+| Field          | Value                                                              |
+| -------------- | ------------------------------------------------------------------ |
+| **Milestone**  | M1 — Project Setup & Infrastructure                                |
+| **Status**     | 🔲 To Do                                                           |
+| **Depends on** | M1-T1 (Turborepo monorepo init), M1.5-T1 (packages/db enums exist) |
+| **PRD Ref**    | Section 10.1 (Monorepo Structure — packages/shared)                |
 
 ---
 
 ## Description
 
-Create the `packages/shared` package that provides TypeScript types, enums, utility functions, and constants shared across all three apps (`apps/api`, `apps/admin`, `apps/mobile`). This package is the single source of truth for domain types and business constants — defining it early prevents type drift between the API and clients throughout all future milestones.
+Create the `packages/shared` package that provides TypeScript types, string literal union types, utility functions, and constants shared across all three apps (`apps/api`, `apps/admin`, `apps/mobile`). This package is the **single source of truth for domain enum values** — `packages/db` imports raw value arrays from here to construct its Drizzle `pgEnum` definitions, eliminating duplication and ensuring the TypeScript types and database schema never drift apart.
 
 ---
 
@@ -57,8 +57,9 @@ packages/shared/
 
 ```json
 {
-  "name": "@ceolx/shared",
-  "version": "1.0.0",
+  "name": "@CeolX/shared",
+  "version": "0.0.0",
+  "private": true,
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
@@ -71,71 +72,101 @@ packages/shared/
     "type-check": "tsc --noEmit"
   },
   "devDependencies": {
-    "typescript": "^5.4.0"
+    "@CeolX/config": "workspace:*",
+    "typescript": "^5"
   }
 }
 ```
 
+> `@CeolX/shared` matches the monorepo name convention (`@CeolX/*`). No `drizzle-orm` dependency — ever. If you find yourself adding it, the logic belongs in `packages/db` or `apps/server`.
+
 ### src/enums.ts
 
-All domain enums used across the platform:
+Domain enum values defined as `as const` arrays. `packages/db` imports these arrays directly to construct Drizzle `pgEnum` definitions — this file is the **single source of truth** for all enum values across the stack.
 
 ```typescript
-// User roles — maps to users.current_role column
-export enum UserRole {
-  Spectator = "spectator",
-  Artist = "artist",
-  Venue = "venue",
-}
+// User persona/role — imported by packages/db to build pgEnum("user_role")
+export const USER_ROLES = ['spectator', 'artist', 'venue', 'super_admin'] as const;
+export type UserRole = (typeof USER_ROLES)[number];
 
-// Event lifecycle states — maps to events.status column
-export enum EventStatus {
-  Draft = "draft",
-  PendingReview = "pending_review",
-  Active = "active",
-  Rejected = "rejected",
-  Archived = "archived",
-}
+// Event lifecycle states — imported by packages/db to build pgEnum("event_status")
+export const EVENT_STATUSES = [
+  'draft',
+  'pending_review',
+  'rejected',
+  'active',
+  'archived',
+] as const;
+export type EventStatus = (typeof EVENT_STATUSES)[number];
 
-// Booking state machine
-export enum BookingStatus {
-  Pending = "pending",
-  Accepted = "accepted",
-  Rejected = "rejected",
-  Cancelled = "cancelled",
-}
+// Booking state machine — imported by packages/db to build pgEnum("booking_status")
+export const BOOKING_STATUSES = ['pending', 'accepted', 'rejected', 'cancelled'] as const;
+export type BookingStatus = (typeof BOOKING_STATUSES)[number];
 
-// Booking direction
-export enum BookingDirection {
-  VenueToArtist = "venue_to_artist",
-  ArtistToVenue = "artist_to_venue",
-}
+// Booking direction — imported by packages/db to build pgEnum("booking_direction")
+export const BOOKING_DIRECTIONS = ['venue_to_artist', 'artist_to_venue'] as const;
+export type BookingDirection = (typeof BOOKING_DIRECTIONS)[number];
 
-// Venue subscription
-export enum VenueSubscriptionStatus {
-  Inactive = "inactive",
-  Active = "active",
-  Cancelled = "cancelled",
-  PastDue = "past_due",
-}
+// Venue subscription via Stripe — imported by packages/db to build pgEnum("subscription_status")
+export const SUBSCRIPTION_STATUSES = ['inactive', 'active', 'past_due', 'cancelled'] as const;
+export type VenueSubscriptionStatus = (typeof SUBSCRIPTION_STATUSES)[number];
 
 // Irish music event categories (pre-seeded, subject to client sign-off)
-export enum EventCategory {
-  Traditional = "Traditional",
-  Contemporary = "Contemporary",
-  Fusion = "Fusion",
-  Celtic = "Celtic",
-  Folk = "Folk",
-  Session = "Session",
-}
+export const EVENT_CATEGORIES = [
+  'Traditional',
+  'Contemporary',
+  'Fusion',
+  'Celtic',
+  'Folk',
+  'Session',
+] as const;
+export type EventCategory = (typeof EVENT_CATEGORIES)[number];
 
 // Notification persona targeting
-export enum NotificationPersona {
-  Artist = "artist",
-  Venue = "venue",
-  Spectator = "spectator",
-}
+export const NOTIFICATION_PERSONAS = ['artist', 'venue', 'spectator'] as const;
+export type NotificationPersona = (typeof NOTIFICATION_PERSONAS)[number];
 ```
+
+#### Why `as const` arrays + derived types instead of TypeScript `enum`
+
+- **No enum-to-string conversion** — Drizzle stores and returns raw strings; string literal unions match exactly without any mapping step
+- **`packages/db` can import the arrays directly** — `pgEnum("user_role", USER_ROLES)` works because Drizzle accepts `Readonly<[string, ...string[]]>`, which `as const` satisfies
+- **One change propagates everywhere** — add `"moderator"` to `USER_ROLES` and both the TypeScript type and the next migration pick it up automatically
+- **Runtime validation for free** — use `USER_ROLES.includes(value)` as a type guard at API boundaries without a separate enum lookup
+
+#### Corresponding update to `packages/db/src/schema/enums.ts`
+
+This task also updates `packages/db` to import from `@CeolX/shared` instead of hardcoding values:
+
+```typescript
+import { pgEnum } from 'drizzle-orm/pg-core';
+import {
+  USER_ROLES,
+  EVENT_STATUSES,
+  BOOKING_STATUSES,
+  BOOKING_DIRECTIONS,
+  SUBSCRIPTION_STATUSES,
+} from '@CeolX/shared';
+
+export const userRoleEnum = pgEnum('user_role', USER_ROLES);
+export const eventStatusEnum = pgEnum('event_status', EVENT_STATUSES);
+export const bookingStatusEnum = pgEnum('booking_status', BOOKING_STATUSES);
+export const bookingDirectionEnum = pgEnum('booking_direction', BOOKING_DIRECTIONS);
+export const subscriptionStatusEnum = pgEnum('subscription_status', SUBSCRIPTION_STATUSES);
+
+// media_type and notification_type are db-internal — not needed in shared
+export const mediaTypeEnum = pgEnum('media_type', ['image', 'video', 'audio', 'text']);
+export const notificationTypeEnum = pgEnum('notification_type', [
+  'event_approved',
+  'event_rejected',
+  'booking_invitation',
+  'booking_update',
+  'artist_message',
+  'venue_message',
+]);
+```
+
+> `mediaTypeEnum` and `notificationTypeEnum` are not in `packages/shared` because they are internal database concerns — no client app needs to reference media asset types or notification type strings directly.
 
 ### src/types.ts
 
@@ -143,13 +174,13 @@ Shared TypeScript interfaces:
 
 ```typescript
 import type {
+  UserRole,
   EventStatus,
   EventCategory,
   BookingStatus,
   BookingDirection,
-  UserRole,
   VenueSubscriptionStatus,
-} from "./enums";
+} from './enums';
 
 // --- Geo types ---
 
@@ -281,10 +312,10 @@ export const INACTIVE_ACCOUNT_FLAG_MONTHS = 24;
 export const ACCOUNT_ANONYMIZE_DELAY_DAYS = 30;
 
 // Venue subscription
-export const VENUE_SUBSCRIPTION_URL = "https://ceolx.ie/subscribe";
+export const VENUE_SUBSCRIPTION_URL = 'https://ceolx.ie/subscribe';
 
 // FCM
-export const FCM_NOTIFICATION_CLICK_ACTION = "FLUTTER_NOTIFICATION_CLICK";
+export const FCM_NOTIFICATION_CLICK_ACTION = 'FLUTTER_NOTIFICATION_CLICK';
 
 // API pagination defaults
 export const DEFAULT_PAGE_LIMIT = 20;
@@ -298,9 +329,9 @@ export function slugify(str: string): string {
   return str
     .toLowerCase()
     .trim()
-    .replace(/[^\w\s-]/g, "")
-    .replace(/[\s_]+/g, "-")
-    .replace(/^-+|-+$/g, "");
+    .replace(/[^\w\s-]/g, '')
+    .replace(/[\s_]+/g, '-')
+    .replace(/^-+|-+$/g, '');
 }
 
 export function capitalize(str: string): string {
@@ -331,21 +362,21 @@ export function isEventPast(dateStart: string): boolean {
 export function formatEventDate(dateStart: string, dateEnd?: string): string {
   const start = new Date(dateStart);
   const options: Intl.DateTimeFormatOptions = {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    timeZone: "Europe/Dublin",
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZone: 'Europe/Dublin',
   };
-  const formatted = start.toLocaleDateString("en-IE", options);
+  const formatted = start.toLocaleDateString('en-IE', options);
   if (!dateEnd) return formatted;
   const end = new Date(dateEnd);
-  const endTime = end.toLocaleTimeString("en-IE", {
-    hour: "2-digit",
-    minute: "2-digit",
-    timeZone: "Europe/Dublin",
+  const endTime = end.toLocaleTimeString('en-IE', {
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZone: 'Europe/Dublin',
   });
   return `${formatted} – ${endTime}`;
 }
@@ -354,7 +385,7 @@ export function formatEventDate(dateStart: string, dateEnd?: string): string {
 ### src/utils/geo.ts
 
 ```typescript
-import type { BoundingBox, LatLng } from "../types";
+import type { BoundingBox, LatLng } from '../types';
 
 export function isWithinBoundingBox(point: LatLng, box: BoundingBox): boolean {
   return (
@@ -373,10 +404,7 @@ export function distanceKm(a: LatLng, b: LatLng): number {
   const sin2 = Math.sin(dLng / 2);
   const x =
     sin1 * sin1 +
-    Math.cos((a.lat * Math.PI) / 180) *
-      Math.cos((b.lat * Math.PI) / 180) *
-      sin2 *
-      sin2;
+    Math.cos((a.lat * Math.PI) / 180) * Math.cos((b.lat * Math.PI) / 180) * sin2 * sin2;
   return R * 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x));
 }
 ```
@@ -384,12 +412,12 @@ export function distanceKm(a: LatLng, b: LatLng): number {
 ### src/index.ts (barrel)
 
 ```typescript
-export * from "./enums";
-export * from "./types";
-export * from "./constants";
-export * from "./utils/string";
-export * from "./utils/date";
-export * from "./utils/geo";
+export * from './enums';
+export * from './types';
+export * from './constants';
+export * from './utils/string';
+export * from './utils/date';
+export * from './utils/geo';
 ```
 
 ---
@@ -397,16 +425,18 @@ export * from "./utils/geo";
 ## Acceptance Criteria
 
 - [ ] `packages/shared` directory created with all files above
-- [ ] `package.json` uses `@ceolx/shared` name and correct exports map
-- [ ] `tsconfig.json` extends root config; `tsc --noEmit` passes with no errors
-- [ ] All enums from the PRD domain model are defined (UserRole, EventStatus, BookingStatus, etc.)
+- [ ] `package.json` uses `@CeolX/shared` name and correct exports map including sub-path exports (`./enums`, `./types`, `./constants`, `./utils`)
+- [ ] `tsconfig.json` extends `@CeolX/config/tsconfig.base.json`; `tsc --noEmit` passes with no errors
+- [ ] All domain enum value arrays are defined (`USER_ROLES`, `EVENT_STATUSES`, `BOOKING_STATUSES`, etc.) with derived string literal union types
+- [ ] `packages/db/src/schema/enums.ts` updated to import `USER_ROLES`, `EVENT_STATUSES`, `BOOKING_STATUSES`, `BOOKING_DIRECTIONS`, `SUBSCRIPTION_STATUSES` from `@CeolX/shared` — no hardcoded values remain for those enums
+- [ ] `packages/db` `tsc --noEmit` still passes after the enum import update
 - [ ] Constants reflect PRD values (map limits, Ireland coordinates, GDPR timings)
-- [ ] `import { UserRole } from "@ceolx/shared"` resolves correctly in `apps/api`
-- [ ] `import { EventStatus } from "@ceolx/shared"` resolves correctly in `apps/admin`
-- [ ] `import { MAP_MAX_PINS_PER_FETCH } from "@ceolx/shared"` resolves correctly in `apps/mobile`
+- [ ] `import { UserRole } from "@CeolX/shared"` resolves correctly in `apps/api`
+- [ ] `import { EventStatus } from "@CeolX/shared"` resolves correctly in `apps/admin`
+- [ ] `import { MAP_MAX_PINS_PER_FETCH } from "@CeolX/shared"` resolves correctly in `apps/mobile`
 - [ ] Turborepo includes `packages/shared` in the workspace dependency graph
-- [ ] No circular imports (package has no internal workspace dependencies)
-- [ ] README.md documents purpose and public API surface
+- [ ] `packages/shared` has zero runtime dependencies and zero internal workspace dependencies
+- [ ] README.md documents purpose, public API surface, and the db↔shared enum relationship
 
 ---
 
@@ -430,16 +460,40 @@ In each consumer app's `package.json`:
 ```json
 {
   "dependencies": {
-    "@ceolx/shared": "workspace:*"
+    "@CeolX/shared": "workspace:*"
   }
 }
 ```
 
-Turborepo automatically builds `packages/shared` before building dependent apps.
+`packages/db` also adds this dependency so it can import the enum arrays:
 
-### Enum vs String Literal Unions
+```json
+{
+  "dependencies": {
+    "@CeolX/shared": "workspace:*"
+  }
+}
+```
 
-Prefer TypeScript `enum` for domain concepts that map to database column values (EventStatus, UserRole, etc.) — the string values are stable and match the Drizzle schema. For one-off, non-persisted unions (e.g., a component prop), prefer `type X = 'a' | 'b'`.
+Turborepo automatically builds `packages/shared` before building any dependent package or app.
+
+### Enum Values: `as const` Arrays + Derived Types (not TypeScript `enum`)
+
+Use `as const` tuple arrays for all domain concepts that map to database column values. Derive the TypeScript type with `(typeof ARRAY)[number]`. Do **not** use TypeScript `enum` — Drizzle returns plain strings and TS enum values require an explicit `.toString()` or cast when passed to Drizzle queries.
+
+```typescript
+// Correct
+export const USER_ROLES = ['spectator', 'artist'] as const;
+export type UserRole = (typeof USER_ROLES)[number]; // "spectator" | "artist"
+
+// Avoid — requires enum.Value → string conversion when writing Drizzle queries
+export enum UserRole {
+  Spectator = 'spectator',
+  Artist = 'artist',
+}
+```
+
+For one-off, non-persisted unions (e.g., a component prop), prefer inline `type X = 'a' | 'b'`.
 
 ### Constants vs Environment Variables
 
@@ -451,7 +505,9 @@ Constants in this package are **business rule values from the PRD** (e.g., max p
 
 - **`"type": "module"` in package.json** — required for ESM imports with Turborepo; without it, `tsc` may resolve incorrectly in consuming apps
 - **Exports map** — the `"exports"` field in `package.json` must match the file structure; TypeScript 5.x respects this for path resolution
-- **Enum value casing** — database columns use lowercase strings (`spectator`, `artist`); enum values must match exactly or Drizzle comparisons will fail silently
-- **`packages/shared` has no runtime dependencies** — if you find yourself adding `drizzle-orm` or `hono` to this package, the logic belongs in `apps/api` instead
+- **Enum value casing** — `EVENT_CATEGORIES` uses `"Traditional"` (title case) but all other arrays use lowercase; match the database column values exactly or Drizzle comparisons will fail silently
+- **`packages/shared` has zero runtime dependencies** — if you find yourself adding `drizzle-orm` or `hono`, the logic belongs in `packages/db` or `apps/server` instead
+- **`mediaTypeEnum` and `notificationTypeEnum` stay in `packages/db`** — these are internal DB concerns; no client app references them, so they are not exposed via `packages/shared`
+- **Adding a new enum value** — change the array in `packages/shared/src/enums.ts`, then run `db:generate` in `packages/db` to produce the `ALTER TYPE … ADD VALUE` migration; TypeScript types update automatically
 
 ---

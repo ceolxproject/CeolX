@@ -27,7 +27,11 @@
     "env:encrypt": "envx encrypt --all --overwrite",
     "env:decrypt": "envx decrypt --all --overwrite",
     "env:list": "envx list",
-    "env:status": "envx status"
+    "env:status": "envx status",
+    "lint": "turbo run lint",
+    "lint:fix": "turbo run lint:fix",
+    "format": "prettier --write \"**/*.{ts,tsx,json,md}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,json,md}\""
   },
   "dependencies": {
     "@CeolX/env": "workspace:*",
@@ -46,6 +50,9 @@
     "czg": "^1.12.0",
     "envx-cli": "^1.3.1",
     "eslint": "^9.0.0",
+    "eslint-plugin-import": "^2.31.0",
+    "eslint-plugin-react": "^7.37.0",
+    "eslint-plugin-react-hooks": "^5.0.0",
     "globals": "^17.4.0",
     "husky": "^9.1.7",
     "lint-staged": "^16.4.0",
