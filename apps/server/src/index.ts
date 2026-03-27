@@ -1,3 +1,5 @@
+import './instrumentation'; // Must be first — Sentry patches async context before any other module loads
+
 import { serve } from '@hono/node-server';
 import { trpcServer } from '@hono/trpc-server';
 import { Hono } from 'hono';

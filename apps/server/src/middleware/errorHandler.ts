@@ -1,8 +1,16 @@
+import * as Sentry from '@sentry/node';
 import type { Context } from 'hono';
 import { HTTPException } from 'hono/http-exception';
 
 export const errorHandler = (err: Error, c: Context) => {
   console.error('[API Error]', { message: err.message, path: c.req.path });
+
+  // Capture unexpected server errors only — not expected 4xx client errors
+  if (!(err instanceof HTTPException) || err.status >= 500) {
+    Sentry.captureException(err, {
+      extra: { route: c.req.path, method: c.req.method },
+    });
+  }
 
   if (err instanceof HTTPException) {
     return c.json(
