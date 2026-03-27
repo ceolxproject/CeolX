@@ -11,7 +11,7 @@
     "./utils": "./src/utils/index.ts"
   },
   "scripts": {
-    "type-check": "tsc --noEmit",
+    "check-types": "tsc --noEmit",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix"
   },
