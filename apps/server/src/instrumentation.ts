@@ -1,15 +1,22 @@
 import * as Sentry from '@sentry/node';
 
-// Must be imported first in src/index.ts — before any other module — so Sentry
-// can patch async context and capture errors from all downstream imports.
+if (process.env.NODE_ENV !== 'development' && !process.env.SENTRY_DSN_API) {
+  console.warn('[Sentry] SENTRY_DSN_API not set — error capture disabled');
+}
+
+// Must be first — Sentry/OpenTelemetry instrumentations must register before application modules load
 Sentry.init({
   dsn: process.env.SENTRY_DSN_API,
   environment: process.env.SENTRY_ENVIRONMENT ?? 'development',
   enabled: process.env.NODE_ENV !== 'development',
-  tracesSampleRate: process.env.NODE_ENV === 'production' ? 0.1 : 1.0,
+  tracesSampleRate:
+    process.env.SENTRY_ENVIRONMENT === 'production'
+      ? 0.1
+      : process.env.SENTRY_ENVIRONMENT === 'staging'
+        ? 0.2
+        : 1.0,
   ignoreErrors: [
-    // Expected client errors — not bugs, no action needed
-    'ValidationError',
-    'AuthenticationError',
+    // These match the `.name` property of error classes (not message text)
+    'ZodError',
   ],
 });

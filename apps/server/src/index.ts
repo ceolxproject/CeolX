@@ -1,7 +1,8 @@
-import './instrumentation'; // Must be first — Sentry patches async context before any other module loads
+import './instrumentation'; // Must be first — Sentry/OpenTelemetry instrumentations must register before application modules load
 
 import { serve } from '@hono/node-server';
 import { trpcServer } from '@hono/trpc-server';
+import * as Sentry from '@sentry/node';
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
@@ -58,6 +59,18 @@ app.use(
   trpcServer({
     router: appRouter,
     createContext: (_opts, context) => createContext({ context }),
+    onError: ({ error, path }) => {
+      if (error.code === 'INTERNAL_SERVER_ERROR') {
+        Sentry.captureException(error, {
+          extra: { trpcPath: path },
+        });
+        console.error('[tRPC Error]', {
+          path,
+          message: error.message,
+          stack: error.stack,
+        });
+      }
+    },
   })
 );
 
