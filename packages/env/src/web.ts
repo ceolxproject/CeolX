@@ -6,6 +6,7 @@ export const env = createEnv({
   client: {
     VITE_SERVER_URL: z.url(),
     VITE_STRIPE_PUBLISHABLE_KEY: z.string().optional(),
+    VITE_SENTRY_DSN: z.url().optional(),
   },
   runtimeEnv: (import.meta as unknown as { env: Record<string, string | undefined> }).env,
   emptyStringAsUndefined: true,

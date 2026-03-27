@@ -17,6 +17,8 @@ export const env = createEnv({
     UPSTASH_REDIS_REST_TOKEN: z.string().optional(),
     RATE_LIMIT_ENABLED: z.enum(['true', 'false']).default('true'),
     RATE_LIMIT_IP_ALLOWLIST: z.string().optional(),
+    SENTRY_DSN_API: z.url().optional(),
+    SENTRY_ENVIRONMENT: z.string().optional(),
   },
   runtimeEnv: process.env,
   emptyStringAsUndefined: true,
