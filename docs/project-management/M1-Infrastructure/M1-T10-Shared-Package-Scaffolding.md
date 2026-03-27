@@ -3,7 +3,7 @@
 | Field          | Value                                                              |
 | -------------- | ------------------------------------------------------------------ |
 | **Milestone**  | M1 — Project Setup & Infrastructure                                |
-| **Status**     | 🔲 To Do                                                           |
+| **Status**     | 🔲 To Do (partial scaffold exists — see Pre-existing State below)  |
 | **Depends on** | M1-T1 (Turborepo monorepo init), M1.5-T1 (packages/db enums exist) |
 | **PRD Ref**    | Section 10.1 (Monorepo Structure — packages/shared)                |
 
@@ -11,7 +11,29 @@
 
 ## Description
 
-Create the `packages/shared` package that provides TypeScript types, string literal union types, utility functions, and constants shared across all three apps (`apps/api`, `apps/admin`, `apps/mobile`). This package is the **single source of truth for domain enum values** — `packages/db` imports raw value arrays from here to construct its Drizzle `pgEnum` definitions, eliminating duplication and ensuring the TypeScript types and database schema never drift apart.
+Create the `packages/shared` package that provides TypeScript types, string literal union types, utility functions, and constants shared across all three apps (`apps/server`, `apps/admin`, `apps/native`). This package is the **single source of truth for domain enum values** — `packages/db` imports raw value arrays from here to construct its Drizzle `pgEnum` definitions, eliminating duplication and ensuring the TypeScript types and database schema never drift apart.
+
+> **Note on app names**: The CLAUDE.md and PRD reference `apps/api` and `apps/mobile`. The actual repo directories are `apps/server` (Hono host) and `apps/native` (React Native + Expo). All acceptance criteria use the actual repo names.
+
+---
+
+## Pre-existing State (Partial Scaffold)
+
+A minimal stub was created as a side-effect of earlier auth work. Before implementing this task, the following already exists:
+
+| Path                                | State                                                                         | Action Required                                                                |
+| ----------------------------------- | ----------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| `packages/shared/src/index.ts`      | 2-line stub — only re-exports `User` and `UserRole`                           | Replace with full barrel export                                                |
+| `packages/shared/src/types/user.ts` | `UserRole` as inline union type + `User` interface                            | Migrate contents into `src/enums.ts` and `src/types.ts`, then delete this file |
+| `packages/shared/package.json`      | Name and `tsconfig` correct; missing sub-path exports and `type-check` script | Update exports map and scripts                                                 |
+| `packages/shared/tsconfig.json`     | Correct — extends `@CeolX/config/tsconfig.base.json`                          | No change needed                                                               |
+| `packages/db/src/schema/enums.ts`   | All 5 shared enums hardcoded — no import from `@CeolX/shared`                 | Update to import from `@CeolX/shared`                                          |
+| `packages/db/package.json`          | No `@CeolX/shared` dependency                                                 | Add `"@CeolX/shared": "workspace:*"`                                           |
+| `apps/native/package.json`          | Already has `@CeolX/shared: workspace:*`                                      | No change needed                                                               |
+| `apps/admin/package.json`           | Already has `@CeolX/shared: workspace:*`                                      | No change needed                                                               |
+| `apps/server/package.json`          | No `@CeolX/shared` dependency                                                 | Add `"@CeolX/shared": "workspace:*"`                                           |
+
+**Key structural deviation**: `UserRole` is currently defined as a plain inline union (`type UserRole = 'spectator' | ...`) in `src/types/user.ts`. It must be changed to the `as const` array + derived type pattern so `packages/db` can pass the array directly to `pgEnum()`.
 
 ---
 
@@ -69,7 +91,9 @@ packages/shared/
     "./utils": "./src/utils/index.ts"
   },
   "scripts": {
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix"
   },
   "devDependencies": {
     "@CeolX/config": "workspace:*",
@@ -134,9 +158,19 @@ export type NotificationPersona = (typeof NOTIFICATION_PERSONAS)[number];
 - **One change propagates everywhere** — add `"moderator"` to `USER_ROLES` and both the TypeScript type and the next migration pick it up automatically
 - **Runtime validation for free** — use `USER_ROLES.includes(value)` as a type guard at API boundaries without a separate enum lookup
 
-#### Corresponding update to `packages/db/src/schema/enums.ts`
+#### Corresponding update to `packages/db`
 
-This task also updates `packages/db` to import from `@CeolX/shared` instead of hardcoding values:
+First, add `@CeolX/shared` as a dependency in `packages/db/package.json`:
+
+```json
+{
+  "dependencies": {
+    "@CeolX/shared": "workspace:*"
+  }
+}
+```
+
+Then update `packages/db/src/schema/enums.ts` to import from `@CeolX/shared` instead of hardcoding values:
 
 ```typescript
 import { pgEnum } from 'drizzle-orm/pg-core';
@@ -424,16 +458,19 @@ export * from './utils/geo';
 
 ## Acceptance Criteria
 
-- [ ] `packages/shared` directory created with all files above
-- [ ] `package.json` uses `@CeolX/shared` name and correct exports map including sub-path exports (`./enums`, `./types`, `./constants`, `./utils`)
+- [ ] `src/types/user.ts` removed — its `User` interface and `UserRole` migrated into `src/types.ts` and `src/enums.ts` respectively
+- [ ] `packages/shared` contains all files: `src/enums.ts`, `src/types.ts`, `src/constants.ts`, `src/utils/string.ts`, `src/utils/date.ts`, `src/utils/geo.ts`, `src/utils/index.ts`, `src/index.ts`, `README.md`
+- [ ] `package.json` exports map includes sub-path exports (`./enums`, `./types`, `./constants`, `./utils`) and scripts include `"type-check": "tsc --noEmit"`
 - [ ] `tsconfig.json` extends `@CeolX/config/tsconfig.base.json`; `tsc --noEmit` passes with no errors
-- [ ] All domain enum value arrays are defined (`USER_ROLES`, `EVENT_STATUSES`, `BOOKING_STATUSES`, etc.) with derived string literal union types
-- [ ] `packages/db/src/schema/enums.ts` updated to import `USER_ROLES`, `EVENT_STATUSES`, `BOOKING_STATUSES`, `BOOKING_DIRECTIONS`, `SUBSCRIPTION_STATUSES` from `@CeolX/shared` — no hardcoded values remain for those enums
-- [ ] `packages/db` `tsc --noEmit` still passes after the enum import update
+- [ ] All domain enum value arrays are defined as `as const` arrays with derived string literal union types (`USER_ROLES`, `EVENT_STATUSES`, `BOOKING_STATUSES`, `BOOKING_DIRECTIONS`, `SUBSCRIPTION_STATUSES`, `EVENT_CATEGORIES`, `NOTIFICATION_PERSONAS`)
+- [ ] `packages/db/package.json` adds `"@CeolX/shared": "workspace:*"` to dependencies
+- [ ] `packages/db/src/schema/enums.ts` imports `USER_ROLES`, `EVENT_STATUSES`, `BOOKING_STATUSES`, `BOOKING_DIRECTIONS`, `SUBSCRIPTION_STATUSES` from `@CeolX/shared` — no hardcoded values remain for those enums
+- [ ] `packages/db` `tsc --noEmit` passes after the enum import update
 - [ ] Constants reflect PRD values (map limits, Ireland coordinates, GDPR timings)
-- [ ] `import { UserRole } from "@CeolX/shared"` resolves correctly in `apps/api`
+- [ ] `apps/server/package.json` adds `"@CeolX/shared": "workspace:*"` to dependencies
+- [ ] `import { UserRole } from "@CeolX/shared"` resolves correctly in `apps/server` (the Hono API host)
 - [ ] `import { EventStatus } from "@CeolX/shared"` resolves correctly in `apps/admin`
-- [ ] `import { MAP_MAX_PINS_PER_FETCH } from "@CeolX/shared"` resolves correctly in `apps/mobile`
+- [ ] `import { MAP_MAX_PINS_PER_FETCH } from "@CeolX/shared"` resolves correctly in `apps/native`
 - [ ] Turborepo includes `packages/shared` in the workspace dependency graph
 - [ ] `packages/shared` has zero runtime dependencies and zero internal workspace dependencies
 - [ ] README.md documents purpose, public API surface, and the db↔shared enum relationship
@@ -503,11 +540,13 @@ Constants in this package are **business rule values from the PRD** (e.g., max p
 
 ## Common Gotchas
 
+- **Migrate `src/types/user.ts` before creating new files** — the existing file exports `User` and `UserRole` which `apps/native` and `apps/admin` already import via `@CeolX/shared`. Move `User` into `src/types.ts` and `UserRole` (as `USER_ROLES as const` array) into `src/enums.ts`, update `src/index.ts`, then delete `src/types/user.ts`. Do not break the existing imports.
 - **`"type": "module"` in package.json** — required for ESM imports with Turborepo; without it, `tsc` may resolve incorrectly in consuming apps
 - **Exports map** — the `"exports"` field in `package.json` must match the file structure; TypeScript 5.x respects this for path resolution
 - **Enum value casing** — `EVENT_CATEGORIES` uses `"Traditional"` (title case) but all other arrays use lowercase; match the database column values exactly or Drizzle comparisons will fail silently
 - **`packages/shared` has zero runtime dependencies** — if you find yourself adding `drizzle-orm` or `hono`, the logic belongs in `packages/db` or `apps/server` instead
 - **`mediaTypeEnum` and `notificationTypeEnum` stay in `packages/db`** — these are internal DB concerns; no client app references them, so they are not exposed via `packages/shared`
 - **Adding a new enum value** — change the array in `packages/shared/src/enums.ts`, then run `db:generate` in `packages/db` to produce the `ALTER TYPE … ADD VALUE` migration; TypeScript types update automatically
+- **`FCM_NOTIFICATION_CLICK_ACTION` constant** — the spec value `'FLUTTER_NOTIFICATION_CLICK'` is a Flutter SDK constant and does not apply to a React Native project. Verify the correct FCM click action string for `@react-native-firebase/messaging` before using this constant; it may simply be unused or unnecessary.
 
 ---

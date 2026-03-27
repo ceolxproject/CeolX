@@ -3,7 +3,7 @@
 | Field          | Value                                                 |
 | -------------- | ----------------------------------------------------- |
 | **Milestone**  | M1 — Project Setup & Infrastructure                   |
-| **Status**     | 🔲 To Do                                              |
+| **Status**     | ✅ Complete — PR #9                                   |
 | **Depends on** | M1-T11 (TypeScript configuration)                     |
 | **PRD Ref**    | Section 10.1 (Monorepo — Turborepo, code consistency) |
 
