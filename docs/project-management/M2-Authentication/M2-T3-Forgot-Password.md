@@ -150,25 +150,25 @@ Validate token and update password. Token must be valid, not expired, and not al
 ```typescript
 // apps/server/src/routes/auth.ts (forgot-password)
 
-import { Hono } from "hono";
-import { zValidator } from "@hono/zod-validator";
-import { z } from "zod";
-import { v4 as uuidv4 } from "uuid";
-import { db } from "../lib/db";
-import { users, passwordResetTokens } from "../schema";
-import { sendPasswordResetEmail } from "../services/emailService";
-import { rateLimitByEmail } from "../middleware/rateLimit";
+import { Hono } from 'hono';
+import { zValidator } from '@hono/zod-validator';
+import { z } from 'zod';
+import { v4 as uuidv4 } from 'uuid';
+import { db } from '../lib/db';
+import { users, passwordResetTokens } from '../schema';
+import { sendPasswordResetEmail } from '../services/emailService';
+import { rateLimitByEmail } from '../middleware/rateLimit';
 
 const forgotPasswordSchema = z.object({
   email: z.string().email(),
 });
 
 app.post(
-  "/forgot-password",
-  zValidator("json", forgotPasswordSchema),
+  '/forgot-password',
+  zValidator('json', forgotPasswordSchema),
   rateLimitByEmail({ maxRequests: 3, windowMinutes: 60 }),
   async (c) => {
-    const { email } = c.req.valid("json");
+    const { email } = c.req.valid('json');
     const emailLower = email.toLowerCase();
 
     // Check if user exists (do NOT return different response if not found)
@@ -180,8 +180,7 @@ app.post(
     if (!user) {
       return c.json({
         success: true,
-        message:
-          "If an account exists, a password reset link has been sent to your email.",
+        message: 'If an account exists, a password reset link has been sent to your email.',
       });
     }
 
@@ -203,10 +202,9 @@ app.post(
 
     return c.json({
       success: true,
-      message:
-        "If an account exists, a password reset link has been sent to your email.",
+      message: 'If an account exists, a password reset link has been sent to your email.',
     });
-  },
+  }
 );
 ```
 
@@ -215,83 +213,76 @@ app.post(
 ```typescript
 // apps/server/src/routes/auth.ts (reset-password)
 
-import * as bcrypt from "bcryptjs";
+import * as bcrypt from 'bcryptjs';
 
 const resetPasswordSchema = z.object({
   token: z.string().uuid(),
   newPassword: z
     .string()
     .min(8)
-    .regex(/[A-Z]/, "Must contain uppercase letter")
-    .regex(/[a-z]/, "Must contain lowercase letter")
-    .regex(/[0-9]/, "Must contain number")
-    .regex(/[!@#$%^&*]/, "Must contain special character"),
+    .regex(/[A-Z]/, 'Must contain uppercase letter')
+    .regex(/[a-z]/, 'Must contain lowercase letter')
+    .regex(/[0-9]/, 'Must contain number')
+    .regex(/[!@#$%^&*]/, 'Must contain special character'),
 });
 
-app.post(
-  "/reset-password",
-  zValidator("json", resetPasswordSchema),
-  async (c) => {
-    const { token, newPassword } = c.req.valid("json");
+app.post('/reset-password', zValidator('json', resetPasswordSchema), async (c) => {
+  const { token, newPassword } = c.req.valid('json');
 
-    // Find token
-    const resetToken = await db.query.passwordResetTokens.findFirst({
-      where: eq(passwordResetTokens.token, token),
-    });
+  // Find token
+  const resetToken = await db.query.passwordResetTokens.findFirst({
+    where: eq(passwordResetTokens.token, token),
+  });
 
-    if (!resetToken) {
-      return c.json(
-        {
-          error: "INVALID_TOKEN",
-          message: "Invalid or expired password reset link",
-        },
-        400,
-      );
-    }
+  if (!resetToken) {
+    return c.json(
+      {
+        error: 'INVALID_TOKEN',
+        message: 'Invalid or expired password reset link',
+      },
+      400
+    );
+  }
 
-    // Check expiry
-    if (resetToken.expiresAt < new Date()) {
-      return c.json(
-        {
-          error: "TOKEN_EXPIRED",
-          message: "Password reset link has expired. Request a new one.",
-        },
-        410,
-      );
-    }
+  // Check expiry
+  if (resetToken.expiresAt < new Date()) {
+    return c.json(
+      {
+        error: 'TOKEN_EXPIRED',
+        message: 'Password reset link has expired. Request a new one.',
+      },
+      410
+    );
+  }
 
-    // Check if already used
-    if (resetToken.usedAt !== null) {
-      return c.json(
-        {
-          error: "TOKEN_ALREADY_USED",
-          message: "This password reset link has already been used.",
-        },
-        409,
-      );
-    }
+  // Check if already used
+  if (resetToken.usedAt !== null) {
+    return c.json(
+      {
+        error: 'TOKEN_ALREADY_USED',
+        message: 'This password reset link has already been used.',
+      },
+      409
+    );
+  }
 
-    // Hash new password
-    const passwordHash = await bcrypt.hash(newPassword, 12);
+  // Hash new password
+  const passwordHash = await bcrypt.hash(newPassword, 12);
 
-    // Update user password
-    await db
-      .update(users)
-      .set({ passwordHash })
-      .where(eq(users.id, resetToken.userId));
+  // Update user password
+  await db.update(users).set({ passwordHash }).where(eq(users.id, resetToken.userId));
 
-    // Mark token as used
-    await db
-      .update(passwordResetTokens)
-      .set({ usedAt: new Date() })
-      .where(eq(passwordResetTokens.id, resetToken.id));
+  // Mark token as used
+  await db
+    .update(passwordResetTokens)
+    .set({ usedAt: new Date() })
+    .where(eq(passwordResetTokens.id, resetToken.id));
 
-    return c.json({
-      success: true,
-      message: "Password reset successfully. You can now sign in.",
-    });
-  },
-);
+  return c.json({
+    success: true,
+    message: 'Password reset successfully. You can now sign in.',
+  });
+});
 ```
 
 ### Rate Limiting Middleware
@@ -299,8 +290,8 @@ app.post(
 ```typescript
 // apps/server/src/middleware/rateLimit.ts
 
-import { Context, Next } from "hono";
-import { LRUCache } from "lru-cache";
+import { Context, Next } from 'hono';
+import { LRUCache } from 'lru-cache';
 
 interface RateLimitOptions {
   maxRequests: number;
@@ -312,38 +303,37 @@ const cache = new LRUCache<string, { count: number; resetAt: number }>({
   ttl: 1000 * 60 * 60, // 1 hour
 });
 
-export const rateLimitByEmail =
-  (options: RateLimitOptions) => async (c: Context, next: Next) => {
-    const body = await c.req.json();
-    const email = body.email?.toLowerCase();
+export const rateLimitByEmail = (options: RateLimitOptions) => async (c: Context, next: Next) => {
+  const body = await c.req.json();
+  const email = body.email?.toLowerCase();
 
-    if (!email) {
-      return next();
-    }
-
-    const now = Date.now();
-    const windowMs = options.windowMinutes * 60 * 1000;
-    const entry = cache.get(email);
-
-    if (!entry || now > entry.resetAt) {
-      cache.set(email, { count: 1, resetAt: now + windowMs });
-      return next();
-    }
-
-    if (entry.count >= options.maxRequests) {
-      return c.json(
-        {
-          error: "RATE_LIMITED",
-          message: "Too many requests. Try again later.",
-        },
-        429,
-      );
-    }
-
-    entry.count++;
-    cache.set(email, entry);
+  if (!email) {
     return next();
-  };
+  }
+
+  const now = Date.now();
+  const windowMs = options.windowMinutes * 60 * 1000;
+  const entry = cache.get(email);
+
+  if (!entry || now > entry.resetAt) {
+    cache.set(email, { count: 1, resetAt: now + windowMs });
+    return next();
+  }
+
+  if (entry.count >= options.maxRequests) {
+    return c.json(
+      {
+        error: 'RATE_LIMITED',
+        message: 'Too many requests. Try again later.',
+      },
+      429
+    );
+  }
+
+  entry.count++;
+  cache.set(email, entry);
+  return next();
+};
 ```
 
 ### Mobile Forgot Password Screen
@@ -667,11 +657,11 @@ export default ResetPasswordScreen;
 // apps/native/src/navigation/linking.ts
 
 export const linking = {
-  prefixes: ["ceolx://", "https://ceolx.ie"],
+  prefixes: ['ceolx://', 'https://ceolx.ie'],
   config: {
     screens: {
-      ResetPassword: "reset-password?token=:token",
-      VerifyEmail: "verify-email?token=:token",
+      ResetPassword: 'reset-password?token=:token',
+      VerifyEmail: 'verify-email?token=:token',
     },
   },
 };

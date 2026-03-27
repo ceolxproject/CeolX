@@ -1,19 +1,13 @@
-import { router } from "expo-router";
-import { useState } from "react";
-import {
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { router } from 'expo-router';
+import { useState } from 'react';
+import { StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { form, layout } from "@/styles/shared";
+import { form, layout } from '@/styles/shared';
 
 export default function EditProfileScreen() {
-  const [name, setName] = useState("");
-  const [bio, setBio] = useState("");
+  const [name, setName] = useState('');
+  const [bio, setBio] = useState('');
 
   return (
     <SafeAreaView style={layout.container}>
@@ -35,10 +29,7 @@ export default function EditProfileScreen() {
           onChangeText={setBio}
         />
 
-        <TouchableOpacity
-          style={[form.button, { marginTop: 8 }]}
-          onPress={() => router.back()}
-        >
+        <TouchableOpacity style={[form.button, { marginTop: 8 }]} onPress={() => router.back()}>
           {/* Wired in M6-T1 */}
           <Text style={form.buttonText}>Save Changes</Text>
         </TouchableOpacity>
@@ -48,5 +39,5 @@ export default function EditProfileScreen() {
 }
 
 const styles = StyleSheet.create({
-  bioInput: { height: 100, textAlignVertical: "top" },
+  bioInput: { height: 100, textAlignVertical: 'top' },
 });

@@ -307,13 +307,13 @@ export default function SubscribePage() {
 
 ```typescript
 // packages/api/src/routers/stripe.ts
-import { router, protectedProcedure } from "../index";
-import { z } from "zod";
-import { TRPCError } from "@trpc/server";
-import Stripe from "stripe";
-import { db } from "@ceolx/db";
-import { venueProfiles } from "@ceolx/db/schema";
-import { eq } from "drizzle-orm";
+import { router, protectedProcedure } from '../index';
+import { z } from 'zod';
+import { TRPCError } from '@trpc/server';
+import Stripe from 'stripe';
+import { db } from '@ceolx/db';
+import { venueProfiles } from '@ceolx/db/schema';
+import { eq } from 'drizzle-orm';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
@@ -331,20 +331,20 @@ export const stripeRouter = router({
 
       if (!venue || venue.userId !== userId) {
         throw new TRPCError({
-          code: "BAD_REQUEST",
-          message: "Venue not found",
+          code: 'BAD_REQUEST',
+          message: 'Venue not found',
         });
       }
 
-      if (venue.subscriptionStatus === "active") {
+      if (venue.subscriptionStatus === 'active') {
         throw new TRPCError({
-          code: "CONFLICT",
-          message: "Already subscribed",
+          code: 'CONFLICT',
+          message: 'Already subscribed',
         });
       }
 
       const session = await stripe.checkout.sessions.create({
-        mode: "subscription",
+        mode: 'subscription',
         customer_email: ctx.session.user.email,
         line_items: [{ price: process.env.STRIPE_PRICE_ID!, quantity: 1 }],
         success_url: `${process.env.APP_URL}/subscribe?success=true`,
@@ -361,37 +361,33 @@ export const stripeRouter = router({
 
 ```typescript
 // apps/server/routes/webhooks/stripe.ts
-import { Hono } from "hono";
-import Stripe from "stripe";
-import { db } from "@/db";
-import { venueProfiles, venueSubscriptions } from "@/db/schema";
-import { eq } from "drizzle-orm";
-import { sendEmail } from "@/services/email";
-import { fcmDispatcher } from "@/services/fcmDispatcher";
+import { Hono } from 'hono';
+import Stripe from 'stripe';
+import { db } from '@/db';
+import { venueProfiles, venueSubscriptions } from '@/db/schema';
+import { eq } from 'drizzle-orm';
+import { sendEmail } from '@/services/email';
+import { fcmDispatcher } from '@/services/fcmDispatcher';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 const router = new Hono();
 
-router.post("/webhooks/stripe", async (c) => {
+router.post('/webhooks/stripe', async (c) => {
   const body = await c.req.text();
-  const sig = c.req.header("stripe-signature");
+  const sig = c.req.header('stripe-signature');
 
-  if (!sig) return c.json({ error: "No signature" }, 400);
+  if (!sig) return c.json({ error: 'No signature' }, 400);
 
   let event;
   try {
-    event = stripe.webhooks.constructEvent(
-      body,
-      sig,
-      process.env.STRIPE_WEBHOOK_SECRET!,
-    );
+    event = stripe.webhooks.constructEvent(body, sig, process.env.STRIPE_WEBHOOK_SECRET!);
   } catch (error) {
-    console.error("Webhook signature verification failed:", error);
-    return c.json({ error: "Invalid signature" }, 400);
+    console.error('Webhook signature verification failed:', error);
+    return c.json({ error: 'Invalid signature' }, 400);
   }
 
   try {
-    if (event.type === "checkout.session.completed") {
+    if (event.type === 'checkout.session.completed') {
       const session = event.data.object as Stripe.Checkout.Session;
       const { venueProfileId, userId } = session.metadata as any;
 
@@ -399,7 +395,7 @@ router.post("/webhooks/stripe", async (c) => {
       await db
         .update(venueProfiles)
         .set({
-          subscriptionStatus: "active",
+          subscriptionStatus: 'active',
           stripeCustomerId: session.customer as string,
           isActive: true,
         })
@@ -410,7 +406,7 @@ router.post("/webhooks/stripe", async (c) => {
         venueProfileId,
         stripeCustomerId: session.customer as string,
         stripeSubscriptionId: session.subscription as string,
-        status: "active",
+        status: 'active',
       });
 
       // Get user email for confirmation
@@ -421,36 +417,36 @@ router.post("/webhooks/stripe", async (c) => {
       // Send confirmation email
       await sendEmail({
         to: user.email,
-        templateAlias: "payment-confirmation",
+        templateAlias: 'payment-confirmation',
         templateModel: {
           venueName: (
             await db.query.venueProfiles.findFirst({
               where: eq(venueProfiles.id, venueProfileId),
             })
           ).name,
-          Amount: "€29.99",
-          PlanName: "CeolX Pro",
-          ManageLink: "https://ceolx.ie/account",
+          Amount: '€29.99',
+          PlanName: 'CeolX Pro',
+          ManageLink: 'https://ceolx.ie/account',
         },
       });
 
       // Send FCM notification
       await fcmDispatcher.sendNotification({
         userId,
-        title: "Subscription Activated ✓",
-        body: "Your profile is now live. Start accepting bookings!",
+        title: 'Subscription Activated ✓',
+        body: 'Your profile is now live. Start accepting bookings!',
         data: {
-          persona: "venue",
-          route: "/profile",
-          action: "view_subscription",
+          persona: 'venue',
+          route: '/profile',
+          action: 'view_subscription',
         },
       });
     }
 
     return c.json({ received: true });
   } catch (error) {
-    console.error("Webhook processing error:", error);
-    return c.json({ error: "Processing failed" }, 500);
+    console.error('Webhook processing error:', error);
+    return c.json({ error: 'Processing failed' }, 500);
   }
 });
 

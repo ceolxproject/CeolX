@@ -1,16 +1,16 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute } from '@tanstack/react-router';
 
-export const Route = createFileRoute("/_admin/events/pending")({
+export const Route = createFileRoute('/_admin/events/pending')({
   component: PendingEventsPage,
 });
 
 type Column = { key: string; label: string };
 
 const columns: Column[] = [
-  { key: "title", label: "Title" },
-  { key: "creator", label: "Creator" },
-  { key: "submitted", label: "Submitted" },
-  { key: "actions", label: "Actions" },
+  { key: 'title', label: 'Title' },
+  { key: 'creator', label: 'Creator' },
+  { key: 'submitted', label: 'Submitted' },
+  { key: 'actions', label: 'Actions' },
 ];
 
 function PendingEventsPage() {
@@ -22,10 +22,7 @@ function PendingEventsPage() {
           <thead className="bg-gray-50 border-b border-gray-200">
             <tr>
               {columns.map((col) => (
-                <th
-                  key={col.key}
-                  className="px-4 py-3 font-medium text-gray-600"
-                >
+                <th key={col.key} className="px-4 py-3 font-medium text-gray-600">
                   {col.label}
                 </th>
               ))}
@@ -33,10 +30,7 @@ function PendingEventsPage() {
           </thead>
           <tbody>
             <tr>
-              <td
-                colSpan={columns.length}
-                className="px-4 py-8 text-center text-gray-400"
-              >
+              <td colSpan={columns.length} className="px-4 py-8 text-center text-gray-400">
                 No pending events — data wired in M9
               </td>
             </tr>

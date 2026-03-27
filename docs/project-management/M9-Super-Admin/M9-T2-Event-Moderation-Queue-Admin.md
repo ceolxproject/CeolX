@@ -41,7 +41,7 @@ List all events with `status = pending_review`, oldest first.
     title: string;
     coverImage: string | null;
     creatorName: string;
-    creatorPersona: "artist" | "venue";
+    creatorPersona: 'artist' | 'venue';
     submittedAt: string;
     location: { lat: number; lng: number; address: string };
   }>;

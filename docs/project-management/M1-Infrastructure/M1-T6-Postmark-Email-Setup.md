@@ -145,8 +145,8 @@ Returns `{ message: "not implemented" }` for now. Wired in M7 to handle bounce a
 ```typescript
 // packages/email/src/client.ts
 
-import nodemailer from "nodemailer";
-import { ServerClient } from "postmark";
+import nodemailer from 'nodemailer';
+import { ServerClient } from 'postmark';
 
 export interface EmailTransport {
   send(options: {
@@ -168,7 +168,7 @@ function createPostmarkTransport(token: string): EmailTransport {
         Subject: subject,
         HtmlBody: html,
         TextBody: text,
-        MessageStream: "outbound",
+        MessageStream: 'outbound',
       });
     },
   };
@@ -176,7 +176,7 @@ function createPostmarkTransport(token: string): EmailTransport {
 
 function createSmtpTransport(): EmailTransport {
   const transporter = nodemailer.createTransport({
-    host: process.env.SMTP_HOST ?? "localhost",
+    host: process.env.SMTP_HOST ?? 'localhost',
     port: Number(process.env.SMTP_PORT ?? 1025),
     secure: false,
   });
@@ -191,14 +191,11 @@ let transport: EmailTransport | undefined;
 
 export function getTransport(): EmailTransport {
   if (transport) return transport;
-  if (process.env.NODE_ENV === "development") {
+  if (process.env.NODE_ENV === 'development') {
     transport = createSmtpTransport();
   } else {
     const token = process.env.POSTMARK_API_TOKEN;
-    if (!token)
-      throw new Error(
-        "POSTMARK_API_TOKEN is required in non-development environments",
-      );
+    if (!token) throw new Error('POSTMARK_API_TOKEN is required in non-development environments');
     transport = createPostmarkTransport(token);
   }
   return transport;
@@ -210,9 +207,9 @@ export function getTransport(): EmailTransport {
 ```typescript
 // packages/email/src/send.ts
 
-import { getTransport } from "./client";
-import { SENDER_EMAIL, SENDER_NAME } from "./constants";
-import type { SendEmailOptions } from "./types";
+import { getTransport } from './client';
+import { SENDER_EMAIL, SENDER_NAME } from './constants';
+import type { SendEmailOptions } from './types';
 
 export async function sendEmail({
   to,
@@ -230,10 +227,10 @@ export async function sendEmail({
       html: htmlBody,
       text: textBody,
     });
-    console.log("[email]", { tag, to, timestamp: new Date().toISOString() });
+    console.log('[email]', { tag, to, timestamp: new Date().toISOString() });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    console.error("[email] failed", { tag, to, error: message });
+    console.error('[email] failed', { tag, to, error: message });
     throw error;
   }
 }
@@ -245,10 +242,10 @@ export async function sendEmail({
 // packages/email/src/types.ts
 
 export type EmailTag =
-  | "email-verification"
-  | "password-reset"
-  | "venue-activation"
-  | "payment-confirmation";
+  | 'email-verification'
+  | 'password-reset'
+  | 'venue-activation'
+  | 'payment-confirmation';
 
 export interface SendEmailOptions {
   to: string;

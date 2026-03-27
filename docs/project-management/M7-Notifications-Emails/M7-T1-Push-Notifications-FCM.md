@@ -195,11 +195,11 @@ Deregister token on logout.
 
 ```typescript
 // apps/native/hooks/useNotifications.ts
-import * as Notifications from "expo-notifications";
-import { useEffect, useRef } from "react";
-import { useAuth } from "@/context/AuthContext";
-import { useRole } from "@/context/RoleContext";
-import * as SecureStore from "expo-secure-store";
+import * as Notifications from 'expo-notifications';
+import { useEffect, useRef } from 'react';
+import { useAuth } from '@/context/AuthContext';
+import { useRole } from '@/context/RoleContext';
+import * as SecureStore from 'expo-secure-store';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -223,8 +223,8 @@ export function useNotifications() {
     registerToken();
 
     // Listen to token refresh
-    const subscription = Notifications.addNotificationResponseReceivedListener(
-      (response) => handleTap(response),
+    const subscription = Notifications.addNotificationResponseReceivedListener((response) =>
+      handleTap(response)
     );
 
     return () => Notifications.removeNotificationSubscription(subscription);
@@ -233,12 +233,12 @@ export function useNotifications() {
   const registerToken = async () => {
     try {
       const expoPushToken = await Notifications.getExpoPushTokenAsync();
-      const platform = Platform.OS as "ios" | "android";
+      const platform = Platform.OS as 'ios' | 'android';
 
       await fetch(`${API_URL}/api/v1/device-tokens`, {
-        method: "POST",
+        method: 'POST',
         headers: {
-          "Content-Type": "application/json",
+          'Content-Type': 'application/json',
           Authorization: `Bearer ${session?.token}`,
         },
         body: JSON.stringify({
@@ -247,7 +247,7 @@ export function useNotifications() {
         }),
       });
     } catch (error) {
-      console.error("FCM registration failed:", error);
+      console.error('FCM registration failed:', error);
     }
   };
 
@@ -257,7 +257,7 @@ export function useNotifications() {
     if (persona !== currentRole) {
       await switchRole(persona);
       Toast.show({
-        type: "info",
+        type: 'info',
         text1: `Switched to ${personaLabel(persona)} mode`,
         duration: 2500,
       });
@@ -272,20 +272,20 @@ export function useNotifications() {
 
 ```typescript
 // apps/server/routes/v1/device-tokens.ts
-import { Hono } from "hono";
-import { db } from "@/db";
-import { deviceTokens } from "@/db/schema";
-import { eq, and } from "drizzle-orm";
+import { Hono } from 'hono';
+import { db } from '@/db';
+import { deviceTokens } from '@/db/schema';
+import { eq, and } from 'drizzle-orm';
 
 const router = new Hono();
 
-router.post("/device-tokens", async (c) => {
-  const userId = c.get("user")?.id;
-  if (!userId) return c.json({ error: "Unauthorized" }, 401);
+router.post('/device-tokens', async (c) => {
+  const userId = c.get('user')?.id;
+  if (!userId) return c.json({ error: 'Unauthorized' }, 401);
 
   const { token, platform } = await c.req.json();
-  if (!token || !["ios", "android"].includes(platform)) {
-    return c.json({ error: "Invalid token or platform" }, 400);
+  if (!token || !['ios', 'android'].includes(platform)) {
+    return c.json({ error: 'Invalid token or platform' }, 400);
   }
 
   try {
@@ -294,12 +294,7 @@ router.post("/device-tokens", async (c) => {
     const existing = await db
       .select()
       .from(deviceTokens)
-      .where(
-        and(
-          eq(deviceTokens.userId, userId),
-          eq(deviceTokens.deviceIdentifier, deviceId),
-        ),
-      );
+      .where(and(eq(deviceTokens.userId, userId), eq(deviceTokens.deviceIdentifier, deviceId)));
 
     if (existing.length > 0) {
       await db
@@ -316,24 +311,22 @@ router.post("/device-tokens", async (c) => {
       });
     }
 
-    return c.json({ success: true, message: "Token registered" });
+    return c.json({ success: true, message: 'Token registered' });
   } catch (error) {
-    console.error("FCM registration error:", error);
-    return c.json({ error: "Failed to register token" }, 500);
+    console.error('FCM registration error:', error);
+    return c.json({ error: 'Failed to register token' }, 500);
   }
 });
 
-router.delete("/device-tokens/:token", async (c) => {
-  const userId = c.get("user")?.id;
-  if (!userId) return c.json({ error: "Unauthorized" }, 401);
+router.delete('/device-tokens/:token', async (c) => {
+  const userId = c.get('user')?.id;
+  if (!userId) return c.json({ error: 'Unauthorized' }, 401);
 
-  const token = c.req.param("token");
+  const token = c.req.param('token');
   await db
     .update(deviceTokens)
     .set({ isActive: false, updatedAt: new Date() })
-    .where(
-      and(eq(deviceTokens.userId, userId), eq(deviceTokens.fcmToken, token)),
-    );
+    .where(and(eq(deviceTokens.userId, userId), eq(deviceTokens.fcmToken, token)));
 
   return c.json({ success: true });
 });
@@ -345,10 +338,10 @@ export default router;
 
 ```typescript
 // apps/server/services/fcmDispatcher.ts
-import admin from "firebase-admin";
-import { db } from "@/db";
-import { deviceTokens, notifications } from "@/db/schema";
-import { eq, and } from "drizzle-orm";
+import admin from 'firebase-admin';
+import { db } from '@/db';
+import { deviceTokens, notifications } from '@/db/schema';
+import { eq, and } from 'drizzle-orm';
 
 export class FCMDispatcher {
   async sendNotification(payload: {
@@ -356,7 +349,7 @@ export class FCMDispatcher {
     title: string;
     body: string;
     data: {
-      persona: "artist" | "venue" | "spectator";
+      persona: 'artist' | 'venue' | 'spectator';
       route: string;
       action?: string;
     };
@@ -368,9 +361,7 @@ export class FCMDispatcher {
       const tokens = await db
         .select()
         .from(deviceTokens)
-        .where(
-          and(eq(deviceTokens.userId, userId), eq(deviceTokens.isActive, true)),
-        );
+        .where(and(eq(deviceTokens.userId, userId), eq(deviceTokens.isActive, true)));
 
       if (tokens.length === 0) return { sent: 0, failed: 0 };
 
@@ -384,7 +375,7 @@ export class FCMDispatcher {
       // Log to notifications table
       await db.insert(notifications).values({
         userId,
-        type: data.action || "generic",
+        type: data.action || 'generic',
         title,
         body,
         route: data.route,
@@ -394,7 +385,7 @@ export class FCMDispatcher {
 
       return { sent: response.successCount, failed: response.failureCount };
     } catch (error) {
-      console.error("FCM dispatch error:", error);
+      console.error('FCM dispatch error:', error);
       throw error;
     }
   }

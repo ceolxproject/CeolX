@@ -55,7 +55,7 @@ Valid transitions for `artist_to_venue` bookings:
 ### `bookings.list` — filter to applications only
 
 ```typescript
-trpc.bookings.list.query({ direction: "artist_to_venue" });
+trpc.bookings.list.query({ direction: 'artist_to_venue' });
 ```
 
 **Output includes** (for artist_to_venue bookings):
@@ -178,7 +178,7 @@ const event = await db
   .then((rows) => rows[0]);
 
 if (!event.is_gig_opportunity) {
-  return c.json({ error: "This event is not a gig opportunity" }, 400);
+  return c.json({ error: 'This event is not a gig opportunity' }, 400);
 }
 ```
 
@@ -188,7 +188,7 @@ if (!event.is_gig_opportunity) {
 // Check if Artist is already a collaborator
 const collaborators = event.collaborators || []; // JSON array of artist profile IDs
 if (collaborators.includes(artist_id)) {
-  return c.json({ error: "You are already booked for this event" }, 400);
+  return c.json({ error: 'You are already booked for this event' }, 400);
 }
 ```
 
@@ -202,13 +202,13 @@ const existingBooking = await db
     and(
       eq(bookings.artist_id, artist_id),
       eq(bookings.event_id, event_id),
-      inArray(bookings.status, ["pending", "accepted"]),
-    ),
+      inArray(bookings.status, ['pending', 'accepted'])
+    )
   )
   .then((rows) => rows[0]);
 
 if (existingBooking) {
-  return c.json({ error: "You have already applied to this event" }, 409);
+  return c.json({ error: 'You have already applied to this event' }, 409);
 }
 ```
 

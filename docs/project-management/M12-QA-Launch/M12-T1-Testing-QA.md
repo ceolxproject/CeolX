@@ -254,12 +254,12 @@ No new endpoints. All existing endpoints require integration tests covering happ
 ```typescript
 // jest.config.js
 module.exports = {
-  preset: "ts-jest",
-  testEnvironment: "node",
-  roots: ["<rootDir>/src"],
-  testMatch: ["**/__tests__/**/*.ts", "**/?(*.)+(spec|test).ts"],
-  moduleFileExtensions: ["ts", "js"],
-  collectCoverageFrom: ["src/**/*.ts", "!src/**/*.d.ts", "!src/**/index.ts"],
+  preset: 'ts-jest',
+  testEnvironment: 'node',
+  roots: ['<rootDir>/src'],
+  testMatch: ['**/__tests__/**/*.ts', '**/?(*.)+(spec|test).ts'],
+  moduleFileExtensions: ['ts', 'js'],
+  collectCoverageFrom: ['src/**/*.ts', '!src/**/*.d.ts', '!src/**/index.ts'],
   coverageThreshold: {
     global: {
       branches: 80,
@@ -274,43 +274,43 @@ module.exports = {
 ### Hono Test Example
 
 ```typescript
-import { describe, it, expect } from "@jest/globals";
-import app from "../src/app";
+import { describe, it, expect } from '@jest/globals';
+import app from '../src/app';
 
-describe("POST /api/v1/auth/login", () => {
-  it("should login with valid credentials", async () => {
+describe('POST /api/v1/auth/login', () => {
+  it('should login with valid credentials', async () => {
     const res = await app.request(
-      new Request("http://localhost:3000/api/v1/auth/login", {
-        method: "POST",
+      new Request('http://localhost:3000/api/v1/auth/login', {
+        method: 'POST',
         body: JSON.stringify({
-          email: "user@ceolx.ie",
-          password: "validPassword123!",
+          email: 'user@ceolx.ie',
+          password: 'validPassword123!',
         }),
-        headers: { "Content-Type": "application/json" },
-      }),
+        headers: { 'Content-Type': 'application/json' },
+      })
     );
 
     expect(res.status).toBe(200);
     const data = await res.json();
     expect(data.session).toBeDefined();
-    expect(data.session.email).toBe("user@ceolx.ie");
+    expect(data.session.email).toBe('user@ceolx.ie');
   });
 
-  it("should reject invalid password", async () => {
+  it('should reject invalid password', async () => {
     const res = await app.request(
-      new Request("http://localhost:3000/api/v1/auth/login", {
-        method: "POST",
+      new Request('http://localhost:3000/api/v1/auth/login', {
+        method: 'POST',
         body: JSON.stringify({
-          email: "user@ceolx.ie",
-          password: "wrongPassword",
+          email: 'user@ceolx.ie',
+          password: 'wrongPassword',
         }),
-        headers: { "Content-Type": "application/json" },
-      }),
+        headers: { 'Content-Type': 'application/json' },
+      })
     );
 
     expect(res.status).toBe(401);
     const data = await res.json();
-    expect(data.error).toBe("Invalid email or password");
+    expect(data.error).toBe('Invalid email or password');
   });
 });
 ```
@@ -319,31 +319,31 @@ describe("POST /api/v1/auth/login", () => {
 
 ```javascript
 // load-test.js
-import http from "k6/http";
-import { check, sleep } from "k6";
+import http from 'k6/http';
+import { check, sleep } from 'k6';
 
 export const options = {
   stages: [
-    { duration: "2m", target: 100 }, // Ramp up to 100 users
-    { duration: "5m", target: 100 }, // Stay at 100 users
-    { duration: "2m", target: 0 }, // Ramp down to 0
+    { duration: '2m', target: 100 }, // Ramp up to 100 users
+    { duration: '5m', target: 100 }, // Stay at 100 users
+    { duration: '2m', target: 0 }, // Ramp down to 0
   ],
   thresholds: {
-    http_req_duration: ["p(95)<500", "p(99)<1000"], // 95th percentile < 500ms
-    http_err_rate: ["<0.1"], // Error rate < 10%
+    http_req_duration: ['p(95)<500', 'p(99)<1000'], // 95th percentile < 500ms
+    http_err_rate: ['<0.1'], // Error rate < 10%
   },
 };
 
 export default function () {
   // Test map viewport query
   const queryRes = http.get(
-    "https://api.staging.ceolx.ie/api/v1/events?bounds=53.1,53.5,-7.8,-7.2",
-    { headers: { Authorization: "Bearer test_token" } },
+    'https://api.staging.ceolx.ie/api/v1/events?bounds=53.1,53.5,-7.8,-7.2',
+    { headers: { Authorization: 'Bearer test_token' } }
   );
 
   check(queryRes, {
-    "status is 200": (r) => r.status === 200,
-    "response time < 200ms": (r) => r.timings.duration < 200,
+    'status is 200': (r) => r.status === 200,
+    'response time < 200ms': (r) => r.timings.duration < 200,
   });
 
   sleep(1);

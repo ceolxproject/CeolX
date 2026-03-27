@@ -288,16 +288,16 @@ Delete a collection. Associated events are NOT deleted — their `collection_id`
 ```typescript
 // apps/server/src/routes/users.ts
 
-import { Hono } from "hono";
-import { getAuth } from "hono/better-auth";
-import { db } from "../db";
-import { events } from "@ceolx/shared/schema";
-import { eq } from "drizzle-orm";
+import { Hono } from 'hono';
+import { getAuth } from 'hono/better-auth';
+import { db } from '../db';
+import { events } from '@ceolx/shared/schema';
+import { eq } from 'drizzle-orm';
 
-app.get("/users/me/events", async (c) => {
+app.get('/users/me/events', async (c) => {
   const auth = await requireAuth(c);
-  const limit = parseInt(c.req.query("limit") || "20", 10);
-  const offset = parseInt(c.req.query("offset") || "0", 10);
+  const limit = parseInt(c.req.query('limit') || '20', 10);
+  const offset = parseInt(c.req.query('offset') || '0', 10);
 
   try {
     // Get all events created by user (via artist or venue profile)
@@ -319,8 +319,8 @@ app.get("/users/me/events", async (c) => {
       total_count: parseInt(totalCount[0].count),
     });
   } catch (error) {
-    console.error("My events fetch error:", error);
-    return c.json({ error: "Failed to fetch your events" }, 500);
+    console.error('My events fetch error:', error);
+    return c.json({ error: 'Failed to fetch your events' }, 500);
   }
 });
 ```
@@ -328,11 +328,11 @@ app.get("/users/me/events", async (c) => {
 ### Saved Events Endpoint (Hono)
 
 ```typescript
-app.get("/users/me/saved-events", async (c) => {
+app.get('/users/me/saved-events', async (c) => {
   const auth = await requireAuth(c);
-  const limit = parseInt(c.req.query("limit") || "20", 10);
-  const offset = parseInt(c.req.query("offset") || "0", 10);
-  const includeArchived = c.req.query("include_archived") === "true";
+  const limit = parseInt(c.req.query('limit') || '20', 10);
+  const offset = parseInt(c.req.query('offset') || '0', 10);
+  const includeArchived = c.req.query('include_archived') === 'true';
 
   try {
     let query = db
@@ -346,7 +346,7 @@ app.get("/users/me/saved-events", async (c) => {
       .orderBy(desc(saved_events.saved_at));
 
     if (!includeArchived) {
-      query = query.where(eq(events.status, "active"));
+      query = query.where(eq(events.status, 'active'));
     }
 
     const savedEvents = await query.limit(limit).offset(offset);
@@ -364,8 +364,8 @@ app.get("/users/me/saved-events", async (c) => {
       total_count: parseInt(totalCount[0].count),
     });
   } catch (error) {
-    console.error("Saved events fetch error:", error);
-    return c.json({ error: "Failed to fetch saved events" }, 500);
+    console.error('Saved events fetch error:', error);
+    return c.json({ error: 'Failed to fetch saved events' }, 500);
   }
 });
 ```
@@ -375,22 +375,22 @@ app.get("/users/me/saved-events", async (c) => {
 ```typescript
 // apps/server/src/routes/collections.ts
 
-import { Hono } from "hono";
-import { getAuth } from "hono/better-auth";
-import { db } from "../db";
-import { collections, events } from "@ceolx/shared/schema";
-import { eq } from "drizzle-orm";
-import { z } from "zod";
-import { zValidator } from "@hono/zod-validator";
+import { Hono } from 'hono';
+import { getAuth } from 'hono/better-auth';
+import { db } from '../db';
+import { collections, events } from '@ceolx/shared/schema';
+import { eq } from 'drizzle-orm';
+import { z } from 'zod';
+import { zValidator } from '@hono/zod-validator';
 
 const CollectionSchema = z.object({
   name: z.string().min(1).max(100),
   logo: z.string().url().optional(),
 });
 
-app.post("/collections", zValidator("json", CollectionSchema), async (c) => {
+app.post('/collections', zValidator('json', CollectionSchema), async (c) => {
   const auth = await requireAuth(c);
-  const data = c.req.valid("json");
+  const data = c.req.valid('json');
 
   // Verify user is a venue
   const venueProfile = await db.query.venue_profiles.findFirst({
@@ -398,7 +398,7 @@ app.post("/collections", zValidator("json", CollectionSchema), async (c) => {
   });
 
   if (!venueProfile) {
-    return c.json({ error: "Only venues can create collections" }, 403);
+    return c.json({ error: 'Only venues can create collections' }, 403);
   }
 
   const collection = await db
@@ -414,8 +414,8 @@ app.post("/collections", zValidator("json", CollectionSchema), async (c) => {
   return c.json(collection[0], 201);
 });
 
-app.get("/collections/:id", async (c) => {
-  const collectionId = c.req.param("id");
+app.get('/collections/:id', async (c) => {
+  const collectionId = c.req.param('id');
 
   const collection = await db.query.collections.findFirst({
     where: (coll, { eq }) => eq(coll.id, collectionId),
@@ -433,7 +433,7 @@ app.get("/collections/:id", async (c) => {
   });
 
   if (!collection) {
-    return c.json({ error: "Collection not found" }, 404);
+    return c.json({ error: 'Collection not found' }, 404);
   }
 
   return c.json({
@@ -442,54 +442,50 @@ app.get("/collections/:id", async (c) => {
   });
 });
 
-app.patch(
-  "/collections/:id",
-  zValidator("json", CollectionSchema.partial()),
-  async (c) => {
-    const auth = await requireAuth(c);
-    const collectionId = c.req.param("id");
-    const data = c.req.valid("json");
-
-    const collection = await db.query.collections.findFirst({
-      where: (coll, { eq }) => eq(coll.id, collectionId),
-    });
-
-    if (!collection) {
-      return c.json({ error: "Collection not found" }, 404);
-    }
-
-    // Verify ownership
-    const venueProfile = await db.query.venue_profiles.findFirst({
-      where: (profiles, { eq }) => eq(profiles.user_id, auth.user.id),
-    });
-
-    if (!venueProfile || collection.created_by !== venueProfile.id) {
-      return c.json({ error: "Forbidden" }, 403);
-    }
-
-    const updated = await db
-      .update(collections)
-      .set({
-        name: data.name !== undefined ? data.name : collection.name,
-        logo: data.logo !== undefined ? data.logo : collection.logo,
-      })
-      .where(eq(collections.id, collectionId))
-      .returning();
-
-    return c.json(updated[0]);
-  },
-);
-
-app.delete("/collections/:id", async (c) => {
+app.patch('/collections/:id', zValidator('json', CollectionSchema.partial()), async (c) => {
   const auth = await requireAuth(c);
-  const collectionId = c.req.param("id");
+  const collectionId = c.req.param('id');
+  const data = c.req.valid('json');
 
   const collection = await db.query.collections.findFirst({
     where: (coll, { eq }) => eq(coll.id, collectionId),
   });
 
   if (!collection) {
-    return c.json({ error: "Collection not found" }, 404);
+    return c.json({ error: 'Collection not found' }, 404);
+  }
+
+  // Verify ownership
+  const venueProfile = await db.query.venue_profiles.findFirst({
+    where: (profiles, { eq }) => eq(profiles.user_id, auth.user.id),
+  });
+
+  if (!venueProfile || collection.created_by !== venueProfile.id) {
+    return c.json({ error: 'Forbidden' }, 403);
+  }
+
+  const updated = await db
+    .update(collections)
+    .set({
+      name: data.name !== undefined ? data.name : collection.name,
+      logo: data.logo !== undefined ? data.logo : collection.logo,
+    })
+    .where(eq(collections.id, collectionId))
+    .returning();
+
+  return c.json(updated[0]);
+});
+
+app.delete('/collections/:id', async (c) => {
+  const auth = await requireAuth(c);
+  const collectionId = c.req.param('id');
+
+  const collection = await db.query.collections.findFirst({
+    where: (coll, { eq }) => eq(coll.id, collectionId),
+  });
+
+  if (!collection) {
+    return c.json({ error: 'Collection not found' }, 404);
   }
 
   const venueProfile = await db.query.venue_profiles.findFirst({
@@ -497,7 +493,7 @@ app.delete("/collections/:id", async (c) => {
   });
 
   if (!venueProfile || collection.created_by !== venueProfile.id) {
-    return c.json({ error: "Forbidden" }, 403);
+    return c.json({ error: 'Forbidden' }, 403);
   }
 
   // Remove collection_id from all associated events
@@ -509,7 +505,7 @@ app.delete("/collections/:id", async (c) => {
   // Delete collection
   await db.delete(collections).where(eq(collections.id, collectionId));
 
-  return c.status(204).body("");
+  return c.status(204).body('');
 });
 ```
 

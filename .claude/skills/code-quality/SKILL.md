@@ -95,7 +95,7 @@ if (!paymentInfo) {
     inventoryDb[item.productId] += item.quantity;
   }
   delete reservedInventory[order.id];
-  return { success: false, error: "Payment required" };
+  return { success: false, error: 'Payment required' };
 }
 // ...same rollback code repeated 4 more times...
 
@@ -134,12 +134,12 @@ One function = one reason to change.
 ```typescript
 // ❌ BAD: Describes what code does (obvious)
 // Check if user is admin
-if (user.role === "admin") {
+if (user.role === 'admin') {
 }
 
 // ✅ GOOD: Explains why (not obvious)
 // Admins bypass rate limiting per security policy SEC-2024-001
-if (user.role === "admin") {
+if (user.role === 'admin') {
 }
 ```
 
@@ -195,12 +195,12 @@ const result = parseJSON('{"name": "John"}');
 // console.log(result.name); // Error: Object is of type 'unknown'
 
 // Must validate first:
-if (typeof result === "object" && result !== null && "name" in result) {
+if (typeof result === 'object' && result !== null && 'name' in result) {
   console.log((result as { name: string }).name); // Safe
 }
 
 // ✅ BEST: Use Zod for runtime validation
-import { z } from "zod";
+import { z } from 'zod';
 
 const UserSchema = z.object({
   name: z.string(),
@@ -266,8 +266,8 @@ ESLint 9+ uses flat config (`eslint.config.js`). Enforce code quality automatica
 
 ```javascript
 // eslint.config.js (ESLint v9+ flat config)
-import js from "@eslint/js";
-import tseslint from "typescript-eslint";
+import js from '@eslint/js';
+import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
   js.configs.recommended,
@@ -275,8 +275,8 @@ export default tseslint.config(
   {
     rules: {
       // Max function length
-      "max-lines-per-function": [
-        "error",
+      'max-lines-per-function': [
+        'error',
         {
           max: 30,
           skipBlankLines: true,
@@ -285,11 +285,11 @@ export default tseslint.config(
       ],
 
       // Cyclomatic complexity
-      complexity: ["error", { max: 10 }],
+      complexity: ['error', { max: 10 }],
 
       // Max file length
-      "max-lines": [
-        "error",
+      'max-lines': [
+        'error',
         {
           max: 300,
           skipBlankLines: true,
@@ -298,14 +298,14 @@ export default tseslint.config(
       ],
 
       // Max function params
-      "max-params": ["error", 3],
+      'max-params': ['error', 3],
 
       // Max nested callbacks
-      "max-nested-callbacks": ["error", 2],
+      'max-nested-callbacks': ['error', 2],
 
       // No magic numbers
-      "no-magic-numbers": [
-        "error",
+      'no-magic-numbers': [
+        'error',
         {
           ignore: [0, 1, -1],
           ignoreArrayIndexes: true,
@@ -315,8 +315,8 @@ export default tseslint.config(
   },
   {
     // Ignore patterns (replaces .eslintignore)
-    ignores: ["node_modules/", "dist/", "*.config.js"],
-  },
+    ignores: ['node_modules/', 'dist/', '*.config.js'],
+  }
 );
 ```
 
@@ -343,7 +343,7 @@ type Result<T> = { success: true; data: T } | { success: false; error: string };
 
 function processOrder(order: Order): Result<OrderConfirmation> {
   if (!isValid(order)) {
-    return { success: false, error: "Invalid order" };
+    return { success: false, error: 'Invalid order' };
   }
 
   const confirmation = executeOrder(order);
@@ -351,15 +351,15 @@ function processOrder(order: Order): Result<OrderConfirmation> {
 }
 
 // ✅ GOOD: Branded types for type safety
-type UserId = string & { readonly __brand: "UserId" };
-type OrderId = string & { readonly __brand: "OrderId" };
+type UserId = string & { readonly __brand: 'UserId' };
+type OrderId = string & { readonly __brand: 'OrderId' };
 
 function getUser(id: UserId): User {
   /* ... */
 }
 
 // Won't compile - prevents mixing up IDs
-const orderId: OrderId = "123" as OrderId;
+const orderId: OrderId = '123' as OrderId;
 getUser(orderId); // Type error!
 ```
 
@@ -367,14 +367,14 @@ getUser(orderId); // Type error!
 
 ```typescript
 // Test function length and complexity
-describe("Code Quality", () => {
-  it("functions stay under 30 lines", () => {
+describe('Code Quality', () => {
+  it('functions stay under 30 lines', () => {
     const functionSource = processOrder.toString();
-    const lines = functionSource.split("\n").filter((l) => l.trim()).length;
+    const lines = functionSource.split('\n').filter((l) => l.trim()).length;
     expect(lines).toBeLessThanOrEqual(30);
   });
 
-  it("maintains low cyclomatic complexity", () => {
+  it('maintains low cyclomatic complexity', () => {
     // Use eslint-plugin-complexity or similar
     const complexity = calculateComplexity(processOrder);
     expect(complexity).toBeLessThanOrEqual(10);
@@ -382,13 +382,13 @@ describe("Code Quality", () => {
 });
 
 // Test extracted helpers
-describe("Helper Functions", () => {
-  it("validateOrder handles invalid input", () => {
+describe('Helper Functions', () => {
+  it('validateOrder handles invalid input', () => {
     const result = validateOrder({ items: [] });
     expect(result.valid).toBe(false);
   });
 
-  it("calculateOrderTotal sums items correctly", () => {
+  it('calculateOrderTotal sums items correctly', () => {
     const total = calculateOrderTotal(mockOrder);
     expect(total).toBe(99.99);
   });

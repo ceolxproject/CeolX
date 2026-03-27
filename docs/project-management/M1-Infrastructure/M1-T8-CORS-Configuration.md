@@ -36,11 +36,11 @@ The M1-T3 stub at `apps/server/src/index.ts:17-23` is:
 
 ```typescript
 app.use(
-  "/*",
+  '/*',
   cors({
-    origin: env.CORS_ALLOWED_ORIGINS.split("|"),
+    origin: env.CORS_ALLOWED_ORIGINS.split('|'),
     credentials: true,
-  }),
+  })
 );
 ```
 
@@ -138,19 +138,19 @@ Development origins are injected automatically when `NODE_ENV=development` — n
 // apps/server/src/config/cors.ts  (new file)
 
 export function buildAllowedOrigins(): string[] {
-  const envOrigins = process.env.CORS_ALLOWED_ORIGINS ?? "";
+  const envOrigins = process.env.CORS_ALLOWED_ORIGINS ?? '';
   const configured = envOrigins
-    .split("|")
+    .split('|')
     .map((o) => o.trim())
     .filter(Boolean);
 
   const devOrigins =
-    process.env.NODE_ENV === "development"
+    process.env.NODE_ENV === 'development'
       ? [
-          "http://localhost:3000",
-          "http://localhost:3001",
-          "http://localhost:8081", // Expo dev client
-          "http://localhost:19006", // Expo web
+          'http://localhost:3000',
+          'http://localhost:3001',
+          'http://localhost:8081', // Expo dev client
+          'http://localhost:19006', // Expo web
         ]
       : [];
 
@@ -168,8 +168,8 @@ export function isAllowedOrigin(origin: string): boolean {
 ```typescript
 // apps/server/src/index.ts — replace the stub cors() call at line 17-23
 
-import { cors } from "hono/cors";
-import { buildAllowedOrigins, isAllowedOrigin } from "./config/cors";
+import { cors } from 'hono/cors';
+import { buildAllowedOrigins, isAllowedOrigin } from './config/cors';
 
 app.use(
   cors({
@@ -179,19 +179,15 @@ app.use(
       if (isAllowedOrigin(origin)) return origin;
 
       // Log rejected origins at warn level (not error)
-      console.warn("[CORS] Rejected origin:", origin);
+      console.warn('[CORS] Rejected origin:', origin);
       return null; // Hono treats null as "deny"
     },
     credentials: true,
-    allowMethods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
-    allowHeaders: ["Content-Type", "Authorization"],
-    exposeHeaders: [
-      "X-RateLimit-Limit",
-      "X-RateLimit-Remaining",
-      "X-RateLimit-Reset",
-    ],
+    allowMethods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowHeaders: ['Content-Type', 'Authorization'],
+    exposeHeaders: ['X-RateLimit-Limit', 'X-RateLimit-Remaining', 'X-RateLimit-Reset'],
     maxAge: 86400,
-  }),
+  })
 );
 ```
 

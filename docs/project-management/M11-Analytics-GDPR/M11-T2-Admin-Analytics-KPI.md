@@ -246,10 +246,10 @@ async function getUserStats() {
 ### Caching with Redis
 
 ```typescript
-import Redis from "ioredis";
+import Redis from 'ioredis';
 
 const redis = new Redis(process.env.REDIS_URL);
-const STATS_CACHE_KEY = "admin:stats";
+const STATS_CACHE_KEY = 'admin:stats';
 const STATS_CACHE_TTL = 300; // 5 minutes
 
 async function getCachedStats() {
@@ -269,7 +269,7 @@ async function getCachedStats() {
 }
 
 // Invalidate cache on data changes
-app.post("/events", async (c) => {
+app.post('/events', async (c) => {
   // ... create event logic ...
   await redis.del(STATS_CACHE_KEY); // Invalidate immediately
   return c.json({ success: true });
@@ -369,22 +369,21 @@ export default function Dashboard({ stats }: { stats: typeof adminStats }) {
 ### Hono Endpoint Implementation
 
 ```typescript
-app.get("/api/v1/admin/stats", adminAuthMiddleware, async (c) => {
+app.get('/api/v1/admin/stats', adminAuthMiddleware, async (c) => {
   try {
     // Check cache
-    const cached = await redis.get("admin:stats:v1");
+    const cached = await redis.get('admin:stats:v1');
     if (cached) {
       return c.json(JSON.parse(cached));
     }
 
     // Compute all stats in parallel
-    const [userStats, eventStats, subscriptionStats, engagementStats] =
-      await Promise.all([
-        getUserStats(),
-        getEventStats(),
-        getSubscriptionStats(),
-        getEngagementStats(),
-      ]);
+    const [userStats, eventStats, subscriptionStats, engagementStats] = await Promise.all([
+      getUserStats(),
+      getEventStats(),
+      getSubscriptionStats(),
+      getEngagementStats(),
+    ]);
 
     const response = {
       users: userStats,
@@ -396,12 +395,12 @@ app.get("/api/v1/admin/stats", adminAuthMiddleware, async (c) => {
     };
 
     // Cache for 5 minutes
-    await redis.setex("admin:stats:v1", 300, JSON.stringify(response));
+    await redis.setex('admin:stats:v1', 300, JSON.stringify(response));
 
     return c.json(response);
   } catch (error) {
-    console.error("Failed to fetch admin stats:", error);
-    return c.json({ error: "Failed to fetch stats" }, 500);
+    console.error('Failed to fetch admin stats:', error);
+    return c.json({ error: 'Failed to fetch stats' }, 500);
   }
 });
 ```

@@ -131,10 +131,10 @@ src/
 ### `src/jobs/client.ts`
 
 ```typescript
-import { Client } from "@upstash/qstash";
+import { Client } from '@upstash/qstash';
 
 if (!process.env.QSTASH_TOKEN) {
-  throw new Error("QSTASH_TOKEN environment variable is required");
+  throw new Error('QSTASH_TOKEN environment variable is required');
 }
 
 export const qstashClient = new Client({
@@ -145,24 +145,24 @@ export const qstashClient = new Client({
 ### `src/jobs/types.ts`
 
 ```typescript
-import { z } from "zod";
+import { z } from 'zod';
 
 // --- Payload schemas ---
 
 export const emailSendSchema = z.object({
   to: z.string().email(),
   template: z.enum([
-    "email-verification",
-    "password-reset",
-    "venue-activation",
-    "event-approved",
-    "event-rejected",
-    "booking-invitation",
-    "booking-accepted",
-    "booking-rejected",
-    "data-export-ready",
+    'email-verification',
+    'password-reset',
+    'venue-activation',
+    'event-approved',
+    'event-rejected',
+    'booking-invitation',
+    'booking-accepted',
+    'booking-rejected',
+    'data-export-ready',
   ]),
-  locale: z.string().default("en"),
+  locale: z.string().default('en'),
   data: z.record(z.string()).optional(),
 });
 
@@ -183,7 +183,7 @@ export const notificationPushSchema = z.object({
   deviceToken: z.string(),
   title: z.string(),
   body: z.string(),
-  persona: z.enum(["spectator", "artist", "venue"]),
+  persona: z.enum(['spectator', 'artist', 'venue']),
   route: z.string(),
   data: z.record(z.string()).optional(),
 });
@@ -209,38 +209,36 @@ export const dataExportNotifySchema = z.object({
 // --- Job type union ---
 
 export type JobType =
-  | "email.send"
-  | "account.anonymize"
-  | "account.cleanup"
-  | "ip.anonymize"
-  | "notification.push"
-  | "notification.batch"
-  | "venue.subscription-retry"
-  | "data-export.process"
-  | "data-export.notify";
+  | 'email.send'
+  | 'account.anonymize'
+  | 'account.cleanup'
+  | 'ip.anonymize'
+  | 'notification.push'
+  | 'notification.batch'
+  | 'venue.subscription-retry'
+  | 'data-export.process'
+  | 'data-export.notify';
 
 export const jobPayloadSchemas = {
-  "email.send": emailSendSchema,
-  "account.anonymize": accountAnonymizeSchema,
-  "account.cleanup": accountCleanupSchema,
-  "ip.anonymize": ipAnonymizeSchema,
-  "notification.push": notificationPushSchema,
-  "notification.batch": notificationBatchSchema,
-  "venue.subscription-retry": venueSubscriptionRetrySchema,
-  "data-export.process": dataExportProcessSchema,
-  "data-export.notify": dataExportNotifySchema,
+  'email.send': emailSendSchema,
+  'account.anonymize': accountAnonymizeSchema,
+  'account.cleanup': accountCleanupSchema,
+  'ip.anonymize': ipAnonymizeSchema,
+  'notification.push': notificationPushSchema,
+  'notification.batch': notificationBatchSchema,
+  'venue.subscription-retry': venueSubscriptionRetrySchema,
+  'data-export.process': dataExportProcessSchema,
+  'data-export.notify': dataExportNotifySchema,
 } as const;
 
-export type JobPayload<T extends JobType> = z.infer<
-  (typeof jobPayloadSchemas)[T]
->;
+export type JobPayload<T extends JobType> = z.infer<(typeof jobPayloadSchemas)[T]>;
 ```
 
 ### `src/jobs/publish.ts`
 
 ```typescript
-import { qstashClient } from "./client";
-import type { JobType, JobPayload } from "./types";
+import { qstashClient } from './client';
+import type { JobType, JobPayload } from './types';
 
 const BASE_URL = process.env.QSTASH_BASE_URL;
 
@@ -252,9 +250,9 @@ export interface PublishOptions {
 export async function publishJob<T extends JobType>(
   type: T,
   payload: JobPayload<T>,
-  options: PublishOptions = {},
+  options: PublishOptions = {}
 ): Promise<void> {
-  if (!BASE_URL) throw new Error("QSTASH_BASE_URL is not set");
+  if (!BASE_URL) throw new Error('QSTASH_BASE_URL is not set');
 
   await qstashClient.publishJSON({
     url: BASE_URL,
@@ -267,15 +265,15 @@ export async function publishJob<T extends JobType>(
 export async function publishCron(
   type: JobType,
   schedule: string, // cron expression e.g. "*/5 * * * *"
-  payload: Record<string, unknown> = {},
+  payload: Record<string, unknown> = {}
 ): Promise<void> {
-  if (!BASE_URL) throw new Error("QSTASH_BASE_URL is not set");
+  if (!BASE_URL) throw new Error('QSTASH_BASE_URL is not set');
 
   await qstashClient.schedules.create({
     destination: BASE_URL,
     cron: schedule,
     body: JSON.stringify({ type, payload }),
-    headers: { "Content-Type": "application/json" },
+    headers: { 'Content-Type': 'application/json' },
   });
 }
 ```
@@ -283,38 +281,38 @@ export async function publishCron(
 ### `src/jobs/verify.ts`
 
 ```typescript
-import { Receiver } from "@upstash/qstash";
-import type { Context, Next } from "hono";
+import { Receiver } from '@upstash/qstash';
+import type { Context, Next } from 'hono';
 
 const receiver = new Receiver({
-  currentSigningKey: process.env.QSTASH_CURRENT_SIGNING_KEY ?? "",
-  nextSigningKey: process.env.QSTASH_NEXT_SIGNING_KEY ?? "",
+  currentSigningKey: process.env.QSTASH_CURRENT_SIGNING_KEY ?? '',
+  nextSigningKey: process.env.QSTASH_NEXT_SIGNING_KEY ?? '',
 });
 
 export const verifyQStashSignature = async (c: Context, next: Next) => {
-  const signature = c.req.header("Upstash-Signature");
+  const signature = c.req.header('Upstash-Signature');
   const body = await c.req.text();
 
   if (!signature) {
-    return c.json({ error: "Missing Upstash-Signature header" }, 401);
+    return c.json({ error: 'Missing Upstash-Signature header' }, 401);
   }
 
   try {
     const isValid = await receiver.verify({
       signature,
       body,
-      url: process.env.QSTASH_BASE_URL ?? "",
+      url: process.env.QSTASH_BASE_URL ?? '',
     });
 
     if (!isValid) {
-      return c.json({ error: "Invalid signature" }, 401);
+      return c.json({ error: 'Invalid signature' }, 401);
     }
   } catch {
-    return c.json({ error: "Signature verification failed" }, 401);
+    return c.json({ error: 'Signature verification failed' }, 401);
   }
 
   // Re-parse body as JSON after text read
-  c.set("rawBody", body);
+  c.set('rawBody', body);
   return next();
 };
 ```
@@ -322,39 +320,32 @@ export const verifyQStashSignature = async (c: Context, next: Next) => {
 ### `src/jobs/handlers/index.ts` (job router)
 
 ```typescript
-import { z } from "zod";
-import { jobPayloadSchemas, type JobType } from "../types";
-import { handleEmailSend } from "./email";
-import { handleAccountAnonymize, handleAccountCleanup } from "./account";
-import {
-  handleNotificationPush,
-  handleNotificationBatch,
-} from "./notification";
-import { handleIpAnonymize } from "./ip";
-import { handleVenueSubscriptionRetry } from "./venue";
-import { handleDataExportProcess, handleDataExportNotify } from "./dataExport";
+import { z } from 'zod';
+import { jobPayloadSchemas, type JobType } from '../types';
+import { handleEmailSend } from './email';
+import { handleAccountAnonymize, handleAccountCleanup } from './account';
+import { handleNotificationPush, handleNotificationBatch } from './notification';
+import { handleIpAnonymize } from './ip';
+import { handleVenueSubscriptionRetry } from './venue';
+import { handleDataExportProcess, handleDataExportNotify } from './dataExport';
 
 const handlers: Record<JobType, (payload: unknown) => Promise<void>> = {
-  "email.send": async (p) =>
-    handleEmailSend(jobPayloadSchemas["email.send"].parse(p)),
-  "account.anonymize": async (p) =>
-    handleAccountAnonymize(jobPayloadSchemas["account.anonymize"].parse(p)),
-  "account.cleanup": async (p) =>
-    handleAccountCleanup(jobPayloadSchemas["account.cleanup"].parse(p)),
-  "ip.anonymize": async (p) =>
-    handleIpAnonymize(jobPayloadSchemas["ip.anonymize"].parse(p)),
-  "notification.push": async (p) =>
-    handleNotificationPush(jobPayloadSchemas["notification.push"].parse(p)),
-  "notification.batch": async (p) =>
-    handleNotificationBatch(jobPayloadSchemas["notification.batch"].parse(p)),
-  "venue.subscription-retry": async (p) =>
-    handleVenueSubscriptionRetry(
-      jobPayloadSchemas["venue.subscription-retry"].parse(p),
-    ),
-  "data-export.process": async (p) =>
-    handleDataExportProcess(jobPayloadSchemas["data-export.process"].parse(p)),
-  "data-export.notify": async (p) =>
-    handleDataExportNotify(jobPayloadSchemas["data-export.notify"].parse(p)),
+  'email.send': async (p) => handleEmailSend(jobPayloadSchemas['email.send'].parse(p)),
+  'account.anonymize': async (p) =>
+    handleAccountAnonymize(jobPayloadSchemas['account.anonymize'].parse(p)),
+  'account.cleanup': async (p) =>
+    handleAccountCleanup(jobPayloadSchemas['account.cleanup'].parse(p)),
+  'ip.anonymize': async (p) => handleIpAnonymize(jobPayloadSchemas['ip.anonymize'].parse(p)),
+  'notification.push': async (p) =>
+    handleNotificationPush(jobPayloadSchemas['notification.push'].parse(p)),
+  'notification.batch': async (p) =>
+    handleNotificationBatch(jobPayloadSchemas['notification.batch'].parse(p)),
+  'venue.subscription-retry': async (p) =>
+    handleVenueSubscriptionRetry(jobPayloadSchemas['venue.subscription-retry'].parse(p)),
+  'data-export.process': async (p) =>
+    handleDataExportProcess(jobPayloadSchemas['data-export.process'].parse(p)),
+  'data-export.notify': async (p) =>
+    handleDataExportNotify(jobPayloadSchemas['data-export.notify'].parse(p)),
 };
 
 const incomingSchema = z.object({
@@ -377,22 +368,22 @@ export async function routeJob(rawBody: string): Promise<void> {
 ### `src/routes/webhooks.ts` — QStash receiver route
 
 ```typescript
-import { Hono } from "hono";
-import { verifyQStashSignature } from "../jobs/verify";
-import { routeJob } from "../jobs/handlers";
+import { Hono } from 'hono';
+import { verifyQStashSignature } from '../jobs/verify';
+import { routeJob } from '../jobs/handlers';
 
 const webhooks = new Hono<{ Variables: { rawBody: string } }>();
 
-webhooks.post("/qstash", verifyQStashSignature, async (c) => {
-  const rawBody = c.get("rawBody");
+webhooks.post('/qstash', verifyQStashSignature, async (c) => {
+  const rawBody = c.get('rawBody');
 
   try {
     await routeJob(rawBody);
     return c.json({ received: true }, 200);
   } catch (err) {
-    console.error("[QStash] Job failed:", err);
+    console.error('[QStash] Job failed:', err);
     // Return 500 so QStash retries the job
-    return c.json({ error: "Job processing failed", retryable: true }, 500);
+    return c.json({ error: 'Job processing failed', retryable: true }, 500);
   }
 });
 
@@ -402,8 +393,8 @@ export default webhooks;
 Register in `apps/server/src/index.ts`:
 
 ```typescript
-import webhooksRoutes from "./routes/webhooks";
-app.route("/api/v1/webhooks", webhooksRoutes);
+import webhooksRoutes from './routes/webhooks';
+app.route('/api/v1/webhooks', webhooksRoutes);
 ```
 
 ### Cron Schedules
@@ -431,28 +422,28 @@ QStash moves permanently failed jobs (exhausted retries) to a dead-letter queue 
 ### Developer API (how other parts of the codebase publish jobs)
 
 ```typescript
-import { publishJob } from "@/jobs";
+import { publishJob } from '@/jobs';
 
 // Send a transactional email
-await publishJob("email.send", {
+await publishJob('email.send', {
   to: user.email,
-  template: "venue-activation",
+  template: 'venue-activation',
   data: { venueName: profile.name },
 });
 
 // Schedule GDPR anonymisation 30 days from now
 await publishJob(
-  "account.anonymize",
+  'account.anonymize',
   { userId: user.id, requestedAt: new Date().toISOString() },
-  { delay: "30d" },
+  { delay: '30d' }
 );
 
 // Send push notification
-await publishJob("notification.push", {
+await publishJob('notification.push', {
   deviceToken: token,
-  title: "Event Approved",
-  body: "Your event is now live on the map.",
-  persona: "artist",
+  title: 'Event Approved',
+  body: 'Your event is now live on the map.',
+  persona: 'artist',
   route: `/events/${eventId}`,
 });
 ```
@@ -506,7 +497,7 @@ QStash limits message bodies to **1 MB**. For GDPR data exports (which can be la
 
 ```typescript
 // Don't include the export data in the job
-await publishJob("data-export.process", {
+await publishJob('data-export.process', {
   userId: user.id,
   requestId: exportRequest.id,
   // handler fetches data from DB, writes to S3

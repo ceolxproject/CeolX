@@ -216,12 +216,12 @@ import ClusteredMapView from 'react-native-maps-clustering';
 ```typescript
 // apps/native/src/hooks/useEventSearch.ts
 
-import { useState, useCallback } from "react";
-import { api } from "../services/api";
+import { useState, useCallback } from 'react';
+import { api } from '../services/api';
 
 interface SearchQuery {
   query: string;
-  type: "county" | "city" | "artist" | "category";
+  type: 'county' | 'city' | 'artist' | 'category';
   swLat?: number;
   swLng?: number;
   neLat?: number;
@@ -240,12 +240,12 @@ export const useEventSearch = () => {
 
     setLoading(true);
     try {
-      const response = await api.get("/events/search", {
+      const response = await api.get('/events/search', {
         params: searchQuery,
       });
       setResults(response.data.events);
     } catch (error) {
-      console.error("Search failed:", error);
+      console.error('Search failed:', error);
       setResults([]);
     } finally {
       setLoading(false);
@@ -380,49 +380,41 @@ const styles = StyleSheet.create({
 ```typescript
 // apps/server/src/routes/events.ts
 
-import { Hono } from "hono";
-import { db } from "../db";
-import { events } from "@ceolx/shared/schema";
-import { ilike, sql } from "drizzle-orm";
+import { Hono } from 'hono';
+import { db } from '../db';
+import { events } from '@ceolx/shared/schema';
+import { ilike, sql } from 'drizzle-orm';
 
 const app = new Hono();
 
-app.get("/search", async (c) => {
-  const query = c.req.query("query");
-  const type = c.req.query("type") as
-    | "county"
-    | "city"
-    | "artist"
-    | "category"
-    | undefined;
-  const swLat = c.req.query("swLat");
-  const swLng = c.req.query("swLng");
-  const neLat = c.req.query("neLat");
-  const neLng = c.req.query("neLng");
+app.get('/search', async (c) => {
+  const query = c.req.query('query');
+  const type = c.req.query('type') as 'county' | 'city' | 'artist' | 'category' | undefined;
+  const swLat = c.req.query('swLat');
+  const swLng = c.req.query('swLng');
+  const neLat = c.req.query('neLat');
+  const neLng = c.req.query('neLng');
 
   if (!query || !type) {
-    return c.json({ error: "query and type are required" }, 400);
+    return c.json({ error: 'query and type are required' }, 400);
   }
 
   try {
-    let whereConditions = [
-      sql`${events.status} = 'active'`,
-      sql`${events.date_start} >= NOW()`,
-    ];
+    let whereConditions = [sql`${events.status} = 'active'`, sql`${events.date_start} >= NOW()`];
 
     // Add type-specific filter
-    if (type === "county" || type === "city") {
+    if (type === 'county' || type === 'city') {
       whereConditions.push(ilike(events.venue_address, `%${query}%`));
-    } else if (type === "artist") {
+    } else if (type === 'artist') {
       whereConditions.push(ilike(events.created_by, `%${query}%`));
-    } else if (type === "category") {
+    } else if (type === 'category') {
       whereConditions.push(ilike(events.category, `%${query}%`));
     }
 
     // Add spatial bounds if provided
     if (swLat && swLng && neLat && neLng) {
       whereConditions.push(
-        sql`${events.lat} BETWEEN ${swLat} AND ${neLat} AND ${events.lng} BETWEEN ${swLng} AND ${neLng}`,
+        sql`${events.lat} BETWEEN ${swLat} AND ${neLat} AND ${events.lng} BETWEEN ${swLng} AND ${neLng}`
       );
     }
 
@@ -432,7 +424,7 @@ app.get("/search", async (c) => {
     const results = await db
       .select()
       .from(events)
-      .where(sql`${whereConditions.join(" AND ")}`)
+      .where(sql`${whereConditions.join(' AND ')}`)
       .orderBy(sql`${events.date_start} DESC`)
       .limit(50);
 
@@ -442,8 +434,8 @@ app.get("/search", async (c) => {
       searchType: type,
     });
   } catch (error) {
-    console.error("Search error:", error);
-    return c.json({ error: "Failed to search events" }, 500);
+    console.error('Search error:', error);
+    return c.json({ error: 'Failed to search events' }, 500);
   }
 });
 ```

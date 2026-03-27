@@ -1,7 +1,7 @@
-import { StyleSheet, Text, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { layout, typography } from "@/styles/shared";
+import { layout, typography } from '@/styles/shared';
 
 export default function DiscoverScreen() {
   return (
@@ -12,9 +12,7 @@ export default function DiscoverScreen() {
       <View style={layout.divider} />
 
       <View style={styles.placeholder}>
-        <Text style={styles.placeholderText}>
-          Browse Irish music events (M4-T2)
-        </Text>
+        <Text style={styles.placeholderText}>Browse Irish music events (M4-T2)</Text>
       </View>
     </SafeAreaView>
   );
@@ -22,6 +20,6 @@ export default function DiscoverScreen() {
 
 const styles = StyleSheet.create({
   // No background — intentionally different from ph.box
-  placeholder: { flex: 1, justifyContent: "center", alignItems: "center" },
-  placeholderText: { fontSize: 16, color: "#999" },
+  placeholder: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  placeholderText: { fontSize: 16, color: '#999' },
 });

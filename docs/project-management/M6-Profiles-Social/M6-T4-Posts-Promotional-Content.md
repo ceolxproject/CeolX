@@ -548,37 +548,36 @@ CREATE INDEX idx_comments_author ON comments(author_user_id);
 ### Hono Handler Example (Post Creation)
 
 ```typescript
-import { Hono } from "hono";
-import { db } from "../db";
-import { posts, artistProfiles, venueProfiles } from "../db/schema";
+import { Hono } from 'hono';
+import { db } from '../db';
+import { posts, artistProfiles, venueProfiles } from '../db/schema';
 
 const postsRouter = new Hono();
 
 // POST /posts
-postsRouter.post("/", async (c) => {
-  const user = c.get("user");
-  if (!["artist", "venue"].includes(user.current_role)) {
-    return c.json({ error: "Only artists and venues can create posts" }, 401);
+postsRouter.post('/', async (c) => {
+  const user = c.get('user');
+  if (!['artist', 'venue'].includes(user.current_role)) {
+    return c.json({ error: 'Only artists and venues can create posts' }, 401);
   }
 
   const { caption, media_type, media_url, thumbnail_url } = await c.req.json();
 
   // Validate caption or media
-  if ((!caption || caption.trim() === "") && !media_url) {
-    return c.json({ error: "Post must have caption or media" }, 400);
+  if ((!caption || caption.trim() === '') && !media_url) {
+    return c.json({ error: 'Post must have caption or media' }, 400);
   }
 
   if (caption && caption.length > 500) {
-    return c.json({ error: "Caption max 500 characters" }, 400);
+    return c.json({ error: 'Caption max 500 characters' }, 400);
   }
 
-  if (!["image", "video", "audio", "text"].includes(media_type)) {
-    return c.json({ error: "Invalid media_type" }, 400);
+  if (!['image', 'video', 'audio', 'text'].includes(media_type)) {
+    return c.json({ error: 'Invalid media_type' }, 400);
   }
 
   // Get author profile
-  const profileTable =
-    user.current_role === "artist" ? artistProfiles : venueProfiles;
+  const profileTable = user.current_role === 'artist' ? artistProfiles : venueProfiles;
   const profile = await db
     .select()
     .from(profileTable)
@@ -586,7 +585,7 @@ postsRouter.post("/", async (c) => {
     .then((rows) => rows[0]);
 
   if (!profile) {
-    return c.json({ error: "Profile not found" }, 404);
+    return c.json({ error: 'Profile not found' }, 404);
   }
 
   // Create post
@@ -609,10 +608,10 @@ postsRouter.post("/", async (c) => {
 });
 
 // GET /posts/feed
-postsRouter.get("/feed", async (c) => {
-  const user = c.get("user");
-  const page = parseInt(c.req.query("page") || "0");
-  const limit = parseInt(c.req.query("limit") || "20");
+postsRouter.get('/feed', async (c) => {
+  const user = c.get('user');
+  const page = parseInt(c.req.query('page') || '0');
+  const limit = parseInt(c.req.query('limit') || '20');
   const offset = page * limit;
 
   // Get user's follows
@@ -631,20 +630,12 @@ postsRouter.get("/feed", async (c) => {
       where: eq(venueProfiles.user_id, user.id),
     }));
 
-  const profileIds = [
-    ...followedProfileIds,
-    ...(userProfile ? [userProfile.id] : []),
-  ];
+  const profileIds = [...followedProfileIds, ...(userProfile ? [userProfile.id] : [])];
 
   const feedPosts = await db
     .select()
     .from(posts)
-    .where(
-      and(
-        inArray(posts.author_profile_id, profileIds),
-        isNull(posts.deleted_at),
-      ),
-    )
+    .where(and(inArray(posts.author_profile_id, profileIds), isNull(posts.deleted_at)))
     .orderBy(desc(posts.created_at))
     .limit(limit)
     .offset(offset);
@@ -657,16 +648,16 @@ postsRouter.get("/feed", async (c) => {
 });
 
 // POST /posts/:id/like
-postsRouter.post("/:id/like", async (c) => {
-  const user = c.get("user");
-  const postId = c.req.param("id");
+postsRouter.post('/:id/like', async (c) => {
+  const user = c.get('user');
+  const postId = c.req.param('id');
 
   const post = await db.query.posts.findFirst({
     where: eq(posts.id, postId),
   });
 
   if (!post) {
-    return c.json({ error: "Post not found" }, 404);
+    return c.json({ error: 'Post not found' }, 404);
   }
 
   // Check for duplicate like
@@ -675,7 +666,7 @@ postsRouter.post("/:id/like", async (c) => {
   });
 
   if (existingLike) {
-    return c.json({ error: "Already liked" }, 409);
+    return c.json({ error: 'Already liked' }, 409);
   }
 
   // Create like
@@ -695,9 +686,9 @@ postsRouter.post("/:id/like", async (c) => {
 });
 
 // DELETE /posts/:id/like
-postsRouter.delete("/:id/like", async (c) => {
-  const user = c.get("user");
-  const postId = c.req.param("id");
+postsRouter.delete('/:id/like', async (c) => {
+  const user = c.get('user');
+  const postId = c.req.param('id');
 
   const like = await db
     .delete(postLikes)
@@ -706,7 +697,7 @@ postsRouter.delete("/:id/like", async (c) => {
     .then((rows) => rows[0]);
 
   if (!like) {
-    return c.json({ error: "Like not found" }, 404);
+    return c.json({ error: 'Like not found' }, 404);
   }
 
   // Decrement like_count

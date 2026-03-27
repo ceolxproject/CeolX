@@ -66,14 +66,14 @@ GDPR compliance is mandatory — CeolX is an Irish client and the platform colle
 Account deletion is **anonymisation only**, never a hard delete. Deleting a user's event entirely would break referential integrity and lose valuable historical data for other users' bookings and follows. Instead:
 
 ```typescript
-app.delete("/api/v1/users/me", authMiddleware, async (c) => {
-  const userId = c.get("userId");
+app.delete('/api/v1/users/me', authMiddleware, async (c) => {
+  const userId = c.get('userId');
 
   // Anonymise personal data
   await db
     .update(users)
     .set({
-      name: "Deleted User",
+      name: 'Deleted User',
       email: `${userId}@deleted.ceolx.ie`,
       avatar: null,
       bio: null,
@@ -87,7 +87,7 @@ app.delete("/api/v1/users/me", authMiddleware, async (c) => {
   await db
     .update(artistProfiles)
     .set({
-      displayName: "Deleted Artist",
+      displayName: 'Deleted Artist',
       bio: null,
       profileImage: null,
       isDeleted: true,
@@ -103,7 +103,7 @@ app.delete("/api/v1/users/me", authMiddleware, async (c) => {
   // Clear push notification tokens
   await db.delete(deviceTokens).where(eq(deviceTokens.userId, userId));
 
-  return c.json({ success: true, message: "Account deleted" });
+  return c.json({ success: true, message: 'Account deleted' });
 });
 ```
 
@@ -112,8 +112,8 @@ app.delete("/api/v1/users/me", authMiddleware, async (c) => {
 Exports all user data in a JSON file suitable for import to another service:
 
 ```typescript
-app.get("/api/v1/users/me/export", authMiddleware, async (c) => {
-  const userId = c.get("userId");
+app.get('/api/v1/users/me/export', authMiddleware, async (c) => {
+  const userId = c.get('userId');
 
   // Fetch all user data
   const user = await db.query.users.findFirst({ where: eq(users.id, userId) });
@@ -151,11 +151,11 @@ app.get("/api/v1/users/me/export", authMiddleware, async (c) => {
     exportedAt: new Date().toISOString(),
   };
 
-  const filename = `ceolx_data_export_${userId}_${new Date().toISOString().split("T")[0]}.json`;
+  const filename = `ceolx_data_export_${userId}_${new Date().toISOString().split('T')[0]}.json`;
 
   return c.json(exportData, 200, {
-    "Content-Disposition": `attachment; filename="${filename}"`,
-    "Content-Type": "application/json",
+    'Content-Disposition': `attachment; filename="${filename}"`,
+    'Content-Type': 'application/json',
   });
 });
 ```
@@ -173,9 +173,7 @@ async function flagInactiveAccounts() {
   const updated = await db
     .update(users)
     .set({ flaggedInactive: true })
-    .where(
-      and(lt(users.lastLoginAt, twoYearsAgo), eq(users.flaggedInactive, false)),
-    );
+    .where(and(lt(users.lastLoginAt, twoYearsAgo), eq(users.flaggedInactive, false)));
 
   console.log(`Flagged ${updated} accounts as inactive`);
 }

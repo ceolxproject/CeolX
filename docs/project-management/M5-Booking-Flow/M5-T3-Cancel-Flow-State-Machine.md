@@ -184,8 +184,8 @@ Each state transition triggers an FCM notification to the other party.
 ```typescript
 // Define valid transitions as a mapping
 const validTransitions: Record<BookingStatus, BookingStatus[]> = {
-  pending: ["accepted", "rejected", "cancelled"],
-  accepted: ["cancelled"],
+  pending: ['accepted', 'rejected', 'cancelled'],
+  accepted: ['cancelled'],
   rejected: [],
   cancelled: [],
 };
@@ -200,10 +200,7 @@ const booking = await db
 const { status: newStatus } = await c.req.json();
 
 if (!validTransitions[booking.status]?.includes(newStatus)) {
-  return c.json(
-    { error: `Invalid transition from ${booking.status} to ${newStatus}` },
-    400,
-  );
+  return c.json({ error: `Invalid transition from ${booking.status} to ${newStatus}` }, 400);
 }
 ```
 
@@ -221,48 +218,39 @@ const userVenueProfile = await db.query.venueProfiles.findFirst({
 
 // For venue_to_artist bookings, only Artist can accept/reject
 if (
-  booking.direction === "venue_to_artist" &&
-  ["accepted", "rejected"].includes(newStatus) &&
+  booking.direction === 'venue_to_artist' &&
+  ['accepted', 'rejected'].includes(newStatus) &&
   !userArtistProfile?.id === booking.artist_id
 ) {
-  return c.json(
-    { error: "Only the Artist can respond to this invitation" },
-    401,
-  );
+  return c.json({ error: 'Only the Artist can respond to this invitation' }, 401);
 }
 
 // For artist_to_venue bookings, only Venue can accept/reject
 if (
-  booking.direction === "artist_to_venue" &&
-  ["accepted", "rejected"].includes(newStatus) &&
+  booking.direction === 'artist_to_venue' &&
+  ['accepted', 'rejected'].includes(newStatus) &&
   !userVenueProfile?.id === booking.venue_id
 ) {
-  return c.json(
-    { error: "Only the Venue can respond to this application" },
-    401,
-  );
+  return c.json({ error: 'Only the Venue can respond to this application' }, 401);
 }
 
 // For pending → cancelled (artist_to_venue), only Artist can initiate
 if (
-  booking.direction === "artist_to_venue" &&
-  booking.status === "pending" &&
-  newStatus === "cancelled" &&
+  booking.direction === 'artist_to_venue' &&
+  booking.status === 'pending' &&
+  newStatus === 'cancelled' &&
   !userArtistProfile?.id === booking.artist_id
 ) {
-  return c.json(
-    { error: "Only the Artist can withdraw their application" },
-    401,
-  );
+  return c.json({ error: 'Only the Artist can withdraw their application' }, 401);
 }
 
 // For accepted → cancelled, either party can initiate
-if (booking.status === "accepted" && newStatus === "cancelled") {
+if (booking.status === 'accepted' && newStatus === 'cancelled') {
   const isArtist = userArtistProfile?.id === booking.artist_id;
   const isVenue = userVenueProfile?.id === booking.venue_id;
 
   if (!isArtist && !isVenue) {
-    return c.json({ error: "Not authorized to cancel this booking" }, 401);
+    return c.json({ error: 'Not authorized to cancel this booking' }, 401);
   }
 }
 ```
@@ -280,34 +268,33 @@ const updated = await db
 
 // Determine who to notify and message content
 const notifyRole =
-  booking.direction === "venue_to_artist"
-    ? booking.status === "pending"
-      ? "venue" // Artist just responded to Venue's invitation
-      : "artist" // Venue cancelled an accepted booking
-    : booking.status === "pending"
-      ? "artist" // Venue just responded to Artist's application
-      : "venue"; // Artist cancelled or withdrew
+  booking.direction === 'venue_to_artist'
+    ? booking.status === 'pending'
+      ? 'venue' // Artist just responded to Venue's invitation
+      : 'artist' // Venue cancelled an accepted booking
+    : booking.status === 'pending'
+      ? 'artist' // Venue just responded to Artist's application
+      : 'venue'; // Artist cancelled or withdrew
 
 let title: string;
 let body: string;
 
-if (newStatus === "accepted") {
-  const responder = notifyRole === "artist" ? "Venue" : "Artist";
+if (newStatus === 'accepted') {
+  const responder = notifyRole === 'artist' ? 'Venue' : 'Artist';
   title = `Great news! ${responder} accepted your booking`;
   body = `Event: ${event.title} on ${event.date_start}`;
-} else if (newStatus === "rejected") {
-  const decliner = notifyRole === "artist" ? "Venue" : "Artist";
+} else if (newStatus === 'rejected') {
+  const decliner = notifyRole === 'artist' ? 'Venue' : 'Artist';
   title = `${decliner} declined your booking`;
   body = `Event: ${event.title}`;
-} else if (newStatus === "cancelled") {
-  const canceller = isArtist ? "Artist" : "Venue";
+} else if (newStatus === 'cancelled') {
+  const canceller = isArtist ? 'Artist' : 'Venue';
   title = `${canceller} cancelled the booking`;
   body = `Event: ${event.title}. Event date: ${event.date_start}`;
 }
 
 // Get the notified user's device tokens
-const notifiedProfileId =
-  notifyRole === "artist" ? booking.artist_id : booking.venue_id;
+const notifiedProfileId = notifyRole === 'artist' ? booking.artist_id : booking.venue_id;
 const notifiedUserId =
   (await db.query.artistProfiles
     .findFirst({
@@ -333,7 +320,7 @@ if (notifiedUser?.device_tokens?.length) {
     body,
     data: {
       persona: notifyRole,
-      route: "/bookings",
+      route: '/bookings',
       booking_id: updated.id,
     },
   });

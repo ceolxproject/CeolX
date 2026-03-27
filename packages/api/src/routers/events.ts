@@ -1,6 +1,6 @@
-import { z } from "zod";
+import { z } from 'zod';
 
-import { protectedProcedure, publicProcedure, router } from "../index";
+import { protectedProcedure, publicProcedure, router } from '../index';
 
 const MapQueryInput = z.object({
   swLat: z.number(),
@@ -34,37 +34,35 @@ export const eventsRouter = router({
 
   // TODO M4-T1: create event (sets status = pending_review)
   create: protectedProcedure.input(CreateEventInput).mutation(() => {
-    return { message: "not implemented" };
+    return { message: 'not implemented' };
   }),
 
   // TODO M4-T2: fetch single event by id (visibility rules apply)
   byId: publicProcedure.input(z.object({ id: z.string() })).query(() => {
-    return { message: "not implemented" };
+    return { message: 'not implemented' };
   }),
 
   // TODO M4-T1: update event fields (creator only; blocked if status = active/archived)
   update: protectedProcedure
     .input(z.object({ id: z.string(), data: CreateEventInput.partial() }))
     .mutation(() => {
-      return { message: "not implemented" };
+      return { message: 'not implemented' };
     }),
 
   // TODO M4-T2: save event to current user's saved list
   save: protectedProcedure.input(z.object({ id: z.string() })).mutation(() => {
-    return { message: "not implemented" };
+    return { message: 'not implemented' };
   }),
 
   // TODO M4-T2: remove event from current user's saved list
-  unsave: protectedProcedure
-    .input(z.object({ id: z.string() }))
-    .mutation(() => {
-      return { message: "not implemented" };
-    }),
+  unsave: protectedProcedure.input(z.object({ id: z.string() })).mutation(() => {
+    return { message: 'not implemented' };
+  }),
 
   // TODO M4-T1 / M10-T1: generate presigned S3 URL for cover image direct upload
   getPresignedUrl: protectedProcedure
     .input(z.object({ filename: z.string(), contentType: z.string() }))
     .query(() => {
-      return { message: "not implemented" };
+      return { message: 'not implemented' };
     }),
 });

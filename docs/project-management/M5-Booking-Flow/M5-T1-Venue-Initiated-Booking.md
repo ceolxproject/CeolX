@@ -172,68 +172,68 @@ import {
   pgTable,
   uniqueIndex,
   foreignKey,
-} from "drizzle-orm/pg-core";
+} from 'drizzle-orm/pg-core';
 
-export const bookingStatusEnum = pgEnum("booking_status", [
-  "pending",
-  "accepted",
-  "rejected",
-  "cancelled",
+export const bookingStatusEnum = pgEnum('booking_status', [
+  'pending',
+  'accepted',
+  'rejected',
+  'cancelled',
 ]);
-export const bookingDirectionEnum = pgEnum("booking_direction", [
-  "venue_to_artist",
-  "artist_to_venue",
+export const bookingDirectionEnum = pgEnum('booking_direction', [
+  'venue_to_artist',
+  'artist_to_venue',
 ]);
 
 export const bookings = pgTable(
-  "bookings",
+  'bookings',
   {
-    id: uuid("id").primaryKey().defaultRandom(),
-    artist_id: uuid("artist_id")
+    id: uuid('id').primaryKey().defaultRandom(),
+    artist_id: uuid('artist_id')
       .notNull()
       .references(() => artistProfiles.id),
-    venue_id: uuid("venue_id")
+    venue_id: uuid('venue_id')
       .notNull()
       .references(() => venueProfiles.id),
-    event_id: uuid("event_id")
+    event_id: uuid('event_id')
       .notNull()
       .references(() => events.id),
-    status: bookingStatusEnum("status").notNull().default("pending"),
-    direction: bookingDirectionEnum("direction").notNull(),
-    message: text("message"),
-    created_at: timestamp("created_at").notNull().defaultNow(),
-    updated_at: timestamp("updated_at").notNull().defaultNow(),
+    status: bookingStatusEnum('status').notNull().default('pending'),
+    direction: bookingDirectionEnum('direction').notNull(),
+    message: text('message'),
+    created_at: timestamp('created_at').notNull().defaultNow(),
+    updated_at: timestamp('updated_at').notNull().defaultNow(),
   },
   (table) => ({
-    uniqueBooking: uniqueIndex("idx_booking_artist_event_active")
+    uniqueBooking: uniqueIndex('idx_booking_artist_event_active')
       .on(
         table.artist_id,
         table.event_id,
-        table.status, // Only one pending/accepted booking per artist+event pair
+        table.status // Only one pending/accepted booking per artist+event pair
       )
       .where(sql`status IN ('pending', 'accepted')`),
-  }),
+  })
 );
 ```
 
 ### Hono Handler (apps/server/src/routes/bookings.ts)
 
 ```typescript
-import { Hono } from "hono";
-import { db } from "../db";
-import { bookings, artistProfiles, venueProfiles, events } from "../db/schema";
-import { eq, and, inArray } from "drizzle-orm";
-import { sendFCMNotification } from "../services/fcm";
+import { Hono } from 'hono';
+import { db } from '../db';
+import { bookings, artistProfiles, venueProfiles, events } from '../db/schema';
+import { eq, and, inArray } from 'drizzle-orm';
+import { sendFCMNotification } from '../services/fcm';
 
 const bookingsRouter = new Hono();
 
 // POST /bookings — Venue initiates booking
-bookingsRouter.post("/", async (c) => {
-  const user = c.get("user"); // from BetterAuth middleware
+bookingsRouter.post('/', async (c) => {
+  const user = c.get('user'); // from BetterAuth middleware
   const { direction, artist_id, event_id, message } = await c.req.json();
 
-  if (user.current_role !== "venue") {
-    return c.json({ error: "Only Venues can create bookings" }, 401);
+  if (user.current_role !== 'venue') {
+    return c.json({ error: 'Only Venues can create bookings' }, 401);
   }
 
   // Get Venue profile
@@ -244,7 +244,7 @@ bookingsRouter.post("/", async (c) => {
     .then((rows) => rows[0]);
 
   if (!venueProfile) {
-    return c.json({ error: "Venue profile not found" }, 404);
+    return c.json({ error: 'Venue profile not found' }, 404);
   }
 
   // Verify event ownership
@@ -255,20 +255,18 @@ bookingsRouter.post("/", async (c) => {
     .then((rows) => rows[0]);
 
   if (!event) {
-    return c.json({ error: "Event not found or not owned by you" }, 400);
+    return c.json({ error: 'Event not found or not owned by you' }, 400);
   }
 
   // Verify Artist profile
   const artistProfile = await db
     .select()
     .from(artistProfiles)
-    .where(
-      and(eq(artistProfiles.id, artist_id), eq(artistProfiles.is_active, true)),
-    )
+    .where(and(eq(artistProfiles.id, artist_id), eq(artistProfiles.is_active, true)))
     .then((rows) => rows[0]);
 
   if (!artistProfile) {
-    return c.json({ error: "Artist profile not found or inactive" }, 400);
+    return c.json({ error: 'Artist profile not found or inactive' }, 400);
   }
 
   // Check for duplicate active booking
@@ -279,13 +277,13 @@ bookingsRouter.post("/", async (c) => {
       and(
         eq(bookings.artist_id, artist_id),
         eq(bookings.event_id, event_id),
-        inArray(bookings.status, ["pending", "accepted"]),
-      ),
+        inArray(bookings.status, ['pending', 'accepted'])
+      )
     )
     .then((rows) => rows[0]);
 
   if (existingBooking) {
-    return c.json({ error: "Duplicate booking already exists" }, 409);
+    return c.json({ error: 'Duplicate booking already exists' }, 409);
   }
 
   // Create booking
@@ -295,8 +293,8 @@ bookingsRouter.post("/", async (c) => {
       artist_id,
       venue_id: venueProfile.id,
       event_id,
-      status: "pending",
-      direction: "venue_to_artist",
+      status: 'pending',
+      direction: 'venue_to_artist',
       message,
     })
     .returning()
@@ -311,10 +309,10 @@ bookingsRouter.post("/", async (c) => {
     await sendFCMNotification({
       tokens: artistUser.device_tokens,
       title: `${venueProfile.venue_name} wants to book you for ${event.title}`,
-      body: message || "Tap to view the invitation",
+      body: message || 'Tap to view the invitation',
       data: {
-        persona: "artist",
-        route: "/bookings",
+        persona: 'artist',
+        route: '/bookings',
         booking_id: newBooking.id,
       },
     });
@@ -324,9 +322,9 @@ bookingsRouter.post("/", async (c) => {
 });
 
 // PATCH /bookings/:id — Update booking status
-bookingsRouter.patch("/:id", async (c) => {
-  const user = c.get("user");
-  const bookingId = c.req.param("id");
+bookingsRouter.patch('/:id', async (c) => {
+  const user = c.get('user');
+  const bookingId = c.req.param('id');
   const { status: newStatus } = await c.req.json();
 
   const booking = await db
@@ -336,50 +334,41 @@ bookingsRouter.patch("/:id", async (c) => {
     .then((rows) => rows[0]);
 
   if (!booking) {
-    return c.json({ error: "Booking not found" }, 404);
+    return c.json({ error: 'Booking not found' }, 404);
   }
 
   // Verify user is Artist or Venue
   const isArtist =
-    user.current_role === "artist" &&
+    user.current_role === 'artist' &&
     (await db.query.artistProfiles.findFirst({
-      where: and(
-        eq(artistProfiles.user_id, user.id),
-        eq(artistProfiles.id, booking.artist_id),
-      ),
+      where: and(eq(artistProfiles.user_id, user.id), eq(artistProfiles.id, booking.artist_id)),
     }));
 
   const isVenue =
-    user.current_role === "venue" &&
+    user.current_role === 'venue' &&
     (await db.query.venueProfiles.findFirst({
-      where: and(
-        eq(venueProfiles.user_id, user.id),
-        eq(venueProfiles.id, booking.venue_id),
-      ),
+      where: and(eq(venueProfiles.user_id, user.id), eq(venueProfiles.id, booking.venue_id)),
     }));
 
   if (!isArtist && !isVenue) {
-    return c.json({ error: "Not authorized for this booking" }, 401);
+    return c.json({ error: 'Not authorized for this booking' }, 401);
   }
 
   // Validate state transition
   const validTransitions = {
-    pending: ["accepted", "rejected"],
-    accepted: ["cancelled"],
+    pending: ['accepted', 'rejected'],
+    accepted: ['cancelled'],
     rejected: [],
     cancelled: [],
   };
 
   if (!validTransitions[booking.status]?.includes(newStatus)) {
-    return c.json(
-      { error: `Invalid transition from ${booking.status} to ${newStatus}` },
-      400,
-    );
+    return c.json({ error: `Invalid transition from ${booking.status} to ${newStatus}` }, 400);
   }
 
   // Only artist can accept/reject pending
-  if (booking.status === "pending" && newStatus !== "cancelled" && !isArtist) {
-    return c.json({ error: "Only artist can accept or reject" }, 401);
+  if (booking.status === 'pending' && newStatus !== 'cancelled' && !isArtist) {
+    return c.json({ error: 'Only artist can accept or reject' }, 401);
   }
 
   // Update booking
@@ -392,32 +381,32 @@ bookingsRouter.patch("/:id", async (c) => {
 
   // Send notification to other party
   const notifyProfileId = isArtist ? booking.venue_id : booking.artist_id;
-  const notifyRole = isArtist ? "venue" : "artist";
+  const notifyRole = isArtist ? 'venue' : 'artist';
   // ... FCM push logic
 
   return c.json(updated, 200);
 });
 
 // GET /bookings
-bookingsRouter.get("/", async (c) => {
-  const user = c.get("user");
-  const status = c.req.query("status");
-  const direction = c.req.query("direction");
+bookingsRouter.get('/', async (c) => {
+  const user = c.get('user');
+  const status = c.req.query('status');
+  const direction = c.req.query('direction');
 
   let query = db.select().from(bookings);
 
-  if (user.current_role === "artist") {
+  if (user.current_role === 'artist') {
     const artistProfile = await db.query.artistProfiles.findFirst({
       where: eq(artistProfiles.user_id, user.id),
     });
     query = query.where(eq(bookings.artist_id, artistProfile.id));
-  } else if (user.current_role === "venue") {
+  } else if (user.current_role === 'venue') {
     const venueProfile = await db.query.venueProfiles.findFirst({
       where: eq(venueProfiles.user_id, user.id),
     });
     query = query.where(eq(bookings.venue_id, venueProfile.id));
   } else {
-    return c.json({ error: "Spectators cannot view bookings" }, 403);
+    return c.json({ error: 'Spectators cannot view bookings' }, 403);
   }
 
   if (status) {

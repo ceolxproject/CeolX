@@ -206,19 +206,19 @@ Get unread notification badge count.
 
 ```typescript
 // apps/server/routes/v1/notifications.ts
-import { Hono } from "hono";
-import { db } from "@/db";
-import { notifications } from "@/db/schema";
-import { eq, and, gt, desc } from "drizzle-orm";
+import { Hono } from 'hono';
+import { db } from '@/db';
+import { notifications } from '@/db/schema';
+import { eq, and, gt, desc } from 'drizzle-orm';
 
 const router = new Hono();
 
-router.get("/notifications", async (c) => {
-  const userId = c.get("user")?.id;
-  if (!userId) return c.json({ error: "Unauthorized" }, 401);
+router.get('/notifications', async (c) => {
+  const userId = c.get('user')?.id;
+  if (!userId) return c.json({ error: 'Unauthorized' }, 401);
 
-  const page = parseInt(c.req.query("page") || "1");
-  const limit = parseInt(c.req.query("limit") || "20");
+  const page = parseInt(c.req.query('page') || '1');
+  const limit = parseInt(c.req.query('limit') || '20');
   const offset = (page - 1) * limit;
 
   const thirtyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
@@ -231,8 +231,8 @@ router.get("/notifications", async (c) => {
         and(
           eq(notifications.userId, userId),
           // Exclude archived (older than 90 days)
-          gt(notifications.createdAt, thirtyDaysAgo),
-        ),
+          gt(notifications.createdAt, thirtyDaysAgo)
+        )
       )
       .orderBy(desc(notifications.createdAt))
       .limit(limit)
@@ -241,12 +241,7 @@ router.get("/notifications", async (c) => {
     const [{ count }] = await db
       .select({ count: db.fn.count() })
       .from(notifications)
-      .where(
-        and(
-          eq(notifications.userId, userId),
-          gt(notifications.createdAt, thirtyDaysAgo),
-        ),
-      );
+      .where(and(eq(notifications.userId, userId), gt(notifications.createdAt, thirtyDaysAgo)));
 
     return c.json({
       notifications: rows,
@@ -254,68 +249,59 @@ router.get("/notifications", async (c) => {
       hasMore: offset + limit < count,
     });
   } catch (error) {
-    console.error("Notification fetch error:", error);
-    return c.json({ error: "Failed to fetch notifications" }, 500);
+    console.error('Notification fetch error:', error);
+    return c.json({ error: 'Failed to fetch notifications' }, 500);
   }
 });
 
-router.put("/notifications/:id/read", async (c) => {
-  const userId = c.get("user")?.id;
-  if (!userId) return c.json({ error: "Unauthorized" }, 401);
+router.put('/notifications/:id/read', async (c) => {
+  const userId = c.get('user')?.id;
+  if (!userId) return c.json({ error: 'Unauthorized' }, 401);
 
-  const notificationId = c.req.param("id");
+  const notificationId = c.req.param('id');
 
   try {
     await db
       .update(notifications)
       .set({ isRead: true })
-      .where(
-        and(
-          eq(notifications.id, notificationId),
-          eq(notifications.userId, userId),
-        ),
-      );
+      .where(and(eq(notifications.id, notificationId), eq(notifications.userId, userId)));
 
     return c.json({ success: true });
   } catch (error) {
-    return c.json({ error: "Failed to update notification" }, 500);
+    return c.json({ error: 'Failed to update notification' }, 500);
   }
 });
 
-router.put("/notifications/read-all", async (c) => {
-  const userId = c.get("user")?.id;
-  if (!userId) return c.json({ error: "Unauthorized" }, 401);
+router.put('/notifications/read-all', async (c) => {
+  const userId = c.get('user')?.id;
+  if (!userId) return c.json({ error: 'Unauthorized' }, 401);
 
   try {
     const result = await db
       .update(notifications)
       .set({ isRead: true })
-      .where(
-        and(eq(notifications.userId, userId), eq(notifications.isRead, false)),
-      )
+      .where(and(eq(notifications.userId, userId), eq(notifications.isRead, false)))
       .returning();
 
     return c.json({ success: true, marked: result.length });
   } catch (error) {
-    return c.json({ error: "Failed to mark all as read" }, 500);
+    return c.json({ error: 'Failed to mark all as read' }, 500);
   }
 });
 
-router.get("/notifications/unread-count", async (c) => {
-  const userId = c.get("user")?.id;
-  if (!userId) return c.json({ error: "Unauthorized" }, 401);
+router.get('/notifications/unread-count', async (c) => {
+  const userId = c.get('user')?.id;
+  if (!userId) return c.json({ error: 'Unauthorized' }, 401);
 
   try {
     const [{ count }] = await db
       .select({ count: db.fn.count() })
       .from(notifications)
-      .where(
-        and(eq(notifications.userId, userId), eq(notifications.isRead, false)),
-      );
+      .where(and(eq(notifications.userId, userId), eq(notifications.isRead, false)));
 
     return c.json({ count });
   } catch (error) {
-    return c.json({ error: "Failed to fetch unread count" }, 500);
+    return c.json({ error: 'Failed to fetch unread count' }, 500);
   }
 });
 
@@ -415,16 +401,13 @@ export function NotificationCentreScreen() {
 
 ```typescript
 // apps/native/hooks/useUnreadBadgeCount.ts
-import { useQuery } from "@tanstack/react-query";
-import { useEffect } from "react";
+import { useQuery } from '@tanstack/react-query';
+import { useEffect } from 'react';
 
 export function useUnreadBadgeCount() {
   const { data } = useQuery({
-    queryKey: ["notifications", "unread-count"],
-    queryFn: () =>
-      fetch(`${API_URL}/api/v1/notifications/unread-count`).then((r) =>
-        r.json(),
-      ),
+    queryKey: ['notifications', 'unread-count'],
+    queryFn: () => fetch(`${API_URL}/api/v1/notifications/unread-count`).then((r) => r.json()),
     refetchInterval: 30000, // Poll every 30s
   });
 

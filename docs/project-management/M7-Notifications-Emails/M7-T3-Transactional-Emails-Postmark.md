@@ -156,7 +156,7 @@ No new endpoints. Postmark dispatch is invoked internally by existing endpoints 
 
 ```typescript
 // apps/server/services/email.ts
-import postmark from "postmark";
+import postmark from 'postmark';
 
 const client = new postmark.ServerClient(process.env.POSTMARK_API_KEY!);
 
@@ -171,7 +171,7 @@ export async function sendEmail(payload: EmailPayload) {
 
   try {
     const result = await client.sendEmailWithTemplate({
-      From: "hello@ceolx.ie",
+      From: 'hello@ceolx.ie',
       To: to,
       TemplateAlias: templateAlias,
       TemplateModel: templateModel,
@@ -185,7 +185,7 @@ export async function sendEmail(payload: EmailPayload) {
     setTimeout(() => {
       client
         .sendEmailWithTemplate({
-          From: "hello@ceolx.ie",
+          From: 'hello@ceolx.ie',
           To: to,
           TemplateAlias: templateAlias,
           TemplateModel: templateModel,
@@ -197,7 +197,7 @@ export async function sendEmail(payload: EmailPayload) {
 
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Unknown error",
+      error: error instanceof Error ? error.message : 'Unknown error',
     };
   }
 }
@@ -207,8 +207,8 @@ export async function sendEmail(payload: EmailPayload) {
 
 ```typescript
 // apps/server/routes/v1/auth.ts
-import { sendEmail } from "@/services/email";
-import { generateToken } from "@/utils/tokens";
+import { sendEmail } from '@/services/email';
+import { generateToken } from '@/utils/tokens';
 
 export async function signUp(email: string, password: string) {
   // Create user, hash password, etc.
@@ -232,9 +232,9 @@ export async function signUp(email: string, password: string) {
   // Send email
   await sendEmail({
     to: email,
-    templateAlias: "email-verification",
+    templateAlias: 'email-verification',
     templateModel: {
-      firstName: email.split("@")[0],
+      firstName: email.split('@')[0],
       VerificationLink: `https://ceolx.ie/verify-email?token=${verificationToken}`,
     },
   });
@@ -247,7 +247,7 @@ export async function signUp(email: string, password: string) {
 
 ```typescript
 // apps/server/routes/v1/venues.ts
-import { sendEmail } from "@/services/email";
+import { sendEmail } from '@/services/email';
 
 export async function createVenueProfile(userId: string, profileData: any) {
   const profile = await db
@@ -255,7 +255,7 @@ export async function createVenueProfile(userId: string, profileData: any) {
     .values({
       userId,
       ...profileData,
-      subscriptionStatus: "inactive",
+      subscriptionStatus: 'inactive',
       isActive: false,
     })
     .returning();
@@ -263,10 +263,10 @@ export async function createVenueProfile(userId: string, profileData: any) {
   // Send activation email
   await sendEmail({
     to: user.email,
-    templateAlias: "venue-activation",
+    templateAlias: 'venue-activation',
     templateModel: {
       venueName: profileData.name,
-      ActivationLink: "https://ceolx.ie/subscribe",
+      ActivationLink: 'https://ceolx.ie/subscribe',
     },
   });
 
@@ -278,7 +278,7 @@ export async function createVenueProfile(userId: string, profileData: any) {
 
 ```typescript
 // apps/server/handlers/stripeWebhook.ts
-import { sendEmail } from "@/services/email";
+import { sendEmail } from '@/services/email';
 
 export async function handleInvoicePaid(invoice: Stripe.Invoice) {
   const venue = await db.query.venueProfiles.findFirst({
@@ -292,19 +292,17 @@ export async function handleInvoicePaid(invoice: Stripe.Invoice) {
   });
 
   const amount = (invoice.amount_paid / 100).toFixed(2);
-  const planName = invoice.lines.data[0]?.description || "CeolX Subscription";
+  const planName = invoice.lines.data[0]?.description || 'CeolX Subscription';
 
   await sendEmail({
     to: user.email,
-    templateAlias: "payment-confirmation",
+    templateAlias: 'payment-confirmation',
     templateModel: {
       venueName: venue.name,
       Amount: `€${amount}`,
       PlanName: planName,
-      NextBillingDate: new Date(invoice.period_end * 1000)
-        .toISOString()
-        .split("T")[0],
-      ManageLink: "https://ceolx.ie/account",
+      NextBillingDate: new Date(invoice.period_end * 1000).toISOString().split('T')[0],
+      ManageLink: 'https://ceolx.ie/account',
       InvoiceLink: invoice.hosted_invoice_url,
     },
   });

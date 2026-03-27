@@ -321,18 +321,18 @@ export default function AccountPage() {
 
 ```typescript
 // apps/server/routes/v1/stripe.ts (extended)
-import { Hono } from "hono";
-import Stripe from "stripe";
-import { db } from "@/db";
-import { venueProfiles } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { Hono } from 'hono';
+import Stripe from 'stripe';
+import { db } from '@/db';
+import { venueProfiles } from '@/db/schema';
+import { eq } from 'drizzle-orm';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 const router = new Hono();
 
-router.post("/stripe/portal-session", async (c) => {
-  const userId = c.get("user")?.id;
-  if (!userId) return c.json({ error: "Unauthorized" }, 401);
+router.post('/stripe/portal-session', async (c) => {
+  const userId = c.get('user')?.id;
+  if (!userId) return c.json({ error: 'Unauthorized' }, 401);
 
   try {
     // Get Venue profile with Stripe customer ID
@@ -344,25 +344,22 @@ router.post("/stripe/portal-session", async (c) => {
       return c.json(
         {
           error:
-            "No active subscription found. Check your email for the activation link or contact support.",
+            'No active subscription found. Check your email for the activation link or contact support.',
         },
-        404,
+        404
       );
     }
 
     // Create Customer Portal session
     const session = await stripe.billingPortal.sessions.create({
       customer: venue.stripeCustomerId,
-      return_url: "https://ceolx.ie",
+      return_url: 'https://ceolx.ie',
     });
 
     return c.json({ portalUrl: session.url });
   } catch (error) {
-    console.error("Portal session error:", error);
-    return c.json(
-      { error: "Unable to load subscription details. Please try again." },
-      500,
-    );
+    console.error('Portal session error:', error);
+    return c.json({ error: 'Unable to load subscription details. Please try again.' }, 500);
   }
 });
 
@@ -428,10 +425,7 @@ Before launch, configure Stripe Customer Portal in Stripe Dashboard:
 Postmark payment confirmation email should include:
 
 ```html
-<p>
-  <a href="https://ceolx.ie/account">Manage Your Subscription</a> anytime in the
-  portal above.
-</p>
+<p><a href="https://ceolx.ie/account">Manage Your Subscription</a> anytime in the portal above.</p>
 ```
 
 This is the only place the `/account` link appears — never shown inside the mobile app.

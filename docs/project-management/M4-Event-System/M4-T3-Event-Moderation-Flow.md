@@ -235,55 +235,55 @@ Reject a pending event with a written reason.
 ```typescript
 // apps/server/src/routes/admin.ts
 
-import { Hono } from "hono";
-import { getAuth } from "hono/better-auth";
-import { db } from "../db";
-import { events } from "@ceolx/shared/schema";
-import { eq, and } from "drizzle-orm";
-import { z } from "zod";
-import { zValidator } from "@hono/zod-validator";
-import { sendFCMNotification } from "../services/fcm";
+import { Hono } from 'hono';
+import { getAuth } from 'hono/better-auth';
+import { db } from '../db';
+import { events } from '@ceolx/shared/schema';
+import { eq, and } from 'drizzle-orm';
+import { z } from 'zod';
+import { zValidator } from '@hono/zod-validator';
+import { sendFCMNotification } from '../services/fcm';
 
 const app = new Hono();
 
 // Middleware: Verify Super Admin
 async function requireSuperAdmin(c: any, next: any) {
   const auth = getAuth(c);
-  if (!auth || auth.user.role !== "super_admin") {
-    return c.json({ error: "Forbidden: Super Admin access required" }, 403);
+  if (!auth || auth.user.role !== 'super_admin') {
+    return c.json({ error: 'Forbidden: Super Admin access required' }, 403);
   }
   await next();
 }
 
-app.use("/admin/*", requireSuperAdmin);
+app.use('/admin/*', requireSuperAdmin);
 
 // GET /admin/events/pending
-app.get("/admin/events/pending", async (c) => {
-  const limit = parseInt(c.req.query("limit") || "20", 10);
-  const offset = parseInt(c.req.query("offset") || "0", 10);
-  const sortBy = c.req.query("sort_by") || "created_at";
-  const sortOrder = c.req.query("sort_order") || "asc";
+app.get('/admin/events/pending', async (c) => {
+  const limit = parseInt(c.req.query('limit') || '20', 10);
+  const offset = parseInt(c.req.query('offset') || '0', 10);
+  const sortBy = c.req.query('sort_by') || 'created_at';
+  const sortOrder = c.req.query('sort_order') || 'asc';
 
   try {
     const pendingEvents = await db.query.events.findMany({
-      where: (events, { eq }) => eq(events.status, "pending_review"),
+      where: (events, { eq }) => eq(events.status, 'pending_review'),
       with: {
         creator: {
           columns: { id: true, name: true, type: true },
         },
       },
       orderBy: (events) => {
-        if (sortBy === "title") {
-          return sortOrder === "asc" ? [events.title] : [events.title];
+        if (sortBy === 'title') {
+          return sortOrder === 'asc' ? [events.title] : [events.title];
         }
-        return sortOrder === "asc" ? [events.created_at] : [events.created_at];
+        return sortOrder === 'asc' ? [events.created_at] : [events.created_at];
       },
       limit,
       offset,
     });
 
     const totalCount = await db.query.events.findMany({
-      where: (events, { eq }) => eq(events.status, "pending_review"),
+      where: (events, { eq }) => eq(events.status, 'pending_review'),
       columns: { id: true },
     });
 
@@ -307,15 +307,15 @@ app.get("/admin/events/pending", async (c) => {
       limit,
     });
   } catch (error) {
-    console.error("Moderation queue fetch error:", error);
-    return c.json({ error: "Failed to fetch pending events" }, 500);
+    console.error('Moderation queue fetch error:', error);
+    return c.json({ error: 'Failed to fetch pending events' }, 500);
   }
 });
 
 // POST /admin/events/:id/approve
-app.post("/admin/events/:id/approve", async (c) => {
+app.post('/admin/events/:id/approve', async (c) => {
   const auth = getAuth(c);
-  const eventId = c.req.param("id");
+  const eventId = c.req.param('id');
 
   try {
     // Fetch event
@@ -329,21 +329,18 @@ app.post("/admin/events/:id/approve", async (c) => {
     });
 
     if (!event) {
-      return c.json({ error: "Event not found" }, 404);
+      return c.json({ error: 'Event not found' }, 404);
     }
 
-    if (event.status !== "pending_review") {
-      return c.json(
-        { error: `Event status is ${event.status}, cannot approve` },
-        400,
-      );
+    if (event.status !== 'pending_review') {
+      return c.json({ error: `Event status is ${event.status}, cannot approve` }, 400);
     }
 
     // Update event status
     const updated = await db
       .update(events)
       .set({
-        status: "active",
+        status: 'active',
         updated_at: new Date(),
       })
       .where(eq(events.id, eventId))
@@ -357,7 +354,7 @@ app.post("/admin/events/:id/approve", async (c) => {
     if (creatorUser?.device_token) {
       await sendFCMNotification({
         token: creatorUser.device_token,
-        title: "Event Approved!",
+        title: 'Event Approved!',
         body: `Your event "${event.title}" is now live!`,
         data: {
           persona: event.creator.type,
@@ -375,8 +372,8 @@ app.post("/admin/events/:id/approve", async (c) => {
       updated_at: updated[0].updated_at,
     });
   } catch (error) {
-    console.error("Approve event error:", error);
-    return c.json({ error: "Failed to approve event" }, 500);
+    console.error('Approve event error:', error);
+    return c.json({ error: 'Failed to approve event' }, 500);
   }
 });
 
@@ -385,81 +382,72 @@ const RejectSchema = z.object({
   reason: z.string().min(1).max(500),
 });
 
-app.post(
-  "/admin/events/:id/reject",
-  zValidator("json", RejectSchema),
-  async (c) => {
-    const auth = getAuth(c);
-    const eventId = c.req.param("id");
-    const { reason } = c.req.valid("json");
+app.post('/admin/events/:id/reject', zValidator('json', RejectSchema), async (c) => {
+  const auth = getAuth(c);
+  const eventId = c.req.param('id');
+  const { reason } = c.req.valid('json');
 
-    try {
-      // Fetch event
-      const event = await db.query.events.findFirst({
-        where: (events, { eq }) => eq(events.id, eventId),
-        with: {
-          creator: {
-            columns: { id: true, name: true, user_id: true, type: true },
-          },
+  try {
+    // Fetch event
+    const event = await db.query.events.findFirst({
+      where: (events, { eq }) => eq(events.id, eventId),
+      with: {
+        creator: {
+          columns: { id: true, name: true, user_id: true, type: true },
+        },
+      },
+    });
+
+    if (!event) {
+      return c.json({ error: 'Event not found' }, 404);
+    }
+
+    if (event.status !== 'pending_review') {
+      return c.json({ error: `Event status is ${event.status}, cannot reject` }, 400);
+    }
+
+    // Update event status and reason
+    const updated = await db
+      .update(events)
+      .set({
+        status: 'rejected',
+        rejection_reason: reason,
+        updated_at: new Date(),
+      })
+      .where(eq(events.id, eventId))
+      .returning();
+
+    // Send FCM notification to creator
+    const creatorUser = await db.query.users.findFirst({
+      where: (users, { eq }) => eq(users.id, event.creator.user_id),
+    });
+
+    if (creatorUser?.device_token) {
+      await sendFCMNotification({
+        token: creatorUser.device_token,
+        title: 'Event Rejected',
+        body: `Your event was rejected: ${reason}`,
+        data: {
+          persona: event.creator.type,
+          route: `/events/${event.id}`,
         },
       });
-
-      if (!event) {
-        return c.json({ error: "Event not found" }, 404);
-      }
-
-      if (event.status !== "pending_review") {
-        return c.json(
-          { error: `Event status is ${event.status}, cannot reject` },
-          400,
-        );
-      }
-
-      // Update event status and reason
-      const updated = await db
-        .update(events)
-        .set({
-          status: "rejected",
-          rejection_reason: reason,
-          updated_at: new Date(),
-        })
-        .where(eq(events.id, eventId))
-        .returning();
-
-      // Send FCM notification to creator
-      const creatorUser = await db.query.users.findFirst({
-        where: (users, { eq }) => eq(users.id, event.creator.user_id),
-      });
-
-      if (creatorUser?.device_token) {
-        await sendFCMNotification({
-          token: creatorUser.device_token,
-          title: "Event Rejected",
-          body: `Your event was rejected: ${reason}`,
-          data: {
-            persona: event.creator.type,
-            route: `/events/${event.id}`,
-          },
-        });
-      }
-
-      // Log action
-      console.log(
-        `[ADMIN] Event ${eventId} rejected by ${auth.user.id}: ${reason}`,
-      );
-
-      return c.json({
-        id: updated[0].id,
-        status: updated[0].status,
-        rejection_reason: updated[0].rejection_reason,
-        updated_at: updated[0].updated_at,
-      });
-    } catch (error) {
-      console.error("Reject event error:", error);
-      return c.json({ error: "Failed to reject event" }, 500);
     }
-  },
-);
+
+    // Log action
+    console.log(`[ADMIN] Event ${eventId} rejected by ${auth.user.id}: ${reason}`);
+
+    return c.json({
+      id: updated[0].id,
+      status: updated[0].status,
+      rejection_reason: updated[0].rejection_reason,
+      updated_at: updated[0].updated_at,
+    });
+  } catch (error) {
+    console.error('Reject event error:', error);
+    return c.json({ error: 'Failed to reject event' }, 500);
+  }
+});
 ```
 
 ### Admin Dashboard — Pending Events Queue (Next.js + ShadCN)
@@ -705,7 +693,7 @@ export default function PendingEventsPage() {
 ```typescript
 // apps/server/src/services/fcm.ts
 
-import admin from "firebase-admin";
+import admin from 'firebase-admin';
 
 interface FCMPayload {
   token: string;
@@ -729,7 +717,7 @@ export async function sendFCMNotification(payload: FCMPayload) {
     console.log(`FCM sent: ${response}`);
     return response;
   } catch (error) {
-    console.error("FCM send error:", error);
+    console.error('FCM send error:', error);
     throw error;
   }
 }

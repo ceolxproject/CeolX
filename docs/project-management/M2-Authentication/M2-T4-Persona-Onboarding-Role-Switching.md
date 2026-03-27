@@ -204,63 +204,58 @@ Return authenticated user with current role and active profile data.
 ```typescript
 // apps/server/src/routes/users.ts (POST /onboarding)
 
-import { Hono } from "hono";
-import { zValidator } from "@hono/zod-validator";
-import { z } from "zod";
-import { v4 as uuidv4 } from "uuid";
-import { db } from "../lib/db";
-import { users, artistProfiles, venueProfiles } from "../schema";
-import { sendVenueActivationEmail } from "../services/emailService";
-import { authMiddleware } from "../middleware/auth";
+import { Hono } from 'hono';
+import { zValidator } from '@hono/zod-validator';
+import { z } from 'zod';
+import { v4 as uuidv4 } from 'uuid';
+import { db } from '../lib/db';
+import { users, artistProfiles, venueProfiles } from '../schema';
+import { sendVenueActivationEmail } from '../services/emailService';
+import { authMiddleware } from '../middleware/auth';
 
 const onboardingSchema = z.object({
-  persona: z.enum(["spectator", "artist", "venue"]),
+  persona: z.enum(['spectator', 'artist', 'venue']),
 });
 
-app.post(
-  "/onboarding",
-  authMiddleware,
-  zValidator("json", onboardingSchema),
-  async (c) => {
-    const userId = c.get("userId");
-    const { persona } = c.req.valid("json");
+app.post('/onboarding', authMiddleware, zValidator('json', onboardingSchema), async (c) => {
+  const userId = c.get('userId');
+  const { persona } = c.req.valid('json');
 
-    // Update user role
-    const user = await db
-      .update(users)
-      .set({ currentRole: persona })
-      .where(eq(users.id, userId))
-      .returning();
+  // Update user role
+  const user = await db
+    .update(users)
+    .set({ currentRole: persona })
+    .where(eq(users.id, userId))
+    .returning();
 
-    // Create profile if needed
-    if (persona === "artist") {
-      await db.insert(artistProfiles).values({
-        id: uuidv4(),
-        userId,
-        isActive: true,
-      });
-    } else if (persona === "venue") {
-      await db.insert(venueProfiles).values({
-        id: uuidv4(),
-        userId,
-        isActive: false,
-        subscriptionStatus: "inactive",
-      });
+  // Create profile if needed
+  if (persona === 'artist') {
+    await db.insert(artistProfiles).values({
+      id: uuidv4(),
+      userId,
+      isActive: true,
+    });
+  } else if (persona === 'venue') {
+    await db.insert(venueProfiles).values({
+      id: uuidv4(),
+      userId,
+      isActive: false,
+      subscriptionStatus: 'inactive',
+    });
 
-      // Send activation email
-      await sendVenueActivationEmail(user[0].email);
-    }
+    // Send activation email
+    await sendVenueActivationEmail(user[0].email);
+  }
 
-    return c.json(
-      {
-        success: true,
-        user: user[0],
-        message: "Persona selected.",
-      },
-      200,
-    );
-  },
-);
+  return c.json(
+    {
+      success: true,
+      user: user[0],
+      message: 'Persona selected.',
+    },
+    200
+  );
+});
 ```
 
 ### Role Switch Endpoint
@@ -269,104 +264,93 @@ app.post(
 // apps/server/src/routes/users.ts (PATCH /role)
 
 const switchRoleSchema = z.object({
-  role: z.enum(["spectator", "artist", "venue"]),
+  role: z.enum(['spectator', 'artist', 'venue']),
 });
 
-app.patch(
-  "/role",
-  authMiddleware,
-  zValidator("json", switchRoleSchema),
-  async (c) => {
-    const userId = c.get("userId");
-    const { role } = c.req.valid("json");
+app.patch('/role', authMiddleware, zValidator('json', switchRoleSchema), async (c) => {
+  const userId = c.get('userId');
+  const { role } = c.req.valid('json');
 
-    const user = await db.query.users.findFirst({
-      where: eq(users.id, userId),
+  const user = await db.query.users.findFirst({
+    where: eq(users.id, userId),
+  });
+
+  if (!user) {
+    return c.json({ error: 'USER_NOT_FOUND' }, 404);
+  }
+
+  // Update current role
+  const updatedUser = await db
+    .update(users)
+    .set({ currentRole: role })
+    .where(eq(users.id, userId))
+    .returning();
+
+  // Handle profile activation/deactivation
+  if (role === 'artist') {
+    // Reactivate or create artist profile
+    const artistProfile = await db.query.artistProfiles.findFirst({
+      where: eq(artistProfiles.userId, userId),
     });
 
-    if (!user) {
-      return c.json({ error: "USER_NOT_FOUND" }, 404);
+    if (artistProfile) {
+      await db
+        .update(artistProfiles)
+        .set({ isActive: true })
+        .where(eq(artistProfiles.userId, userId));
+    } else {
+      await db.insert(artistProfiles).values({
+        id: uuidv4(),
+        userId,
+        isActive: true,
+      });
     }
 
-    // Update current role
-    const updatedUser = await db
-      .update(users)
-      .set({ currentRole: role })
-      .where(eq(users.id, userId))
-      .returning();
+    // Deactivate venue profile
+    await db.update(venueProfiles).set({ isActive: false }).where(eq(venueProfiles.userId, userId));
+  } else if (role === 'venue') {
+    // Check if venue profile exists
+    const venueProfile = await db.query.venueProfiles.findFirst({
+      where: eq(venueProfiles.userId, userId),
+    });
 
-    // Handle profile activation/deactivation
-    if (role === "artist") {
-      // Reactivate or create artist profile
-      const artistProfile = await db.query.artistProfiles.findFirst({
-        where: eq(artistProfiles.userId, userId),
+    if (!venueProfile) {
+      // First time: create profile and send activation email
+      await db.insert(venueProfiles).values({
+        id: uuidv4(),
+        userId,
+        isActive: false,
+        subscriptionStatus: 'inactive',
       });
-
-      if (artistProfile) {
-        await db
-          .update(artistProfiles)
-          .set({ isActive: true })
-          .where(eq(artistProfiles.userId, userId));
-      } else {
-        await db.insert(artistProfiles).values({
-          id: uuidv4(),
-          userId,
-          isActive: true,
-        });
-      }
-
-      // Deactivate venue profile
+      await sendVenueActivationEmail(user.email);
+    } else if (!venueProfile.isActive) {
+      // Returning: reactivate profile
       await db
         .update(venueProfiles)
-        .set({ isActive: false })
-        .where(eq(venueProfiles.userId, userId));
-    } else if (role === "venue") {
-      // Check if venue profile exists
-      const venueProfile = await db.query.venueProfiles.findFirst({
-        where: eq(venueProfiles.userId, userId),
-      });
-
-      if (!venueProfile) {
-        // First time: create profile and send activation email
-        await db.insert(venueProfiles).values({
-          id: uuidv4(),
-          userId,
-          isActive: false,
-          subscriptionStatus: "inactive",
-        });
-        await sendVenueActivationEmail(user.email);
-      } else if (!venueProfile.isActive) {
-        // Returning: reactivate profile
-        await db
-          .update(venueProfiles)
-          .set({ isActive: true })
-          .where(eq(venueProfiles.userId, userId));
-      }
-
-      // Deactivate artist profile
-      await db
-        .update(artistProfiles)
-        .set({ isActive: false })
-        .where(eq(artistProfiles.userId, userId));
-    } else if (role === "spectator") {
-      // Deactivate all profiles
-      await db
-        .update(artistProfiles)
-        .set({ isActive: false })
-        .where(eq(artistProfiles.userId, userId));
-
-      await db
-        .update(venueProfiles)
-        .set({ isActive: false })
+        .set({ isActive: true })
         .where(eq(venueProfiles.userId, userId));
     }
 
-    return c.json({
-      success: true,
-      user: updatedUser[0],
-    });
-  },
-);
+    // Deactivate artist profile
+    await db
+      .update(artistProfiles)
+      .set({ isActive: false })
+      .where(eq(artistProfiles.userId, userId));
+  } else if (role === 'spectator') {
+    // Deactivate all profiles
+    await db
+      .update(artistProfiles)
+      .set({ isActive: false })
+      .where(eq(artistProfiles.userId, userId));
+
+    await db.update(venueProfiles).set({ isActive: false }).where(eq(venueProfiles.userId, userId));
+  }
+
+  return c.json({
+    success: true,
+    user: updatedUser[0],
+  });
+});
 ```
 
 ### Get User Endpoint
@@ -374,24 +358,24 @@ app.patch(
 ```typescript
 // apps/server/src/routes/users.ts (GET /me)
 
-app.get("/me", authMiddleware, async (c) => {
-  const userId = c.get("userId");
+app.get('/me', authMiddleware, async (c) => {
+  const userId = c.get('userId');
 
   const user = await db.query.users.findFirst({
     where: eq(users.id, userId),
   });
 
   if (!user) {
-    return c.json({ error: "USER_NOT_FOUND" }, 404);
+    return c.json({ error: 'USER_NOT_FOUND' }, 404);
   }
 
   // Fetch active profile
   let profile = null;
-  if (user.currentRole === "artist") {
+  if (user.currentRole === 'artist') {
     profile = await db.query.artistProfiles.findFirst({
       where: eq(artistProfiles.userId, userId),
     });
-  } else if (user.currentRole === "venue") {
+  } else if (user.currentRole === 'venue') {
     profile = await db.query.venueProfiles.findFirst({
       where: eq(venueProfiles.userId, userId),
     });

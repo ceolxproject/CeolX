@@ -150,10 +150,10 @@ const { data } = await trpc.events.getMap.query({ swLat, swLng, neLat, neLng });
 ```typescript
 // packages/api/src/routers/events.ts
 
-import { db } from "@CeolX/db";
-import { events } from "@CeolX/db/schema";
-import { sql, TRPCError } from "@trpc/server";
-import { publicProcedure, router } from "../index";
+import { db } from '@CeolX/db';
+import { events } from '@CeolX/db/schema';
+import { sql, TRPCError } from '@trpc/server';
+import { publicProcedure, router } from '../index';
 
 export const eventsRouter = router({
   getMap: publicProcedure.input(MapQueryInput).query(async ({ input }) => {
@@ -179,13 +179,13 @@ export const eventsRouter = router({
           AND ${events.date_start} >= ${now}
           AND ${events.lat} BETWEEN ${swLat} AND ${neLat}
           AND ${events.lng} BETWEEN ${swLng} AND ${neLng}
-        `,
+        `
       )
       .orderBy(
         sql`SQRT(
           POW(${events.lat} - ${(swLat + neLat) / 2}, 2) +
           POW(${events.lng} - ${(swLng + neLng) / 2}, 2)
-        )`,
+        )`
       )
       .limit(limit);
 

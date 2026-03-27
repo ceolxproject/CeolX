@@ -1,8 +1,8 @@
-import { useLocalSearchParams } from "expo-router";
-import { StyleSheet, Text, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { useLocalSearchParams } from 'expo-router';
+import { StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { chip, layout, ph, typography } from "@/styles/shared";
+import { chip, layout, ph, typography } from '@/styles/shared';
 
 export default function ArtistProfileScreen() {
   const { artistId } = useLocalSearchParams<{ artistId: string }>();
@@ -15,7 +15,7 @@ export default function ArtistProfileScreen() {
         <Text style={styles.id}>{artistId}</Text>
 
         <View style={styles.tagRow}>
-          {["Traditional", "Trad / Folk"].map((tag) => (
+          {['Traditional', 'Trad / Folk'].map((tag) => (
             <View key={tag} style={chip.tag}>
               <Text style={chip.tagText}>{tag}</Text>
             </View>
@@ -35,9 +35,9 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: "#e0e0e0",
+    backgroundColor: '#e0e0e0',
     marginBottom: 12,
   },
-  id: { fontSize: 16, fontWeight: "600", marginBottom: 12 },
-  tagRow: { flexDirection: "row", gap: 8, marginBottom: 16, flexWrap: "wrap" },
+  id: { fontSize: 16, fontWeight: '600', marginBottom: 12 },
+  tagRow: { flexDirection: 'row', gap: 8, marginBottom: 16, flexWrap: 'wrap' },
 });

@@ -25,23 +25,23 @@ Foreign keys don't automatically create indexes in PostgreSQL. You MUST add them
 
 ```typescript
 // ❌ BAD: FK without index
-export const orders = pgTable("orders", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  userId: uuid("user_id").references(() => users.id), // No index!
+export const orders = pgTable('orders', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').references(() => users.id), // No index!
 });
 
 // ✅ GOOD: FK with explicit index
 export const orders = pgTable(
-  "orders",
+  'orders',
   {
-    id: uuid("id").defaultRandom().primaryKey(),
-    userId: uuid("user_id")
+    id: uuid('id').defaultRandom().primaryKey(),
+    userId: uuid('user_id')
       .notNull()
       .references(() => users.id),
   },
   (table) => ({
-    userIdIdx: index("orders_user_id_idx").on(table.userId),
-  }),
+    userIdIdx: index('orders_user_id_idx').on(table.userId),
+  })
 );
 ```
 
@@ -52,25 +52,22 @@ If you WHERE on it, index it.
 ```typescript
 // ✅ GOOD: Index on status and timestamps
 export const orders = pgTable(
-  "orders",
+  'orders',
   {
-    id: uuid("id").defaultRandom().primaryKey(),
-    userId: uuid("user_id")
+    id: uuid('id').defaultRandom().primaryKey(),
+    userId: uuid('user_id')
       .notNull()
       .references(() => users.id),
-    status: orderStatusEnum("status").default("pending").notNull(),
-    createdAt: timestamp("created_at").defaultNow().notNull(),
+    status: orderStatusEnum('status').default('pending').notNull(),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
   },
   (table) => ({
-    userIdIdx: index("orders_user_id_idx").on(table.userId),
-    statusIdx: index("orders_status_idx").on(table.status),
-    createdAtIdx: index("orders_created_at_idx").on(table.createdAt),
+    userIdIdx: index('orders_user_id_idx').on(table.userId),
+    statusIdx: index('orders_status_idx').on(table.status),
+    createdAtIdx: index('orders_created_at_idx').on(table.createdAt),
     // Composite for common query: "user's orders by status"
-    userStatusIdx: index("orders_user_status_idx").on(
-      table.userId,
-      table.status,
-    ),
-  }),
+    userStatusIdx: index('orders_user_status_idx').on(table.userId, table.status),
+  })
 );
 ```
 
@@ -81,23 +78,23 @@ When you frequently query a subset, use a partial index.
 ```typescript
 // ✅ GOOD: Partial index for active products only
 export const products = pgTable(
-  "products",
+  'products',
   {
-    id: uuid("id").defaultRandom().primaryKey(),
-    name: varchar("name", { length: 255 }).notNull(),
-    isActive: boolean("is_active").default(true).notNull(),
-    isFeatured: boolean("is_featured").default(false).notNull(),
+    id: uuid('id').defaultRandom().primaryKey(),
+    name: varchar('name', { length: 255 }).notNull(),
+    isActive: boolean('is_active').default(true).notNull(),
+    isFeatured: boolean('is_featured').default(false).notNull(),
   },
   (table) => ({
     // Only index active products - smaller, faster
-    activeIdx: index("products_active_idx")
+    activeIdx: index('products_active_idx')
       .on(table.isActive)
       .where(sql`${table.isActive} = true`),
     // Featured products (active AND featured)
-    featuredIdx: index("products_featured_idx")
+    featuredIdx: index('products_featured_idx')
       .on(table.isFeatured)
       .where(sql`${table.isActive} = true AND ${table.isFeatured} = true`),
-  }),
+  })
 );
 ```
 
@@ -128,11 +125,11 @@ Use `$onUpdate` for automatic timestamp updates.
 
 ```typescript
 // ✅ GOOD: Auto-updating timestamps
-export const users = pgTable("users", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  email: varchar("email", { length: 255 }).notNull().unique(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at")
+export const users = pgTable('users', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  email: varchar('email', { length: 255 }).notNull().unique(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at')
     .defaultNow()
     .notNull()
     .$onUpdate(() => new Date()),
@@ -176,24 +173,24 @@ id: varchar("id", { length: 26 }).primaryKey().$default(() => ulid()),
 For searchable text columns, use PostgreSQL's built-in full-text search:
 
 ```typescript
-import { sql } from "drizzle-orm";
-import { index, pgTable, text, tsvector } from "drizzle-orm/pg-core";
+import { sql } from 'drizzle-orm';
+import { index, pgTable, text, tsvector } from 'drizzle-orm/pg-core';
 
 export const products = pgTable(
-  "products",
+  'products',
   {
-    id: uuid("id").defaultRandom().primaryKey(),
-    name: varchar("name", { length: 255 }).notNull(),
-    description: text("description"),
+    id: uuid('id').defaultRandom().primaryKey(),
+    name: varchar('name', { length: 255 }).notNull(),
+    description: text('description'),
     // Generated tsvector column for search
-    searchVector: tsvector("search_vector").generatedAlwaysAs(
-      sql`to_tsvector('english', coalesce(${products.name}, '') || ' ' || coalesce(${products.description}, ''))`,
+    searchVector: tsvector('search_vector').generatedAlwaysAs(
+      sql`to_tsvector('english', coalesce(${products.name}, '') || ' ' || coalesce(${products.description}, ''))`
     ),
   },
   (table) => ({
     // GIN index for fast full-text search
-    searchIdx: index("products_search_idx").using("gin", table.searchVector),
-  }),
+    searchIdx: index('products_search_idx').using('gin', table.searchVector),
+  })
 );
 
 // Query with full-text search
@@ -252,25 +249,25 @@ migrations/
 ### Define Relations in Schema
 
 ```typescript
-import { relations } from "drizzle-orm";
+import { relations } from 'drizzle-orm';
 
-export const users = pgTable("users", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  name: varchar("name", { length: 255 }).notNull(),
+export const users = pgTable('users', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  name: varchar('name', { length: 255 }).notNull(),
 });
 
 export const posts = pgTable(
-  "posts",
+  'posts',
   {
-    id: uuid("id").defaultRandom().primaryKey(),
-    userId: uuid("user_id")
+    id: uuid('id').defaultRandom().primaryKey(),
+    userId: uuid('user_id')
       .notNull()
       .references(() => users.id),
-    title: varchar("title", { length: 255 }).notNull(),
+    title: varchar('title', { length: 255 }).notNull(),
   },
   (table) => ({
-    userIdIdx: index("posts_user_id_idx").on(table.userId),
-  }),
+    userIdIdx: index('posts_user_id_idx').on(table.userId),
+  })
 );
 
 // Define relations
@@ -306,10 +303,10 @@ const usersWithPostsAndComments = await db.query.users.findMany({
 
 // ✅ GOOD: Filtered nested queries
 const activeUsersWithRecentPosts = await db.query.users.findMany({
-  where: eq(users.status, "active"),
+  where: eq(users.status, 'active'),
   with: {
     posts: {
-      where: gte(posts.createdAt, new Date("2024-01-01")),
+      where: gte(posts.createdAt, new Date('2024-01-01')),
       limit: 10,
     },
   },
@@ -330,33 +327,33 @@ Use prepared statements for repeated queries to cache query plans.
 // ✅ GOOD: Prepared statement with placeholders
 const getUserWithPosts = db.query.users
   .findFirst({
-    where: eq(users.id, sql.placeholder("userId")),
+    where: eq(users.id, sql.placeholder('userId')),
     with: {
       posts: {
-        where: eq(posts.status, sql.placeholder("status")),
+        where: eq(posts.status, sql.placeholder('status')),
       },
     },
   })
-  .prepare("get_user_posts"); // Name required for PostgreSQL
+  .prepare('get_user_posts'); // Name required for PostgreSQL
 
 // Execute multiple times
 const user1 = await getUserWithPosts.execute({
-  userId: "123",
-  status: "published",
+  userId: '123',
+  status: 'published',
 });
 const user2 = await getUserWithPosts.execute({
-  userId: "456",
-  status: "published",
+  userId: '456',
+  status: 'published',
 });
 
 // ✅ GOOD: Simple prepared query
 const getOrdersByUser = db
   .select()
   .from(orders)
-  .where(eq(orders.userId, sql.placeholder("userId")))
-  .prepare("orders_by_user");
+  .where(eq(orders.userId, sql.placeholder('userId')))
+  .prepare('orders_by_user');
 
-const orders = await getOrdersByUser.execute({ userId: "123" });
+const orders = await getOrdersByUser.execute({ userId: '123' });
 ```
 
 **When to use:**
@@ -370,15 +367,15 @@ const orders = await getOrdersByUser.execute({ userId: "123" });
 ### Neon Serverless
 
 ```typescript
-import { Pool } from "@neondatabase/serverless";
-import { drizzle } from "drizzle-orm/neon-serverless";
+import { Pool } from '@neondatabase/serverless';
+import { drizzle } from 'drizzle-orm/neon-serverless';
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 const db = drizzle({ client: pool });
 
 // For Node.js with WebSockets
-import ws from "ws";
-import { neonConfig } from "@neondatabase/serverless";
+import ws from 'ws';
+import { neonConfig } from '@neondatabase/serverless';
 
 neonConfig.webSocketConstructor = ws;
 ```
@@ -386,7 +383,7 @@ neonConfig.webSocketConstructor = ws;
 ### Vercel Postgres
 
 ```typescript
-import { drizzle } from "drizzle-orm/vercel-postgres";
+import { drizzle } from 'drizzle-orm/vercel-postgres';
 
 const db = drizzle(); // Automatically uses POSTGRES_URL from env
 ```
@@ -394,8 +391,8 @@ const db = drizzle(); // Automatically uses POSTGRES_URL from env
 ### Edge Runtime (HTTP-based)
 
 ```typescript
-import { neon } from "@neondatabase/serverless";
-import { drizzle } from "drizzle-orm/neon-http";
+import { neon } from '@neondatabase/serverless';
+import { drizzle } from 'drizzle-orm/neon-http';
 
 const sql = neon(process.env.DATABASE_URL);
 const db = drizzle({ client: sql });
@@ -475,8 +472,8 @@ async function findUsers(filters: any) {
 
 // ✅ GOOD: Define filter types
 type UserFilters = {
-  status?: "active" | "inactive";
-  role?: "admin" | "user";
+  status?: 'active' | 'inactive';
+  role?: 'admin' | 'user';
   createdAfter?: Date;
 };
 
@@ -503,7 +500,7 @@ async function findUsers(filters: UserFilters) {
 ### Drizzle Type Helpers
 
 ```typescript
-import { users } from "./schema";
+import { users } from './schema';
 
 // Infer types from schema
 type User = typeof users.$inferSelect; // Full row type
@@ -516,12 +513,9 @@ async function createUser(data: NewUser): Promise<User> {
 }
 
 // Partial updates with proper typing
-type UserUpdate = Partial<Omit<NewUser, "id" | "createdAt">>;
+type UserUpdate = Partial<Omit<NewUser, 'id' | 'createdAt'>>;
 
-async function updateUser(
-  id: string,
-  data: UserUpdate,
-): Promise<User | undefined> {
+async function updateUser(id: string, data: UserUpdate): Promise<User | undefined> {
   const [user] = await db
     .update(users)
     .set({ ...data, updatedAt: new Date() })
@@ -542,10 +536,10 @@ async function updateUser(
 
 ```typescript
 // GIN for JSONB
-index("idx").using("gin", table.tags);
+index('idx').using('gin', table.tags);
 
 // BRIN for time-series
-index("idx").using("brin", table.createdAt);
+index('idx').using('brin', table.createdAt);
 ```
 
 ## Schema Checklist
@@ -574,30 +568,28 @@ Before committing a schema:
 
 ```typescript
 // Test migration applies cleanly
-import { migrate } from "drizzle-orm/neon-serverless/migrator";
+import { migrate } from 'drizzle-orm/neon-serverless/migrator';
 
-test("migrations apply successfully", async () => {
-  await migrate(db, { migrationsFolder: "./migrations" });
+test('migrations apply successfully', async () => {
+  await migrate(db, { migrationsFolder: './migrations' });
   // Verify tables exist
-  const result = await db.execute(
-    sql`SELECT tablename FROM pg_tables WHERE schemaname='public'`,
-  );
-  expect(result.rows).toContainEqual({ tablename: "users" });
+  const result = await db.execute(sql`SELECT tablename FROM pg_tables WHERE schemaname='public'`);
+  expect(result.rows).toContainEqual({ tablename: 'users' });
 });
 
 // Test index usage with EXPLAIN
-test("query uses index for user lookup", async () => {
+test('query uses index for user lookup', async () => {
   const plan = await db.execute(sql`
     EXPLAIN (FORMAT JSON)
     SELECT * FROM orders WHERE user_id = '123'
   `);
   const planText = JSON.stringify(plan.rows);
-  expect(planText).toContain("Index Scan"); // Not Seq Scan
-  expect(planText).toContain("orders_user_id_idx");
+  expect(planText).toContain('Index Scan'); // Not Seq Scan
+  expect(planText).toContain('orders_user_id_idx');
 });
 
 // Test relations avoid N+1
-test("users with posts executes single query", async () => {
+test('users with posts executes single query', async () => {
   const startTime = Date.now();
   const users = await db.query.users.findMany({
     with: { posts: true },
@@ -629,14 +621,14 @@ WHERE user_id = 'abc' AND status = 'pending';
 
 ```typescript
 // Log slow queries in production
-import { sql } from "drizzle-orm";
+import { sql } from 'drizzle-orm';
 
 const startTime = Date.now();
 const result = await db.query.users.findMany({ with: { posts: true } });
 const duration = Date.now() - startTime;
 
 if (duration > 100) {
-  console.warn(`Slow query: ${duration}ms`, { query: "users.findMany" });
+  console.warn(`Slow query: ${duration}ms`, { query: 'users.findMany' });
 }
 ```
 

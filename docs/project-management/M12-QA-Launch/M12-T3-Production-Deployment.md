@@ -273,7 +273,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: "20"
+          node-version: '20'
 
       - name: Install dependencies
         run: pnpm install
@@ -311,24 +311,24 @@ jobs:
 
 ```typescript
 // tests/smoke.test.ts
-import { api } from "../src/client";
+import { api } from '../src/client';
 
-describe("Production Smoke Tests", () => {
-  it("should allow signup and login flow", async () => {
+describe('Production Smoke Tests', () => {
+  it('should allow signup and login flow', async () => {
     const email = `test_${Date.now()}@ceolx.ie`;
-    const password = "TestPassword123!";
+    const password = 'TestPassword123!';
 
     // Sign up
-    const signupRes = await api.post("/auth/signup", {
+    const signupRes = await api.post('/auth/signup', {
       email,
       password,
-      name: "Test User",
-      role: "spectator",
+      name: 'Test User',
+      role: 'spectator',
     });
     expect(signupRes.status).toBe(201);
 
     // Login
-    const loginRes = await api.post("/auth/login", {
+    const loginRes = await api.post('/auth/login', {
       email,
       password,
     });
@@ -336,8 +336,8 @@ describe("Production Smoke Tests", () => {
     expect(loginRes.body.session.email).toBe(email);
   });
 
-  it("should load map events", async () => {
-    const res = await api.get("/events?bounds=53.1,53.5,-7.8,-7.2");
+  it('should load map events', async () => {
+    const res = await api.get('/events?bounds=53.1,53.5,-7.8,-7.2');
     expect(res.status).toBe(200);
     expect(Array.isArray(res.body.events)).toBe(true);
   });

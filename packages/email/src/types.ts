@@ -1,8 +1,8 @@
 export type EmailTag =
-  | "email-verification"
-  | "password-reset"
-  | "venue-activation"
-  | "payment-confirmation";
+  | 'email-verification'
+  | 'password-reset'
+  | 'venue-activation'
+  | 'payment-confirmation';
 
 export interface SendEmailOptions {
   to: string;

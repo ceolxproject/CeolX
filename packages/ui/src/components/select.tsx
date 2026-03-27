@@ -1,7 +1,8 @@
-import { Select as SelectPrimitive } from "@base-ui/react/select";
-import { cn } from "@CeolX/ui/lib/utils";
-import { ChevronDown } from "lucide-react";
-import * as React from "react";
+import { Select as SelectPrimitive } from '@base-ui/react/select';
+import { ChevronDown } from 'lucide-react';
+import * as React from 'react';
+
+import { cn } from '@CeolX/ui/lib/utils';
 
 const Select = SelectPrimitive.Root;
 
@@ -16,8 +17,8 @@ function SelectTrigger({
     <SelectPrimitive.Trigger
       data-slot="select-trigger"
       className={cn(
-        "flex h-9 w-full items-center justify-between rounded-none border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50",
-        className,
+        'flex h-9 w-full items-center justify-between rounded-none border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50',
+        className
       )}
       {...props}
     >
@@ -40,15 +41,13 @@ function SelectContent({
         <SelectPrimitive.Popup
           data-slot="select-content"
           className={cn(
-            "relative z-50 min-w-32 overflow-hidden rounded-none border border-border bg-popover text-popover-foreground shadow-md",
-            className,
+            'relative z-50 min-w-32 overflow-hidden rounded-none border border-border bg-popover text-popover-foreground shadow-md',
+            className
           )}
           {...props}
         >
           <SelectPrimitive.ScrollUpArrow className="flex cursor-default items-center justify-center py-1" />
-          <SelectPrimitive.List className="p-1">
-            {children}
-          </SelectPrimitive.List>
+          <SelectPrimitive.List className="p-1">{children}</SelectPrimitive.List>
           <SelectPrimitive.ScrollDownArrow className="flex cursor-default items-center justify-center py-1" />
         </SelectPrimitive.Popup>
       </SelectPrimitive.Positioner>
@@ -65,8 +64,8 @@ function SelectItem({
     <SelectPrimitive.Item
       data-slot="select-item"
       className={cn(
-        "relative flex w-full cursor-default select-none items-center rounded-none py-1.5 pl-8 pr-2 text-sm outline-none focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
-        className,
+        'relative flex w-full cursor-default select-none items-center rounded-none py-1.5 pl-8 pr-2 text-sm outline-none focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
+        className
       )}
       {...props}
     >
@@ -85,24 +84,14 @@ function SelectLabel({
   return (
     <SelectPrimitive.GroupLabel
       data-slot="select-label"
-      className={cn("py-1.5 pl-8 pr-2 text-sm font-semibold", className)}
+      className={cn('py-1.5 pl-8 pr-2 text-sm font-semibold', className)}
       {...props}
     />
   );
 }
 
-function SelectGroup({
-  ...props
-}: React.ComponentProps<typeof SelectPrimitive.Group>) {
+function SelectGroup({ ...props }: React.ComponentProps<typeof SelectPrimitive.Group>) {
   return <SelectPrimitive.Group data-slot="select-group" {...props} />;
 }
 
-export {
-  Select,
-  SelectValue,
-  SelectTrigger,
-  SelectContent,
-  SelectItem,
-  SelectLabel,
-  SelectGroup,
-};
+export { Select, SelectValue, SelectTrigger, SelectContent, SelectItem, SelectLabel, SelectGroup };

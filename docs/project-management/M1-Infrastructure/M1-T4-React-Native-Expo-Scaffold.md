@@ -305,43 +305,43 @@ export const useAuth = () => {
 ```typescript
 // apps/native/app.config.ts
 
-import { ExpoConfig, ConfigContext } from "@expo/config";
+import { ExpoConfig, ConfigContext } from '@expo/config';
 
 const config: ExpoConfig = {
-  name: "CeolX",
-  slug: "ceolx",
-  version: "1.0.0",
-  orientation: "portrait",
-  icon: "./assets/icon.png",
-  userInterfaceStyle: "light",
+  name: 'CeolX',
+  slug: 'ceolx',
+  version: '1.0.0',
+  orientation: 'portrait',
+  icon: './assets/icon.png',
+  userInterfaceStyle: 'light',
   splash: {
-    image: "./assets/splash.png",
-    resizeMode: "contain",
-    backgroundColor: "#ffffff",
+    image: './assets/splash.png',
+    resizeMode: 'contain',
+    backgroundColor: '#ffffff',
   },
-  assetBundlePatterns: ["**/*"],
+  assetBundlePatterns: ['**/*'],
   ios: {
     supportsTabletMode: false,
-    bundleIdentifier: "ie.ceolx.app",
+    bundleIdentifier: 'ie.ceolx.app',
   },
   android: {
     adaptiveIcon: {
-      foregroundImage: "./assets/adaptive-icon.png",
-      backgroundColor: "#ffffff",
+      foregroundImage: './assets/adaptive-icon.png',
+      backgroundColor: '#ffffff',
     },
-    package: "ie.ceolx.app",
+    package: 'ie.ceolx.app',
   },
-  scheme: "ceolx",
+  scheme: 'ceolx',
   plugins: [
     [
-      "expo-location",
+      'expo-location',
       {
         locationAlwaysAndWhenInUsePermission:
-          "Allow CeolX to use your location to show nearby Irish music events",
+          'Allow CeolX to use your location to show nearby Irish music events',
       },
     ],
-    "expo-secure-store",
-    "expo-notifications",
+    'expo-secure-store',
+    'expo-notifications',
   ],
 };
 

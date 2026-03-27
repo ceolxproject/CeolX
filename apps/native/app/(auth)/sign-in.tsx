@@ -1,31 +1,25 @@
-import { Link, router } from "expo-router";
-import { useState } from "react";
-import {
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { Link, router } from 'expo-router';
+import { useState } from 'react';
+import { StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { useAuth } from "@/contexts/auth-context";
-import { form, layout, typography } from "@/styles/shared";
+import { useAuth } from '@/contexts/auth-context';
+import { form, layout, typography } from '@/styles/shared';
 
 export default function SignInScreen() {
   const { login } = useAuth();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
 
   const handleSignIn = async () => {
     // Wired in M2-T1
-    await login("mock-token", {
-      userId: "mock-id",
-      currentRole: "spectator",
+    await login('mock-token', {
+      userId: 'mock-id',
+      currentRole: 'spectator',
       email,
       emailVerified: false,
     });
-    router.replace("/(app)/(tabs)/map");
+    router.replace('/(app)/(tabs)/map');
   };
 
   return (
@@ -56,10 +50,7 @@ export default function SignInScreen() {
           Forgot Password?
         </Link>
 
-        <TouchableOpacity
-          style={[form.button, { marginBottom: 24 }]}
-          onPress={handleSignIn}
-        >
+        <TouchableOpacity style={[form.button, { marginBottom: 24 }]} onPress={handleSignIn}>
           <Text style={form.buttonText}>Sign In</Text>
         </TouchableOpacity>
 
@@ -75,10 +66,10 @@ export default function SignInScreen() {
 }
 
 const styles = StyleSheet.create({
-  inner: { flex: 1, padding: 24, justifyContent: "center" },
+  inner: { flex: 1, padding: 24, justifyContent: 'center' },
   forgotLink: {
-    alignSelf: "flex-end",
-    color: "#00a86b",
+    alignSelf: 'flex-end',
+    color: '#00a86b',
     fontSize: 14,
     marginBottom: 20,
   },

@@ -244,16 +244,16 @@ CREATE INDEX idx_artist_is_active ON artist_profiles(is_active);
 ### Hono Handler Example
 
 ```typescript
-import { Hono } from "hono";
-import { db } from "../db";
-import { artistProfiles } from "../db/schema";
-import { eq } from "drizzle-orm";
+import { Hono } from 'hono';
+import { db } from '../db';
+import { artistProfiles } from '../db/schema';
+import { eq } from 'drizzle-orm';
 
 const artistRouter = new Hono();
 
 // GET /artists/:id
-artistRouter.get("/:id", async (c) => {
-  const artistId = c.req.param("id");
+artistRouter.get('/:id', async (c) => {
+  const artistId = c.req.param('id');
 
   const profile = await db
     .select()
@@ -262,12 +262,12 @@ artistRouter.get("/:id", async (c) => {
     .then((rows) => rows[0]);
 
   if (!profile || !profile.is_active) {
-    return c.json({ error: "Artist not found" }, 404);
+    return c.json({ error: 'Artist not found' }, 404);
   }
 
   // Fetch linked events (status = active)
   const events = await db.query.events.findMany({
-    where: and(eq(events.created_by, artistId), eq(events.status, "active")),
+    where: and(eq(events.created_by, artistId), eq(events.status, 'active')),
     orderBy: asc(events.date_start),
   });
 
@@ -279,10 +279,10 @@ artistRouter.get("/:id", async (c) => {
 });
 
 // PUT /artists/me
-artistRouter.put("/me", async (c) => {
-  const user = c.get("user");
-  if (user.current_role !== "artist") {
-    return c.json({ error: "Not in artist persona" }, 401);
+artistRouter.put('/me', async (c) => {
+  const user = c.get('user');
+  if (user.current_role !== 'artist') {
+    return c.json({ error: 'Not in artist persona' }, 401);
   }
 
   const body = await c.req.json();

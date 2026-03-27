@@ -39,7 +39,7 @@ Layer 2 uses raw Redis `incr`/`expire` — not `@upstash/ratelimit` — so the k
 const key = `rl:resend-activation:${userId}`;
 const count = await redis.incr(key);
 if (count === 1) await redis.expire(key, 900); // 15 min TTL
-if (count > 3) throw new HTTPException(429, { message: "Too many requests" });
+if (count > 3) throw new HTTPException(429, { message: 'Too many requests' });
 ```
 
 ## Middleware Design (`packages/cache/src/rate-limit.ts`)
@@ -57,9 +57,9 @@ if (count > 3) throw new HTTPException(429, { message: "Too many requests" });
 ## Wiring in `apps/api/src/app.ts`
 
 ```ts
-app.use("/api/auth/*", rateLimiter(RATE_LIMIT_TIERS.authLogin));
-app.use("/rpc/*", rateLimiter(RATE_LIMIT_TIERS.authenticatedGeneral));
-app.use("/api-reference/*", rateLimiter(RATE_LIMIT_TIERS.publicCatalog));
+app.use('/api/auth/*', rateLimiter(RATE_LIMIT_TIERS.authLogin));
+app.use('/rpc/*', rateLimiter(RATE_LIMIT_TIERS.authenticatedGeneral));
+app.use('/api-reference/*', rateLimiter(RATE_LIMIT_TIERS.publicCatalog));
 // Health check (/) — no rate limit
 // Webhooks (/api/webhooks/*) — outside rate-limited prefixes; signature verification handles abuse
 ```
