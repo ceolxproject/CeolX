@@ -3,7 +3,7 @@
 | Field          | Value                                                                                    |
 | -------------- | ---------------------------------------------------------------------------------------- |
 | **Milestone**  | M1 — Project Setup & Infrastructure                                                      |
-| **Status**     | 🔲 To Do                                                                                 |
+| **Status**     | ✅ Complete — PR #13                                                                     |
 | **Depends on** | M1-T3 (Hono API scaffold), M1-T4 (React Native scaffold), M1-T5 (React admin scaffold)   |
 | **PRD Ref**    | Section 10.1 (Observability — Sentry), Non-functional requirements (crash-free sessions) |
 
