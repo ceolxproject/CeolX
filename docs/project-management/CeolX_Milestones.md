@@ -10,22 +10,22 @@
 
 ## Milestone Summary
 
-| #    | Milestone                       | Approx. Weeks | No. of Tasks        |
-| ---- | ------------------------------- | ------------- | ------------------- |
-| M1   | Project Setup & Infrastructure  | 1–2           | 9 (excl. T2 schema) |
-| M1.5 | Database Schema Design          | 2             | 7                   |
-| M2   | Authentication & Persona System | 2–3           | 4                   |
-| M3   | Map & Discovery                 | 3–5           | 4                   |
-| M4   | Event System                    | 5–7           | 4                   |
-| M5   | Booking Flow (Artist ↔ Venue)   | 7–8           | 3                   |
-| M6   | Profiles & Social               | 8–9           | 4                   |
-| M7   | Push Notifications & Emails     | 9–10          | 3                   |
-| M8   | Venue Subscription & Payments   | 10–11         | 4                   |
-| M9   | Super Admin Dashboard           | 9–10          | 2                   |
-| M10  | Media (S3, CloudFront, Mux)     | 6–7           | 1                   |
-| M11  | Analytics & GDPR                | 11–12         | 3                   |
-| M12  | QA & Launch Prep                | 12–14         | 3                   |
-|      | **Total**                       |               | **51 tasks**        |
+| #    | Milestone                       | Approx. Weeks | No. of Tasks         |
+| ---- | ------------------------------- | ------------- | -------------------- |
+| M1   | Project Setup & Infrastructure  | 1–2           | 10 (excl. T2 schema) |
+| M1.5 | Database Schema Design          | 2             | 7                    |
+| M2   | Authentication & Persona System | 2–3           | 4                    |
+| M3   | Map & Discovery                 | 3–5           | 4                    |
+| M4   | Event System                    | 5–7           | 4                    |
+| M5   | Booking Flow (Artist ↔ Venue)   | 7–8           | 3                    |
+| M6   | Profiles & Social               | 8–9           | 4                    |
+| M7   | Push Notifications & Emails     | 9–10          | 3                    |
+| M8   | Venue Subscription & Payments   | 10–11         | 4                    |
+| M9   | Super Admin Dashboard           | 9–10          | 2                    |
+| M10  | Media (S3, CloudFront, Mux)     | 6–7           | 1                    |
+| M11  | Analytics & GDPR                | 11–12         | 3                    |
+| M12  | QA & Launch Prep                | 12–14         | 3                    |
+|      | **Total**                       |               | **51 tasks**         |
 
 > M9 and M10 run in parallel with other milestones (admin dashboard and media can be built alongside app features).
 > M1.5 must complete before M2 — all feature milestones depend on the database schema being finalised.
@@ -42,14 +42,14 @@
 
 **What**: Set up the entire project scaffolding and source control strategy before any code is written.
 
-| Sub-task          | Details                                                              |
-| ----------------- | -------------------------------------------------------------------- |
-| Turborepo init    | Create `apps/mobile`, `apps/admin`, `apps/api`, `packages/shared`    |
-| TypeScript config | Project references across all workspaces                             |
-| Shared package    | Types, enums (role, event status, booking status), utility functions |
-| GitHub repo       | Three branches: `dev`, `staging`, `main`                             |
-| Branch protection | Require PR + review on `main` and `staging`                          |
-| Neon DB branches  | Match Git branches — dev DB / staging DB / prod DB                   |
+| Sub-task          | Details                                                                                         |
+| ----------------- | ----------------------------------------------------------------------------------------------- |
+| Turborepo init    | Create `apps/mobile`, `apps/admin`, `apps/api`, `packages/shared`                               |
+| TypeScript config | Project references across all workspaces                                                        |
+| Shared package    | Enum value arrays + derived types, shared interfaces, constants, utility functions (see M1-T10) |
+| GitHub repo       | Three branches: `dev`, `staging`, `main`                                                        |
+| Branch protection | Require PR + review on `main` and `staging`                                                     |
+| Neon DB branches  | Match Git branches — dev DB / staging DB / prod DB                                              |
 
 ---
 
@@ -180,6 +180,25 @@
 
 ---
 
+### M1-T10 · Shared Package Scaffolding (`packages/shared`)
+
+**What**: Scaffold `packages/shared` as the single source of truth for all domain enum values, shared TypeScript types, business constants, and utility functions. `packages/db` imports raw enum arrays from here to construct Drizzle `pgEnum` definitions — no duplication between the TypeScript types and the database schema.
+
+| Sub-task             | Details                                                                                                                  |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| Enum values          | `src/enums.ts` — `as const` arrays + derived string literal union types for all domain enums                             |
+| Shared types         | `src/types.ts` — geo, pagination, API envelope, domain summaries (EventSummary, ArtistSummary, etc.)                     |
+| Constants            | `src/constants.ts` — map pins, debounce, Ireland coords, GDPR timings, pagination defaults                               |
+| Utils                | `src/utils/` — `string.ts` (slugify, capitalize, truncate), `date.ts` (format, upcoming/past), `geo.ts` (bbox, distance) |
+| `packages/db` update | Update `packages/db/src/schema/enums.ts` to import `USER_ROLES`, `EVENT_STATUSES`, etc. from `@CeolX/shared`             |
+| Barrel exports       | `src/index.ts` + `src/utils/index.ts` re-export all public APIs                                                          |
+| Package config       | `package.json` with sub-path exports (`./enums`, `./types`, `./constants`, `./utils`); zero runtime dependencies         |
+| README               | Documents purpose, public API surface, and the `packages/shared` → `packages/db` enum relationship                       |
+
+> See full task spec: `M1-Infrastructure/M1-T10-Shared-Package-Scaffolding.md`
+
+---
+
 ## M1.5 — Database Schema Design
 
 **Weeks 2 · 7 tasks** | **Must complete before M2**
@@ -190,13 +209,13 @@
 
 ### M1.5-T1 · Drizzle ORM Setup + Enum Definitions
 
-**What**: Create the `apps/server/src/db/schema/` directory structure and declare all PostgreSQL enum types before any tables are defined. Mirror enums in `packages/shared` for use across mobile and admin.
+**What**: Create the `packages/db/src/schema/` directory structure and declare all PostgreSQL enum types. Enums that are consumed by client apps (`user_role`, `event_status`, etc.) are defined as `as const` arrays in `packages/shared` — `packages/db` imports them to build the `pgEnum` definitions. DB-internal enums (`media_type`, `notification_type`) are defined directly in `packages/db`.
 
-| Sub-task         | Details                                                                                                                      |
-| ---------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| Schema directory | `apps/server/src/db/schema/` with `enums.ts`, `index.ts` barrel                                                              |
-| PostgreSQL enums | 7 enums: `user_role`, `event_status`, `booking_status`, `booking_direction`, `subscription_status`, `media_type`, `platform` |
-| Shared TS enums  | `packages/shared/src/types/enums.ts` — `const` object mirrors for mobile + admin                                             |
+| Sub-task          | Details                                                                                                                   |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| Schema directory  | `packages/db/src/schema/` with `enums.ts`, `index.ts` barrel                                                              |
+| Client enums      | `user_role`, `event_status`, `booking_status`, `booking_direction`, `subscription_status` — imported from `@CeolX/shared` |
+| DB-internal enums | `media_type`, `notification_type` — defined directly in `packages/db`; not exposed to client apps                         |
 
 ---
 

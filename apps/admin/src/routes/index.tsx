@@ -1,7 +1,8 @@
-import { createFileRoute, redirect } from "@tanstack/react-router";
+import { createFileRoute, redirect } from '@tanstack/react-router';
 
-export const Route = createFileRoute("/")({
+export const Route = createFileRoute('/')({
   beforeLoad: () => {
-    throw redirect({ to: "/dashboard" });
+    // eslint-disable-next-line @typescript-eslint/only-throw-error
+    throw redirect({ to: '/dashboard' });
   },
 });

@@ -1,11 +1,12 @@
-import type { AppRouter } from "@CeolX/api/routers/index";
-import { env } from "@CeolX/env/native";
-import { QueryClient } from "@tanstack/react-query";
-import { createTRPCClient, httpBatchLink } from "@trpc/client";
-import { createTRPCOptionsProxy } from "@trpc/tanstack-react-query";
-import { Platform } from "react-native";
+import { QueryClient } from '@tanstack/react-query';
+import { createTRPCClient, httpBatchLink } from '@trpc/client';
+import { createTRPCOptionsProxy } from '@trpc/tanstack-react-query';
+import { Platform } from 'react-native';
 
-import { authClient } from "@/lib/auth-client";
+import type { AppRouter } from '@CeolX/api/routers/index';
+import { env } from '@CeolX/env/native';
+
+import { authClient } from '@/lib/auth-client';
 
 export const queryClient = new QueryClient();
 
@@ -17,17 +18,17 @@ const trpcClient = createTRPCClient<AppRouter>({
         return fetch(url, {
           ...options,
           // Better Auth Expo forwards the session cookie manually on native.
-          credentials: Platform.OS === "web" ? "include" : "omit",
+          credentials: Platform.OS === 'web' ? 'include' : 'omit',
         });
       },
       headers() {
-        if (Platform.OS === "web") {
+        if (Platform.OS === 'web') {
           return {};
         }
         const headers = new Map<string, string>();
         const cookies = authClient.getCookie();
         if (cookies) {
-          headers.set("Cookie", cookies);
+          headers.set('Cookie', cookies);
         }
         return Object.fromEntries(headers);
       },
