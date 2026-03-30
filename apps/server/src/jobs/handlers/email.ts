@@ -1,6 +1,6 @@
 import { sendEmail } from '@CeolX/email';
 
-import type { JobPayload } from '../types.js';
+import type { JobPayload } from '../types.ts';
 
 // Template → subject mapping. Expand as HTML templates are built.
 const SUBJECT_MAP: Record<string, string> = {
