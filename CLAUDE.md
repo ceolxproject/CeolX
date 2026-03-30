@@ -172,6 +172,28 @@ Silent auto-expand:
 
 ---
 
+## AI Tools Setup
+
+All AI tools (Claude, Cursor, VS Code/Copilot, Codex, Gemini) have project-level MCP configs checked into the repo.
+**Windsurf** MCP config is user-scoped (`~/.codeium/windsurf/mcp_config.json`) and cannot be project-committed. Add manually:
+
+```json
+{
+  "mcpServers": {
+    "context7": { "command": "npx", "args": ["-y", "@upstash/context7-mcp"] },
+    "shadcn": { "command": "npx", "args": ["-y", "shadcn@latest", "mcp"] },
+    "next-devtools": {
+      "command": "npx",
+      "args": ["-y", "next-devtools-mcp@latest"]
+    },
+    "neon": { "serverUrl": "https://mcp.neon.tech/mcp" },
+    "better-auth": { "serverUrl": "https://mcp.inkeep.com/better-auth/mcp" },
+    "expo-mcp": { "serverUrl": "https://mcp.expo.dev/mcp" },
+    "vercel": { "serverUrl": "https://mcp.vercel.com" }
+  }
+}
+```
+
 ## Event Data Model (Key Fields)
 
 ```
