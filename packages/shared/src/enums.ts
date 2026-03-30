@@ -38,3 +38,7 @@ export type EventCategory = (typeof EVENT_CATEGORIES)[number];
 // Notification persona targeting
 export const NOTIFICATION_PERSONAS = ['artist', 'venue', 'spectator'] as const;
 export type NotificationPersona = (typeof NOTIFICATION_PERSONAS)[number];
+
+// Device platform — used in device_tokens.platform
+export const PLATFORMS = ['ios', 'android'] as const;
+export type Platform = (typeof PLATFORMS)[number];
