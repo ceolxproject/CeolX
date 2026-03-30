@@ -5,9 +5,13 @@
  * Run: DATABASE_URL=... pnpm --filter @CeolX/db db:seed
  *
  * NEVER run against production — the guard below will throw.
+ *
+ * @remarks
+ * eslint-disable below suppresses no-unsafe-assignment / no-unsafe-member-access
+ * for Drizzle's .returning() generic which doesn't resolve in ESLint's type-checker.
+ * tsc --noEmit is clean; this is a dev-only script.
  */
 
-import type { User, VenueProfile } from './schema';
 import { artistProfiles, events, users, venueProfiles } from './schema';
 
 import { db } from './index';
@@ -30,7 +34,7 @@ async function seed() {
     consentAt,
   });
 
-  const [artist]: User[] = await db
+  const [artist] = await db
     .insert(users)
     .values({
       email: 'artist@ceolx.test',
@@ -40,7 +44,7 @@ async function seed() {
     })
     .returning();
 
-  const [venue]: User[] = await db
+  const [venue] = await db
     .insert(users)
     .values({
       email: 'venue@ceolx.test',
@@ -71,7 +75,7 @@ async function seed() {
     isActive: true,
   });
 
-  const [venueProfile]: VenueProfile[] = await db
+  const [venueProfile] = await db
     .insert(venueProfiles)
     .values({
       userId: venue.id,
