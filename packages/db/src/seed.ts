@@ -7,6 +7,7 @@
  * NEVER run against production — the guard below will throw.
  */
 
+import type { User, VenueProfile } from './schema';
 import { artistProfiles, events, users, venueProfiles } from './schema';
 
 import { db } from './index';
@@ -29,7 +30,7 @@ async function seed() {
     consentAt,
   });
 
-  const [artist] = await db
+  const [artist]: User[] = await db
     .insert(users)
     .values({
       email: 'artist@ceolx.test',
@@ -39,7 +40,7 @@ async function seed() {
     })
     .returning();
 
-  const [venue] = await db
+  const [venue]: User[] = await db
     .insert(users)
     .values({
       email: 'venue@ceolx.test',
@@ -70,7 +71,7 @@ async function seed() {
     isActive: true,
   });
 
-  const [venueProfile] = await db
+  const [venueProfile]: VenueProfile[] = await db
     .insert(venueProfiles)
     .values({
       userId: venue.id,
