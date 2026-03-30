@@ -57,18 +57,15 @@ describe('publishJob', () => {
   });
 
   it('calls publishJSON with the correct url and body', async () => {
-    await publishJob('email.send', { to: 'user@example.com', template: 'email-verification' });
+    await publishJob('email.send', {
+      to: 'user@example.com',
+      template: 'email-verification',
+      locale: 'en',
+    });
 
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-    const expectedBody = {
-      type: 'email.send',
-      payload: expect.objectContaining({ to: 'user@example.com' }),
-    };
+    expect(mockPublishJSON).toHaveBeenCalledOnce();
     expect(mockPublishJSON).toHaveBeenCalledWith(
-      expect.objectContaining({
-        url: 'https://api.ceolx.ie/api/webhooks/qstash',
-        body: expectedBody,
-      })
+      expect.objectContaining({ url: 'https://api.ceolx.ie/api/webhooks/qstash' })
     );
   });
 

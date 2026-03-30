@@ -15,7 +15,9 @@ export function parseDuration(str: string): number {
       `Invalid duration: "${str}". Expected format: <number><unit> (e.g. 30d, 5m, 1h, 10s)`
     );
   }
-  return Number(match[1]) * DURATION_UNITS[match[2] as keyof typeof DURATION_UNITS];
+  const value = Number(match[1] ?? '0');
+  const unit = match[2] ?? 's';
+  return value * (DURATION_UNITS[unit] ?? 1);
 }
 
 // ---------------------------------------------------------------------------
