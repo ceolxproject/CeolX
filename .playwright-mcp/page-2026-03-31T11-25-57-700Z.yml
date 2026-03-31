@@ -1,0 +1,15 @@
+- generic [ref=e2]:
+  - paragraph [ref=e3]: Not Found
+  - region "Notifications alt+T"
+  - generic:
+    - contentinfo:
+      - button "Open TanStack Router Devtools" [ref=e4] [cursor=pointer]:
+        - generic [ref=e5]:
+          - img [ref=e7]
+          - img [ref=e42]
+        - generic [ref=e76]: "-"
+        - generic [ref=e77]: TanStack Router
+  - generic [ref=e78]:
+    - img [ref=e80]
+    - button "Open Tanstack query devtools" [ref=e128] [cursor=pointer]:
+      - img [ref=e129]

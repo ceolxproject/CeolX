@@ -1,0 +1,57 @@
+- generic [ref=e2]:
+  - generic [ref=e3]:
+    - complementary [ref=e4]:
+      - generic [ref=e5]:
+        - heading "CeolX" [level=1] [ref=e6]
+        - paragraph [ref=e7]: Admin Dashboard
+      - navigation [ref=e8]:
+        - link "Dashboard" [ref=e9] [cursor=pointer]:
+          - /url: /dashboard
+          - img [ref=e10]
+          - generic [ref=e12]: Dashboard
+        - link "Users" [ref=e13] [cursor=pointer]:
+          - /url: /users
+          - img [ref=e14]
+          - generic [ref=e19]: Users
+        - link "Pending Events" [ref=e20] [cursor=pointer]:
+          - /url: /events/pending
+          - img [ref=e21]
+          - generic [ref=e24]: Pending Events
+        - link "Account" [ref=e25] [cursor=pointer]:
+          - /url: /account
+          - img [ref=e26]
+          - generic [ref=e29]: Account
+    - generic [ref=e30]:
+      - banner [ref=e31]:
+        - button "Admin menu" [ref=e34]:
+          - img [ref=e35]
+          - generic [ref=e38]: Admin
+      - main [ref=e39]:
+        - generic [ref=e40]:
+          - heading "Dashboard" [level=1] [ref=e41]
+          - generic [ref=e42]:
+            - generic [ref=e43]:
+              - heading "Total Users" [level=3] [ref=e44]
+              - paragraph [ref=e45]: "0"
+            - generic [ref=e46]:
+              - heading "Total Events" [level=3] [ref=e47]
+              - paragraph [ref=e48]: "0"
+            - generic [ref=e49]:
+              - heading "Pending Events" [level=3] [ref=e50]
+              - paragraph [ref=e51]: "0"
+            - generic [ref=e52]:
+              - heading "Active Venues" [level=3] [ref=e53]
+              - paragraph [ref=e54]: "0"
+  - region "Notifications alt+T"
+  - generic:
+    - contentinfo:
+      - button "Open TanStack Router Devtools" [ref=e55] [cursor=pointer]:
+        - generic [ref=e56]:
+          - img [ref=e58]
+          - img [ref=e93]
+        - generic [ref=e127]: "-"
+        - generic [ref=e128]: TanStack Router
+  - generic [ref=e129]:
+    - img [ref=e131]
+    - button "Open Tanstack query devtools" [ref=e179] [cursor=pointer]:
+      - img [ref=e180]
