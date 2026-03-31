@@ -20,7 +20,7 @@ Create a type-safe API client in `packages/shared/src/api-client/` using Hono's 
 | App / Package     | Role                                                 |
 | ----------------- | ---------------------------------------------------- |
 | `packages/shared` | API client instance exported for all consumers       |
-| `apps/api`        | Exports its Hono `AppType` for the client to consume |
+| `apps/server`     | Exports its Hono `AppType` for the client to consume |
 | `apps/native`     | Imports API client for all data fetching             |
 | `apps/admin`      | Imports API client for all data fetching             |
 
@@ -30,7 +30,7 @@ Create a type-safe API client in `packages/shared/src/api-client/` using Hono's 
 
 ### Hono RPC Client Setup
 
-- Export the Hono `AppType` from `apps/api/src/app.ts`
+- Export the Hono `AppType` from `apps/server/src/app.ts`
 - Create `apiClient` instance using `hc<AppType>` in `packages/shared`
 - Base URL configured from environment variable
 - Auth token automatically injected in request headers
@@ -58,7 +58,7 @@ Create a type-safe API client in `packages/shared/src/api-client/` using Hono's 
 
 ## Acceptance Criteria
 
-- [ ] `AppType` exported from `apps/api/src/app.ts`
+- [ ] `AppType` exported from `apps/server/src/app.ts`
 - [ ] `apiClient.api.v1.users.me.$get()` returns fully typed response — no `any`
 - [ ] Auth token automatically attached to every request
 - [ ] `401` response throws `AuthError` with correct message
@@ -88,7 +88,7 @@ Create a type-safe API client in `packages/shared/src/api-client/` using Hono's 
 ### Export AppType from API
 
 ```typescript
-// apps/api/src/app.ts
+// apps/server/src/app.ts
 
 import { Hono } from 'hono';
 import { userRoutes } from './routes/users';
@@ -224,7 +224,7 @@ try {
 
 ## Common Gotchas
 
-- **`@ceolx/api` workspace dep**: `packages/shared` needs `apps/api` as a dev dependency for type-only imports. Use `import type { AppType }` — never import runtime code from `apps/api` into the shared package.
+- **`@ceolx/api` workspace dep**: `packages/shared` needs `apps/server` as a dev dependency for type-only imports. Use `import type { AppType }` — never import runtime code from `apps/server` into the shared package.
 - **Hono RPC only works with `hono/client`**: Do not use `fetch` directly for typed routes. The RPC client infers types from the router — bypassing it loses all type safety.
 - **Token timing**: The token getter is async (`SecureStore` on mobile is async). Always `await` it — never read tokens synchronously.
 - **Environment variable prefixes**: Expo requires `EXPO_PUBLIC_` prefix for client-side env vars; Vite requires `VITE_`. Same variable, different prefixes in different apps.
