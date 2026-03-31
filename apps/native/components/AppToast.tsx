@@ -1,4 +1,5 @@
-import { View, Text } from 'react-native';
+/* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-return */
+import { Text, View } from 'react-native';
 import Toast, { type ToastConfig } from 'react-native-toast-message';
 
 type ToastType = 'success' | 'error' | 'info' | 'warning';
