@@ -70,5 +70,8 @@ temp
 phase6b-*.png
 docs/plans/.dev-session.json
 
+# Lock files
+pnpm-lock.yaml
+
 #misc
 mentor-project-management
