@@ -53,8 +53,11 @@ function RootStack() {
 
 function Layout() {
   const [fontsLoaded] = useFonts({
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     Urbanist_400Regular,
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     Urbanist_600SemiBold,
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     Urbanist_700Bold,
   });
 
