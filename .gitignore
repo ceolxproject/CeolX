@@ -65,5 +65,10 @@ temp
 # Claude
 .claude/settings.local.json
 
+# Playwright MCP artifacts (session snapshots, screenshots)
+.playwright-mcp/
+phase6b-*.png
+docs/plans/.dev-session.json
+
 #misc
 mentor-project-management

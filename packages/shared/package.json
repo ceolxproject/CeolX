@@ -9,6 +9,8 @@
     "./types": "./src/types.ts",
     "./constants": "./src/constants.ts",
     "./utils": "./src/utils/index.ts",
+    "./brand": "./src/brand.ts",
+    "./validators": "./src/validators/index.ts",
     "./api-client": "./src/api-client/index.ts"
   },
   "scripts": {
@@ -22,5 +24,12 @@
     "@CeolX/config": "workspace:*",
     "typescript": "^5",
     "vitest": "^3.0.0"
+  },
+  "dependencies": {
+    "clsx": "^2.1.1",
+    "date-fns": "^4.1.0",
+    "date-fns-tz": "^3.2.0",
+    "tailwind-merge": "^3.5.0",
+    "zod": "catalog:"
   }
 }
