@@ -3,6 +3,26 @@
 This file is the single source of context for all Claude sessions working on the CeolX project.
 Read this fully before doing anything. All decisions here are **finalised** unless explicitly overridden in the conversation.
 
+## Code Navigation — Use the Knowledge Graph
+
+A `code-review-graph` MCP knowledge graph is available for this codebase. **Always use it before reaching for Grep/Glob/Read.** It is significantly faster and avoids burning context on full-repo scans.
+
+```
+# Find a function, class, or type by name or keyword
+semantic_search_nodes_tool("createEventSchema")
+
+# Understand relationships (callers, imports, children, tests)
+query_graph_tool(pattern="importers_of", node="packages/shared/src/validators/events.ts")
+
+# Understand blast radius before changing a file
+get_impact_radius_tool("packages/shared/src/types.ts")
+
+# Get focused review context for a file
+get_review_context_tool("apps/admin/src/components/DataTable.tsx")
+```
+
+Only fall back to Grep/Glob/Read when the graph doesn't cover what you need (e.g. brand-new files not yet indexed).
+
 ---
 
 ## What is CeolX?
@@ -160,6 +180,22 @@ Silent auto-expand:
 | Admin Dashboard     | React + Vite + TanStack Router + ShadCN/UI | Also hosts ceolx.ie/subscribe page                                       |
 | Monorepo            | Turborepo                                  | apps/mobile, apps/admin, apps/api, packages/shared                       |
 | Repository          | GitHub                                     | Branch per environment, matching Neon DB branches                        |
+
+### Validation architecture
+
+`packages/shared/src/validators/` is the **single source of truth** for all user-facing schemas. Both client (form validation) and server (tRPC `.input()`) must use the same schema — never define a duplicate inline.
+
+**Rule:** When wiring a tRPC procedure that has a corresponding schema in `@CeolX/shared/validators`, import it:
+
+```ts
+// packages/api/src/routers/events.ts
+import { createEventSchema } from '@CeolX/shared/validators';
+createEvent: protectedProcedure.input(createEventSchema).mutation(...)
+```
+
+**Existing inline schemas in routers** (artists, venues, events, admin, bookings) are temporary duplicates from pre-M1.6. Replace them with the shared schema when you touch that router for a feature.
+
+**Exception — job payload schemas** in `apps/server/src/jobs/types.ts` validate internal QStash webhook payloads, not user input. These stay server-only and are never shared.
 
 ### Replaced / removed
 
