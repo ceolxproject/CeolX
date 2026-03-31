@@ -1,7 +1,13 @@
 import '@/global.css';
+import {
+  Urbanist_400Regular,
+  Urbanist_600SemiBold,
+  Urbanist_700Bold,
+} from '@expo-google-fonts/urbanist';
 import * as Sentry from '@sentry/react-native';
 import { QueryClientProvider } from '@tanstack/react-query';
 import Constants from 'expo-constants';
+import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import { HeroUINativeProvider } from 'heroui-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -46,6 +52,17 @@ function RootStack() {
 }
 
 function Layout() {
+  const [fontsLoaded] = useFonts({
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+    Urbanist_400Regular,
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+    Urbanist_600SemiBold,
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+    Urbanist_700Bold,
+  });
+
+  if (!fontsLoaded) return null;
+
   return (
     <QueryClientProvider client={queryClient}>
       <GestureHandlerRootView style={{ flex: 1 }}>
