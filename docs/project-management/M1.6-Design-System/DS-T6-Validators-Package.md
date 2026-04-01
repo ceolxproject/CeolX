@@ -3,7 +3,7 @@
 | Field          | Value                                                                |
 | -------------- | -------------------------------------------------------------------- |
 | **Milestone**  | M1.6 — Design System & Shared Packages                               |
-| **Status**     | 🔲 To Do                                                             |
+| **Status**     | ✅ Done                                                              |
 | **Depends on** | M1-T10 (packages/shared scaffold), M1.5 (DB schema enums defined)    |
 | **PRD Ref**    | Section 4 (Auth), Section 6 (Events), Section 10.1 (packages/shared) |
 

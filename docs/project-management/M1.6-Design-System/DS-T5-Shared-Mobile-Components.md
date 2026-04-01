@@ -3,7 +3,7 @@
 | Field          | Value                                                          |
 | -------------- | -------------------------------------------------------------- |
 | **Milestone**  | M1.6 — Design System & Shared Packages                         |
-| **Status**     | 🔲 To Do                                                       |
+| **Status**     | ✅ Done                                                        |
 | **Depends on** | DS-T4 (NativeWind v5 + HeroUI Native must be configured)       |
 | **PRD Ref**    | Section 10.1 (Mobile App), Section 5 (Map), Section 6 (Events) |
 

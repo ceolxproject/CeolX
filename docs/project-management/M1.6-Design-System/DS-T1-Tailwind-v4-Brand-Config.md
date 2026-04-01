@@ -3,7 +3,7 @@
 | Field          | Value                                       |
 | -------------- | ------------------------------------------- |
 | **Milestone**  | M1.6 — Design System & Shared Packages      |
-| **Status**     | 🔲 To Do                                    |
+| **Status**     | ✅ Done                                     |
 | **Depends on** | M1-T1 (Turborepo), M1-T5 (Admin scaffold)   |
 | **PRD Ref**    | Section 10.1 (Tech Stack — Admin Dashboard) |
 

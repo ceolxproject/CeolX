@@ -3,7 +3,7 @@
 | Field          | Value                                               |
 | -------------- | --------------------------------------------------- |
 | **Milestone**  | M1.6 — Design System & Shared Packages              |
-| **Status**     | 🔲 To Do                                            |
+| **Status**     | ✅ Done                                             |
 | **Depends on** | DS-T1 (Tailwind v4 + brand tokens must exist first) |
 | **PRD Ref**    | Section 10.1 (Admin Dashboard — ShadCN/UI)          |
 

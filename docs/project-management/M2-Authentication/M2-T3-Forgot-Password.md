@@ -49,7 +49,7 @@ Request a password reset link. Returns generic success message whether or not em
 
 **Error Responses:**
 
-- `429 Too Many Requests` — Rate limited (max 3 requests per email per hour)
+- `429 Too Many Requests` — Rate limited (max 5 requests per email per hour)
 
 ### POST /api/v1/auth/reset-password
 
@@ -89,7 +89,7 @@ Validate token and update password. Token must be valid, not expired, and not al
 - Token: random UUID, stored in `password_reset_tokens` table
 - Expiry: 15 minutes from creation
 - Single-use: deleted after successful password reset
-- Rate limiting: max 3 requests per email per hour (returns 429 if exceeded)
+- Rate limiting: max 5 requests per email per hour (returns 429 if exceeded) — Layer 2 Redis counter via `@CeolX/cache` (key: `rl:forgot-password:{email}`)
 
 ### Email Delivery
 
@@ -136,7 +136,7 @@ Validate token and update password. Token must be valid, not expired, and not al
 - [ ] Confirmation message shown: "Password reset successfully"
 - [ ] Expired token (>15 min old) shows appropriate error: "Link expired, request a new one"
 - [ ] Already-used token shows appropriate error: "Link already used, request a new one"
-- [ ] Rate limiting blocks excessive requests (>3 per email per hour)
+- [ ] Rate limiting blocks excessive requests (>5 per email per hour) via Redis Layer 2 counter
 - [ ] Password validation enforced (8 chars, uppercase, lowercase, number, special char)
 - [ ] Old password can be completely replaced; no account lockout
 - [ ] Deep link works on both iOS and Android cold starts
@@ -157,55 +157,55 @@ import { v4 as uuidv4 } from 'uuid';
 import { db } from '../lib/db';
 import { users, passwordResetTokens } from '../schema';
 import { sendPasswordResetEmail } from '../services/emailService';
-import { rateLimitByEmail } from '../middleware/rateLimit';
+import { redis } from '@CeolX/cache';
+import { forgotPasswordSchema } from '@CeolX/shared/validators';
 
-const forgotPasswordSchema = z.object({
-  email: z.string().email(),
-});
+app.post('/forgot-password', zValidator('json', forgotPasswordSchema), async (c) => {
+  const { email } = c.req.valid('json');
+  const emailLower = email.toLowerCase();
 
-app.post(
-  '/forgot-password',
-  zValidator('json', forgotPasswordSchema),
-  rateLimitByEmail({ maxRequests: 3, windowMinutes: 60 }),
-  async (c) => {
-    const { email } = c.req.valid('json');
-    const emailLower = email.toLowerCase();
+  // Layer 2 rate limit (M1-T7 pattern) — raw Redis incr/expire
+  const rlKey = `rl:forgot-password:${emailLower}`;
+  const count = await redis.incr(rlKey);
+  if (count === 1) await redis.expire(rlKey, 3600); // 1 hour TTL
+  if (count > 5) {
+    return c.json({ error: 'RATE_LIMITED', message: 'Too many requests. Try again later.' }, 429);
+  }
 
-    // Check if user exists (do NOT return different response if not found)
-    const user = await db.query.users.findFirst({
-      where: eq(users.email, emailLower),
-    });
+  // Check if user exists (do NOT return different response if not found)
+  const user = await db.query.users.findFirst({
+    where: eq(users.email, emailLower),
+  });
 
-    // Generic success message whether user exists or not
-    if (!user) {
-      return c.json({
-        success: true,
-        message: 'If an account exists, a password reset link has been sent to your email.',
-      });
-    }
-
-    // Generate reset token
-    const resetToken = uuidv4();
-    const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
-
-    await db.insert(passwordResetTokens).values({
-      id: uuidv4(),
-      userId: user.id,
-      token: resetToken,
-      expiresAt,
-      usedAt: null,
-    });
-
-    // Send reset email
-    const deepLink = `ceolx://reset-password?token=${resetToken}`;
-    await sendPasswordResetEmail(user.email, deepLink);
-
+  // Generic success message whether user exists or not
+  if (!user) {
     return c.json({
       success: true,
       message: 'If an account exists, a password reset link has been sent to your email.',
     });
   }
-);
+
+  // Generate reset token
+  const resetToken = uuidv4();
+  const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
+
+  await db.insert(passwordResetTokens).values({
+    id: uuidv4(),
+    userId: user.id,
+    token: resetToken,
+    expiresAt,
+    usedAt: null,
+  });
+
+  // Send reset email
+  const deepLink = `ceolx://reset-password?token=${resetToken}`;
+  await sendPasswordResetEmail(user.email, deepLink);
+
+  return c.json({
+    success: true,
+    message: 'If an account exists, a password reset link has been sent to your email.',
+  });
+});
 ```
 
 ### Reset Password Endpoint
@@ -285,56 +285,23 @@ app.post('/reset-password', zValidator('json', resetPasswordSchema), async (c) =
 });
 ```
 
-### Rate Limiting Middleware
+### Rate Limiting — Layer 2 Redis Pattern
+
+Rate limiting uses the Layer 2 pattern established in M1-T7: raw Redis `incr`/`expire` via `@CeolX/cache`. This is serverless-safe (persists across Lambda cold starts) unlike in-memory LRU caches.
 
 ```typescript
-// apps/server/src/middleware/rateLimit.ts
+// Inline inside the handler — no separate middleware file needed
+import { redis } from '@CeolX/cache';
 
-import { Context, Next } from 'hono';
-import { LRUCache } from 'lru-cache';
-
-interface RateLimitOptions {
-  maxRequests: number;
-  windowMinutes: number;
+const rlKey = `rl:forgot-password:${emailLower}`;
+const count = await redis.incr(rlKey);
+if (count === 1) await redis.expire(rlKey, 3600); // 1 hour TTL on first increment only
+if (count > 5) {
+  return c.json({ error: 'RATE_LIMITED', message: 'Too many requests. Try again later.' }, 429);
 }
-
-const cache = new LRUCache<string, { count: number; resetAt: number }>({
-  max: 10000,
-  ttl: 1000 * 60 * 60, // 1 hour
-});
-
-export const rateLimitByEmail = (options: RateLimitOptions) => async (c: Context, next: Next) => {
-  const body = await c.req.json();
-  const email = body.email?.toLowerCase();
-
-  if (!email) {
-    return next();
-  }
-
-  const now = Date.now();
-  const windowMs = options.windowMinutes * 60 * 1000;
-  const entry = cache.get(email);
-
-  if (!entry || now > entry.resetAt) {
-    cache.set(email, { count: 1, resetAt: now + windowMs });
-    return next();
-  }
-
-  if (entry.count >= options.maxRequests) {
-    return c.json(
-      {
-        error: 'RATE_LIMITED',
-        message: 'Too many requests. Try again later.',
-      },
-      429
-    );
-  }
-
-  entry.count++;
-  cache.set(email, entry);
-  return next();
-};
 ```
+
+Key naming convention: `rl:forgot-password:{email}` — matches the pattern defined in M1-T7.
 
 ### Mobile Forgot Password Screen
 
@@ -674,7 +641,7 @@ export const linking = {
 - **Generic success messages**: Always return success even if email doesn't exist (prevents email enumeration attacks).
 - **15-minute window**: Reset tokens expire after 15 minutes; enough time for user to open email and reset, short enough for security.
 - **Single-use tokens**: Delete token after use or mark as used; prevents token reuse.
-- **Rate limiting**: Max 3 requests per email per hour prevents abuse (spam attacks).
+- **Rate limiting**: Max 5 requests per email per hour (Layer 2 Redis `incr`/`expire` — serverless-safe). Do NOT use in-memory LRU cache; it resets on Lambda cold starts.
 - **Deep link format**: Must match scheme registered in `app.config.ts`. Token passed as query parameter: `ceolx://reset-password?token=...`
 - **Password requirements**: Same as sign-up (8 chars, uppercase, lowercase, number, special char).
 - **No old password required**: Unlike some systems, we don't ask for the old password (user already forgot it).

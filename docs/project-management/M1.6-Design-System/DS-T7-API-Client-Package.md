@@ -3,7 +3,7 @@
 | Field          | Value                                                                   |
 | -------------- | ----------------------------------------------------------------------- |
 | **Milestone**  | M1.6 — Design System & Shared Packages                                  |
-| **Status**     | 🔲 To Do                                                                |
+| **Status**     | ✅ Done                                                                 |
 | **Depends on** | M1-T3 (Hono API scaffold), M1-T10 (packages/shared), DS-T6 (validators) |
 | **PRD Ref**    | Section 10.1 (Tech Stack — Hono backend)                                |
 

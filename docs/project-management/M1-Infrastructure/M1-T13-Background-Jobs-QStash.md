@@ -3,7 +3,7 @@
 | Field          | Value                                                                        |
 | -------------- | ---------------------------------------------------------------------------- |
 | **Milestone**  | M1 — Project Setup & Infrastructure                                          |
-| **Status**     | 🔲 To Do                                                                     |
+| **Status**     | ✅ Done                                                                      |
 | **Depends on** | M1-T3 (Hono API scaffold), M1-T6 (Postmark email service)                    |
 | **PRD Ref**    | Section 10.2 (Backend API — AWS Lambda), Section 7 (GDPR), Section 6 (Email) |
 

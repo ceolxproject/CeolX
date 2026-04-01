@@ -3,7 +3,7 @@
 | Field          | Value                                                            |
 | -------------- | ---------------------------------------------------------------- |
 | **Milestone**  | M1.6 — Design System & Shared Packages                           |
-| **Status**     | 🔲 To Do                                                         |
+| **Status**     | ✅ Done                                                          |
 | **Depends on** | DS-T1 (Tailwind), DS-T2 (ShadCN base components)                 |
 | **PRD Ref**    | Section 8 (Super Admin Dashboard), Section 9.8 (Venue Subscribe) |
 
