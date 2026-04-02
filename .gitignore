@@ -75,3 +75,6 @@ pnpm-lock.yaml
 
 #misc
 mentor-project-management
+
+apps/native/ios
+apps/native/android

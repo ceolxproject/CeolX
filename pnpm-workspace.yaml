@@ -16,3 +16,4 @@ catalog:
   "@tanstack/react-form": ^1.28.0
   "@types/react-dom": ^19.2.3
   "@better-auth/expo": 1.5.5
+  "vitest": "^3.0.0"
