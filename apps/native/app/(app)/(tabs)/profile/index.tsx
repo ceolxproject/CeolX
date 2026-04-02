@@ -24,7 +24,7 @@ export default function ProfileScreen() {
         <View style={styles.avatar} />
         <Text style={styles.name}>{user?.email ?? '—'}</Text>
         <View style={chip.tag}>
-          <Text style={[chip.tagText, styles.roleText]}>{user?.currentRole ?? 'spectator'}</Text>
+          <Text style={[chip.tagText, styles.roleText]}>spectator</Text>
         </View>
       </View>
 

@@ -13,6 +13,8 @@
   "dependencies": {
     "@CeolX/auth": "workspace:*",
     "@CeolX/db": "workspace:*",
+    "@CeolX/shared": "workspace:*",
+    "drizzle-orm": "^0.45.1",
     "@CeolX/env": "workspace:*",
     "@trpc/client": "catalog:",
     "@trpc/server": "catalog:",

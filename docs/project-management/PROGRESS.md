@@ -43,7 +43,7 @@ Tracks completed tasks per milestone. Each entry links to its PR.
 
 ## M2 — Authentication & Persona System
 
-- [ ] M2-T1 · Email/Password Auth
+- [x] M2-T1 · Email/Password Auth (PR #23)
 - [ ] M2-T2 · Google + Apple Sign-In
 - [ ] M2-T3 · Forgot Password
 - [ ] M2-T4 · Persona Onboarding & Role Switching
