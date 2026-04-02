@@ -31,16 +31,11 @@ export const auth = betterAuth({
 
       await sendEmail({
         to: user.email,
-        subject: 'Verify your CeolX account',
-        htmlBody: `
-          <p>Hi ${user.name ?? 'there'},</p>
-          <p>Please verify your CeolX account by tapping the link below on your mobile device:</p>
-          <p><a href="${deepLink}">Verify my account</a></p>
-          <p>This link expires in 24 hours.</p>
-          <p>If you did not create a CeolX account, you can safely ignore this email.</p>
-        `,
-        textBody: `Verify your CeolX account: ${deepLink}\n\nThis link expires in 24 hours.`,
-        tag: 'email-verification',
+        template: 'verification',
+        data: {
+          userName: user.name ?? '',
+          verificationUrl: deepLink,
+        },
       });
     },
   },
