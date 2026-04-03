@@ -22,6 +22,9 @@ const config = {
       NSCameraUsageDescription: 'Upload videos of your performances',
       NSPhotoLibraryUsageDescription: 'Upload images and videos',
       NSMicrophoneUsageDescription: 'Record audio for posts',
+      NSAppTransportSecurity: {
+        NSAllowsLocalNetworking: true,
+      },
     },
   },
   android: {

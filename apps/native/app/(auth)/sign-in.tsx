@@ -1,24 +1,31 @@
+import { Ionicons } from '@expo/vector-icons';
 import { Link, router } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import { useState } from 'react';
 import {
-  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
-  StyleSheet,
+  Pressable,
+  ScrollView,
   Text,
   TextInput,
-  TouchableOpacity,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { AppButton } from '@/components/AppButton';
+import { CeolxLogo } from '@/components/CeolxLogo';
+import { SocialLoginButtons } from '@/components/SocialLoginButtons';
 import { authClient } from '@/lib/auth-client';
+
+// ── Types ────────────────────────────────────────────────────────────
 
 type ErrorState =
   | { type: 'unverified'; email: string }
   | { type: 'generic'; message: string }
   | null;
+
+// ── Screen ──────────────────────────────────────────────────────────
 
 export default function SignInScreen() {
   const [email, setEmail] = useState('');
@@ -69,210 +76,135 @@ export default function SignInScreen() {
   };
 
   return (
-    <View style={styles.container}>
-      <SafeAreaView style={styles.safeArea}>
+    <View style={{ flex: 1, backgroundColor: '#0d0c0f' }}>
+      <SafeAreaView style={{ flex: 1 }}>
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={styles.kav}
+          style={{ flex: 1 }}
         >
-          <View style={styles.inner}>
-            <View style={styles.headerRow}>
-              <Text style={styles.logoText}>CEOLX</Text>
-              <TouchableOpacity onPress={handleSkip} style={styles.skipButton}>
-                <Text style={styles.skipText}>SKIP</Text>
-              </TouchableOpacity>
-            </View>
+          {/* Header — Urbanist Bold 12 */}
+          <View className="flex-row justify-between items-center p-5 bg-surface-dark">
+            <CeolxLogo />
+            <Pressable
+              onPress={handleSkip}
+              className="border border-gray-10 rounded-[20px] h-9 px-5 items-center justify-center"
+            >
+              <Text className="text-white text-xs font-bold tracking-wide uppercase font-sans">
+                skip
+              </Text>
+            </Pressable>
+          </View>
 
-            <Text style={styles.heading}>Login to your{'\n'}account</Text>
+          <ScrollView
+            contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 24, paddingBottom: 40 }}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+          >
+            {/* Heading — Urbanist Bold 36/40 */}
+            <Text className="text-[36px] font-bold text-white leading-10 font-sans mb-6">
+              Login to your account
+            </Text>
 
+            <SocialLoginButtons separator="Or sign in with" />
+
+            {/* Error / warning banners */}
             {errorState?.type === 'unverified' ? (
-              <View style={styles.warningBanner}>
-                <Text style={styles.warningText}>Please verify your email before signing in.</Text>
-                <TouchableOpacity onPress={handleResendVerification}>
-                  <Text style={styles.resendLink}>Resend verification email →</Text>
-                </TouchableOpacity>
+              <View className="bg-warning/15 rounded-lg p-3 mb-4 gap-2">
+                <Text className="text-warning text-sm font-inter font-medium">
+                  Please verify your email before signing in.
+                </Text>
+                <Pressable onPress={handleResendVerification}>
+                  <Text className="text-green-10 text-sm font-inter font-semibold">
+                    Resend verification email →
+                  </Text>
+                </Pressable>
               </View>
             ) : errorState?.type === 'generic' ? (
-              <View style={styles.errorBanner}>
-                <Text style={styles.errorText}>{errorState.message}</Text>
+              <View className="bg-error/15 rounded-lg p-3 mb-4">
+                <Text className="text-error text-sm font-inter font-medium">
+                  {errorState.message}
+                </Text>
               </View>
             ) : null}
 
-            <Text style={styles.label}>Email Address</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="you@example.com"
-              placeholderTextColor="rgba(255,255,255,0.4)"
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoComplete="email"
-              value={email}
-              onChangeText={setEmail}
-            />
-
-            <Text style={styles.label}>Password</Text>
-            <View style={styles.passwordRow}>
+            {/* Email — label: Inter Medium 14/20, input: Urbanist Medium 16/20 */}
+            <View className="gap-2 mb-4">
+              <Text className="text-sm font-medium font-inter text-white/80 leading-5">
+                Email Address
+              </Text>
               <TextInput
-                style={[styles.input, styles.passwordInput]}
-                placeholder="Your password"
-                placeholderTextColor="rgba(255,255,255,0.4)"
-                secureTextEntry={!passwordVisible}
-                autoComplete="current-password"
-                value={password}
-                onChangeText={setPassword}
+                className="bg-white rounded-lg h-[52px] px-4 text-base font-sans font-medium text-black leading-5"
+                placeholder="james@gmail.com"
+                placeholderTextColor="#8d8d8d"
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoComplete="email"
+                value={email}
+                onChangeText={setEmail}
               />
-              <TouchableOpacity
-                style={styles.eyeButton}
-                onPress={() => setPasswordVisible((v) => !v)}
-              >
-                <Text style={styles.eyeText}>{passwordVisible ? '🙈' : '👁️'}</Text>
-              </TouchableOpacity>
             </View>
 
-            <Link href="/(auth)/forgot-password" style={styles.forgotLink}>
+            {/* Password — same font specs as email */}
+            <View className="gap-2 mb-4">
+              <Text className="text-sm font-medium font-inter text-white/80 leading-5">
+                Password
+              </Text>
+              <View className="flex-row items-center">
+                <TextInput
+                  className="flex-1 bg-white rounded-lg h-[52px] px-4 text-base font-sans font-medium text-black leading-5"
+                  placeholder="Enter Password"
+                  placeholderTextColor="#8d8d8d"
+                  secureTextEntry={!passwordVisible}
+                  autoComplete="current-password"
+                  value={password}
+                  onChangeText={setPassword}
+                />
+                <Pressable
+                  className="absolute right-4 h-[52px] justify-center"
+                  onPress={() => setPasswordVisible((v) => !v)}
+                >
+                  <Ionicons
+                    name={passwordVisible ? 'eye-outline' : 'eye-off-outline'}
+                    size={20}
+                    color="#8d8d8d"
+                  />
+                </Pressable>
+              </View>
+            </View>
+
+            {/* Forgot password — Inter Medium 14/20 */}
+            <Link
+              href="/(auth)/forgot-password"
+              className="text-blue-10 text-sm font-medium font-inter self-end mb-8 leading-5"
+            >
               Forgot password?
             </Link>
 
-            <TouchableOpacity
-              style={[styles.button, isSubmitting && styles.buttonDisabled]}
+            {/* Sign in — Urbanist Bold 17/20 */}
+            <AppButton
+              variant="primary"
+              isLoading={isSubmitting}
               onPress={handleSignIn}
-              disabled={isSubmitting}
-              activeOpacity={0.85}
+              className="w-full rounded-full py-4 mb-6"
             >
-              {isSubmitting ? (
-                <ActivityIndicator color="#ffffff" />
-              ) : (
-                <Text style={styles.buttonText}>SIGN IN</Text>
-              )}
-            </TouchableOpacity>
+              SIGN IN
+            </AppButton>
 
-            <View style={styles.footer}>
-              <Text style={styles.footerText}>Don't have an account? </Text>
-              <Link href="/(auth)/who-are-you" style={styles.footerLink}>
+            {/* Footer — Urbanist SemiBold 15/20 */}
+            <View className="flex-row justify-center items-center">
+              <Text className="text-white text-[15px] font-semibold font-sans leading-5">
+                Don't have an account?{' '}
+              </Text>
+              <Link
+                href="/(auth)/who-are-you"
+                className="text-[#d4fc5a] text-[15px] font-semibold font-sans leading-5"
+              >
                 Register
               </Link>
             </View>
-          </View>
+          </ScrollView>
         </KeyboardAvoidingView>
       </SafeAreaView>
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#080808' },
-  safeArea: { flex: 1 },
-  kav: { flex: 1 },
-  inner: {
-    flex: 1,
-    paddingHorizontal: 24,
-    paddingBottom: 40,
-    justifyContent: 'center',
-  },
-  headerRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 40,
-  },
-  logoText: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: '#ffffff',
-    letterSpacing: 4,
-  },
-  skipButton: {
-    borderWidth: 1,
-    borderColor: '#8D8D8D',
-    borderRadius: 20,
-    paddingVertical: 6,
-    paddingHorizontal: 16,
-  },
-  skipText: {
-    color: '#8D8D8D',
-    fontSize: 12,
-    fontWeight: '700',
-    letterSpacing: 1,
-  },
-  heading: {
-    fontSize: 36,
-    fontWeight: '700',
-    color: '#ffffff',
-    lineHeight: 40,
-    marginBottom: 24,
-  },
-  warningBanner: {
-    backgroundColor: 'rgba(255,204,0,0.15)',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 16,
-    gap: 8,
-  },
-  warningText: { color: '#FFCC00', fontSize: 14 },
-  resendLink: { color: '#D4FC5A', fontSize: 14, fontWeight: '600' },
-  errorBanner: {
-    backgroundColor: 'rgba(255,59,48,0.15)',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 16,
-  },
-  errorText: { color: '#FF3B30', fontSize: 14 },
-  label: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: 'rgba(255,255,255,0.8)',
-    marginBottom: 8,
-  },
-  input: {
-    backgroundColor: '#ffffff',
-    borderRadius: 8,
-    height: 52,
-    paddingHorizontal: 16,
-    fontSize: 16,
-    color: '#000000',
-    marginBottom: 16,
-  },
-  passwordRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  passwordInput: {
-    flex: 1,
-    marginBottom: 0,
-  },
-  eyeButton: {
-    position: 'absolute',
-    right: 14,
-    height: 52,
-    justifyContent: 'center',
-  },
-  eyeText: { fontSize: 18 },
-  forgotLink: {
-    color: '#6741FF',
-    fontSize: 14,
-    alignSelf: 'flex-end',
-    marginBottom: 24,
-  },
-  button: {
-    backgroundColor: '#6155F5',
-    borderRadius: 100,
-    paddingVertical: 18,
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  buttonDisabled: { opacity: 0.6 },
-  buttonText: {
-    color: '#ffffff',
-    fontSize: 16,
-    fontWeight: '700',
-    letterSpacing: 2,
-  },
-  footer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  footerText: { color: 'rgba(255,255,255,0.6)', fontSize: 14 },
-  footerLink: { color: '#D4FC5A', fontSize: 14, fontWeight: '700' },
-});

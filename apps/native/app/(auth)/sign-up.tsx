@@ -1,24 +1,25 @@
-import { useMutation } from '@tanstack/react-query';
+import { Ionicons } from '@expo/vector-icons';
 import { Link, router, useLocalSearchParams } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import { useState } from 'react';
 import {
-  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  Pressable,
   ScrollView,
-  StyleSheet,
   Text,
   TextInput,
-  TouchableOpacity,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { signUpSchema } from '@CeolX/shared/validators';
 
+import { AppButton } from '@/components/AppButton';
+import { CeolxLogo } from '@/components/CeolxLogo';
+import { CheckboxField } from '@/components/CheckboxField';
+import { SocialLoginButtons } from '@/components/SocialLoginButtons';
 import { authClient } from '@/lib/auth-client';
-import { trpc } from '@/utils/trpc';
 
 type Role = 'spectator' | 'artist' | 'venue';
 
@@ -34,14 +35,10 @@ export default function SignUpScreen() {
   const [marketingOptIn, setMarketingOptIn] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const completeRegistration = useMutation(trpc.users.completeRegistration.mutationOptions());
-
   const handleSignUp = async () => {
     setError(null);
 
-    const parsed = signUpSchema
-      .omit({ confirmPassword: true })
-      .safeParse({ name, email, password });
+    const parsed = signUpSchema.safeParse({ name, email, password, confirmPassword: password });
     if (!parsed.success) {
       setError(parsed.error.issues[0]?.message ?? 'Invalid input');
       return;
@@ -55,6 +52,7 @@ export default function SignUpScreen() {
       name,
       email,
       password,
+      currentRole,
     });
 
     if (authError) {
@@ -67,10 +65,12 @@ export default function SignUpScreen() {
     }
 
     if (data) {
-      await completeRegistration.mutateAsync({
-        currentRole,
-        marketingConsent: marketingOptIn,
-      });
+      // Store registration data so verify-email screen can call completeRegistration
+      // after the email is verified and BetterAuth has created a session.
+      await SecureStore.setItemAsync(
+        'pendingRegistration',
+        JSON.stringify({ currentRole, marketingConsent: marketingOptIn })
+      );
     }
 
     await SecureStore.setItemAsync('pendingVerificationEmail', email);
@@ -83,118 +83,133 @@ export default function SignUpScreen() {
   };
 
   return (
-    <View style={styles.container}>
-      <SafeAreaView style={styles.safeArea}>
+    <View style={{ flex: 1, backgroundColor: '#080808' }}>
+      <SafeAreaView style={{ flex: 1 }}>
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={styles.kav}
+          style={{ flex: 1 }}
         >
-          <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-            <View style={styles.headerRow}>
-              <Text style={styles.logoText}>CEOLX</Text>
-              <TouchableOpacity onPress={handleSkip} style={styles.skipButton}>
-                <Text style={styles.skipText}>SKIP</Text>
-              </TouchableOpacity>
+          <ScrollView
+            contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 40 }}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+          >
+            {/* Header */}
+            <View className="flex-row justify-between items-center pt-4 mb-8">
+              <CeolxLogo />
+              <Pressable
+                onPress={handleSkip}
+                className="border border-gray-10 rounded-[20px] py-1.5 px-4"
+              >
+                <Text className="text-gray-10 text-xs font-bold tracking-widest">SKIP</Text>
+              </Pressable>
             </View>
 
-            <Text style={styles.heading}>Create Account</Text>
-            <Text style={styles.subheading}>
+            <Text className="text-[36px] font-bold text-white leading-10 mb-2">Create Account</Text>
+            <Text className="text-base text-white/60 mb-6">
               Join as{' '}
-              <Text style={styles.roleHighlight}>
+              <Text className="text-blue-10 font-bold">
                 {currentRole.charAt(0).toUpperCase() + currentRole.slice(1)}
               </Text>
             </Text>
 
+            <SocialLoginButtons separator="Or sign up with" />
+
             {error ? (
-              <View style={styles.errorBanner}>
-                <Text style={styles.errorText}>{error}</Text>
+              <View className="bg-error/15 rounded-lg p-3 mb-4">
+                <Text className="text-error text-sm">{error}</Text>
               </View>
             ) : null}
 
-            <Text style={styles.label}>Full Name</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Your full name"
-              placeholderTextColor="rgba(255,255,255,0.4)"
-              autoCapitalize="words"
-              autoComplete="name"
-              value={name}
-              onChangeText={setName}
-            />
-
-            <Text style={styles.label}>Email Address</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="you@example.com"
-              placeholderTextColor="rgba(255,255,255,0.4)"
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoComplete="email"
-              value={email}
-              onChangeText={setEmail}
-            />
-
-            <Text style={styles.label}>Password</Text>
-            <View style={styles.passwordRow}>
+            {/* Full Name */}
+            <View className="gap-2 mb-4">
+              <Text className="text-sm font-bold text-white/80">Full Name</Text>
               <TextInput
-                style={[styles.input, styles.passwordInput]}
-                placeholder="Min 8 chars, uppercase, number, symbol"
+                className="bg-white rounded-lg h-[52px] px-4 text-base text-black"
+                placeholder="Your full name"
                 placeholderTextColor="rgba(255,255,255,0.4)"
-                secureTextEntry={!passwordVisible}
-                autoComplete="new-password"
-                value={password}
-                onChangeText={setPassword}
+                autoCapitalize="words"
+                autoComplete="name"
+                value={name}
+                onChangeText={setName}
               />
-              <TouchableOpacity
-                style={styles.eyeButton}
-                onPress={() => setPasswordVisible((v) => !v)}
-              >
-                <Text style={styles.eyeText}>{passwordVisible ? '🙈' : '👁️'}</Text>
-              </TouchableOpacity>
             </View>
 
-            <TouchableOpacity
-              style={styles.checkRow}
-              onPress={() => setTosAccepted((v) => !v)}
-              activeOpacity={0.7}
-            >
-              <View style={[styles.checkbox, tosAccepted && styles.checkboxChecked]}>
-                {tosAccepted ? <Text style={styles.checkMark}>✓</Text> : null}
-              </View>
-              <Text style={styles.checkLabel}>
-                I agree with <Text style={styles.linkText}>Terms of Service</Text>
-                {' and '}
-                <Text style={styles.linkText}>Privacy Policy</Text>
-              </Text>
-            </TouchableOpacity>
+            {/* Email */}
+            <View className="gap-2 mb-4">
+              <Text className="text-sm font-bold text-white/80">Email Address</Text>
+              <TextInput
+                className="bg-white rounded-lg h-[52px] px-4 text-base text-black"
+                placeholder="you@example.com"
+                placeholderTextColor="rgba(255,255,255,0.4)"
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoComplete="email"
+                value={email}
+                onChangeText={setEmail}
+              />
+            </View>
 
-            <TouchableOpacity
-              style={styles.checkRow}
-              onPress={() => setMarketingOptIn((v) => !v)}
-              activeOpacity={0.7}
-            >
-              <View style={[styles.checkbox, marketingOptIn && styles.checkboxChecked]}>
-                {marketingOptIn ? <Text style={styles.checkMark}>✓</Text> : null}
+            {/* Password */}
+            <View className="gap-2 mb-4">
+              <Text className="text-sm font-bold text-white/80">Password</Text>
+              <View className="flex-row items-center">
+                <TextInput
+                  className="flex-1 bg-white rounded-lg h-[52px] px-4 text-base text-black"
+                  placeholder="Min 8 chars, uppercase, number, symbol"
+                  placeholderTextColor="rgba(255,255,255,0.4)"
+                  secureTextEntry={!passwordVisible}
+                  autoComplete="new-password"
+                  value={password}
+                  onChangeText={setPassword}
+                />
+                <Pressable
+                  className="absolute right-3.5 h-[52px] justify-center"
+                  onPress={() => setPasswordVisible((v) => !v)}
+                >
+                  <Ionicons
+                    name={passwordVisible ? 'eye-outline' : 'eye-off-outline'}
+                    size={20}
+                    color="#8d8d8d"
+                  />
+                </Pressable>
               </View>
-              <Text style={styles.checkLabel}>I'd like to receive news and offers</Text>
-            </TouchableOpacity>
+            </View>
 
-            <TouchableOpacity
-              style={[styles.button, completeRegistration.isPending && styles.buttonDisabled]}
+            {/* Checkboxes */}
+            <CheckboxField
+              checked={tosAccepted}
+              onChange={setTosAccepted}
+              className="mb-4"
+              label={
+                <Text className="text-sm text-white/70 leading-5">
+                  I agree with <Text className="text-blue-10">Terms of Service</Text>
+                  {' and '}
+                  <Text className="text-blue-10">Privacy Policy</Text>
+                </Text>
+              }
+            />
+
+            <CheckboxField
+              checked={marketingOptIn}
+              onChange={setMarketingOptIn}
+              className="mb-4"
+              label="I'd like to receive news and offers"
+            />
+
+            {/* Register button */}
+            <AppButton
+              variant="primary"
               onPress={handleSignUp}
-              disabled={completeRegistration.isPending}
-              activeOpacity={0.85}
+              className="w-full rounded-full py-[18px] mt-2 mb-6"
             >
-              {completeRegistration.isPending ? (
-                <ActivityIndicator color="#ffffff" />
-              ) : (
-                <Text style={styles.buttonText}>REGISTER</Text>
-              )}
-            </TouchableOpacity>
+              REGISTER
+            </AppButton>
 
-            <View style={styles.footer}>
-              <Text style={styles.footerText}>Already have an account? </Text>
-              <Link href="/(auth)/sign-in" style={styles.footerLink}>
+            {/* Footer */}
+            <View className="flex-row justify-center items-center">
+              <Text className="text-white/60 text-sm">Already have an account? </Text>
+              <Link href="/(auth)/sign-in" className="text-green-10 text-sm font-bold">
                 Sign In
               </Link>
             </View>
@@ -204,140 +219,3 @@ export default function SignUpScreen() {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#080808' },
-  safeArea: { flex: 1 },
-  kav: { flex: 1 },
-  scroll: { paddingHorizontal: 24, paddingBottom: 40 },
-  headerRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingTop: 16,
-    marginBottom: 32,
-  },
-  logoText: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: '#ffffff',
-    letterSpacing: 4,
-  },
-  skipButton: {
-    borderWidth: 1,
-    borderColor: '#8D8D8D',
-    borderRadius: 20,
-    paddingVertical: 6,
-    paddingHorizontal: 16,
-  },
-  skipText: {
-    color: '#8D8D8D',
-    fontSize: 12,
-    fontWeight: '700',
-    letterSpacing: 1,
-  },
-  heading: {
-    fontSize: 36,
-    fontWeight: '700',
-    color: '#ffffff',
-    lineHeight: 40,
-    marginBottom: 8,
-  },
-  subheading: {
-    fontSize: 16,
-    color: 'rgba(255,255,255,0.6)',
-    marginBottom: 24,
-  },
-  roleHighlight: {
-    color: '#6741FF',
-    fontWeight: '700',
-  },
-  errorBanner: {
-    backgroundColor: 'rgba(255,59,48,0.15)',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 16,
-  },
-  errorText: { color: '#FF3B30', fontSize: 14 },
-  label: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: 'rgba(255,255,255,0.8)',
-    marginBottom: 8,
-  },
-  input: {
-    backgroundColor: '#ffffff',
-    borderRadius: 8,
-    height: 52,
-    paddingHorizontal: 16,
-    fontSize: 16,
-    color: '#000000',
-    marginBottom: 16,
-  },
-  passwordRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  passwordInput: {
-    flex: 1,
-    marginBottom: 0,
-  },
-  eyeButton: {
-    position: 'absolute',
-    right: 14,
-    height: 52,
-    justifyContent: 'center',
-  },
-  eyeText: { fontSize: 18 },
-  checkRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginBottom: 16,
-    gap: 12,
-  },
-  checkbox: {
-    width: 20,
-    height: 20,
-    borderRadius: 4,
-    borderWidth: 2,
-    borderColor: 'rgba(255,255,255,0.4)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 2,
-  },
-  checkboxChecked: {
-    backgroundColor: '#6741FF',
-    borderColor: '#6741FF',
-  },
-  checkMark: { color: '#ffffff', fontSize: 12, fontWeight: '700' },
-  checkLabel: {
-    flex: 1,
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.7)',
-    lineHeight: 20,
-  },
-  linkText: { color: '#6741FF' },
-  button: {
-    backgroundColor: '#6741FF',
-    borderRadius: 100,
-    paddingVertical: 18,
-    alignItems: 'center',
-    marginTop: 8,
-    marginBottom: 24,
-  },
-  buttonDisabled: { opacity: 0.6 },
-  buttonText: {
-    color: '#ffffff',
-    fontSize: 16,
-    fontWeight: '700',
-    letterSpacing: 2,
-  },
-  footer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  footerText: { color: 'rgba(255,255,255,0.6)', fontSize: 14 },
-  footerLink: { color: '#D4FC5A', fontSize: 14, fontWeight: '700' },
-});

@@ -1,11 +1,16 @@
+import { Ionicons } from '@expo/vector-icons';
+import { useMutation } from '@tanstack/react-query';
 import * as Linking from 'expo-linking';
 import { router, useLocalSearchParams } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { AppButton } from '@/components/AppButton';
+import { CeolxLogo } from '@/components/CeolxLogo';
 import { authClient } from '@/lib/auth-client';
+import { trpc } from '@/utils/trpc';
 
 const RESEND_COOLDOWN_SECONDS = 60;
 
@@ -17,6 +22,10 @@ export default function VerifyEmailScreen() {
   const [resendCooldown, setResendCooldown] = useState(0);
   const [resendSuccess, setResendSuccess] = useState(false);
   const cooldownRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const { mutateAsync: completeRegistration } = useMutation(
+    trpc.users.completeRegistration.mutationOptions()
+  );
 
   // Load pending email from SecureStore (set during sign-up)
   useEffect(() => {
@@ -32,16 +41,31 @@ export default function VerifyEmailScreen() {
 
     authClient
       .verifyEmail({ query: { token } })
-      .then(({ error }) => {
+      .then(async ({ error }) => {
         if (error) {
           setVerifyError(error.message ?? 'Verification failed. The link may have expired.');
-        } else {
-          void SecureStore.deleteItemAsync('pendingVerificationEmail');
-          router.replace('/(app)/(tabs)/map');
+          return;
         }
+
+        // Email verified — BetterAuth has now created a session.
+        // Finish registration by writing role + consent to the DB.
+        const raw = await SecureStore.getItemAsync('pendingRegistration');
+        if (raw) {
+          const { currentRole, marketingConsent } = JSON.parse(raw) as {
+            currentRole: 'spectator' | 'artist' | 'venue';
+            marketingConsent: boolean;
+          };
+          await completeRegistration({ currentRole, marketingConsent });
+          void SecureStore.deleteItemAsync('pendingRegistration');
+        }
+
+        void SecureStore.deleteItemAsync('pendingVerificationEmail');
+        router.replace('/(app)/(tabs)/map');
       })
       .catch(() => setVerifyError('Something went wrong. Please try again.'))
       .finally(() => setIsVerifying(false));
+    // completeRegistration (mutateAsync) is a stable reference from TanStack Query
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
   // Cleanup countdown interval on unmount
@@ -79,155 +103,77 @@ export default function VerifyEmailScreen() {
 
   if (isVerifying) {
     return (
-      <View style={[styles.container, styles.centered]}>
-        <ActivityIndicator size="large" color="#6741FF" />
-        <Text style={styles.verifyingText}>Verifying your email…</Text>
+      <View
+        style={{
+          flex: 1,
+          backgroundColor: '#080808',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <ActivityIndicator size="large" color="#662FFF" />
+        <Text className="text-white text-base mt-4">Verifying your email...</Text>
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
-      <SafeAreaView style={styles.safeArea}>
-        <View style={styles.inner}>
-          <Text style={styles.logoText}>CEOLX</Text>
+    <View style={{ flex: 1, backgroundColor: '#080808' }}>
+      <SafeAreaView style={{ flex: 1 }}>
+        <View className="flex-1 px-6 pt-6 items-center justify-center">
+          <CeolxLogo />
 
-          <Text style={styles.icon}>✉️</Text>
-          <Text style={styles.heading}>Check your email</Text>
-          <Text style={styles.body}>
+          <View className="items-center mt-8 mb-6">
+            <Ionicons name="mail-outline" size={64} color="#662FFF" />
+          </View>
+
+          <Text className="text-[28px] font-bold text-white mb-4 text-center">
+            Check your email
+          </Text>
+          <Text className="text-base text-white/60 text-center leading-6 mb-8">
             We've sent a verification link to{'\n'}
-            <Text style={styles.emailHighlight}>{email ?? 'your email address'}</Text>.{'\n\n'}
+            <Text className="text-white font-semibold">{email ?? 'your email address'}</Text>.
+            {'\n\n'}
             Tap the link in the email to activate your account.
           </Text>
 
           {verifyError ? (
-            <View style={styles.errorBanner}>
-              <Text style={styles.errorText}>{verifyError}</Text>
+            <View className="bg-error/15 rounded-lg p-3 mb-4 self-stretch">
+              <Text className="text-error text-sm text-center">{verifyError}</Text>
             </View>
           ) : null}
 
           {resendSuccess ? (
-            <View style={styles.successBanner}>
-              <Text style={styles.successText}>Verification email sent!</Text>
+            <View className="bg-[rgba(52,199,89,0.15)] rounded-lg p-3 mb-4 self-stretch">
+              <Text className="text-[#34C759] text-sm text-center">Verification email sent!</Text>
             </View>
           ) : null}
 
-          <TouchableOpacity
-            style={styles.primaryButton}
+          <AppButton
+            variant="primary"
             onPress={handleOpenEmailApp}
-            activeOpacity={0.85}
+            className="w-full rounded-full py-[18px] mb-4"
           >
-            <Text style={styles.primaryButtonText}>OPEN EMAIL APP</Text>
-          </TouchableOpacity>
+            OPEN EMAIL APP
+          </AppButton>
 
-          <TouchableOpacity
-            style={[styles.resendButton, (resendCooldown > 0 || !email) && styles.resendDisabled]}
+          <Pressable
+            className={`py-3 mb-4 ${resendCooldown > 0 || !email ? 'opacity-40' : ''}`}
             onPress={handleResend}
             disabled={resendCooldown > 0 || !email}
-            activeOpacity={0.7}
           >
-            <Text style={styles.resendText}>
+            <Text className="text-green-10 text-sm font-semibold text-center">
               {resendCooldown > 0
                 ? `Resend in ${resendCooldown}s`
                 : "Didn't receive it? Resend email"}
             </Text>
-          </TouchableOpacity>
+          </Pressable>
 
-          <TouchableOpacity onPress={() => router.replace('/(auth)/sign-in')}>
-            <Text style={styles.backLink}>Back to Sign In</Text>
-          </TouchableOpacity>
+          <Pressable onPress={() => router.replace('/(auth)/sign-in')}>
+            <Text className="text-white/40 text-sm text-center">Back to Sign In</Text>
+          </Pressable>
         </View>
       </SafeAreaView>
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#080808' },
-  safeArea: { flex: 1 },
-  centered: { alignItems: 'center', justifyContent: 'center' },
-  inner: {
-    flex: 1,
-    paddingHorizontal: 24,
-    paddingTop: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  logoText: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: '#ffffff',
-    letterSpacing: 4,
-    marginBottom: 40,
-  },
-  icon: { fontSize: 64, marginBottom: 24 },
-  heading: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#ffffff',
-    marginBottom: 16,
-    textAlign: 'center',
-  },
-  body: {
-    fontSize: 16,
-    color: 'rgba(255,255,255,0.6)',
-    textAlign: 'center',
-    lineHeight: 24,
-    marginBottom: 32,
-  },
-  emailHighlight: {
-    color: '#ffffff',
-    fontWeight: '600',
-  },
-  verifyingText: {
-    color: '#ffffff',
-    fontSize: 16,
-    marginTop: 16,
-  },
-  errorBanner: {
-    backgroundColor: 'rgba(255,59,48,0.15)',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 16,
-    alignSelf: 'stretch',
-  },
-  errorText: { color: '#FF3B30', fontSize: 14, textAlign: 'center' },
-  successBanner: {
-    backgroundColor: 'rgba(52,199,89,0.15)',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 16,
-    alignSelf: 'stretch',
-  },
-  successText: { color: '#34C759', fontSize: 14, textAlign: 'center' },
-  primaryButton: {
-    backgroundColor: '#6741FF',
-    borderRadius: 100,
-    paddingVertical: 18,
-    alignItems: 'center',
-    alignSelf: 'stretch',
-    marginBottom: 16,
-  },
-  primaryButtonText: {
-    color: '#ffffff',
-    fontSize: 16,
-    fontWeight: '700',
-    letterSpacing: 2,
-  },
-  resendButton: {
-    paddingVertical: 12,
-    marginBottom: 16,
-  },
-  resendDisabled: { opacity: 0.4 },
-  resendText: {
-    color: '#D4FC5A',
-    fontSize: 14,
-    fontWeight: '600',
-    textAlign: 'center',
-  },
-  backLink: {
-    color: 'rgba(255,255,255,0.4)',
-    fontSize: 14,
-    textAlign: 'center',
-  },
-});

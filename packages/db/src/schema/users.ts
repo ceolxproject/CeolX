@@ -1,42 +1,20 @@
 import { relations } from 'drizzle-orm';
-import { boolean, index, json, pgTable, text, timestamp, uuid, varchar } from 'drizzle-orm/pg-core';
+import { boolean, json, pgTable, text, timestamp, uuid, varchar } from 'drizzle-orm/pg-core';
 
-import { subscriptionStatusEnum, userRoleEnum } from './enums';
-
-// ---------------------------------------------------------------------------
-// users — application-level user record (separate from BetterAuth's `user`).
-// Shares the same UUID as auth.user — linked at the application layer on
-// registration. BetterAuth owns auth identity; this table owns domain data.
-// ---------------------------------------------------------------------------
-export const users = pgTable(
-  'users',
-  {
-    id: uuid('id').primaryKey().defaultRandom(),
-    email: varchar('email', { length: 255 }).notNull().unique(),
-    name: varchar('name', { length: 255 }),
-    avatar: text('avatar'), // S3/CloudFront URL
-    hashedPassword: varchar('hashed_password', { length: 255 }), // NULL for Google/Apple Sign-In users
-    currentRole: userRoleEnum('current_role').notNull().default('spectator'),
-    lastLoginAt: timestamp('last_login_at'),
-    flaggedInactive: boolean('flagged_inactive').default(false), // set after 24 months inactivity (GDPR)
-    consentAt: timestamp('consent_at').notNull(), // Privacy Policy + ToS acceptance — no default, must be explicit
-    marketingConsent: boolean('marketing_consent').default(false),
-    createdAt: timestamp('created_at').notNull().defaultNow(),
-    updatedAt: timestamp('updated_at').notNull().defaultNow(),
-  },
-  (t) => [index('users_email_idx').on(t.email)]
-);
+import { user } from './auth';
+import { subscriptionStatusEnum } from './enums';
 
 // ---------------------------------------------------------------------------
 // artist_profiles — one per user account, toggled via is_active on persona switch.
 // NEVER delete a profile when a user switches away — flip is_active to false instead.
+// userId is text (not uuid) — matches BetterAuth's user.id type.
 // ---------------------------------------------------------------------------
 export const artistProfiles = pgTable('artist_profiles', {
   id: uuid('id').primaryKey().defaultRandom(),
-  userId: uuid('user_id')
+  userId: text('user_id')
     .notNull()
     .unique() // one artist profile per user account
-    .references(() => users.id, { onDelete: 'cascade' }),
+    .references(() => user.id, { onDelete: 'cascade' }),
   stageName: varchar('stage_name', { length: 255 }).notNull(),
   bio: text('bio'),
   genre: varchar('genre', { length: 100 }).notNull(),
@@ -53,10 +31,10 @@ export const artistProfiles = pgTable('artist_profiles', {
 // ---------------------------------------------------------------------------
 export const venueProfiles = pgTable('venue_profiles', {
   id: uuid('id').primaryKey().defaultRandom(),
-  userId: uuid('user_id')
+  userId: text('user_id')
     .notNull()
     .unique() // one venue profile per user account
-    .references(() => users.id, { onDelete: 'cascade' }),
+    .references(() => user.id, { onDelete: 'cascade' }),
   venueName: varchar('venue_name', { length: 255 }).notNull(),
   address: varchar('address', { length: 255 }).notNull(),
   bio: text('bio'),
@@ -70,36 +48,23 @@ export const venueProfiles = pgTable('venue_profiles', {
 // ---------------------------------------------------------------------------
 // Relations
 // ---------------------------------------------------------------------------
-export const usersRelations = relations(users, ({ one }) => ({
-  artistProfile: one(artistProfiles, {
-    fields: [users.id],
-    references: [artistProfiles.userId],
-  }),
-  venueProfile: one(venueProfiles, {
-    fields: [users.id],
-    references: [venueProfiles.userId],
-  }),
-}));
-
 export const artistProfilesRelations = relations(artistProfiles, ({ one }) => ({
-  user: one(users, {
+  user: one(user, {
     fields: [artistProfiles.userId],
-    references: [users.id],
+    references: [user.id],
   }),
 }));
 
 export const venueProfilesRelations = relations(venueProfiles, ({ one }) => ({
-  user: one(users, {
+  user: one(user, {
     fields: [venueProfiles.userId],
-    references: [users.id],
+    references: [user.id],
   }),
 }));
 
 // ---------------------------------------------------------------------------
 // Inferred types
 // ---------------------------------------------------------------------------
-export type User = typeof users.$inferSelect;
-export type NewUser = typeof users.$inferInsert;
 export type ArtistProfile = typeof artistProfiles.$inferSelect;
 export type NewArtistProfile = typeof artistProfiles.$inferInsert;
 export type VenueProfile = typeof venueProfiles.$inferSelect;

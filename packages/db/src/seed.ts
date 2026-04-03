@@ -7,7 +7,8 @@
  * NEVER run against production — the guard below will throw.
  */
 
-import { artistProfiles, events, users, venueProfiles } from './schema';
+import { artistProfiles, events, venueProfiles } from './schema';
+import { user } from './schema/auth';
 
 import { db } from './index';
 
@@ -20,38 +21,47 @@ async function seed() {
   const consentAt = now;
 
   // -------------------------------------------------------------------------
-  // Users — one per persona
+  // Users — one per persona, inserted directly into BetterAuth's user table.
+  // BetterAuth IDs are text; we use short readable strings for dev convenience.
   // -------------------------------------------------------------------------
-  await db.insert(users).values({
+  await db.insert(user).values({
+    id: 'seed_spectator',
     email: 'spectator@ceolx.test',
     name: 'Test Spectator',
+    emailVerified: true,
     currentRole: 'spectator',
     consentAt,
   });
 
   const [artist] = await db
-    .insert(users)
+    .insert(user)
     .values({
+      id: 'seed_artist',
       email: 'artist@ceolx.test',
       name: 'Test Artist',
+      emailVerified: true,
       currentRole: 'artist',
       consentAt,
     })
     .returning();
 
   const [venue] = await db
-    .insert(users)
+    .insert(user)
     .values({
+      id: 'seed_venue',
       email: 'venue@ceolx.test',
       name: 'Test Venue',
+      emailVerified: true,
       currentRole: 'venue',
       consentAt,
     })
     .returning();
 
-  await db.insert(users).values({
+  await db.insert(user).values({
+    id: 'seed_admin',
     email: 'admin@ceolx.test',
     name: 'Super Admin',
+    emailVerified: true,
     currentRole: 'super_admin',
     consentAt,
   });

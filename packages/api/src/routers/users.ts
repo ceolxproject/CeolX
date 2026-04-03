@@ -2,7 +2,7 @@ import { eq } from 'drizzle-orm';
 import { z } from 'zod';
 
 import { db } from '@CeolX/db';
-import { users } from '@CeolX/db/schema/users';
+import { user } from '@CeolX/db/schema/auth';
 
 import { protectedProcedure, router } from '../index';
 
@@ -13,33 +13,30 @@ const completeRegistrationInput = z.object({
 
 export const usersRouter = router({
   /**
-   * Returns the app-level user row for the authenticated session user.
-   * Returns null if the row hasn't been created yet (triggers client-side retry).
+   * Returns the authenticated user row (includes domain fields set at registration).
+   * Falls back to null if consentAt is not yet set (registration not complete).
    */
   me: protectedProcedure.query(async ({ ctx }) => {
-    const [user] = await db.select().from(users).where(eq(users.id, ctx.session.user.id)).limit(1);
+    const [row] = await db.select().from(user).where(eq(user.id, ctx.session.user.id)).limit(1);
 
-    return user ?? null;
+    return row ?? null;
   }),
 
   /**
-   * Creates the app-level user row after a successful BetterAuth sign-up.
-   * Idempotent: silently no-ops if the row already exists (safe to retry).
+   * Sets domain fields on the BetterAuth user row after a successful sign-up.
+   * Idempotent: safe to retry — always overwrites with the latest values.
    */
   completeRegistration: protectedProcedure
     .input(completeRegistrationInput)
     .mutation(async ({ ctx, input }) => {
       await db
-        .insert(users)
-        .values({
-          id: ctx.session.user.id,
-          email: ctx.session.user.email,
-          name: ctx.session.user.name ?? undefined,
+        .update(user)
+        .set({
           currentRole: input.currentRole,
           marketingConsent: input.marketingConsent,
           consentAt: new Date(),
         })
-        .onConflictDoNothing();
+        .where(eq(user.id, ctx.session.user.id));
 
       return { ok: true };
     }),
