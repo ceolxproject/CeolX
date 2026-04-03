@@ -1,7 +1,9 @@
+import { useMutation } from '@tanstack/react-query';
 import * as SecureStore from 'expo-secure-store';
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 
 import { authClient } from '@/lib/auth-client';
+import { trpc } from '@/utils/trpc';
 
 interface AuthContextType {
   user: { id: string; email: string; name?: string | null; emailVerified: boolean } | null;
@@ -24,6 +26,37 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       .catch(() => {})
       .finally(() => setGuestLoaded(true));
   }, []);
+
+  // Consume pendingRegistration (role + consent) once a valid session appears.
+  // This covers the case where verifyEmail didn't have a session yet and the
+  // user had to sign in manually afterwards.
+  const { mutateAsync: completeRegistration } = useMutation(
+    trpc.users.completeRegistration.mutationOptions()
+  );
+  const pendingHandled = useRef(false);
+
+  useEffect(() => {
+    if (!session?.user || pendingHandled.current) return;
+    pendingHandled.current = true;
+
+    void (async () => {
+      const raw = await SecureStore.getItemAsync('pendingRegistration');
+      if (!raw) return;
+
+      try {
+        const { currentRole, marketingConsent } = JSON.parse(raw) as {
+          currentRole: 'spectator' | 'artist' | 'venue';
+          marketingConsent: boolean;
+        };
+        await completeRegistration({ currentRole, marketingConsent });
+        await SecureStore.deleteItemAsync('pendingRegistration');
+      } catch {
+        // Will retry next time a session is established
+        pendingHandled.current = false;
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session?.user]);
 
   const user = session?.user
     ? {

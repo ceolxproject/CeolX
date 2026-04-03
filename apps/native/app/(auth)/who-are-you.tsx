@@ -1,30 +1,89 @@
 import { router } from 'expo-router';
+import { cn } from 'heroui-native';
+import type { ReactNode } from 'react';
 import { useState } from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+
+import { CeolxLogo } from '@/components/CeolxLogo';
+import { ArtistIcon, SpectatorIcon, VenueIcon } from '@/components/icons/PersonaIcons';
+
+// ── Types ────────────────────────────────────────────────────────────
 
 type Role = 'spectator' | 'artist' | 'venue';
 
-const PERSONAS: { role: Role; emoji: string; title: string; description: string }[] = [
+interface Persona {
+  role: Role;
+  icon: ReactNode;
+  title: string;
+  description: string;
+}
+
+// ── Data ─────────────────────────────────────────────────────────────
+
+const PERSONAS: Persona[] = [
   {
     role: 'spectator',
-    emoji: '🎵',
+    icon: <SpectatorIcon />,
     title: 'Spectator',
-    description: 'Discover live Irish music events near you',
+    description: 'Discover and book seats for exclusive music events.',
   },
   {
     role: 'artist',
-    emoji: '🎸',
+    icon: <ArtistIcon />,
     title: 'Musician / Artist',
-    description: 'Promote your performances and get booked',
+    description: 'Promote your profile, list new gigs, and engage with fans.',
   },
   {
     role: 'venue',
-    emoji: '🏛️',
+    icon: <VenueIcon />,
     title: 'Venue / Business',
-    description: 'List gigs, recruit artists and run ads',
+    description: 'Host events, connect with musicians, track analytics.',
   },
 ];
+
+// ── Card component ───────────────────────────────────────────────────
+
+function PersonaCard({
+  persona,
+  selected,
+  onPress,
+}: {
+  persona: Persona;
+  selected: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      className={cn(
+        'flex-row items-start gap-2 rounded-[20px] px-4 py-5 border overflow-hidden',
+        selected
+          ? 'bg-blue-1 border-blue-10'
+          : 'bg-[rgba(141,141,141,0.3)] border-[rgba(141,141,141,0.4)]'
+      )}
+      style={{
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.16,
+        shadowRadius: 8,
+        elevation: 4,
+      }}
+    >
+      {persona.icon}
+      <View className="flex-1 gap-1">
+        {/* Title — Urbanist Bold 16/20 */}
+        <Text className="text-base font-bold text-white leading-5 font-sans">{persona.title}</Text>
+        {/* Description — Urbanist Regular 14/18 */}
+        <Text className="text-sm font-normal text-white/80 leading-[18px] font-sans">
+          {persona.description}
+        </Text>
+      </View>
+    </Pressable>
+  );
+}
+
+// ── Screen ───────────────────────────────────────────────────────────
 
 export default function WhoAreYouScreen() {
   const [selected, setSelected] = useState<Role | null>(null);
@@ -37,95 +96,37 @@ export default function WhoAreYouScreen() {
   };
 
   return (
-    <View style={styles.container}>
-      <SafeAreaView style={styles.safeArea}>
-        <View style={styles.header}>
-          <Text style={styles.logoText}>CEOLX</Text>
+    <View style={{ flex: 1, backgroundColor: '#080808' }}>
+      <SafeAreaView style={{ flex: 1 }}>
+        {/* Header — logo center-aligned */}
+        <View className="h-14 items-center justify-center bg-surface-dark">
+          <CeolxLogo />
         </View>
 
-        <View style={styles.content}>
-          <Text style={styles.heading}>Who are you?</Text>
-          <Text style={styles.subheading}>Choose your role to personalise your experience</Text>
+        <View className="flex-1 px-6 pt-4">
+          {/* Heading — Urbanist Bold 36/40 */}
+          <Text className="text-[36px] font-bold text-white leading-10 font-sans mb-3">
+            Who are you?
+          </Text>
 
-          {PERSONAS.map(({ role, emoji, title, description }) => (
-            <TouchableOpacity
-              key={role}
-              style={[styles.card, selected === role && styles.cardSelected]}
-              onPress={() => handleSelect(role)}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.cardEmoji}>{emoji}</Text>
-              <View style={styles.cardText}>
-                <Text style={styles.cardTitle}>{title}</Text>
-                <Text style={styles.cardDescription}>{description}</Text>
-              </View>
-            </TouchableOpacity>
-          ))}
+          {/* Subtitle — Urbanist Regular 16/20 */}
+          <Text className="text-base font-normal text-white/80 leading-5 font-sans mb-10">
+            Tell us how you'll use the app so we can tailor your experience.
+          </Text>
+
+          {/* Persona cards */}
+          <View className="gap-6">
+            {PERSONAS.map((persona) => (
+              <PersonaCard
+                key={persona.role}
+                persona={persona}
+                selected={selected === persona.role}
+                onPress={() => handleSelect(persona.role)}
+              />
+            ))}
+          </View>
         </View>
       </SafeAreaView>
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#080808' },
-  safeArea: { flex: 1 },
-  header: {
-    paddingHorizontal: 24,
-    paddingTop: 16,
-    alignItems: 'center',
-  },
-  logoText: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: '#ffffff',
-    letterSpacing: 4,
-  },
-  content: {
-    flex: 1,
-    paddingHorizontal: 24,
-    paddingTop: 32,
-  },
-  heading: {
-    fontSize: 36,
-    fontWeight: '700',
-    color: '#ffffff',
-    lineHeight: 40,
-    marginBottom: 8,
-  },
-  subheading: {
-    fontSize: 16,
-    color: 'rgba(255,255,255,0.6)',
-    marginBottom: 32,
-  },
-  card: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(141,141,141,0.3)',
-    borderWidth: 1,
-    borderColor: 'rgba(141,141,141,0.4)',
-    borderRadius: 20,
-    padding: 20,
-    marginBottom: 16,
-  },
-  cardSelected: {
-    borderColor: '#6741FF',
-    backgroundColor: 'rgba(103,65,255,0.15)',
-  },
-  cardEmoji: {
-    fontSize: 32,
-    marginRight: 16,
-  },
-  cardText: { flex: 1 },
-  cardTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#ffffff',
-    marginBottom: 4,
-  },
-  cardDescription: {
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.6)',
-    lineHeight: 20,
-  },
-});

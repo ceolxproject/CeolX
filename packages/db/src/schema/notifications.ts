@@ -11,8 +11,8 @@ import {
   varchar,
 } from 'drizzle-orm/pg-core';
 
+import { user } from './auth';
 import { platformEnum } from './enums';
-import { users } from './users';
 
 // ---------------------------------------------------------------------------
 // notifications — inbox for all in-app notifications across personas.
@@ -25,9 +25,9 @@ export const notifications = pgTable(
   'notifications',
   {
     id: uuid('id').primaryKey().defaultRandom(),
-    userId: uuid('user_id')
+    userId: text('user_id')
       .notNull()
-      .references(() => users.id, { onDelete: 'cascade' }),
+      .references(() => user.id, { onDelete: 'cascade' }),
     type: varchar('type', { length: 100 }).notNull(),
     payload: jsonb('payload').notNull(), // NotificationPayload from packages/shared
     read: boolean('read').default(false),
@@ -47,9 +47,9 @@ export const deviceTokens = pgTable(
   'device_tokens',
   {
     id: uuid('id').primaryKey().defaultRandom(),
-    userId: uuid('user_id')
+    userId: text('user_id')
       .notNull()
-      .references(() => users.id, { onDelete: 'cascade' }),
+      .references(() => user.id, { onDelete: 'cascade' }),
     fcmToken: text('fcm_token').notNull(),
     platform: platformEnum('platform').notNull(),
     createdAt: timestamp('created_at').notNull().defaultNow(),
@@ -62,16 +62,16 @@ export const deviceTokens = pgTable(
 // Relations
 // ---------------------------------------------------------------------------
 export const notificationsRelations = relations(notifications, ({ one }) => ({
-  user: one(users, {
+  user: one(user, {
     fields: [notifications.userId],
-    references: [users.id],
+    references: [user.id],
   }),
 }));
 
 export const deviceTokensRelations = relations(deviceTokens, ({ one }) => ({
-  user: one(users, {
+  user: one(user, {
     fields: [deviceTokens.userId],
-    references: [users.id],
+    references: [user.id],
   }),
 }));
 

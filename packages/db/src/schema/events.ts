@@ -13,8 +13,9 @@ import {
   varchar,
 } from 'drizzle-orm/pg-core';
 
+import { user } from './auth';
 import { eventStatusEnum } from './enums';
-import { users, venueProfiles } from './users';
+import { venueProfiles } from './users';
 
 // ---------------------------------------------------------------------------
 // collections — declared before events because events.collection_id FKs here.
@@ -61,9 +62,9 @@ export const events = pgTable(
     ticketLink: text('ticket_link'), // external URL — not validated in DB
     isGigOpportunity: boolean('is_gig_opportunity').default(false), // visible to Artists only when true
     collectionId: uuid('collection_id').references(() => collections.id, { onDelete: 'set null' }),
-    createdBy: uuid('created_by')
+    createdBy: text('created_by')
       .notNull()
-      .references(() => users.id, { onDelete: 'cascade' }),
+      .references(() => user.id, { onDelete: 'cascade' }),
     status: eventStatusEnum('status').notNull().default('draft'),
     rejectionReason: text('rejection_reason'), // populated only when status = 'rejected'
     viewCount: integer('view_count').default(0),
@@ -93,9 +94,9 @@ export const savedEvents = pgTable(
   'saved_events',
   {
     id: uuid('id').primaryKey().defaultRandom(),
-    userId: uuid('user_id')
+    userId: text('user_id')
       .notNull()
-      .references(() => users.id, { onDelete: 'cascade' }),
+      .references(() => user.id, { onDelete: 'cascade' }),
     eventId: uuid('event_id')
       .notNull()
       .references(() => events.id, { onDelete: 'cascade' }),
@@ -116,9 +117,9 @@ export const collectionsRelations = relations(collections, ({ one, many }) => ({
 }));
 
 export const eventsRelations = relations(events, ({ one, many }) => ({
-  creator: one(users, {
+  creator: one(user, {
     fields: [events.createdBy],
-    references: [users.id],
+    references: [user.id],
   }),
   venue: one(venueProfiles, {
     fields: [events.venueId],
@@ -132,9 +133,9 @@ export const eventsRelations = relations(events, ({ one, many }) => ({
 }));
 
 export const savedEventsRelations = relations(savedEvents, ({ one }) => ({
-  user: one(users, {
+  user: one(user, {
     fields: [savedEvents.userId],
-    references: [users.id],
+    references: [user.id],
   }),
   event: one(events, {
     fields: [savedEvents.eventId],

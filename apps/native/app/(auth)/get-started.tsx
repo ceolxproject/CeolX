@@ -1,10 +1,12 @@
 import { router } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ImageBackground, Pressable, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-// TODO: replace with concert-bg.jpg from design assets
-// Place the file at apps/native/assets/images/concert-bg.jpg
+import { CeolxLogo } from '@/components/CeolxLogo';
+
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const concertBg = require('@/assets/images/concert-bg.jpg') as number;
 
 export default function GetStartedScreen() {
   const handleGetStarted = async () => {
@@ -13,95 +15,44 @@ export default function GetStartedScreen() {
   };
 
   return (
-    <View style={styles.bg}>
-      {/* Decorative accent circles — replace with ImageBackground + concert-bg.jpg */}
-      <View style={styles.accentCircleLarge} />
-      <View style={styles.accentCircleSmall} />
+    <ImageBackground source={concertBg} style={{ flex: 1 }} resizeMode="cover">
+      {/* Dark overlay matching Figma gradient (transparent top → 71% black bottom) */}
+      <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.55)' }}>
+        <SafeAreaView style={{ flex: 1 }}>
+          <View className="flex-1 px-6">
+            {/* Logo — upper area */}
+            <View className="pt-4 mb-[76px]">
+              <CeolxLogo />
+            </View>
 
-      <SafeAreaView style={styles.safeArea}>
-        <View style={styles.header}>
-          <Text style={styles.logoText}>CEOLX</Text>
-        </View>
+            {/* Text block */}
+            <View className="gap-9 pr-5">
+              {/* Heading — Urbanist Bold 36/40 */}
+              <Text className="text-[36px] font-bold text-white leading-10 font-sans">
+                Discover the sound, Share the Culture.
+              </Text>
 
-        <View style={styles.content}>
-          <Text style={styles.heading}>Discover the sound,{'\n'}Share the Culture.</Text>
-          <Text style={styles.body}>
-            Experience, perform, and host. Your connection to the live music starts here.
-          </Text>
+              {/* Body — Urbanist Regular 16/20 */}
+              <Text className="text-base font-normal text-white leading-5 font-sans">
+                Experience, perform, and host. Your connection to the live music starts here.
+              </Text>
+            </View>
 
-          <TouchableOpacity style={styles.button} onPress={handleGetStarted} activeOpacity={0.85}>
-            <Text style={styles.buttonText}>GET STARTED</Text>
-          </TouchableOpacity>
-        </View>
-      </SafeAreaView>
-    </View>
+            {/* Spacer pushes button to bottom */}
+            <View className="flex-1" />
+
+            {/* CTA — Urbanist Bold 17/20 */}
+            <Pressable
+              onPress={handleGetStarted}
+              className="bg-blue-10 rounded-full py-4 px-8 items-center justify-center mb-6"
+            >
+              <Text className="text-white text-[17px] font-bold leading-5 font-sans">
+                GET STARTED
+              </Text>
+            </Pressable>
+          </View>
+        </SafeAreaView>
+      </View>
+    </ImageBackground>
   );
 }
-
-const styles = StyleSheet.create({
-  bg: {
-    flex: 1,
-    backgroundColor: '#0d0c0f',
-    overflow: 'hidden',
-  },
-  accentCircleLarge: {
-    position: 'absolute',
-    width: 400,
-    height: 400,
-    borderRadius: 200,
-    backgroundColor: 'rgba(103,65,255,0.15)',
-    top: -100,
-    right: -100,
-  },
-  accentCircleSmall: {
-    position: 'absolute',
-    width: 200,
-    height: 200,
-    borderRadius: 100,
-    backgroundColor: 'rgba(103,65,255,0.1)',
-    bottom: 120,
-    left: -60,
-  },
-  safeArea: { flex: 1 },
-  header: {
-    paddingHorizontal: 24,
-    paddingTop: 16,
-  },
-  logoText: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: '#ffffff',
-    letterSpacing: 4,
-  },
-  content: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    paddingHorizontal: 24,
-    paddingBottom: 48,
-  },
-  heading: {
-    fontSize: 36,
-    fontWeight: '700',
-    color: '#ffffff',
-    lineHeight: 40,
-    marginBottom: 16,
-  },
-  body: {
-    fontSize: 16,
-    color: 'rgba(255,255,255,0.8)',
-    lineHeight: 24,
-    marginBottom: 40,
-  },
-  button: {
-    backgroundColor: '#662FFF',
-    borderRadius: 100,
-    paddingVertical: 18,
-    alignItems: 'center',
-  },
-  buttonText: {
-    color: '#ffffff',
-    fontSize: 16,
-    fontWeight: '700',
-    letterSpacing: 2,
-  },
-});

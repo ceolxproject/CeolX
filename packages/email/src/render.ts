@@ -1,5 +1,5 @@
 /** @jsxImportSource react */
-import { render } from '@react-email/components';
+import { render } from '@react-email/render';
 import * as React from 'react';
 
 import { VerificationEmail } from './templates/verification.js';

@@ -1,8 +1,11 @@
 import '@/global.css';
+import { Inter_500Medium, Inter_600SemiBold } from '@expo-google-fonts/inter';
 import {
   Urbanist_400Regular,
+  Urbanist_500Medium,
   Urbanist_600SemiBold,
   Urbanist_700Bold,
+  Urbanist_900Black,
 } from '@expo-google-fonts/urbanist';
 import * as Sentry from '@sentry/react-native';
 import { QueryClientProvider } from '@tanstack/react-query';
@@ -53,12 +56,13 @@ function RootStack() {
 
 function Layout() {
   const [fontsLoaded] = useFonts({
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+    Inter_500Medium,
+    Inter_600SemiBold,
     Urbanist_400Regular,
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+    Urbanist_500Medium,
     Urbanist_600SemiBold,
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     Urbanist_700Bold,
+    Urbanist_900Black,
   });
 
   if (!fontsLoaded) return null;

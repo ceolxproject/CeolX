@@ -23,6 +23,15 @@ export const auth = betterAuth({
     enabled: true,
     requireEmailVerification: true,
   },
+  user: {
+    additionalFields: {
+      currentRole: { type: 'string', defaultValue: 'spectator', input: true },
+      consentAt: { type: 'date', required: false, input: false },
+      marketingConsent: { type: 'boolean', defaultValue: false, input: false },
+      lastLoginAt: { type: 'date', required: false, input: false },
+      flaggedInactive: { type: 'boolean', defaultValue: false, input: false },
+    },
+  },
   emailVerification: {
     sendOnSignUp: true,
     expiresIn: 60 * 60 * 24, // 24 hours

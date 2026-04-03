@@ -1,8 +1,8 @@
 import { relations } from 'drizzle-orm';
 import { index, integer, pgTable, text, timestamp, uniqueIndex, uuid } from 'drizzle-orm/pg-core';
 
+import { user } from './auth';
 import { mediaTypeEnum } from './enums';
-import { users } from './users';
 
 // ---------------------------------------------------------------------------
 // posts — soft-deleted, never hard deleted.
@@ -13,9 +13,9 @@ export const posts = pgTable(
   'posts',
   {
     id: uuid('id').primaryKey().defaultRandom(),
-    createdBy: uuid('created_by')
+    createdBy: text('created_by')
       .notNull()
-      .references(() => users.id, { onDelete: 'cascade' }),
+      .references(() => user.id, { onDelete: 'cascade' }),
     caption: text('caption').notNull(),
     mediaType: mediaTypeEnum('media_type').notNull(),
     mediaUrl: text('media_url'), // null for text-only posts; S3/CloudFront URL otherwise
@@ -38,9 +38,9 @@ export const comments = pgTable(
     postId: uuid('post_id')
       .notNull()
       .references(() => posts.id, { onDelete: 'cascade' }),
-    userId: uuid('user_id')
+    userId: text('user_id')
       .notNull()
-      .references(() => users.id, { onDelete: 'cascade' }),
+      .references(() => user.id, { onDelete: 'cascade' }),
     body: text('body').notNull(),
     deletedAt: timestamp('deleted_at'), // soft delete
     createdAt: timestamp('created_at').notNull().defaultNow(),
@@ -62,9 +62,9 @@ export const postLikes = pgTable(
     postId: uuid('post_id')
       .notNull()
       .references(() => posts.id, { onDelete: 'cascade' }),
-    userId: uuid('user_id')
+    userId: text('user_id')
       .notNull()
-      .references(() => users.id, { onDelete: 'cascade' }),
+      .references(() => user.id, { onDelete: 'cascade' }),
     createdAt: timestamp('created_at').notNull().defaultNow(),
   },
   (t) => [uniqueIndex('post_likes_post_user_idx').on(t.postId, t.userId)]
@@ -78,12 +78,12 @@ export const follows = pgTable(
   'follows',
   {
     id: uuid('id').primaryKey().defaultRandom(),
-    followerId: uuid('follower_id')
+    followerId: text('follower_id')
       .notNull()
-      .references(() => users.id, { onDelete: 'cascade' }),
-    followeeId: uuid('followee_id')
+      .references(() => user.id, { onDelete: 'cascade' }),
+    followeeId: text('followee_id')
       .notNull()
-      .references(() => users.id, { onDelete: 'cascade' }),
+      .references(() => user.id, { onDelete: 'cascade' }),
     createdAt: timestamp('created_at').notNull().defaultNow(),
   },
   (t) => [uniqueIndex('follows_follower_followee_idx').on(t.followerId, t.followeeId)]
@@ -93,9 +93,9 @@ export const follows = pgTable(
 // Relations
 // ---------------------------------------------------------------------------
 export const postsRelations = relations(posts, ({ one, many }) => ({
-  author: one(users, {
+  author: one(user, {
     fields: [posts.createdBy],
-    references: [users.id],
+    references: [user.id],
   }),
   comments: many(comments),
   likes: many(postLikes),
@@ -106,9 +106,9 @@ export const commentsRelations = relations(comments, ({ one }) => ({
     fields: [comments.postId],
     references: [posts.id],
   }),
-  author: one(users, {
+  author: one(user, {
     fields: [comments.userId],
-    references: [users.id],
+    references: [user.id],
   }),
 }));
 
@@ -117,21 +117,21 @@ export const postLikesRelations = relations(postLikes, ({ one }) => ({
     fields: [postLikes.postId],
     references: [posts.id],
   }),
-  user: one(users, {
+  user: one(user, {
     fields: [postLikes.userId],
-    references: [users.id],
+    references: [user.id],
   }),
 }));
 
 export const followsRelations = relations(follows, ({ one }) => ({
-  follower: one(users, {
+  follower: one(user, {
     fields: [follows.followerId],
-    references: [users.id],
+    references: [user.id],
     relationName: 'follower',
   }),
-  followee: one(users, {
+  followee: one(user, {
     fields: [follows.followeeId],
-    references: [users.id],
+    references: [user.id],
     relationName: 'followee',
   }),
 }));
