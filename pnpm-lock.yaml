@@ -503,6 +503,9 @@ importers:
       '@CeolX/db':
         specifier: workspace:*
         version: link:../db
+      '@CeolX/email':
+        specifier: workspace:*
+        version: link:../email
       '@CeolX/env':
         specifier: workspace:*
         version: link:../env

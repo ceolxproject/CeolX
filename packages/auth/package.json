@@ -12,6 +12,7 @@
   "scripts": {},
   "dependencies": {
     "@CeolX/db": "workspace:*",
+    "@CeolX/email": "workspace:*",
     "@CeolX/env": "workspace:*",
     "@better-auth/expo": "catalog:",
     "better-auth": "catalog:",
