@@ -16,6 +16,7 @@ const config = {
   ios: {
     supportsTablet: false,
     bundleIdentifier: 'ie.ceolx.app',
+    usesAppleSignIn: true,
     infoPlist: {
       NSLocationWhenInUseUsageDescription:
         'CeolX uses your location to show nearby Irish music events',
@@ -52,6 +53,7 @@ const config = {
     ],
     'expo-secure-store',
     'expo-notifications',
+    'expo-apple-authentication',
   ],
   experiments: {
     typedRoutes: true,

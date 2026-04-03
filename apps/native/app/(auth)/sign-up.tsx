@@ -1,13 +1,23 @@
 import { Link } from 'expo-router';
 import { useState } from 'react';
-import { StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Platform,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { useSocialAuth } from '@/hooks/use-social-auth';
 import { form, layout, typography } from '@/styles/shared';
 
 export default function SignUpScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const { signInWithGoogle, signInWithApple, isLoading } = useSocialAuth();
 
   return (
     <SafeAreaView style={layout.container}>
@@ -44,13 +54,37 @@ export default function SignUpScreen() {
           <View style={styles.divider} />
         </View>
 
-        {/* Social logins wired in M2 */}
-        <TouchableOpacity style={styles.socialButton} disabled>
-          <Text style={styles.socialButtonText}>Continue with Google</Text>
+        <TouchableOpacity
+          style={[styles.socialButton, isLoading && styles.socialButtonDisabled]}
+          onPress={signInWithGoogle}
+          disabled={isLoading}
+        >
+          {isLoading ? (
+            <ActivityIndicator color="#333" />
+          ) : (
+            <Text style={styles.socialButtonText}>Continue with Google</Text>
+          )}
         </TouchableOpacity>
-        <TouchableOpacity style={[styles.socialButton, styles.appleButton]} disabled>
-          <Text style={[styles.socialButtonText, styles.appleButtonText]}>Continue with Apple</Text>
-        </TouchableOpacity>
+
+        {Platform.OS === 'ios' && (
+          <TouchableOpacity
+            style={[
+              styles.socialButton,
+              styles.appleButton,
+              isLoading && styles.socialButtonDisabled,
+            ]}
+            onPress={signInWithApple}
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={[styles.socialButtonText, styles.appleButtonText]}>
+                Continue with Apple
+              </Text>
+            )}
+          </TouchableOpacity>
+        )}
 
         <View style={[form.footer, { marginTop: 8 }]}>
           <Text style={typography.footerText}>Already have an account? </Text>
@@ -80,6 +114,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 12,
   },
+  socialButtonDisabled: { opacity: 0.6 },
   socialButtonText: { fontSize: 16, color: '#333', fontWeight: '500' },
   appleButton: { backgroundColor: '#000', borderColor: '#000' },
   appleButtonText: { color: '#fff' },

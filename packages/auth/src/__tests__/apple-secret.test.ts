@@ -7,7 +7,7 @@ describe('generateAppleClientSecret', () => {
   let privateKeyPem: string;
 
   beforeAll(async () => {
-    const { privateKey } = await generateKeyPair('ES256');
+    const { privateKey } = await generateKeyPair('ES256', { extractable: true });
     privateKeyPem = await exportPKCS8(privateKey);
   });
 
