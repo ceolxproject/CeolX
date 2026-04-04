@@ -7,12 +7,18 @@ import { authClient } from '@/lib/auth-client';
 
 const POST_AUTH_ROUTE = '/(app)/(tabs)/map' as const;
 
-function toUserMessage(error: unknown): string {
+export function toUserMessage(error: unknown): string {
   if (error instanceof Error) {
     const msg = error.message.toLowerCase();
     if (msg.includes('cancel') || msg.includes('dismiss')) return 'Sign-in was cancelled.';
     if (msg.includes('network') || msg.includes('fetch')) return 'Network error. Please try again.';
     if (msg.includes('not available')) return 'Apple Sign-In is not available on this device.';
+    if (msg.includes('invalid_client')) return 'Configuration error. Please contact support.';
+    if (msg.includes('access_denied')) return 'Access was denied by the provider.';
+    if (msg.includes('already_linked') || msg.includes('social_account_already_linked'))
+      return 'This account is already linked to another user.';
+    if (msg.includes('user_already_exists'))
+      return 'An account with this email already exists. Try signing in instead.';
   }
   return 'Sign-in failed. Please try again.';
 }
@@ -23,12 +29,21 @@ export function useSocialAuth() {
   async function signInWithGoogle() {
     setIsLoading(true);
     try {
-      await authClient.signIn.social({
+      const result = await authClient.signIn.social({
         provider: 'google',
         callbackURL: POST_AUTH_ROUTE,
       });
+
+      if (result.error) {
+        throw new Error(result.error.message ?? 'Google Sign-In failed.');
+      }
+
+      router.replace(POST_AUTH_ROUTE);
     } catch (error) {
-      Alert.alert('Google Sign-In', toUserMessage(error));
+      const msg = toUserMessage(error);
+      if (!msg.includes('cancelled')) {
+        Alert.alert('Google Sign-In', msg);
+      }
     } finally {
       setIsLoading(false);
     }
