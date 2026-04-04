@@ -45,7 +45,7 @@ Tracks completed tasks per milestone. Each entry links to its PR.
 
 - [x] M2-T1 · Email/Password Auth (PR #23)
 - [ ] M2-T2 · Google + Apple Sign-In
-- [ ] M2-T3 · Forgot Password
+- [x] M2-T3 · Forgot Password — PR #25
 - [ ] M2-T4 · Persona Onboarding & Role Switching
 - [ ] M2-T5 · RBAC Roles & Auth Middleware
 - [ ] M2-T6 · Session Management

@@ -1,10 +1,11 @@
 import { defineConfig } from 'vitest/config';
 
-// Root vitest config — routes test files to per-project configs so that each
-// project's environment settings (happy-dom for admin, node for shared/api) are
-// respected when lint-staged runs `vitest related`.
+// Worktree-level vitest config. Prevents vitest from traversing up to the parent
+// repo's vitest.config.ts (which references apps/admin/vitest.config.ts that does
+// not exist in this worktree). Each package runs its own `vitest run` from its
+// own directory — this root config is just a traversal stop.
 export default defineConfig({
   test: {
-    projects: ['apps/admin/vitest.config.ts'],
+    environment: 'node',
   },
 });

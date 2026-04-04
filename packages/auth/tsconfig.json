@@ -8,5 +8,8 @@
     "composite": true,
     "jsx": "react-jsx",
     "jsxImportSource": "react"
-  }
+  },
+  "references": [
+    { "path": "../email" }
+  ]
 }

@@ -4,7 +4,7 @@ import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 
 import { db } from '@CeolX/db';
 import * as schema from '@CeolX/db/schema/auth';
-import { sendEmail } from '@CeolX/email';
+import { sendEmail, sendPasswordResetEmail } from '@CeolX/email';
 import { env } from '@CeolX/env/server';
 
 import { buildVerificationDeepLink } from './email-utils';
@@ -22,6 +22,11 @@ export const auth = betterAuth({
   emailAndPassword: {
     enabled: true,
     requireEmailVerification: true,
+    resetPasswordTokenExpiresIn: 900, // 15 minutes
+    sendResetPassword: async ({ user, token }) => {
+      const deepLink = `ceolx://reset-password?token=${token}`;
+      await sendPasswordResetEmail(user.email, deepLink);
+    },
   },
   user: {
     additionalFields: {
@@ -46,6 +51,15 @@ export const auth = betterAuth({
           verificationUrl: deepLink,
         },
       });
+    },
+  },
+  rateLimit: {
+    enabled: true,
+    customRules: {
+      '/forget-password': {
+        window: 3600, // 1 hour
+        max: 3,
+      },
     },
   },
   secret: env.BETTER_AUTH_SECRET,

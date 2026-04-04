@@ -2,6 +2,7 @@
 import { render } from '@react-email/render';
 import * as React from 'react';
 
+import { PasswordResetEmail } from './templates/password-reset.js';
 import { VerificationEmail } from './templates/verification.js';
 import type { EmailTemplate, EmailTemplateMap } from './types.js';
 
@@ -29,12 +30,8 @@ function createTemplateElement(
       return React.createElement(VerificationEmail, d);
     }
     case 'password-reset': {
-      // TODO: create PasswordResetEmail template (M2-T2)
       const d = data as EmailTemplateMap['password-reset'];
-      return React.createElement(VerificationEmail, {
-        userName: d.userName,
-        verificationUrl: d.resetUrl,
-      });
+      return React.createElement(PasswordResetEmail, d);
     }
     default: {
       const _exhaustive: never = template;

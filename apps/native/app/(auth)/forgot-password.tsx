@@ -5,14 +5,63 @@ import { KeyboardAvoidingView, Platform, Pressable, Text, TextInput, View } from
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppButton } from '@/components/AppButton';
+import { authClient } from '@/lib/auth-client';
 
 export default function ForgotPasswordScreen() {
   const [email, setEmail] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [submitted, setSubmitted] = useState(false);
 
-  const handleSend = () => {
-    // Wired in M2-T1
-    router.back();
+  const handleSend = async () => {
+    if (!email.trim()) {
+      setError('Please enter your email address.');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+
+    const { error: apiError } = await authClient.requestPasswordReset({
+      email: email.trim().toLowerCase(),
+    });
+
+    setLoading(false);
+
+    if (apiError?.status === 429) {
+      setError('Too many requests. Please wait before trying again.');
+      return;
+    }
+
+    // Always show success — generic message prevents email enumeration
+    setSubmitted(true);
   };
+
+  if (submitted) {
+    return (
+      <View style={{ flex: 1, backgroundColor: '#080808' }}>
+        <SafeAreaView style={{ flex: 1 }}>
+          <View className="flex-1 p-6 items-center justify-center">
+            <Text className="text-5xl mb-6 text-center">✉️</Text>
+            <Text className="text-[28px] font-bold text-white mb-2 text-center">
+              Check your email
+            </Text>
+            <Text className="text-[15px] text-gray-10 text-center leading-[22px] mb-8">
+              If an account exists with that email, we've sent a password reset link. The link
+              expires in 15 minutes.
+            </Text>
+            <AppButton
+              variant="primary"
+              onPress={() => router.back()}
+              className="w-full rounded-full py-[18px]"
+            >
+              Back to Sign In
+            </AppButton>
+          </View>
+        </SafeAreaView>
+      </View>
+    );
+  }
 
   return (
     <View style={{ flex: 1, backgroundColor: '#080808' }}>
@@ -42,10 +91,12 @@ export default function ForgotPasswordScreen() {
                 value={email}
                 onChangeText={setEmail}
               />
+              {error ? <Text className="text-red-500 text-sm">{error}</Text> : null}
             </View>
 
             <AppButton
               variant="primary"
+              isLoading={loading}
               onPress={handleSend}
               className="w-full rounded-full py-[18px]"
             >
