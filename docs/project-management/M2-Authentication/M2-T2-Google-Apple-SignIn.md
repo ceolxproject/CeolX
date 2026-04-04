@@ -3,7 +3,7 @@
 | Field          | Value                                                             |
 | -------------- | ----------------------------------------------------------------- |
 | **Milestone**  | M2 — Authentication & Persona System                              |
-| **Status**     | 🔲 To Do                                                          |
+| **Status**     | ✅ Done — PR #26                                                  |
 | **Depends on** | M2-T1 (BetterAuth must be configured), M1-T4 (mobile app)         |
 | **PRD Ref**    | Section 4.1 (Apple Sign-In is mandatory for App Store compliance) |
 

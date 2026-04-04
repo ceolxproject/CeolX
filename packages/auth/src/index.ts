@@ -7,6 +7,7 @@ import * as schema from '@CeolX/db/schema/auth';
 import { sendEmail, sendPasswordResetEmail } from '@CeolX/email';
 import { env } from '@CeolX/env/server';
 
+import { generateAppleClientSecret } from './apple-secret.js';
 import { buildVerificationDeepLink } from './email-utils';
 
 export const auth = betterAuth({
@@ -17,6 +18,7 @@ export const auth = betterAuth({
   trustedOrigins: [
     ...env.CORS_ALLOWED_ORIGINS.split('|'),
     'CeolX://',
+    'https://appleid.apple.com',
     ...(env.NODE_ENV === 'development' ? ['exp://', 'exp://**', 'exp://192.168.*.*:*/**'] : []),
   ],
   emailAndPassword: {
@@ -60,6 +62,45 @@ export const auth = betterAuth({
         window: 3600, // 1 hour
         max: 3,
       },
+    },
+  },
+  socialProviders: {
+    ...(env.GOOGLE_OAUTH_CLIENT_ID && env.GOOGLE_OAUTH_CLIENT_SECRET
+      ? {
+          google: {
+            clientId: env.GOOGLE_OAUTH_CLIENT_ID,
+            clientSecret: env.GOOGLE_OAUTH_CLIENT_SECRET,
+          },
+        }
+      : {}),
+    ...(env.APPLE_OAUTH_CLIENT_ID &&
+    env.APPLE_OAUTH_TEAM_ID &&
+    env.APPLE_OAUTH_KEY_ID &&
+    env.APPLE_OAUTH_PRIVATE_KEY
+      ? (() => {
+          const clientId = env.APPLE_OAUTH_CLIENT_ID;
+          const teamId = env.APPLE_OAUTH_TEAM_ID;
+          const keyId = env.APPLE_OAUTH_KEY_ID;
+          const privateKey = env.APPLE_OAUTH_PRIVATE_KEY;
+          return {
+            apple: async () => ({
+              clientId,
+              appBundleIdentifier: 'ie.ceolx.app',
+              clientSecret: await generateAppleClientSecret({
+                clientId,
+                teamId,
+                keyId,
+                privateKey,
+              }),
+            }),
+          };
+        })()
+      : {}),
+  },
+  account: {
+    accountLinking: {
+      enabled: true,
+      trustedProviders: ['google', 'apple', 'email-password'],
     },
   },
   secret: env.BETTER_AUTH_SECRET,

@@ -11,7 +11,6 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { authClient } from '@/lib/auth-client';
-import { form, layout } from '@/styles/shared';
 
 export default function ResetPasswordScreen() {
   const { token } = useLocalSearchParams<{ token: string }>();
@@ -64,13 +63,13 @@ export default function ResetPasswordScreen() {
   };
 
   return (
-    <SafeAreaView style={layout.container}>
+    <SafeAreaView style={styles.container}>
       <View style={styles.inner}>
         <Text style={styles.title}>Create New Password</Text>
         <Text style={styles.subtitle}>Your new password must be at least 8 characters.</Text>
 
         <TextInput
-          style={[form.input, { marginBottom: 12 }]}
+          style={[styles.input, { marginBottom: 12 }]}
           placeholder="New password"
           placeholderTextColor="#999"
           secureTextEntry
@@ -79,7 +78,7 @@ export default function ResetPasswordScreen() {
         />
 
         <TextInput
-          style={[form.input, { marginBottom: 8 }]}
+          style={[styles.input, { marginBottom: 8 }]}
           placeholder="Confirm password"
           placeholderTextColor="#999"
           secureTextEntry
@@ -90,14 +89,14 @@ export default function ResetPasswordScreen() {
         {error ? <Text style={styles.error}>{error}</Text> : null}
 
         <TouchableOpacity
-          style={[form.button, { marginTop: 8 }, loading && styles.disabled]}
+          style={[styles.button, { marginTop: 8 }, loading && styles.disabled]}
           onPress={handleReset}
           disabled={loading}
         >
           {loading ? (
             <ActivityIndicator color="#fff" />
           ) : (
-            <Text style={form.buttonText}>Reset Password</Text>
+            <Text style={styles.buttonText}>Reset Password</Text>
           )}
         </TouchableOpacity>
       </View>
@@ -113,9 +112,25 @@ function mapResetError(error: { status?: number; message?: string }): string {
 }
 
 const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: '#fff' },
   inner: { flex: 1, padding: 24, paddingTop: 48 },
   title: { fontSize: 28, fontWeight: '700', marginBottom: 8 },
   subtitle: { fontSize: 15, color: '#666', marginBottom: 28, lineHeight: 22 },
+  input: {
+    borderWidth: 1,
+    borderColor: '#e5e5e5',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    backgroundColor: '#fafafa',
+  },
+  button: {
+    backgroundColor: '#16a34a',
+    borderRadius: 8,
+    padding: 14,
+    alignItems: 'center',
+  },
+  buttonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
   error: { color: '#dc2626', fontSize: 14, marginBottom: 8 },
   disabled: { opacity: 0.6 },
 });

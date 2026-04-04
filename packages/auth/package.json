@@ -11,7 +11,8 @@
   },
   "scripts": {
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
     "@CeolX/db": "workspace:*",
@@ -20,10 +21,12 @@
     "@better-auth/expo": "catalog:",
     "better-auth": "catalog:",
     "dotenv": "catalog:",
+    "jose": "^6.1.0",
     "zod": "catalog:"
   },
   "devDependencies": {
     "@CeolX/config": "workspace:*",
+    "@types/node": "^22.13.14",
     "@types/react": "^19.0.0",
     "typescript": "^5",
     "vitest": "^3.0.0"
