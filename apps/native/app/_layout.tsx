@@ -33,6 +33,7 @@ if (!dist) {
 }
 
 Sentry.init({
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
   dsn: process.env.EXPO_PUBLIC_SENTRY_DSN,
   environment: __DEV__ ? 'development' : 'production',
   enabled: !__DEV__,

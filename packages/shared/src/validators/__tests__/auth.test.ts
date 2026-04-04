@@ -26,7 +26,7 @@ describe('forgotPasswordSchema', () => {
 
 describe('resetPasswordSchema', () => {
   const validInput = {
-    token: 'some-reset-token',
+    token: '550e8400-e29b-41d4-a716-446655440000',
     newPassword: 'Secure123!',
     confirmPassword: 'Secure123!',
   };

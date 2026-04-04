@@ -34,7 +34,7 @@ export const protectedProcedure = t.procedure.use(async ({ ctx, next }) => {
 
 const requireRole = (...roles: UserRole[]) =>
   t.middleware(async ({ ctx, next }) => {
-    const currentRole = (ctx as { currentRole: UserRole }).currentRole;
+    const currentRole = (ctx as unknown as { currentRole: UserRole }).currentRole;
 
     if (currentRole === 'admin') return next();
 
