@@ -13,16 +13,18 @@
   "dependencies": {
     "@CeolX/auth": "workspace:*",
     "@CeolX/db": "workspace:*",
-    "@CeolX/shared": "workspace:*",
-    "drizzle-orm": "^0.45.1",
     "@CeolX/env": "workspace:*",
+    "@CeolX/shared": "workspace:*",
     "@trpc/client": "catalog:",
     "@trpc/server": "catalog:",
     "dotenv": "catalog:",
+    "drizzle-orm": "^0.45.1",
+    "ua-parser-js": "^2.0.9",
     "zod": "catalog:"
   },
   "devDependencies": {
     "@CeolX/config": "workspace:*",
+    "@types/ua-parser-js": "^0.7.39",
     "hono": "catalog:",
     "typescript": "^5"
   }
