@@ -1,5 +1,64 @@
-@import "tailwindcss";
-@import "uniwind";
-@import "heroui-native/styles";
+@import 'tailwindcss';
+@import 'uniwind';
+@import 'heroui-native/styles';
 
 @source './node_modules/heroui-native/lib';
+
+@theme {
+  /* ─── Typography ────────────────────────────────────────────────── */
+  --font-sans: 'Urbanist', ui-sans-serif, system-ui, sans-serif;
+  --font-inter: 'Inter', ui-sans-serif, system-ui, sans-serif;
+
+  /* ─── CeolX Primary — Blue (#662FFF) 10-step opacity scale ─────── */
+  --color-blue-1: rgba(102, 47, 255, 0.1);
+  --color-blue-2: rgba(102, 47, 255, 0.2);
+  --color-blue-3: rgba(102, 47, 255, 0.3);
+  --color-blue-4: rgba(102, 47, 255, 0.4);
+  --color-blue-5: rgba(102, 47, 255, 0.5);
+  --color-blue-6: rgba(102, 47, 255, 0.6);
+  --color-blue-7: rgba(102, 47, 255, 0.7);
+  --color-blue-8: rgba(102, 47, 255, 0.8);
+  --color-blue-9: rgba(102, 47, 255, 0.9);
+  --color-blue-10: #662fff;
+
+  /* ─── CeolX Secondary — Green (#C8FF2F) 10-step opacity scale ───── */
+  --color-green-1: rgba(200, 255, 47, 0.1);
+  --color-green-2: rgba(200, 255, 47, 0.2);
+  --color-green-3: rgba(200, 255, 47, 0.3);
+  --color-green-4: rgba(200, 255, 47, 0.4);
+  --color-green-5: rgba(200, 255, 47, 0.5);
+  --color-green-6: rgba(200, 255, 47, 0.6);
+  --color-green-7: rgba(200, 255, 47, 0.7);
+  --color-green-8: rgba(200, 255, 47, 0.8);
+  --color-green-9: rgba(200, 255, 47, 0.9);
+  --color-green-10: #c8ff2f;
+
+  /* ─── Tertiary — Gray (explicit hex per step) ───────────────────── */
+  --color-gray-1: #f4f4f4;
+  --color-gray-2: #e8e8e8;
+  --color-gray-3: #dddddd;
+  --color-gray-4: #d1d1d1;
+  --color-gray-5: #c6c6c6;
+  --color-gray-6: #bbbbbb;
+  --color-gray-7: #afafaf;
+  --color-gray-8: #a4a4a4;
+  --color-gray-9: #989898;
+  --color-gray-10: #8d8d8d;
+
+  /* ─── Surface tokens ─────────────────────────────────────────────── */
+  --color-surface: #363636;
+  --color-surface-dark: #080808;
+  --color-surface-white: #ffffff;
+
+  /* ─── Semantic tokens ────────────────────────────────────────────── */
+  --color-error: #ef4444;
+  --color-warning: #f59e0b;
+  --color-success: #c8ff2f;
+  --color-info: #662fff;
+
+  /* ─── Border radius ──────────────────────────────────────────────── */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+}

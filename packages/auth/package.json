@@ -9,7 +9,10 @@
       "default": "./src/*.ts"
     }
   },
-  "scripts": {},
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
   "dependencies": {
     "@CeolX/db": "workspace:*",
     "@CeolX/email": "workspace:*",
@@ -21,6 +24,8 @@
   },
   "devDependencies": {
     "@CeolX/config": "workspace:*",
-    "typescript": "^5"
+    "@types/react": "^19.0.0",
+    "typescript": "^5",
+    "vitest": "^3.0.0"
   }
 }

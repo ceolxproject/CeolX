@@ -16,11 +16,11 @@ describe('sendPasswordResetEmail', () => {
   const testEmail = 'user@example.com';
   const testDeepLink = 'ceolx://reset-password?token=abc-123';
 
-  it('calls sendEmail with password-reset tag', async () => {
+  it('calls sendEmail with the password-reset template', async () => {
     await sendPasswordResetEmail(testEmail, testDeepLink);
     expect(sendEmail).toHaveBeenCalledOnce();
     const call = vi.mocked(sendEmail).mock.calls[0]?.[0];
-    expect(call?.tag).toBe('password-reset');
+    expect(call?.template).toBe('password-reset');
   });
 
   it('sends to the provided email address', async () => {
@@ -29,22 +29,22 @@ describe('sendPasswordResetEmail', () => {
     expect(call?.to).toBe(testEmail);
   });
 
-  it('includes the deep link in the html body', async () => {
+  it('passes the reset URL in the template data', async () => {
     await sendPasswordResetEmail(testEmail, testDeepLink);
     const call = vi.mocked(sendEmail).mock.calls[0]?.[0];
-    expect(call?.htmlBody).toContain(testDeepLink);
+    expect(call?.data).toMatchObject({ resetUrl: testDeepLink });
   });
 
-  it('includes the deep link in the text body', async () => {
+  it('uses empty string for userName when not provided', async () => {
     await sendPasswordResetEmail(testEmail, testDeepLink);
     const call = vi.mocked(sendEmail).mock.calls[0]?.[0];
-    expect(call?.textBody).toContain(testDeepLink);
+    expect(call?.data).toMatchObject({ userName: '' });
   });
 
-  it('uses the correct subject line', async () => {
-    await sendPasswordResetEmail(testEmail, testDeepLink);
+  it('passes userName when provided', async () => {
+    await sendPasswordResetEmail(testEmail, testDeepLink, 'Aoife');
     const call = vi.mocked(sendEmail).mock.calls[0]?.[0];
-    expect(call?.subject).toBe('Reset your CeolX password');
+    expect(call?.data).toMatchObject({ userName: 'Aoife' });
   });
 
   it('re-throws if sendEmail fails', async () => {

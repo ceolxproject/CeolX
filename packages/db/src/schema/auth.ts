@@ -1,6 +1,8 @@
 import { relations } from 'drizzle-orm';
 import { pgTable, text, timestamp, boolean, index } from 'drizzle-orm/pg-core';
 
+import { userRoleEnum } from './enums';
+
 export const user = pgTable('user', {
   id: text('id').primaryKey(),
   name: text('name').notNull(),
@@ -12,6 +14,12 @@ export const user = pgTable('user', {
     .defaultNow()
     .$onUpdate(() => /* @__PURE__ */ new Date())
     .notNull(),
+  // App-level domain fields — set via completeRegistration after sign-up
+  currentRole: userRoleEnum('current_role').notNull().default('spectator'),
+  consentAt: timestamp('consent_at'), // nullable — set explicitly at registration
+  marketingConsent: boolean('marketing_consent').default(false),
+  lastLoginAt: timestamp('last_login_at'),
+  flaggedInactive: boolean('flagged_inactive').default(false), // GDPR: flagged after 24mo inactivity
 });
 
 export const session = pgTable(

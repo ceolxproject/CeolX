@@ -10,7 +10,9 @@
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "type-check": "tsc --noEmit",
-    "check-types": "vite build && tsc --noEmit"
+    "check-types": "vite build && tsc --noEmit",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
     "@CeolX/api": "workspace:*",
@@ -19,6 +21,7 @@
     "@CeolX/shared": "workspace:*",
     "@CeolX/ui": "workspace:*",
     "@hookform/resolvers": "^5.1.1",
+    "@sentry/react": "^10.46.0",
     "@tailwindcss/vite": "^4.1.18",
     "@tanstack/react-form": "catalog:",
     "@tanstack/react-query": "catalog:",
@@ -37,16 +40,24 @@
   },
   "devDependencies": {
     "@CeolX/config": "workspace:*",
+    "@sentry/vite-plugin": "^5.1.1",
     "@tanstack/react-query-devtools": "^5.91.1",
     "@tanstack/react-router-devtools": "^1.141.1",
     "@tanstack/router-plugin": "^1.141.1",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.1",
     "@types/node": "^22.13.14",
     "@types/react": "^19.2.10",
     "@types/react-dom": "catalog:",
     "@vitejs/plugin-react": "^4.3.4",
+    "@vitest/ui": "^4.1.2",
+    "happy-dom": "^20.8.9",
+    "jsdom": "^29.0.1",
     "postcss": "^8.5.3",
     "tailwindcss": "^4.1.18",
     "typescript": "^5",
-    "vite": "^6.2.2"
+    "vite": "^6.2.2",
+    "vitest": "^3.0.0"
   }
 }

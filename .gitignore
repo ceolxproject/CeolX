@@ -61,9 +61,21 @@ temp
 # AI Tools
 .agents
 .superpowers/*
+.claire/*
 
 # Claude
 .claude/settings.local.json
 
+# Playwright MCP artifacts (session snapshots, screenshots)
+.playwright-mcp/
+phase6b-*.png
+docs/plans/.dev-session.json
+
+# Lock files
+pnpm-lock.yaml
+
 #misc
 mentor-project-management
+
+apps/native/ios
+apps/native/android

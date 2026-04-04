@@ -1,5 +1,7 @@
 import type { BoundingBox, LatLng } from '../types.js';
 
+const IRELAND_BOUNDS = { minLat: 51.3, maxLat: 55.5, minLng: -10.7, maxLng: -5.9 };
+
 export function isWithinBoundingBox(point: LatLng, box: BoundingBox): boolean {
   return (
     point.lat >= box.swLat &&
@@ -9,14 +11,48 @@ export function isWithinBoundingBox(point: LatLng, box: BoundingBox): boolean {
   );
 }
 
-export function distanceKm(a: LatLng, b: LatLng): number {
+export function isWithinIreland(lat: number, lng: number): boolean {
+  return (
+    lat >= IRELAND_BOUNDS.minLat &&
+    lat <= IRELAND_BOUNDS.maxLat &&
+    lng >= IRELAND_BOUNDS.minLng &&
+    lng <= IRELAND_BOUNDS.maxLng
+  );
+}
+
+export function distanceBetween(lat1: number, lng1: number, lat2: number, lng2: number): number {
   const R = 6371;
-  const dLat = ((b.lat - a.lat) * Math.PI) / 180;
-  const dLng = ((b.lng - a.lng) * Math.PI) / 180;
-  const sin1 = Math.sin(dLat / 2);
-  const sin2 = Math.sin(dLng / 2);
-  const x =
-    sin1 * sin1 +
-    Math.cos((a.lat * Math.PI) / 180) * Math.cos((b.lat * Math.PI) / 180) * sin2 * sin2;
-  return R * 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x));
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLng = ((lng2 - lng1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+/** @deprecated Use distanceBetween instead */
+export function distanceKm(a: LatLng, b: LatLng): number {
+  return distanceBetween(a.lat, a.lng, b.lat, b.lng);
+}
+
+export function formatDistance(km: number): string {
+  return km < 1 ? `${Math.round(km * 1000)}m` : `${km.toFixed(1)}km`;
+}
+
+export function getBoundingBox(lat: number, lng: number, radiusKm: number): BoundingBox {
+  const latDelta = radiusKm / 111;
+  const lngDelta = radiusKm / (111 * Math.cos((lat * Math.PI) / 180));
+  return {
+    swLat: lat - latDelta,
+    swLng: lng - lngDelta,
+    neLat: lat + latDelta,
+    neLng: lng + lngDelta,
+  };
+}
+
+export function clampToIreland(lat: number, lng: number): LatLng {
+  return {
+    lat: Math.max(IRELAND_BOUNDS.minLat, Math.min(IRELAND_BOUNDS.maxLat, lat)),
+    lng: Math.max(IRELAND_BOUNDS.minLng, Math.min(IRELAND_BOUNDS.maxLng, lng)),
+  };
 }

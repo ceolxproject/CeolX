@@ -11,6 +11,7 @@
   },
   "scripts": {
     "db:check": "tsx src/check.ts",
+    "db:seed": "tsx src/seed.ts",
     "db:push": "drizzle-kit push",
     "db:generate": "drizzle-kit generate",
     "db:studio": "drizzle-kit studio",

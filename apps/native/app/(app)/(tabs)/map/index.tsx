@@ -1,43 +1,21 @@
-import { StyleSheet, Text, TextInput, View } from 'react-native';
+import { Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-
-import { layout } from '@/styles/shared';
 
 export default function MapScreen() {
   return (
-    <SafeAreaView style={layout.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Map</Text>
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#080808' }}>
+      <View className="p-4 border-b border-gray-10">
+        <Text className="text-2xl font-bold text-white mb-3">Map</Text>
         <TextInput
           placeholder="Search location or artist..."
-          style={styles.searchBar}
-          placeholderTextColor="gray"
+          className="border border-gray-10 rounded-lg px-3 py-2 bg-surface text-white"
+          placeholderTextColor="#8d8d8d"
         />
       </View>
 
-      <View style={styles.mapPlaceholder}>
-        <Text style={styles.placeholderText}>Map goes here (M3-T1)</Text>
+      <View className="flex-1 justify-center items-center bg-surface">
+        <Text className="text-base text-gray-10">Map goes here (M3-T1)</Text>
       </View>
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  header: { padding: 16, borderBottomWidth: 1, borderBottomColor: '#e0e0e0' },
-  title: { fontSize: 24, fontWeight: 'bold', marginBottom: 12 },
-  searchBar: {
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    backgroundColor: '#f5f5f5',
-  },
-  mapPlaceholder: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#f0f0f0',
-  },
-  placeholderText: { fontSize: 16, color: '#999' },
-});

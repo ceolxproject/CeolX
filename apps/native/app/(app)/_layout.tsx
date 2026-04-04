@@ -3,13 +3,13 @@ import { Redirect, Stack } from 'expo-router';
 import { useAuth } from '@/contexts/auth-context';
 
 export default function AppLayout() {
-  const { user, isLoading } = useAuth();
+  const { user, isGuest, isLoading } = useAuth();
 
   if (isLoading) {
-    return null; // Splash screen wired in M2
+    return null;
   }
 
-  if (!user) {
+  if (!user && !isGuest) {
     return <Redirect href="/(auth)/sign-in" />;
   }
 
