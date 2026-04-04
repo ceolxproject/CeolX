@@ -49,6 +49,16 @@ export default function ProfileScreen() {
 
         <Pressable
           className="flex-row justify-between items-center px-4 py-3.5"
+          onPress={() => router.push('/(app)/(tabs)/profile/active-sessions')}
+        >
+          <Text className="text-[15px] text-white">Active Sessions</Text>
+          <Text className="text-lg text-gray-10">›</Text>
+        </Pressable>
+
+        <View className="h-px bg-gray-10" />
+
+        <Pressable
+          className="flex-row justify-between items-center px-4 py-3.5"
           onPress={handleLogout}
         >
           <Text className="text-[15px] text-red-500">Logout</Text>
