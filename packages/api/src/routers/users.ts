@@ -3,6 +3,7 @@ import { z } from 'zod';
 
 import { db } from '@CeolX/db';
 import { user } from '@CeolX/db/schema/auth';
+import { artistProfiles, venueProfiles } from '@CeolX/db/schema/users';
 
 import { protectedProcedure, router } from '../index';
 
@@ -17,9 +18,30 @@ export const usersRouter = router({
    * Falls back to null if consentAt is not yet set (registration not complete).
    */
   me: protectedProcedure.query(async ({ ctx }) => {
-    const [row] = await db.select().from(user).where(eq(user.id, ctx.session.user.id)).limit(1);
+    const userId = ctx.session.user.id;
+    const [row] = await db.select().from(user).where(eq(user.id, userId)).limit(1);
 
-    return row ?? null;
+    if (!row) return null;
+
+    // Determine whether onboarding is complete based on current role
+    let onboardingComplete = true;
+    if (row.currentRole === 'artist') {
+      const [profile] = await db
+        .select({ id: artistProfiles.id })
+        .from(artistProfiles)
+        .where(eq(artistProfiles.userId, userId))
+        .limit(1);
+      onboardingComplete = !!profile;
+    } else if (row.currentRole === 'venue') {
+      const [profile] = await db
+        .select({ id: venueProfiles.id })
+        .from(venueProfiles)
+        .where(eq(venueProfiles.userId, userId))
+        .limit(1);
+      onboardingComplete = !!profile;
+    }
+
+    return { ...row, onboardingComplete };
   }),
 
   /**
