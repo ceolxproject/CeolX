@@ -50,17 +50,25 @@ export default function VerifyEmailScreen() {
         // Email verified — BetterAuth has now created a session.
         // Finish registration by writing role + consent to the DB.
         const raw = await SecureStore.getItemAsync('pendingRegistration');
+        let currentRole: 'spectator' | 'artist' | 'venue' = 'spectator';
         if (raw) {
-          const { currentRole, marketingConsent } = JSON.parse(raw) as {
+          const pending = JSON.parse(raw) as {
             currentRole: 'spectator' | 'artist' | 'venue';
             marketingConsent: boolean;
           };
-          await completeRegistration({ currentRole, marketingConsent });
+          currentRole = pending.currentRole;
+          await completeRegistration({ currentRole, marketingConsent: pending.marketingConsent });
           void SecureStore.deleteItemAsync('pendingRegistration');
         }
 
         void SecureStore.deleteItemAsync('pendingVerificationEmail');
-        router.replace('/(app)/(tabs)/map');
+
+        // Route artists to onboarding form; spectators go straight to the app
+        if (currentRole === 'artist') {
+          router.replace('/(auth)/artist-onboarding');
+        } else {
+          router.replace('/(app)/(tabs)/map');
+        }
       })
       .catch(() => setVerifyError('Something went wrong. Please try again.'))
       .finally(() => setIsVerifying(false));
