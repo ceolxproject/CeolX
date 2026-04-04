@@ -3,7 +3,7 @@
 | Field          | Value                                                              |
 | -------------- | ------------------------------------------------------------------ |
 | **Milestone**  | M1 — Project Setup & Infrastructure                                |
-| **Status**     | 🔲 To Do (partial scaffold exists — see Pre-existing State below)  |
+| **Status**     | ✅ Done (partial scaffold exists — see Pre-existing State below)   |
 | **Depends on** | M1-T1 (Turborepo monorepo init), M1.5-T1 (packages/db enums exist) |
 | **PRD Ref**    | Section 10.1 (Monorepo Structure — packages/shared)                |
 

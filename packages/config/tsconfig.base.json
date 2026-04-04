@@ -22,6 +22,7 @@
     "noImplicitOverride": true,
     "allowUnusedLabels": false,
     "allowUnreachableCode": false,
+    "useUnknownInCatchVariables": true,
     "types": ["node"]
   }
 }

@@ -1,8 +1,6 @@
 import { router } from 'expo-router';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-
-import { layout } from '@/styles/shared';
 
 const ROLES = [
   {
@@ -30,36 +28,23 @@ export default function SwitchAccountScreen() {
   };
 
   return (
-    <SafeAreaView style={layout.container}>
-      <View style={layout.inner}>
-        <Text style={styles.subtitle}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#080808' }}>
+      <View className="p-4">
+        <Text className="text-sm text-gray-10 mb-6 leading-5">
           Choose how you want to use CeolX. You can switch any time from Settings.
         </Text>
 
         {ROLES.map((role) => (
-          <TouchableOpacity
+          <Pressable
             key={role.key}
-            style={styles.card}
+            className="border border-gray-10 rounded-xl p-4 mb-3"
             onPress={() => handleSelect(role.key)}
           >
-            <Text style={styles.cardTitle}>{role.label}</Text>
-            <Text style={styles.cardDesc}>{role.description}</Text>
-          </TouchableOpacity>
+            <Text className="text-base font-semibold text-white mb-1">{role.label}</Text>
+            <Text className="text-[13px] text-gray-10">{role.description}</Text>
+          </Pressable>
         ))}
       </View>
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  subtitle: { fontSize: 14, color: '#666', marginBottom: 24, lineHeight: 20 },
-  card: {
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-  },
-  cardTitle: { fontSize: 16, fontWeight: '600', marginBottom: 4 },
-  cardDesc: { fontSize: 13, color: '#666' },
-});

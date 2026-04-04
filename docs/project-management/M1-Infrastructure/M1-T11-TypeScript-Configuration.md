@@ -3,7 +3,7 @@
 | Field          | Value                                                       |
 | -------------- | ----------------------------------------------------------- |
 | **Milestone**  | M1 — Project Setup & Infrastructure                         |
-| **Status**     | 🔧 In Progress                                              |
+| **Status**     | ✅ Done                                                     |
 | **Depends on** | M1-T1 (Turborepo init), M1-T10 (Shared package scaffolding) |
 | **PRD Ref**    | Section 10.1 (Tech Stack — TypeScript-first throughout)     |
 

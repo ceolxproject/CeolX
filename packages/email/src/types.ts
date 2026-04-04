@@ -1,13 +1,12 @@
-export type EmailTag =
-  | 'email-verification'
-  | 'password-reset'
-  | 'venue-activation'
-  | 'payment-confirmation';
+export type EmailTemplateMap = {
+  verification: { userName: string; verificationUrl: string };
+  'password-reset': { userName: string; resetUrl: string };
+};
 
-export interface SendEmailOptions {
+export type EmailTemplate = keyof EmailTemplateMap;
+
+export interface SendEmailOptions<T extends EmailTemplate> {
   to: string;
-  subject: string;
-  htmlBody: string;
-  textBody: string;
-  tag: EmailTag;
+  template: T;
+  data: EmailTemplateMap[T];
 }

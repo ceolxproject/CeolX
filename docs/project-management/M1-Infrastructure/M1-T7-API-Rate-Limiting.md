@@ -1,5 +1,11 @@
 # M1-T7 · API Rate Limiting
 
+| Field          | Value                                                            |
+| -------------- | ---------------------------------------------------------------- |
+| **Milestone**  | M1 — Project Setup & Infrastructure                              |
+| **Status**     | ✅ Done — PR #7 (Layer 2 per-procedure limits deferred to M2/M8) |
+| **Depends on** | M1-T3 (Hono API scaffold), M1-T10 (packages/env)                 |
+
 ## Description
 
 Implement two-layer API rate limiting for the Hono API using Upstash Redis as the backing store.
@@ -17,13 +23,12 @@ Uses sliding window algorithm via `@upstash/ratelimit`. Gracefully no-ops in loc
 
 ## Rate Limit Tiers (Layer 1)
 
-| Tier                   | Tokens | Window | Key    | Route group         |
-| ---------------------- | ------ | ------ | ------ | ------------------- |
-| `authLogin`            | 10     | 15 min | IP     | `/api/auth/*`       |
-| `authenticatedGeneral` | 500    | 1 min  | userId | `/rpc/*`            |
-| `publicCatalog`        | 200    | 1 min  | IP     | `/api-reference/*`  |
-| `adminGeneral`         | 500    | 1 min  | userId | `/admin/*` (future) |
-| `muxUpload`            | 5      | 60s    | userId | applied per-route   |
+| Tier                   | Tokens | Window | Key    | Route group                      |
+| ---------------------- | ------ | ------ | ------ | -------------------------------- |
+| `authLogin`            | 10     | 15 min | IP     | `/api/auth/*`                    |
+| `authenticatedGeneral` | 120    | 1 min  | userId | `/trpc/*`                        |
+| `adminGeneral`         | 300    | 1 min  | userId | `/admin/*` (deferred to M4 RBAC) |
+| `muxUpload`            | 5      | 60s    | userId | applied per-route                |
 
 ## Per-Procedure Limits (Layer 2)
 
@@ -58,8 +63,7 @@ if (count > 3) throw new HTTPException(429, { message: 'Too many requests' });
 
 ```ts
 app.use('/api/auth/*', rateLimiter(RATE_LIMIT_TIERS.authLogin));
-app.use('/rpc/*', rateLimiter(RATE_LIMIT_TIERS.authenticatedGeneral));
-app.use('/api-reference/*', rateLimiter(RATE_LIMIT_TIERS.publicCatalog));
+app.use('/trpc/*', rateLimiter(RATE_LIMIT_TIERS.authenticatedGeneral));
 // Health check (/) — no rate limit
 // Webhooks (/api/webhooks/*) — outside rate-limited prefixes; signature verification handles abuse
 ```
@@ -79,18 +83,18 @@ RATE_LIMIT_IP_ALLOWLIST=127.0.0.1,10.0.0.1  # optional
 
 ## Acceptance Criteria
 
-- [ ] `rateLimiter()` middleware factory implemented in `packages/cache/src/rate-limit.ts`
-- [ ] All 5 tiers defined in `RATE_LIMIT_TIERS` constant
-- [ ] Layer 1 applied to `/api/auth/*`, `/rpc/*`, `/api-reference/*` in `app.ts`
-- [ ] Layer 2 per-procedure limits on forgot-password, resend-verify, resend-activation handlers
-- [ ] No-op when `NODE_ENV=test` or `RATE_LIMIT_ENABLED=false` or Upstash vars absent
-- [ ] IP allowlist bypasses all limits
-- [ ] `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset` headers on all responses
-- [ ] `Retry-After` header on 429 responses only
-- [ ] `429 Too Many Requests` with JSON error body when limit exceeded
-- [ ] Webhook routes (`/api/webhooks/*`) excluded from rate limiting
-- [ ] Upstash env vars added to `packages/env/src/server.ts`
-- [ ] Unit tests for each tier (mock Upstash client)
+- [x] `rateLimiter()` middleware factory implemented in `packages/cache/src/rate-limit.ts` — PR #7
+- [x] All 4 tiers defined in `RATE_LIMIT_TIERS` constant — PR #7
+- [x] Layer 1 applied to `/api/auth/*` and `/trpc/*` in `apps/server/src/index.ts` — PR #7
+- [ ] Layer 2 per-procedure limits on forgot-password, resend-verify, resend-activation handlers — wired in M2/M8 when those handlers are built
+- [x] No-op when `NODE_ENV=test` or `RATE_LIMIT_ENABLED=false` or Upstash vars absent — PR #7
+- [x] IP allowlist bypasses all limits — PR #7
+- [x] `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset` headers on all responses — PR #7
+- [x] `Retry-After` header on 429 responses only — PR #7
+- [x] `429 Too Many Requests` with JSON error body when limit exceeded — PR #7
+- [x] Webhook routes (`/api/webhooks/*`) excluded from rate limiting — PR #7
+- [x] Upstash env vars added to `packages/env/src/server.ts` — PR #7
+- [x] Unit tests for each tier (mock Upstash client) — 18 tests, 100% coverage — PR #7
 
 ## Dependencies
 

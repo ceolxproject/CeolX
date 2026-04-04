@@ -3,9 +3,18 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { getTransport } from '../client.js';
 import type { EmailTransport } from '../client.js';
 import { sendEmail } from '../send.js';
-// Mock the client module so we can inject a fake transport
+
+// Mock the client and render modules so transport is injected without network calls
 vi.mock('../client.js', () => ({
   getTransport: vi.fn(),
+}));
+
+vi.mock('../render.js', () => ({
+  renderEmail: vi.fn().mockResolvedValue({
+    html: '<p>Verify your account</p>',
+    text: 'Verify your account',
+    subject: 'Verify your CeolX account',
+  }),
 }));
 
 const mockSend = vi.fn();
@@ -20,10 +29,8 @@ describe('sendEmail', () => {
   type SendPayload = Parameters<EmailTransport['send']>[0];
   const baseOptions = {
     to: 'user@example.com',
-    subject: 'Test Subject',
-    htmlBody: '<p>Hello</p>',
-    textBody: 'Hello',
-    tag: 'email-verification' as const,
+    template: 'verification' as const,
+    data: { userName: 'Priya', verificationUrl: 'ceolx://verify-email?token=abc' },
   };
 
   it('calls transport.send with correct from, to, subject, html, text', async () => {
@@ -35,9 +42,9 @@ describe('sendEmail', () => {
     if (!call) throw new Error('Expected send payload');
     expect(call).toMatchObject({
       to: 'user@example.com',
-      subject: 'Test Subject',
-      html: '<p>Hello</p>',
-      text: 'Hello',
+      subject: 'Verify your CeolX account',
+      html: '<p>Verify your account</p>',
+      text: 'Verify your account',
     });
     expect(call.from).toContain('CeolX');
     expect(call.from).toContain('noreply@ceolx.ie');
@@ -49,22 +56,22 @@ describe('sendEmail', () => {
     await expect(sendEmail(baseOptions)).rejects.toThrow('SMTP connection refused');
   });
 
-  it('does not log subject or htmlBody on success', async () => {
+  it('does not log subject or html on success', async () => {
     mockSend.mockResolvedValue(undefined);
     const consoleSpy = vi.spyOn(console, 'warn');
     await sendEmail(baseOptions);
     const loggedArgs = consoleSpy.mock.calls.flatMap((c) => JSON.stringify(c));
-    expect(loggedArgs.join('')).not.toContain('Test Subject');
-    expect(loggedArgs.join('')).not.toContain('<p>Hello</p>');
+    expect(loggedArgs.join('')).not.toContain('Verify your CeolX account');
+    expect(loggedArgs.join('')).not.toContain('<p>Verify your account</p>');
   });
 
-  it('logs tag and to on success', async () => {
+  it('logs template and to on success', async () => {
     mockSend.mockResolvedValue(undefined);
     const consoleSpy = vi.spyOn(console, 'warn');
     await sendEmail(baseOptions);
     const loggedArgs = consoleSpy.mock.calls.flatMap((c) => JSON.stringify(c));
     const combined = loggedArgs.join('');
-    expect(combined).toContain('email-verification');
+    expect(combined).toContain('verification');
     expect(combined).toContain('user@example.com');
   });
 });

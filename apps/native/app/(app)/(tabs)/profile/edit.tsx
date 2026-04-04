@@ -1,43 +1,41 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Pressable, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-
-import { form, layout } from '@/styles/shared';
 
 export default function EditProfileScreen() {
   const [name, setName] = useState('');
   const [bio, setBio] = useState('');
 
   return (
-    <SafeAreaView style={layout.container}>
-      <View style={layout.inner}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#080808' }}>
+      <View className="p-4">
         <TextInput
-          style={form.input}
+          className="bg-white rounded-lg h-[52px] px-4 text-base font-medium text-black mb-3"
           placeholder="Display name"
-          placeholderTextColor="#999"
+          placeholderTextColor="#8d8d8d"
           value={name}
           onChangeText={setName}
         />
         <TextInput
-          style={[form.input, styles.bioInput]}
+          className="bg-white rounded-lg px-4 py-3 text-base font-medium text-black mb-3 h-[100px]"
           placeholder="Bio (wired in M6)"
-          placeholderTextColor="#999"
+          placeholderTextColor="#8d8d8d"
           multiline
           numberOfLines={4}
+          style={{ textAlignVertical: 'top' }}
           value={bio}
           onChangeText={setBio}
         />
 
-        <TouchableOpacity style={[form.button, { marginTop: 8 }]} onPress={() => router.back()}>
+        <Pressable
+          className="bg-white rounded-full py-4 items-center mt-2"
+          onPress={() => router.back()}
+        >
           {/* Wired in M6-T1 */}
-          <Text style={form.buttonText}>Save Changes</Text>
-        </TouchableOpacity>
+          <Text className="text-base font-bold text-black">Save Changes</Text>
+        </Pressable>
       </View>
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  bioInput: { height: 100, textAlignVertical: 'top' },
-});

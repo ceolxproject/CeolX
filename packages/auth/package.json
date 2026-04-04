@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "@CeolX/db": "workspace:*",
+    "@CeolX/email": "workspace:*",
     "@CeolX/env": "workspace:*",
     "@better-auth/expo": "catalog:",
     "better-auth": "catalog:",
@@ -26,6 +27,7 @@
   "devDependencies": {
     "@CeolX/config": "workspace:*",
     "@types/node": "^22.13.14",
+    "@types/react": "^19.0.0",
     "typescript": "^5",
     "vitest": "^3.0.0"
   }

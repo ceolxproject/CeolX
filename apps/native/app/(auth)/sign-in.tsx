@@ -1,143 +1,210 @@
+import { Ionicons } from '@expo/vector-icons';
 import { Link, router } from 'expo-router';
+import * as SecureStore from 'expo-secure-store';
 import { useState } from 'react';
 import {
-  ActivityIndicator,
+  KeyboardAvoidingView,
   Platform,
-  StyleSheet,
+  Pressable,
+  ScrollView,
   Text,
   TextInput,
-  TouchableOpacity,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { useAuth } from '@/contexts/auth-context';
-import { useSocialAuth } from '@/hooks/use-social-auth';
-import { form, layout, typography } from '@/styles/shared';
+import { AppButton } from '@/components/AppButton';
+import { CeolxLogo } from '@/components/CeolxLogo';
+import { SocialLoginButtons } from '@/components/SocialLoginButtons';
+import { authClient } from '@/lib/auth-client';
+
+// ── Types ────────────────────────────────────────────────────────────
+
+type ErrorState =
+  | { type: 'unverified'; email: string }
+  | { type: 'generic'; message: string }
+  | null;
+
+// ── Screen ──────────────────────────────────────────────────────────
 
 export default function SignInScreen() {
-  const { login } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const { signInWithGoogle, signInWithApple, isLoading } = useSocialAuth();
+  const [passwordVisible, setPasswordVisible] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorState, setErrorState] = useState<ErrorState>(null);
 
   const handleSignIn = async () => {
-    // Wired in M2-T1
-    await login('mock-token', {
-      userId: 'mock-id',
-      currentRole: 'spectator',
-      email,
-      emailVerified: false,
-    });
+    setErrorState(null);
+    setIsSubmitting(true);
+
+    try {
+      const { error: authError } = await authClient.signIn.email({ email, password });
+
+      if (authError) {
+        const status = authError.status ?? 0;
+        const msg = authError.message?.toLowerCase() ?? '';
+
+        if (status === 403 || msg.includes('email_not_verified') || msg.includes('not verified')) {
+          setErrorState({ type: 'unverified', email });
+        } else if (status === 429) {
+          setErrorState({
+            type: 'generic',
+            message: 'Too many attempts. Try again in 15 minutes.',
+          });
+        } else {
+          setErrorState({ type: 'generic', message: 'Invalid email or password' });
+        }
+        return;
+      }
+
+      router.replace('/(app)/(tabs)/map');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleResendVerification = async () => {
+    if (errorState?.type !== 'unverified') return;
+    await authClient.sendVerificationEmail({ email: errorState.email });
+    router.push('/(auth)/verify-email');
+  };
+
+  const handleSkip = async () => {
+    await SecureStore.setItemAsync('isGuest', 'true');
     router.replace('/(app)/(tabs)/map');
   };
 
   return (
-    <SafeAreaView style={layout.container}>
-      <View style={styles.inner}>
-        <Text style={typography.authTitle}>Sign In</Text>
-        <Text style={typography.authSubtitle}>Welcome back to CeolX</Text>
-
-        <TextInput
-          style={form.input}
-          placeholder="Email"
-          placeholderTextColor="#999"
-          keyboardType="email-address"
-          autoCapitalize="none"
-          value={email}
-          onChangeText={setEmail}
-        />
-        <TextInput
-          style={form.input}
-          placeholder="Password"
-          placeholderTextColor="#999"
-          secureTextEntry
-          value={password}
-          onChangeText={setPassword}
-        />
-
-        <Link href="/(auth)/forgot-password" style={styles.forgotLink}>
-          Forgot Password?
-        </Link>
-
-        <TouchableOpacity style={[form.button, { marginBottom: 16 }]} onPress={handleSignIn}>
-          <Text style={form.buttonText}>Sign In</Text>
-        </TouchableOpacity>
-
-        <View style={styles.dividerRow}>
-          <View style={styles.divider} />
-          <Text style={styles.dividerText}>or</Text>
-          <View style={styles.divider} />
-        </View>
-
-        <TouchableOpacity
-          style={[styles.socialButton, isLoading && styles.socialButtonDisabled]}
-          onPress={signInWithGoogle}
-          disabled={isLoading}
+    <View style={{ flex: 1, backgroundColor: '#0d0c0f' }}>
+      <SafeAreaView style={{ flex: 1 }}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={{ flex: 1 }}
         >
-          {isLoading ? (
-            <ActivityIndicator color="#333" />
-          ) : (
-            <Text style={styles.socialButtonText}>Continue with Google</Text>
-          )}
-        </TouchableOpacity>
-
-        {Platform.OS === 'ios' && (
-          <TouchableOpacity
-            style={[
-              styles.socialButton,
-              styles.appleButton,
-              isLoading && styles.socialButtonDisabled,
-            ]}
-            onPress={signInWithApple}
-            disabled={isLoading}
-          >
-            {isLoading ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={[styles.socialButtonText, styles.appleButtonText]}>
-                Continue with Apple
+          {/* Header — Urbanist Bold 12 */}
+          <View className="flex-row justify-between items-center p-5 bg-surface-dark">
+            <CeolxLogo />
+            <Pressable
+              onPress={handleSkip}
+              className="border border-gray-10 rounded-[20px] h-9 px-5 items-center justify-center"
+            >
+              <Text className="text-white text-xs font-bold tracking-wide uppercase font-sans">
+                skip
               </Text>
-            )}
-          </TouchableOpacity>
-        )}
+            </Pressable>
+          </View>
 
-        <View style={[form.footer, { marginTop: 8 }]}>
-          <Text style={typography.footerText}>Don't have an account? </Text>
-          <Link href="/(auth)/sign-up" style={typography.linkText}>
-            Sign Up
-          </Link>
-        </View>
-      </View>
-    </SafeAreaView>
+          <ScrollView
+            contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 24, paddingBottom: 40 }}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+          >
+            {/* Heading — Urbanist Bold 36/40 */}
+            <Text className="text-[36px] font-bold text-white leading-10 font-sans mb-6">
+              Login to your account
+            </Text>
+
+            <SocialLoginButtons separator="Or sign in with" />
+
+            {/* Error / warning banners */}
+            {errorState?.type === 'unverified' ? (
+              <View className="bg-warning/15 rounded-lg p-3 mb-4 gap-2">
+                <Text className="text-warning text-sm font-inter font-medium">
+                  Please verify your email before signing in.
+                </Text>
+                <Pressable onPress={handleResendVerification}>
+                  <Text className="text-green-10 text-sm font-inter font-semibold">
+                    Resend verification email →
+                  </Text>
+                </Pressable>
+              </View>
+            ) : errorState?.type === 'generic' ? (
+              <View className="bg-error/15 rounded-lg p-3 mb-4">
+                <Text className="text-error text-sm font-inter font-medium">
+                  {errorState.message}
+                </Text>
+              </View>
+            ) : null}
+
+            {/* Email — label: Inter Medium 14/20, input: Urbanist Medium 16/20 */}
+            <View className="gap-2 mb-4">
+              <Text className="text-sm font-medium font-inter text-white/80 leading-5">
+                Email Address
+              </Text>
+              <TextInput
+                className="bg-white rounded-lg h-[52px] px-4 text-base font-sans font-medium text-black leading-5"
+                placeholder="james@gmail.com"
+                placeholderTextColor="#8d8d8d"
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoComplete="email"
+                value={email}
+                onChangeText={setEmail}
+              />
+            </View>
+
+            {/* Password — same font specs as email */}
+            <View className="gap-2 mb-4">
+              <Text className="text-sm font-medium font-inter text-white/80 leading-5">
+                Password
+              </Text>
+              <View className="flex-row items-center">
+                <TextInput
+                  className="flex-1 bg-white rounded-lg h-[52px] px-4 text-base font-sans font-medium text-black leading-5"
+                  placeholder="Enter Password"
+                  placeholderTextColor="#8d8d8d"
+                  secureTextEntry={!passwordVisible}
+                  autoComplete="current-password"
+                  value={password}
+                  onChangeText={setPassword}
+                />
+                <Pressable
+                  className="absolute right-4 h-[52px] justify-center"
+                  onPress={() => setPasswordVisible((v) => !v)}
+                >
+                  <Ionicons
+                    name={passwordVisible ? 'eye-outline' : 'eye-off-outline'}
+                    size={20}
+                    color="#8d8d8d"
+                  />
+                </Pressable>
+              </View>
+            </View>
+
+            {/* Forgot password — Inter Medium 14/20 */}
+            <Link
+              href="/(auth)/forgot-password"
+              className="text-blue-10 text-sm font-medium font-inter self-end mb-8 leading-5"
+            >
+              Forgot password?
+            </Link>
+
+            {/* Sign in — Urbanist Bold 17/20 */}
+            <AppButton
+              variant="primary"
+              isLoading={isSubmitting}
+              onPress={handleSignIn}
+              className="w-full rounded-full py-4 mb-6"
+            >
+              SIGN IN
+            </AppButton>
+
+            {/* Footer — Urbanist SemiBold 15/20 */}
+            <View className="flex-row justify-center items-center">
+              <Text className="text-white text-[15px] font-semibold font-sans leading-5">
+                Don't have an account?{' '}
+              </Text>
+              <Link
+                href="/(auth)/who-are-you"
+                className="text-[#d4fc5a] text-[15px] font-semibold font-sans leading-5"
+              >
+                Register
+              </Link>
+            </View>
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+    </View>
   );
 }
-
-const styles = StyleSheet.create({
-  inner: { flex: 1, padding: 24, justifyContent: 'center' },
-  forgotLink: {
-    alignSelf: 'flex-end',
-    color: '#00a86b',
-    fontSize: 14,
-    marginBottom: 20,
-  },
-  dividerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: 12,
-  },
-  divider: { flex: 1, height: 1, backgroundColor: '#e0e0e0' },
-  dividerText: { marginHorizontal: 12, color: '#999', fontSize: 14 },
-  socialButton: {
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 10,
-    paddingVertical: 14,
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  socialButtonDisabled: { opacity: 0.6 },
-  socialButtonText: { fontSize: 16, color: '#333', fontWeight: '500' },
-  appleButton: { backgroundColor: '#000', borderColor: '#000' },
-  appleButtonText: { color: '#fff' },
-});

@@ -69,7 +69,7 @@ Resend Postmark venue activation email. Rate-limited: max 3 per hour per Venue.
 **Error Responses:**
 
 - `401 Unauthorized`: Not authenticated or not a Venue user
-- `429 Too Many Requests`: Rate limit exceeded (max 3 per hour)
+- `429 Too Many Requests`: Rate limit exceeded (max 3 per 15 minutes)
 - `500 Internal Server Error`: Email send failed
 
 ---
@@ -107,17 +107,6 @@ CREATE TABLE venue_subscriptions (
 );
 ```
 
-### resend_email_log table (create — for rate limiting)
-
-```sql
-CREATE TABLE resend_email_log (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  venue_profile_id UUID NOT NULL REFERENCES venue_profiles(id) ON DELETE CASCADE,
-  sent_at TIMESTAMP DEFAULT now(),
-  INDEX(venue_profile_id, sent_at)
-);
-```
-
 ---
 
 ## Requirements
@@ -146,9 +135,9 @@ CREATE TABLE resend_email_log (
 
 ### Rate-Limited Email Resend
 
-- R3.1: `POST /api/v1/venues/me/resend-activation` checks `resend_email_log` for entries in the last 60 minutes
-- R3.2: If count >= 3, return `429 Too Many Requests`: _"Too many resend requests. Please wait 1 hour before trying again."_
-- R3.3: If count < 3: send Postmark email (same template as M2-T4), log to resend_email_log, return success
+- R3.1: `POST /api/v1/venues/me/resend-activation` applies Layer 2 Redis rate limit (M1-T7 pattern) — key: `rl:resend-activation:{userId}`, TTL: 900s (15 min)
+- R3.2: If count > 3, return `429 Too Many Requests`: _"Too many resend requests. Please wait before trying again."_
+- R3.3: If count <= 3: send Postmark email (same template as M2-T4), return success
 - R3.4: Show toast: _"Activation email sent. Check your inbox."_
 - R3.5: Disable "Resend Email" button for 5 seconds post-click (UX smoothness)
 
@@ -173,7 +162,7 @@ CREATE TABLE resend_email_log (
 - [ ] Venue with `subscription_status = 'inactive'` sees pending activation banner/screen
 - [ ] No payment URL or external link visible inside the app
 - [ ] "Resend Email" button calls `POST /api/v1/venues/me/resend-activation` and shows success toast
-- [ ] Rate limit on Resend Email works (4th attempt within 1 hour returns error message)
+- [ ] Rate limit on Resend Email works (4th attempt within 15 minutes returns error message) via Redis Layer 2 counter
 - [ ] Polling detects `subscription_status = 'active'` within ~30 seconds of webhook firing
 - [ ] Pending state dismissed on activation; confirmation toast shown
 - [ ] Polling stops after activation or role switch
@@ -248,8 +237,9 @@ router.get('/users/me', async (c) => {
 // apps/server/routes/v1/venues.ts
 import { Hono } from 'hono';
 import { db } from '@/db';
-import { venueProfiles, resendEmailLog } from '@/db/schema';
+import { venueProfiles } from '@/db/schema';
 import { eq } from 'drizzle-orm';
+import { redis } from '@CeolX/cache';
 import { sendEmail } from '@/services/email';
 
 const router = new Hono();
@@ -259,6 +249,20 @@ router.post('/venues/me/resend-activation', async (c) => {
   if (!userId) return c.json({ error: 'Unauthorized' }, 401);
 
   try {
+    // Layer 2 rate limit (M1-T7 pattern) — raw Redis incr/expire
+    const rlKey = `rl:resend-activation:${userId}`;
+    const count = await redis.incr(rlKey);
+    if (count === 1) await redis.expire(rlKey, 900); // 15 min TTL on first increment
+    if (count > 3) {
+      return c.json(
+        {
+          error: 'RATE_LIMITED',
+          message: 'Too many resend requests. Please wait before trying again.',
+        },
+        429
+      );
+    }
+
     // Get Venue profile
     const venue = await db.query.venueProfiles.findFirst({
       where: eq(venueProfiles.userId, userId),
@@ -266,19 +270,6 @@ router.post('/venues/me/resend-activation', async (c) => {
 
     if (!venue) {
       return c.json({ error: 'Venue profile not found' }, 400);
-    }
-
-    // Check rate limit: count resends in last 60 minutes
-    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
-    const recentResends = await db
-      .select()
-      .from(resendEmailLog)
-      .where(
-        and(eq(resendEmailLog.venueProfileId, venue.id), gt(resendEmailLog.sentAt, oneHourAgo))
-      );
-
-    if (recentResends.length >= 3) {
-      return c.json({ error: 'Too many resend requests. Please wait 1 hour.' }, 429);
     }
 
     // Get user email
@@ -296,14 +287,9 @@ router.post('/venues/me/resend-activation', async (c) => {
       },
     });
 
-    // Log resend
-    await db.insert(resendEmailLog).values({
-      venueProfileId: venue.id,
-    });
-
     return c.json({
       success: true,
-      message: 'Activation email sent',
+      message: 'Activation email sent. Check your inbox.',
     });
   } catch (error) {
     console.error('Resend activation error:', error);
@@ -451,10 +437,10 @@ export function PendingActivationScreen() {
 - Issue: Interval keeps running; drains battery, creates redundant requests
 - Fix: Clear `setInterval` in useEffect cleanup on component unmount
 
-**Gotcha 2: Rate limit reset logic broken**
+**Gotcha 2: Rate limit window**
 
-- Issue: Resend count doesn't reset after 1 hour; users permanently locked out
-- Fix: Query `sent_at > now() - interval '1 hour'`; old records expire automatically
+- Issue: Redis key TTL is only set on the first `incr` (when count === 1). If `expire` fails, the key never expires.
+- Fix: Wrap `redis.incr` + `redis.expire` in a pipeline/transaction, or accept the rare edge case — a failed `expire` call means the key never resets, locking users out permanently. Use a try/catch around the `expire` call and log failures.
 
 **Gotcha 3: Email resend sends to wrong address**
 
