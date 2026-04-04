@@ -14,7 +14,7 @@ All domain enums are defined as `as const` arrays with derived string literal un
 
 | Export                                              | Type                                                                  | Description                         |
 | --------------------------------------------------- | --------------------------------------------------------------------- | ----------------------------------- |
-| `USER_ROLES` / `UserRole`                           | `'spectator' \| 'artist' \| 'venue' \| 'super_admin'`                 | User persona                        |
+| `USER_ROLES` / `UserRole`                           | `'spectator' \| 'artist' \| 'venue' \| 'admin'`                       | User persona                        |
 | `EVENT_STATUSES` / `EventStatus`                    | `'draft' \| 'pending_review' \| 'rejected' \| 'active' \| 'archived'` | Event lifecycle                     |
 | `BOOKING_STATUSES` / `BookingStatus`                | `'pending' \| 'accepted' \| 'rejected' \| 'cancelled'`                | Booking state machine               |
 | `BOOKING_DIRECTIONS` / `BookingDirection`           | `'venue_to_artist' \| 'artist_to_venue'`                              | Who initiated the booking           |

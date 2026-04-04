@@ -1,5 +1,5 @@
 // User persona/role — imported by packages/db to build pgEnum("user_role")
-export const USER_ROLES = ['spectator', 'artist', 'venue', 'super_admin'] as const;
+export const USER_ROLES = ['spectator', 'artist', 'venue', 'admin'] as const;
 export type UserRole = (typeof USER_ROLES)[number];
 
 // Event lifecycle states — imported by packages/db to build pgEnum("event_status")
