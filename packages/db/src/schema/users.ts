@@ -1,5 +1,14 @@
 import { relations } from 'drizzle-orm';
-import { boolean, index, pgTable, text, timestamp, unique, uuid, varchar } from 'drizzle-orm/pg-core';
+import {
+  boolean,
+  index,
+  pgTable,
+  text,
+  timestamp,
+  unique,
+  uuid,
+  varchar,
+} from 'drizzle-orm/pg-core';
 
 import { user } from './auth';
 import { socialPlatformEnum, subscriptionStatusEnum } from './enums';
@@ -61,7 +70,10 @@ export const profileSocialLinks = pgTable(
     platform: socialPlatformEnum('platform').notNull(),
     url: varchar('url', { length: 500 }).notNull(),
     createdAt: timestamp('created_at').notNull().defaultNow(),
-    updatedAt: timestamp('updated_at').notNull().defaultNow().$onUpdate(() => new Date()),
+    updatedAt: timestamp('updated_at')
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
   },
   (t) => [
     index('profile_social_links_user_id_idx').on(t.userId),

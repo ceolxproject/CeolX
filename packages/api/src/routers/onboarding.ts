@@ -4,7 +4,10 @@ import { eq } from 'drizzle-orm';
 import { db } from '@CeolX/db';
 import { user } from '@CeolX/db/schema/auth';
 import { artistProfiles, profileSocialLinks, venueProfiles } from '@CeolX/db/schema/users';
-import { createArtistOnboardingSchema, createVenueOnboardingSchema } from '@CeolX/shared/validators';
+import {
+  createArtistOnboardingSchema,
+  createVenueOnboardingSchema,
+} from '@CeolX/shared/validators';
 
 import { protectedProcedure, router } from '../index';
 
@@ -63,7 +66,11 @@ export const onboardingRouter = router({
 
           const linkRows = Object.entries(input.socialLinks ?? {})
             .filter((entry): entry is [string, string] => !!entry[1])
-            .map(([platform, url]) => ({ userId, platform: platform as 'INSTAGRAM' | 'FACEBOOK' | 'TIKTOK' | 'YOUTUBE', url }));
+            .map(([platform, url]) => ({
+              userId,
+              platform: platform as 'INSTAGRAM' | 'FACEBOOK' | 'TIKTOK' | 'YOUTUBE',
+              url,
+            }));
 
           if (linkRows.length > 0) {
             await tx.insert(profileSocialLinks).values(linkRows);
@@ -135,7 +142,11 @@ export const onboardingRouter = router({
 
           const linkRows = Object.entries(input.venueLinks ?? {})
             .filter((entry): entry is [string, string] => !!entry[1])
-            .map(([platform, url]) => ({ userId, platform: platform as 'WEBSITE' | 'INSTAGRAM' | 'FACEBOOK' | 'TWITTER', url }));
+            .map(([platform, url]) => ({
+              userId,
+              platform: platform as 'WEBSITE' | 'INSTAGRAM' | 'FACEBOOK' | 'TWITTER',
+              url,
+            }));
 
           if (linkRows.length > 0) {
             await tx.insert(profileSocialLinks).values(linkRows);

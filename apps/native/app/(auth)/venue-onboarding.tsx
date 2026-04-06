@@ -12,15 +12,24 @@ import { useVenueOnboarding } from '@/hooks/use-venue-onboarding';
 export default function VenueOnboardingScreen() {
   const { logout } = useAuth();
   const {
-    venueName, setVenueName,
-    bio, setBio, BIO_MAX,
-    address, setAddress,
-    contactEmail, setContactEmail,
-    venueLinks, handleVenueLinkChange,
+    venueName,
+    setVenueName,
+    bio,
+    setBio,
+    BIO_MAX,
+    address,
+    setAddress,
+    contactEmail,
+    setContactEmail,
+    venueLinks,
+    handleVenueLinkChange,
     profileImageUri,
     imageError,
-    errors, submitError, isPending,
-    handlePickImage, handleSubmit,
+    errors,
+    submitError,
+    isPending,
+    handlePickImage,
+    handleSubmit,
   } = useVenueOnboarding();
 
   const handleLogout = async () => {
@@ -135,9 +144,7 @@ export default function VenueOnboardingScreen() {
                 />
                 <Ionicons name="location-outline" size={20} color="#C8FF2F" />
               </View>
-              {errors.address ? (
-                <Text className="text-xs text-error">{errors.address}</Text>
-              ) : null}
+              {errors.address ? <Text className="text-xs text-error">{errors.address}</Text> : null}
             </View>
 
             {/* Contact Email */}

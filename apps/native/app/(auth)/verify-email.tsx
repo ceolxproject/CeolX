@@ -81,14 +81,20 @@ export default function VerifyEmailScreen() {
           try {
             await SecureStore.deleteItemAsync('pendingRegistration');
           } catch (deleteErr) {
-            console.warn('[verify-email] SecureStore delete failed (pendingRegistration):', deleteErr);
+            console.warn(
+              '[verify-email] SecureStore delete failed (pendingRegistration):',
+              deleteErr
+            );
           }
         }
 
         try {
           await SecureStore.deleteItemAsync('pendingVerificationEmail');
         } catch (deleteErr) {
-          console.warn('[verify-email] SecureStore delete failed (pendingVerificationEmail):', deleteErr);
+          console.warn(
+            '[verify-email] SecureStore delete failed (pendingVerificationEmail):',
+            deleteErr
+          );
         }
 
         // Route artists to onboarding form; spectators go straight to the app

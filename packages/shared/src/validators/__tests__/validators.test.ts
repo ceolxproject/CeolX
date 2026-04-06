@@ -309,7 +309,6 @@ describe('createArtistOnboardingSchema', () => {
   it('accepts missing socialLinks entirely (optional)', () => {
     expect(createArtistOnboardingSchema.safeParse({ stageName: 'Seán' }).success).toBe(true);
   });
-
 });
 
 describe('rejectEventSchema', () => {

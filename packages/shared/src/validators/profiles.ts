@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { SOCIAL_PLATFORMS } from '../enums';
+import type { SOCIAL_PLATFORMS } from '../enums';
 
 // ── Artist onboarding (initial profile creation — follows Figma design) ───────
 
@@ -13,7 +13,10 @@ export const socialLinksSchema = z.object({
   FACEBOOK: socialUrl,
   TIKTOK: socialUrl,
   YOUTUBE: socialUrl,
-} satisfies Record<Extract<(typeof SOCIAL_PLATFORMS)[number], 'INSTAGRAM' | 'FACEBOOK' | 'TIKTOK' | 'YOUTUBE'>, unknown>);
+} satisfies Record<
+  Extract<(typeof SOCIAL_PLATFORMS)[number], 'INSTAGRAM' | 'FACEBOOK' | 'TIKTOK' | 'YOUTUBE'>,
+  unknown
+>);
 
 // ── Venue onboarding (initial profile creation — follows Figma design) ────────
 
@@ -22,7 +25,10 @@ export const venueLinksSchema = z.object({
   INSTAGRAM: socialUrl,
   FACEBOOK: socialUrl,
   TWITTER: socialUrl,
-} satisfies Record<Extract<(typeof SOCIAL_PLATFORMS)[number], 'WEBSITE' | 'INSTAGRAM' | 'FACEBOOK' | 'TWITTER'>, unknown>);
+} satisfies Record<
+  Extract<(typeof SOCIAL_PLATFORMS)[number], 'WEBSITE' | 'INSTAGRAM' | 'FACEBOOK' | 'TWITTER'>,
+  unknown
+>);
 
 export const createVenueOnboardingSchema = z.object({
   venueName: z.string().min(1, 'Venue name is required').max(255).trim(),

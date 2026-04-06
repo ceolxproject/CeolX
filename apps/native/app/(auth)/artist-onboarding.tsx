@@ -1,12 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import {
-  ActivityIndicator,
-  Pressable,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { ActivityIndicator, Pressable, Text, TextInput, View } from 'react-native';
 import { ScrollView } from 'react-native-gesture-handler';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -21,14 +15,21 @@ const BIO_MAX = 50;
 export default function ArtistOnboardingScreen() {
   const { logout } = useAuth();
   const {
-    stageName, setStageName,
-    bio, setBio,
-    contactEmail, setContactEmail,
-    socialLinks, handleSocialLinkChange,
+    stageName,
+    setStageName,
+    bio,
+    setBio,
+    contactEmail,
+    setContactEmail,
+    socialLinks,
+    handleSocialLinkChange,
     profileImageUri,
     imageError,
-    errors, submitError, isPending,
-    handlePickImage, handleSubmit,
+    errors,
+    submitError,
+    isPending,
+    handlePickImage,
+    handleSubmit,
   } = useArtistOnboarding();
 
   return (

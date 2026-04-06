@@ -7,7 +7,11 @@ interface ProfilePictureProps {
   onPress: () => void;
 }
 
-export function ProfilePicture({ uri, label = 'Upload Profile Picture', onPress }: ProfilePictureProps) {
+export function ProfilePicture({
+  uri,
+  label = 'Upload Profile Picture',
+  onPress,
+}: ProfilePictureProps) {
   return (
     <Pressable onPress={onPress} className="items-center gap-3">
       <View

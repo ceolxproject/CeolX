@@ -53,7 +53,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       try {
-        await completeRegistration({ currentRole: parsed.currentRole, marketingConsent: parsed.marketingConsent });
+        await completeRegistration({
+          currentRole: parsed.currentRole,
+          marketingConsent: parsed.marketingConsent,
+        });
         await SecureStore.deleteItemAsync('pendingRegistration');
       } catch {
         // Network / server error — keep pendingRegistration and retry next session
