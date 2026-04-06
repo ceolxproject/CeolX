@@ -22,6 +22,20 @@
       "when": 1775195124692,
       "tag": "0002_tearful_sue_storm",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1775325147737,
+      "tag": "0003_eminent_ghost_rider",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1775473148535,
+      "tag": "0004_quiet_menace",
+      "breakpoints": true
     }
   ]
 }
