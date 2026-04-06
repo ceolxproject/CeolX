@@ -10,6 +10,7 @@ import {
   rejectEventSchema,
   onboardingSchema,
   switchRoleSchema,
+  createArtistOnboardingSchema,
 } from '../index.js';
 
 // ─── Auth validators ────────────────────────────────────────────────────────
@@ -167,8 +168,8 @@ describe('switchRoleSchema', () => {
     expect(switchRoleSchema.safeParse({ role: 'artist' }).success).toBe(true);
   });
 
-  it('rejects super_admin (not switchable)', () => {
-    expect(switchRoleSchema.safeParse({ role: 'super_admin' }).success).toBe(false);
+  it('rejects admin (not switchable)', () => {
+    expect(switchRoleSchema.safeParse({ role: 'admin' }).success).toBe(false);
   });
 });
 
@@ -223,6 +224,90 @@ describe('createEventSchema', () => {
         venueId: '550e8400-e29b-41d4-a716-446655440000',
       }).success
     ).toBe(true);
+  });
+});
+
+// ─── Profile validators ──────────────────────────────────────────────────────
+
+describe('createArtistOnboardingSchema', () => {
+  const valid = {
+    stageName: 'Seán Ó Murchú',
+    bio: 'Traditional fiddle player.',
+    contactEmail: 'sean@music.ie',
+    socialLinks: {
+      instagram: 'https://instagram.com/sean',
+      facebook: 'https://facebook.com/sean',
+    },
+  };
+
+  it('accepts valid onboarding data with all fields', () => {
+    expect(createArtistOnboardingSchema.safeParse(valid).success).toBe(true);
+  });
+
+  it('accepts minimal input with only stageName', () => {
+    expect(createArtistOnboardingSchema.safeParse({ stageName: 'Seán' }).success).toBe(true);
+  });
+
+  it('rejects empty stageName', () => {
+    expect(createArtistOnboardingSchema.safeParse({ stageName: '' }).success).toBe(false);
+  });
+
+  it('rejects stageName longer than 100 characters', () => {
+    expect(createArtistOnboardingSchema.safeParse({ stageName: 'a'.repeat(101) }).success).toBe(
+      false
+    );
+  });
+
+  it('rejects bio longer than 50 characters', () => {
+    expect(
+      createArtistOnboardingSchema.safeParse({ stageName: 'Seán', bio: 'a'.repeat(51) }).success
+    ).toBe(false);
+  });
+
+  it('accepts missing bio (optional)', () => {
+    expect(createArtistOnboardingSchema.safeParse({ stageName: 'Seán' }).success).toBe(true);
+  });
+
+  it('rejects invalid contactEmail format', () => {
+    expect(
+      createArtistOnboardingSchema.safeParse({ ...valid, contactEmail: 'not-an-email' }).success
+    ).toBe(false);
+  });
+
+  it('accepts missing contactEmail (optional)', () => {
+    const noEmail = { stageName: valid.stageName, bio: valid.bio, socialLinks: valid.socialLinks };
+    expect(createArtistOnboardingSchema.safeParse(noEmail).success).toBe(true);
+  });
+
+  it('accepts partial socialLinks with only INSTAGRAM', () => {
+    expect(
+      createArtistOnboardingSchema.safeParse({
+        stageName: 'Seán',
+        socialLinks: { INSTAGRAM: 'https://instagram.com/sean' },
+      }).success
+    ).toBe(true);
+  });
+
+  it('rejects invalid URL in socialLinks.INSTAGRAM', () => {
+    expect(
+      createArtistOnboardingSchema.safeParse({
+        stageName: 'Seán',
+        socialLinks: { INSTAGRAM: 'not-a-url' },
+      }).success
+    ).toBe(false);
+  });
+
+  it('accepts empty string in socialLinks to clear a field', () => {
+    expect(
+      createArtistOnboardingSchema.safeParse({
+        stageName: 'Seán',
+        socialLinks: { INSTAGRAM: '' },
+      }).success
+    ).toBe(true);
+  });
+
+  it('accepts missing socialLinks entirely (optional)', () => {
+    expect(createArtistOnboardingSchema.safeParse({ stageName: 'Seán' }).success).toBe(true);
   });
 });
 

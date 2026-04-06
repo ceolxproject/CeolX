@@ -62,7 +62,7 @@ async function seed() {
     email: 'admin@ceolx.test',
     name: 'Super Admin',
     emailVerified: true,
-    currentRole: 'super_admin',
+    currentRole: 'admin',
     consentAt,
   });
 

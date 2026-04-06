@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { protectedProcedure, publicProcedure, router } from '../index';
+import { publicProcedure, router, venueProcedure } from '../index';
 
 export const venuesRouter = router({
   // TODO M6-T2: subscription-gated — returns 404 if subscription_status != 'active'
@@ -10,7 +10,7 @@ export const venuesRouter = router({
   }),
 
   // TODO M6-T2: update authenticated venue's own profile (venue role only)
-  updateMe: protectedProcedure
+  updateMe: venueProcedure
     .input(
       z.object({
         name: z.string().min(1).max(150).optional(),
