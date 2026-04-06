@@ -16,6 +16,7 @@ import { HeroUINativeProvider } from 'heroui-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
 
+import { AppToastProvider } from '@/components/AppToast';
 import { FallbackComponent } from '@/components/sentry-fallback';
 import { AppThemeProvider } from '@/contexts/app-theme-context';
 import { AuthProvider } from '@/contexts/auth-context';
@@ -33,7 +34,6 @@ if (!dist) {
 }
 
 Sentry.init({
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
   dsn: process.env.EXPO_PUBLIC_SENTRY_DSN,
   environment: __DEV__ ? 'development' : 'production',
   enabled: !__DEV__,
@@ -76,6 +76,7 @@ function Layout() {
             <HeroUINativeProvider>
               <AuthProvider>
                 <RootStack />
+                <AppToastProvider />
               </AuthProvider>
             </HeroUINativeProvider>
           </AppThemeProvider>

@@ -1,6 +1,6 @@
 {
-  "id": "003c5f89-06b6-4dc5-a65f-2489b461e277",
-  "prevId": "b06bd1cd-b46c-48f0-9494-a5ff4f096fe6",
+  "id": "5325bca3-a256-4b5c-bc88-167344c45e7e",
+  "prevId": "26e7a0b4-c7c3-4e8c-93d1-06b610c15945",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -1043,12 +1043,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "links": {
-          "name": "links",
-          "type": "json",
-          "primaryKey": false,
-          "notNull": false
-        },
         "is_active": {
           "name": "is_active",
           "type": "boolean",
@@ -1095,6 +1089,91 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "public.profile_social_links": {
+      "name": "profile_social_links",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "platform": {
+          "name": "platform",
+          "type": "social_platform",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "url": {
+          "name": "url",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "profile_social_links_user_id_idx": {
+          "name": "profile_social_links_user_id_idx",
+          "columns": [
+            {
+              "expression": "user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "profile_social_links_user_id_user_id_fk": {
+          "name": "profile_social_links_user_id_user_id_fk",
+          "tableFrom": "profile_social_links",
+          "tableTo": "user",
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "profile_social_links_user_platform_uniq": {
+          "name": "profile_social_links_user_platform_uniq",
+          "nullsNotDistinct": false,
+          "columns": ["user_id", "platform"]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "public.venue_profiles": {
       "name": "venue_profiles",
       "schema": "",
@@ -1127,6 +1206,12 @@
         "bio": {
           "name": "bio",
           "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "contact_email": {
+          "name": "contact_email",
+          "type": "varchar(255)",
           "primaryKey": false,
           "notNull": false
         },
@@ -1749,6 +1834,11 @@
       "schema": "public",
       "values": ["ios", "android"]
     },
+    "public.social_platform": {
+      "name": "social_platform",
+      "schema": "public",
+      "values": ["INSTAGRAM", "FACEBOOK", "TIKTOK", "YOUTUBE", "WEBSITE", "TWITTER"]
+    },
     "public.subscription_status": {
       "name": "subscription_status",
       "schema": "public",
@@ -1757,7 +1847,7 @@
     "public.user_role": {
       "name": "user_role",
       "schema": "public",
-      "values": ["spectator", "artist", "venue", "super_admin"]
+      "values": ["spectator", "artist", "venue", "admin"]
     }
   },
   "schemas": {},

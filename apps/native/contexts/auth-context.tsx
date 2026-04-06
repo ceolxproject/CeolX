@@ -43,15 +43,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const raw = await SecureStore.getItemAsync('pendingRegistration');
       if (!raw) return;
 
+      let parsed: { currentRole: 'spectator' | 'artist' | 'venue'; marketingConsent: boolean };
       try {
-        const { currentRole, marketingConsent } = JSON.parse(raw) as {
-          currentRole: 'spectator' | 'artist' | 'venue';
-          marketingConsent: boolean;
-        };
-        await completeRegistration({ currentRole, marketingConsent });
+        parsed = JSON.parse(raw) as typeof parsed;
+      } catch {
+        // Corrupt SecureStore data — delete it so we don't loop forever
+        await SecureStore.deleteItemAsync('pendingRegistration').catch(() => {});
+        return;
+      }
+
+      try {
+        await completeRegistration({
+          currentRole: parsed.currentRole,
+          marketingConsent: parsed.marketingConsent,
+        });
         await SecureStore.deleteItemAsync('pendingRegistration');
       } catch {
-        // Will retry next time a session is established
+        // Network / server error — keep pendingRegistration and retry next session
         pendingHandled.current = false;
       }
     })();
