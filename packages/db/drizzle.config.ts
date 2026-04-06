@@ -12,4 +12,5 @@ export default defineConfig({
   out: './src/migrations',
   dialect: 'postgresql',
   dbCredentials: { url },
+  migrations: { prefix: 'timestamp' },
 });
