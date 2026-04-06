@@ -9,7 +9,10 @@
       "default": "./src/*.ts"
     }
   },
-  "scripts": {},
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
   "dependencies": {
     "@CeolX/auth": "workspace:*",
     "@CeolX/db": "workspace:*",
@@ -19,13 +22,12 @@
     "@trpc/server": "catalog:",
     "dotenv": "catalog:",
     "drizzle-orm": "^0.45.1",
-    "ua-parser-js": "^2.0.9",
     "zod": "catalog:"
   },
   "devDependencies": {
     "@CeolX/config": "workspace:*",
-    "@types/ua-parser-js": "^0.7.39",
     "hono": "catalog:",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^3.0.0"
   }
 }
