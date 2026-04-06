@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { protectedProcedure, publicProcedure, router } from '../index';
+import { artistProcedure, publicProcedure, router } from '../index';
 
 export const artistsRouter = router({
   // TODO M3-T3: full-text search across artist profiles
@@ -14,7 +14,7 @@ export const artistsRouter = router({
   }),
 
   // TODO M6-T1: update authenticated artist's own profile (artist role only)
-  updateMe: protectedProcedure
+  updateMe: artistProcedure
     .input(
       z.object({
         displayName: z.string().min(1).max(100).optional(),

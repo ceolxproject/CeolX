@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { protectedProcedure, publicProcedure, router } from '../index';
+import { creatorProcedure, protectedProcedure, publicProcedure, router } from '../index';
 
 const MapQueryInput = z.object({
   swLat: z.number(),
@@ -33,7 +33,7 @@ export const eventsRouter = router({
   }),
 
   // TODO M4-T1: create event (sets status = pending_review)
-  create: protectedProcedure.input(CreateEventInput).mutation(() => {
+  create: creatorProcedure.input(CreateEventInput).mutation(() => {
     return { message: 'not implemented' };
   }),
 

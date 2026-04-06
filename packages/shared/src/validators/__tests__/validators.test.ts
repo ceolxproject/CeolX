@@ -168,8 +168,8 @@ describe('switchRoleSchema', () => {
     expect(switchRoleSchema.safeParse({ role: 'artist' }).success).toBe(true);
   });
 
-  it('rejects super_admin (not switchable)', () => {
-    expect(switchRoleSchema.safeParse({ role: 'super_admin' }).success).toBe(false);
+  it('rejects admin (not switchable)', () => {
+    expect(switchRoleSchema.safeParse({ role: 'admin' }).success).toBe(false);
   });
 });
 
