@@ -19,7 +19,18 @@ export const usersRouter = router({
    */
   me: protectedProcedure.query(async ({ ctx }) => {
     const userId = ctx.session.user.id;
-    const [row] = await db.select().from(user).where(eq(user.id, userId)).limit(1);
+    const [row] = await db
+      .select({
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        emailVerified: user.emailVerified,
+        image: user.image,
+        currentRole: user.currentRole,
+      })
+      .from(user)
+      .where(eq(user.id, userId))
+      .limit(1);
 
     if (!row) return null;
 

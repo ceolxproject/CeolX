@@ -1,20 +1,48 @@
 import { z } from 'zod';
 
+import { SOCIAL_PLATFORMS } from '../enums';
+
 // ── Artist onboarding (initial profile creation — follows Figma design) ───────
 
+// Reusable URL field — accepts a valid URL or empty string (treated as omitted)
+const socialUrl = z.string().url('Invalid URL').or(z.literal('')).optional();
+
+// Validated against SOCIAL_PLATFORMS so adding a new platform here requires updating the enum too.
 export const socialLinksSchema = z.object({
-  instagram: z.string().url('Invalid Instagram URL').or(z.literal('')).optional(),
-  facebook: z.string().url('Invalid Facebook URL').or(z.literal('')).optional(),
-  tiktok: z.string().url('Invalid TikTok URL').or(z.literal('')).optional(),
-  youtube: z.string().url('Invalid YouTube URL').or(z.literal('')).optional(),
+  INSTAGRAM: socialUrl,
+  FACEBOOK: socialUrl,
+  TIKTOK: socialUrl,
+  YOUTUBE: socialUrl,
+} satisfies Record<Extract<(typeof SOCIAL_PLATFORMS)[number], 'INSTAGRAM' | 'FACEBOOK' | 'TIKTOK' | 'YOUTUBE'>, unknown>);
+
+// ── Venue onboarding (initial profile creation — follows Figma design) ────────
+
+export const venueLinksSchema = z.object({
+  WEBSITE: socialUrl,
+  INSTAGRAM: socialUrl,
+  FACEBOOK: socialUrl,
+  TWITTER: socialUrl,
+} satisfies Record<Extract<(typeof SOCIAL_PLATFORMS)[number], 'WEBSITE' | 'INSTAGRAM' | 'FACEBOOK' | 'TWITTER'>, unknown>);
+
+export const createVenueOnboardingSchema = z.object({
+  venueName: z.string().min(1, 'Venue name is required').max(255).trim(),
+  address: z.string().min(1, 'Venue location is required').max(255).trim(),
+  bio: z.string().max(50, 'Description must be 50 characters or less').trim().optional(),
+  contactEmail: z.string().email('Invalid email address').optional(),
+  venueLinks: venueLinksSchema.optional(),
+  // profileImageUrl omitted — S3/CDN upload deferred to M10.
 });
+
+export type CreateVenueOnboardingInput = z.infer<typeof createVenueOnboardingSchema>;
+
+// ── Artist onboarding (initial profile creation — follows Figma design) ───────
 
 export const createArtistOnboardingSchema = z.object({
   stageName: z.string().min(1, 'Stage name is required').max(100).trim(),
   bio: z.string().max(50, 'Bio must be 50 characters or less').trim().optional(),
   contactEmail: z.string().email('Invalid email address').optional(),
   socialLinks: socialLinksSchema.optional(),
-  profileImageUrl: z.string().url('Invalid image URL').optional(),
+  // profileImageUrl omitted — S3/CDN upload deferred to M10. Add here when upload flow is ready.
 });
 
 export type CreateArtistOnboardingInput = z.infer<typeof createArtistOnboardingSchema>;

@@ -42,3 +42,8 @@ export type NotificationPersona = (typeof NOTIFICATION_PERSONAS)[number];
 // Device platform — used in device_tokens.platform
 export const PLATFORMS = ['ios', 'android'] as const;
 export type Platform = (typeof PLATFORMS)[number];
+
+// Social link platforms — used in profile_social_links.platform
+// Imported by packages/db to build pgEnum("social_platform") and by validators for runtime checks.
+export const SOCIAL_PLATFORMS = ['INSTAGRAM', 'FACEBOOK', 'TIKTOK', 'YOUTUBE', 'WEBSITE', 'TWITTER'] as const;
+export type SocialPlatform = (typeof SOCIAL_PLATFORMS)[number];

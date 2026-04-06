@@ -1,35 +1,32 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import {
-  ActivityIndicator,
-  Pressable,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
-import { ScrollView } from 'react-native-gesture-handler';
+import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { CeolxLogo } from '@/components/CeolxLogo';
 import { ProfilePicture } from '@/components/onboarding/ProfilePicture';
-import { SocialLinksSection } from '@/components/onboarding/SocialLinksSection';
+import { VenueLinksSection } from '@/components/onboarding/VenueLinksSection';
 import { useAuth } from '@/contexts/auth-context';
-import { useArtistOnboarding } from '@/hooks/use-artist-onboarding';
+import { useVenueOnboarding } from '@/hooks/use-venue-onboarding';
 
-const BIO_MAX = 50;
-
-export default function ArtistOnboardingScreen() {
+export default function VenueOnboardingScreen() {
   const { logout } = useAuth();
   const {
-    stageName, setStageName,
-    bio, setBio,
+    venueName, setVenueName,
+    bio, setBio, BIO_MAX,
+    address, setAddress,
     contactEmail, setContactEmail,
-    socialLinks, handleSocialLinkChange,
+    venueLinks, handleVenueLinkChange,
     profileImageUri,
     imageError,
     errors, submitError, isPending,
     handlePickImage, handleSubmit,
-  } = useArtistOnboarding();
+  } = useVenueOnboarding();
+
+  const handleLogout = async () => {
+    await logout();
+    router.replace('/(auth)/sign-in');
+  };
 
   return (
     <View style={{ flex: 1, backgroundColor: '#080808' }}>
@@ -39,13 +36,7 @@ export default function ArtistOnboardingScreen() {
           className="flex-row items-center justify-between px-5 bg-[#080808]"
           style={{ height: 56 }}
         >
-          <Pressable
-            onPress={async () => {
-              await logout();
-              router.replace('/(auth)/sign-in');
-            }}
-            className="size-6 items-center justify-center"
-          >
+          <Pressable onPress={handleLogout} className="size-6 items-center justify-center">
             <Ionicons name="log-out-outline" size={24} color="#fff" />
           </Pressable>
           <View className="absolute left-0 right-0 items-center pointer-events-none">
@@ -65,12 +56,16 @@ export default function ArtistOnboardingScreen() {
             style={{ fontSize: 28, fontWeight: '700', color: '#fff', lineHeight: 36 }}
             className="mb-7"
           >
-            Create Artist Profile
+            Create Venue Profile
           </Text>
 
           {/* Profile picture */}
           <View className="items-center mb-7">
-            <ProfilePicture uri={profileImageUri} onPress={handlePickImage} />
+            <ProfilePicture
+              uri={profileImageUri}
+              label="Upload Venue Picture / Logo"
+              onPress={handlePickImage}
+            />
             {imageError ? (
               <Text className="text-xs text-error text-center mt-2 px-4">{imageError}</Text>
             ) : null}
@@ -78,30 +73,30 @@ export default function ArtistOnboardingScreen() {
 
           {/* Form fields */}
           <View className="gap-4">
-            {/* Artist / Band Name */}
+            {/* Venue Name */}
             <View className="gap-2">
-              <Text className="text-sm font-bold text-white/80">Artist / Band Name</Text>
+              <Text className="text-sm font-bold text-white/80">Venue Name</Text>
               <View
-                className={`bg-white rounded-lg h-[52px] px-4 justify-center ${errors.stageName ? 'border border-error' : ''}`}
+                className={`bg-white rounded-lg h-[52px] px-4 justify-center ${errors.venueName ? 'border border-error' : ''}`}
               >
                 <TextInput
                   className="text-base text-black"
-                  placeholder="Your Stage Name"
+                  placeholder="Dooagh Film Festival"
                   placeholderTextColor="#8d8d8d"
-                  value={stageName}
-                  onChangeText={setStageName}
+                  value={venueName}
+                  onChangeText={setVenueName}
                   autoCapitalize="words"
                 />
               </View>
-              {errors.stageName ? (
-                <Text className="text-xs text-error">{errors.stageName}</Text>
+              {errors.venueName ? (
+                <Text className="text-xs text-error">{errors.venueName}</Text>
               ) : null}
             </View>
 
-            {/* Short Bio */}
+            {/* Short Description */}
             <View className="gap-2">
               <View className="flex-row items-center justify-between">
-                <Text className="text-sm font-bold text-white/80">Short Bio</Text>
+                <Text className="text-sm font-bold text-white/80">Short Description</Text>
                 <Text className="text-base text-gray-10">
                   {bio.length}/{BIO_MAX}
                 </Text>
@@ -112,7 +107,7 @@ export default function ArtistOnboardingScreen() {
               >
                 <TextInput
                   className="text-base text-black flex-1"
-                  placeholder="Describe yourself..."
+                  placeholder="Describe your business..."
                   placeholderTextColor="rgba(141,141,141,0.8)"
                   value={bio}
                   onChangeText={setBio}
@@ -122,6 +117,27 @@ export default function ArtistOnboardingScreen() {
                 />
               </View>
               {errors.bio ? <Text className="text-xs text-error">{errors.bio}</Text> : null}
+            </View>
+
+            {/* Venue Location */}
+            <View className="gap-2">
+              <Text className="text-sm font-bold text-white/80">Venue Location</Text>
+              <View
+                className={`bg-white rounded-lg h-[52px] px-4 flex-row items-center ${errors.address ? 'border border-error' : ''}`}
+              >
+                <TextInput
+                  className="text-base text-black flex-1"
+                  placeholder="Choose your location"
+                  placeholderTextColor="#8d8d8d"
+                  value={address}
+                  onChangeText={setAddress}
+                  autoCapitalize="words"
+                />
+                <Ionicons name="location-outline" size={20} color="#C8FF2F" />
+              </View>
+              {errors.address ? (
+                <Text className="text-xs text-error">{errors.address}</Text>
+              ) : null}
             </View>
 
             {/* Contact Email */}
@@ -141,15 +157,15 @@ export default function ArtistOnboardingScreen() {
                 <Text className="text-xs text-error">{errors.contactEmail}</Text>
               ) : null}
               <Text className="text-xs font-semibold text-gray-10">
-                Venue/businesses can contact you on this email
+                Artists can contact you on this email
               </Text>
             </View>
 
-            {/* Social Links */}
-            <SocialLinksSection
-              values={socialLinks}
+            {/* Venue Links */}
+            <VenueLinksSection
+              values={venueLinks}
               errors={errors}
-              onChange={handleSocialLinkChange}
+              onChange={handleVenueLinkChange}
             />
 
             {/* Submit error */}
@@ -178,7 +194,7 @@ export default function ArtistOnboardingScreen() {
                     textTransform: 'uppercase',
                   }}
                 >
-                  Create Artist Profile
+                  Create Venue Profile
                 </Text>
               )}
             </Pressable>

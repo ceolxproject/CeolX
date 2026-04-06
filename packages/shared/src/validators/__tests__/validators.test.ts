@@ -279,20 +279,20 @@ describe('createArtistOnboardingSchema', () => {
     expect(createArtistOnboardingSchema.safeParse(noEmail).success).toBe(true);
   });
 
-  it('accepts partial socialLinks with only instagram', () => {
+  it('accepts partial socialLinks with only INSTAGRAM', () => {
     expect(
       createArtistOnboardingSchema.safeParse({
         stageName: 'Seán',
-        socialLinks: { instagram: 'https://instagram.com/sean' },
+        socialLinks: { INSTAGRAM: 'https://instagram.com/sean' },
       }).success
     ).toBe(true);
   });
 
-  it('rejects invalid URL in socialLinks.instagram', () => {
+  it('rejects invalid URL in socialLinks.INSTAGRAM', () => {
     expect(
       createArtistOnboardingSchema.safeParse({
         stageName: 'Seán',
-        socialLinks: { instagram: 'not-a-url' },
+        socialLinks: { INSTAGRAM: 'not-a-url' },
       }).success
     ).toBe(false);
   });
@@ -301,7 +301,7 @@ describe('createArtistOnboardingSchema', () => {
     expect(
       createArtistOnboardingSchema.safeParse({
         stageName: 'Seán',
-        socialLinks: { instagram: '' },
+        socialLinks: { INSTAGRAM: '' },
       }).success
     ).toBe(true);
   });
@@ -310,23 +310,6 @@ describe('createArtistOnboardingSchema', () => {
     expect(createArtistOnboardingSchema.safeParse({ stageName: 'Seán' }).success).toBe(true);
   });
 
-  it('accepts valid profileImageUrl', () => {
-    expect(
-      createArtistOnboardingSchema.safeParse({
-        stageName: 'Seán',
-        profileImageUrl: 'https://cdn.ceolx.ie/avatars/sean.jpg',
-      }).success
-    ).toBe(true);
-  });
-
-  it('rejects invalid profileImageUrl', () => {
-    expect(
-      createArtistOnboardingSchema.safeParse({
-        stageName: 'Seán',
-        profileImageUrl: 'not-a-url',
-      }).success
-    ).toBe(false);
-  });
 });
 
 describe('rejectEventSchema', () => {

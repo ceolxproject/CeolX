@@ -145,5 +145,19 @@ export default tseslint.config(
       '@typescript-eslint/no-unsafe-assignment': 'off',
       '@typescript-eslint/no-unsafe-member-access': 'off',
     },
+  },
+
+  // ── expo-image-picker wrapper ──────────────────────────────────────────────
+  // expo-image-picker uses moduleResolution:"bundler" (set by expo/tsconfig.base)
+  // which Metro resolves but ESLint's projectService cannot. The unsafe rules are
+  // scoped to this one wrapper; all callers receive explicit return types.
+  {
+    files: ['apps/native/utils/image-picker.ts'],
+    rules: {
+      '@typescript-eslint/no-unsafe-assignment': 'off',
+      '@typescript-eslint/no-unsafe-call': 'off',
+      '@typescript-eslint/no-unsafe-member-access': 'off',
+      '@typescript-eslint/no-unsafe-argument': 'off',
+    },
   }
 );
