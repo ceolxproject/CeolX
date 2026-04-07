@@ -35,6 +35,8 @@ function artistCaller() {
         name: 'Test Artist',
         email: 'artist@test.com',
         emailVerified: true,
+        marketingConsent: false,
+        flaggedInactive: false,
         createdAt: new Date(),
         updatedAt: new Date(),
       },
@@ -59,6 +61,8 @@ function spectatorCaller() {
         name: 'Test Spectator',
         email: 'spectator@test.com',
         emailVerified: true,
+        marketingConsent: false,
+        flaggedInactive: false,
         createdAt: new Date(),
         updatedAt: new Date(),
       },
@@ -151,7 +155,7 @@ describe('events.getMap', () => {
     const { swLat, swLng, neLat, neLng } = DEFAULT_INPUT;
 
     expect(filterBy).toContain(
-      `location:(${swLat},${swLng}, ${swLat},${neLng}, ${neLat},${neLng}, ${neLat},${swLng})`
+      `location:(${swLat},${swLng},${swLat},${neLng},${neLat},${neLng},${neLat},${swLng})`
     );
   });
 

@@ -1,3 +1,4 @@
+import { TRPCError } from '@trpc/server';
 import { z } from 'zod';
 
 import { creatorProcedure, protectedProcedure, publicProcedure, router } from '../index';
@@ -34,44 +35,55 @@ export const eventsRouter = router({
     const centerLng = (swLng + neLng) / 2;
     const nowUnix = Math.floor(Date.now() / 1000);
 
+    // Gig opportunity posts are visible to Artists only per PRD.
+    // Venues create them; they do not appear in Venue/Spectator map view.
     const isArtist = ctx.session?.user?.currentRole === 'artist';
     const gigFilter = isArtist ? '' : ' && is_gig_opportunity:=false';
 
-    const result = await typesenseClient
-      .collections('events')
-      .documents()
-      .search({
-        q: '*',
-        query_by: 'title',
-        filter_by:
-          `location:(${swLat},${swLng}, ${swLat},${neLng}, ${neLat},${neLng}, ${neLat},${swLng})` +
-          ` && date_start:>=${nowUnix}` +
-          ` && status:=active` +
-          gigFilter,
-        sort_by: `location(${centerLat},${centerLng}):asc`,
-        per_page: limit,
+    try {
+      const result = await typesenseClient
+        .collections('events')
+        .documents()
+        .search({
+          q: '*',
+          query_by: 'title',
+          filter_by:
+            `location:(${swLat},${swLng},${swLat},${neLng},${neLat},${neLng},${neLat},${swLng})` +
+            ` && date_start:>=${nowUnix}` +
+            ` && status:=active` +
+            gigFilter,
+          sort_by: `location(${centerLat},${centerLng}):asc`,
+          per_page: limit,
+        });
+
+      const events = (result.hits ?? []).map((hit) => {
+        const doc = hit.document as Record<string, unknown>;
+        const loc = doc['location'];
+        return {
+          id: doc['id'] as string,
+          title: doc['title'] as string,
+          lat: Array.isArray(loc) ? (loc[0] as number) : 0,
+          lng: Array.isArray(loc) ? (loc[1] as number) : 0,
+          category: doc['category'] as string,
+          dateStart: new Date((doc['date_start'] as number) * 1000).toISOString(),
+          dateEnd: doc['date_end']
+            ? new Date((doc['date_end'] as number) * 1000).toISOString()
+            : undefined,
+          venueAddress: (doc['venue_address'] as string) || undefined,
+          coverImageUrl: (doc['cover_image'] as string) || undefined,
+          isGigOpportunity: (doc['is_gig_opportunity'] as boolean) ?? false,
+          distanceMeters: hit.geo_distance_meters?.location,
+        };
       });
 
-    const events = (result.hits ?? []).map((hit) => {
-      const doc = hit.document as Record<string, unknown>;
-      return {
-        id: doc['id'] as string,
-        title: doc['title'] as string,
-        lat: (doc['location'] as number[])[0],
-        lng: (doc['location'] as number[])[1],
-        category: doc['category'] as string,
-        dateStart: new Date((doc['date_start'] as number) * 1000).toISOString(),
-        dateEnd: doc['date_end']
-          ? new Date((doc['date_end'] as number) * 1000).toISOString()
-          : undefined,
-        venueAddress: (doc['venue_address'] as string) || undefined,
-        coverImageUrl: (doc['cover_image'] as string) || undefined,
-        isGigOpportunity: (doc['is_gig_opportunity'] as boolean) ?? false,
-        distanceMeters: hit.geo_distance_meters?.location,
-      };
-    });
-
-    return { events, totalCount: result.found ?? 0 };
+      return { events, totalCount: result.found ?? 0 };
+    } catch (err) {
+      throw new TRPCError({
+        code: 'INTERNAL_SERVER_ERROR',
+        message: 'Failed to search events',
+        cause: err,
+      });
+    }
   }),
 
   // TODO M4-T1: create event (sets status = pending_review)
