@@ -1,0 +1,53 @@
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
+import { useCallback, useRef, useState } from 'react';
+import type { Region } from 'react-native-maps';
+
+import type { BoundingBox } from '@CeolX/shared';
+import { MAP_DEBOUNCE_MS } from '@CeolX/shared';
+
+import { trpc } from '@/utils/trpc';
+
+// Ireland-wide bbox as initial/fallback (covers all of Ireland)
+const IRELAND_BBOX: BoundingBox & { limit: number } = {
+  swLat: 51.3,
+  swLng: -10.7,
+  neLat: 55.5,
+  neLng: -5.9,
+  limit: 50,
+};
+
+export function regionToBoundingBox(region: Region): BoundingBox {
+  return {
+    swLat: region.latitude - region.latitudeDelta / 2,
+    swLng: region.longitude - region.longitudeDelta / 2,
+    neLat: region.latitude + region.latitudeDelta / 2,
+    neLng: region.longitude + region.longitudeDelta / 2,
+  };
+}
+
+export function useMapEvents() {
+  const [viewport, setViewport] = useState<(BoundingBox & { limit: number }) | null>(null);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const queryOptions = trpc.events.getMap.queryOptions(viewport ?? IRELAND_BBOX);
+  const { data, isLoading, isError } = useQuery({
+    ...queryOptions,
+    enabled: viewport !== null,
+    placeholderData: keepPreviousData, // keep previous data while fetching (no flicker)
+  });
+
+  const onRegionChangeComplete = useCallback((region: Region) => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => {
+      setViewport({ ...regionToBoundingBox(region), limit: 50 });
+    }, MAP_DEBOUNCE_MS);
+  }, []);
+
+  return {
+    events: data?.events ?? [],
+    totalCount: data?.totalCount ?? 0,
+    isLoading,
+    isError,
+    onRegionChangeComplete,
+  };
+}
