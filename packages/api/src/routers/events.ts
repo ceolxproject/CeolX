@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 import { creatorProcedure, protectedProcedure, publicProcedure, router } from '../index';
+import { typesenseClient } from '../lib/typesense';
 
 const MapQueryInput = z.object({
   swLat: z.number(),
@@ -27,9 +28,45 @@ const CreateEventInput = z.object({
 });
 
 export const eventsRouter = router({
-  // TODO M3-T1: bounding-box query against events table (GIST index)
-  getMap: publicProcedure.input(MapQueryInput).query(() => {
-    return { events: [], totalCount: 0 };
+  getMap: publicProcedure.input(MapQueryInput).query(async ({ input }) => {
+    const { swLat, swLng, neLat, neLng, limit } = input;
+    const centerLat = (swLat + neLat) / 2;
+    const centerLng = (swLng + neLng) / 2;
+    const nowUnix = Math.floor(Date.now() / 1000);
+
+    const result = await typesenseClient
+      .collections('events')
+      .documents()
+      .search({
+        q: '*',
+        query_by: 'title',
+        filter_by:
+          `location:(${swLat},${swLng}, ${swLat},${neLng}, ${neLat},${neLng}, ${neLat},${swLng})` +
+          ` && date_start:>=${nowUnix}`,
+        sort_by: `location(${centerLat},${centerLng}):asc`,
+        per_page: limit,
+      });
+
+    const events = (result.hits ?? []).map((hit) => {
+      const doc = hit.document as Record<string, unknown>;
+      return {
+        id: doc['id'] as string,
+        title: doc['title'] as string,
+        lat: (doc['location'] as number[])[0],
+        lng: (doc['location'] as number[])[1],
+        category: doc['category'] as string,
+        dateStart: new Date((doc['date_start'] as number) * 1000).toISOString(),
+        dateEnd: doc['date_end']
+          ? new Date((doc['date_end'] as number) * 1000).toISOString()
+          : undefined,
+        venueAddress: (doc['venue_address'] as string) || undefined,
+        coverImageUrl: (doc['cover_image'] as string) || undefined,
+        isGigOpportunity: (doc['is_gig_opportunity'] as boolean) ?? false,
+        distanceMeters: hit.geo_distance_meters?.location,
+      };
+    });
+
+    return { events, totalCount: result.found ?? 0 };
   }),
 
   // TODO M4-T1: create event (sets status = pending_review)
