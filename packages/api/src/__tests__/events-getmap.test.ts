@@ -50,6 +50,30 @@ function artistCaller() {
   });
 }
 
+function spectatorCaller() {
+  return createCaller({
+    session: {
+      user: {
+        id: 'user-2',
+        currentRole: 'spectator',
+        name: 'Test Spectator',
+        email: 'spectator@test.com',
+        emailVerified: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+      session: {
+        id: 'session-2',
+        userId: 'user-2',
+        token: 'test-token',
+        expiresAt: new Date(Date.now() + 86400000),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    },
+  });
+}
+
 const DEFAULT_INPUT = {
   swLat: 53.2,
   swLng: -9.1,
@@ -218,5 +242,15 @@ describe('events.getMap', () => {
 
     const filterBy = getFirstCallArg()['filter_by'] as string;
     expect(filterBy).not.toContain('is_gig_opportunity:=false');
+  });
+
+  it('hides gig opportunity events from spectator callers', async () => {
+    mockSearch.mockResolvedValueOnce({ hits: [], found: 0 });
+
+    const caller = spectatorCaller();
+    await caller.events.getMap(DEFAULT_INPUT);
+
+    const filterBy = getFirstCallArg()['filter_by'] as string;
+    expect(filterBy).toContain('is_gig_opportunity:=false');
   });
 });
