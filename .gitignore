@@ -79,3 +79,6 @@ mentor-project-management
 
 apps/native/ios
 apps/native/android
+
+# Git worktrees
+.worktrees/
