@@ -20,6 +20,7 @@ vi.mock('@/utils/trpc', () => ({
 vi.mock('react-native-maps', () => ({}));
 vi.mock('@CeolX/shared', () => ({
   MAP_DEBOUNCE_MS: 400,
+  MAP_MAX_PINS_PER_FETCH: 50,
 }));
 
 import { regionToBoundingBox } from '../use-map-events';
@@ -43,3 +44,5 @@ describe('regionToBoundingBox', () => {
     expect(box.neLng).toBeCloseTo(-5.1921);
   });
 });
+
+// TODO: add renderHook test for unmount cleanup when @testing-library/react-native is set up

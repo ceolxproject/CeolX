@@ -1,9 +1,9 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Region } from 'react-native-maps';
 
 import type { BoundingBox } from '@CeolX/shared';
-import { MAP_DEBOUNCE_MS } from '@CeolX/shared';
+import { MAP_DEBOUNCE_MS, MAP_MAX_PINS_PER_FETCH } from '@CeolX/shared';
 
 import { trpc } from '@/utils/trpc';
 
@@ -13,7 +13,7 @@ const IRELAND_BBOX: BoundingBox & { limit: number } = {
   swLng: -10.7,
   neLat: 55.5,
   neLng: -5.9,
-  limit: 50,
+  limit: MAP_MAX_PINS_PER_FETCH,
 };
 
 export function regionToBoundingBox(region: Region): BoundingBox {
@@ -36,10 +36,16 @@ export function useMapEvents() {
     placeholderData: keepPreviousData, // keep previous data while fetching (no flicker)
   });
 
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+  }, []);
+
   const onRegionChangeComplete = useCallback((region: Region) => {
     if (timerRef.current) clearTimeout(timerRef.current);
     timerRef.current = setTimeout(() => {
-      setViewport({ ...regionToBoundingBox(region), limit: 50 });
+      setViewport({ ...regionToBoundingBox(region), limit: MAP_MAX_PINS_PER_FETCH });
     }, MAP_DEBOUNCE_MS);
   }, []);
 
