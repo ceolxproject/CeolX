@@ -1,4 +1,4 @@
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import { useState } from 'react';
 
@@ -50,6 +50,7 @@ export function useVenueOnboarding(): UseVenueOnboardingReturn {
   const [imageError, setImageError] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
 
   const { mutateAsync: createVenueProfile, isPending } = useMutation(
     trpc.onboarding.createVenueProfile.mutationOptions()
@@ -107,6 +108,7 @@ export function useVenueOnboarding(): UseVenueOnboardingReturn {
 
     try {
       await createVenueProfile(parsed.data);
+      await queryClient.invalidateQueries({ queryKey: trpc.users.me.queryKey() });
       router.replace('/(app)/(tabs)/map');
     } catch (err: unknown) {
       setSubmitError(

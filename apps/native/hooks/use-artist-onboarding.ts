@@ -1,4 +1,4 @@
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import { useState } from 'react';
 
@@ -26,6 +26,7 @@ export function useArtistOnboarding() {
   const [imageError, setImageError] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
 
   const { mutateAsync: createArtistProfile, isPending } = useMutation(
     trpc.onboarding.createArtistProfile.mutationOptions()
@@ -82,6 +83,7 @@ export function useArtistOnboarding() {
 
     try {
       await createArtistProfile(parsed.data);
+      await queryClient.invalidateQueries({ queryKey: trpc.users.me.queryKey() });
       router.replace('/(app)/(tabs)/map');
     } catch (err: unknown) {
       setSubmitError(
