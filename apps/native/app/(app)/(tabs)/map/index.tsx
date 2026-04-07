@@ -1,9 +1,9 @@
 import type GorhomBottomSheet from '@gorhom/bottom-sheet';
 import * as Location from 'expo-location';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Text, View } from 'react-native';
+import { ActivityIndicator, Platform, Text, View } from 'react-native';
 import MapView from 'react-native-map-clustering';
-import { Marker } from 'react-native-maps';
+import { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 
 import { IRELAND_CENTER_LAT, IRELAND_CENTER_LNG } from '@CeolX/shared';
 
@@ -59,6 +59,7 @@ export default function MapScreen() {
   const { events, isLoading, onRegionChangeComplete } = useMapEvents();
   const [selectedEvent, setSelectedEvent] = useState<MapEvent | null>(null);
   const [initialRegion, setInitialRegion] = useState(IRELAND_INITIAL_REGION);
+  const [gpsGranted, setGpsGranted] = useState(false);
   const bottomSheetRef = useRef<GorhomBottomSheet>(null);
 
   // Try to get last known GPS location for initial map center
@@ -67,6 +68,7 @@ export default function MapScreen() {
       try {
         const { status } = await Location.getForegroundPermissionsAsync();
         if (status !== Location.PermissionStatus.GRANTED) return;
+        setGpsGranted(true);
         const pos = await Location.getLastKnownPositionAsync();
         if (pos) {
           setInitialRegion({
@@ -107,10 +109,10 @@ export default function MapScreen() {
     <View style={{ flex: 1, backgroundColor: '#080808' }}>
       <MapView
         style={{ flex: 1 }}
-        provider={undefined} // Apple Maps on iOS (no key needed)
+        provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
         initialRegion={initialRegion}
         onRegionChangeComplete={onRegionChangeComplete}
-        showsUserLocation
+        showsUserLocation={gpsGranted}
         userInterfaceStyle={'dark' as const}
         // Clustering config
         clusterColor="#00B386"
