@@ -26,13 +26,13 @@ export function regionToBoundingBox(region: Region): BoundingBox {
 }
 
 export function useMapEvents() {
-  const [viewport, setViewport] = useState<(BoundingBox & { limit: number }) | null>(null);
+  // Initialize with Ireland bbox so the query fires immediately on mount
+  const [viewport, setViewport] = useState<BoundingBox & { limit: number }>(IRELAND_BBOX);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const queryOptions = trpc.events.getMap.queryOptions(viewport ?? IRELAND_BBOX);
+  const queryOptions = trpc.events.getMap.queryOptions(viewport);
   const { data, isLoading, isError } = useQuery({
     ...queryOptions,
-    enabled: viewport !== null,
     placeholderData: keepPreviousData, // keep previous data while fetching (no flicker)
   });
 

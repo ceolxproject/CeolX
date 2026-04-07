@@ -3,6 +3,7 @@ import * as Location from 'expo-location';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Platform, Text, View } from 'react-native';
 import MapView from 'react-native-map-clustering';
+import type { Region } from 'react-native-maps';
 import { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 
 import { IRELAND_CENTER_LAT, IRELAND_CENTER_LNG } from '@CeolX/shared';
@@ -58,8 +59,11 @@ type ClusterObject = {
 export default function MapScreen() {
   const { events, isLoading, onRegionChangeComplete } = useMapEvents();
   const [selectedEvent, setSelectedEvent] = useState<MapEvent | null>(null);
-  const [initialRegion, setInitialRegion] = useState(IRELAND_INITIAL_REGION);
   const [gpsGranted, setGpsGranted] = useState(false);
+  // mapKey forces a remount when the GPS region resolves so initialRegion is applied.
+  // (initialRegion is a mount-time-only prop on react-native-maps MapView)
+  const [mapKey, setMapKey] = useState(0);
+  const [initialRegion, setInitialRegion] = useState(IRELAND_INITIAL_REGION);
   const bottomSheetRef = useRef<GorhomBottomSheet>(null);
 
   // Try to get last known GPS location for initial map center
@@ -77,6 +81,7 @@ export default function MapScreen() {
             latitudeDelta: 0.5,
             longitudeDelta: 0.5,
           });
+          setMapKey((k) => k + 1); // trigger remount so initialRegion takes effect
         }
       } catch {
         // Silently fall back to Ireland center
@@ -88,6 +93,16 @@ export default function MapScreen() {
     setSelectedEvent(event);
     bottomSheetRef.current?.snapToIndex(0);
   }, []);
+
+  // Close the bottom sheet when the user pans so stale event previews are dismissed
+  const handleRegionChangeComplete = useCallback(
+    (region: Region) => {
+      bottomSheetRef.current?.close();
+      setSelectedEvent(null);
+      onRegionChangeComplete(region);
+    },
+    [onRegionChangeComplete]
+  );
 
   const renderCluster = useCallback(
     (cluster: ClusterObject) => (
@@ -108,10 +123,11 @@ export default function MapScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: '#080808' }}>
       <MapView
+        key={mapKey}
         style={{ flex: 1 }}
         provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
         initialRegion={initialRegion}
-        onRegionChangeComplete={onRegionChangeComplete}
+        onRegionChangeComplete={handleRegionChangeComplete}
         showsUserLocation={gpsGranted}
         userInterfaceStyle={'dark' as const}
         // Clustering config
