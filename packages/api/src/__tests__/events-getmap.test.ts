@@ -26,6 +26,30 @@ function anonCaller() {
   return createCaller({ session: null });
 }
 
+function artistCaller() {
+  return createCaller({
+    session: {
+      user: {
+        id: 'user-1',
+        currentRole: 'artist',
+        name: 'Test Artist',
+        email: 'artist@test.com',
+        emailVerified: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+      session: {
+        id: 'session-1',
+        userId: 'user-1',
+        token: 'test-token',
+        expiresAt: new Date(Date.now() + 86400000),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    },
+  });
+}
+
 const DEFAULT_INPUT = {
   swLat: 53.2,
   swLng: -9.1,
@@ -102,10 +126,9 @@ describe('events.getMap', () => {
     const filterBy = searchArgs['filter_by'] as string;
     const { swLat, swLng, neLat, neLng } = DEFAULT_INPUT;
 
-    expect(filterBy).toContain(String(swLat));
-    expect(filterBy).toContain(String(swLng));
-    expect(filterBy).toContain(String(neLat));
-    expect(filterBy).toContain(String(neLng));
+    expect(filterBy).toContain(
+      `location:(${swLat},${swLng}, ${swLat},${neLng}, ${neLat},${neLng}, ${neLat},${swLng})`
+    );
   });
 
   it('passes date filter with a unix timestamp', async () => {
@@ -161,5 +184,39 @@ describe('events.getMap', () => {
     const result = await caller.events.getMap(DEFAULT_INPUT);
 
     expect(result.totalCount).toBe(42);
+  });
+
+  it('filters to active events only', async () => {
+    mockSearch.mockResolvedValueOnce({ hits: [], found: 0 });
+
+    const caller = anonCaller();
+    await caller.events.getMap(DEFAULT_INPUT);
+
+    const filterBy = getFirstCallArg()['filter_by'] as string;
+    expect(filterBy).toContain('status:=active');
+  });
+
+  it('hides gig opportunity events from anonymous callers', async () => {
+    const gigHit = {
+      ...MOCK_HIT,
+      document: { ...MOCK_HIT.document, is_gig_opportunity: true },
+    };
+    mockSearch.mockResolvedValueOnce({ hits: [gigHit], found: 1 });
+
+    const caller = anonCaller();
+    await caller.events.getMap(DEFAULT_INPUT);
+
+    const filterBy = getFirstCallArg()['filter_by'] as string;
+    expect(filterBy).toContain('is_gig_opportunity:=false');
+  });
+
+  it('does not hide gig opportunity events from artist callers', async () => {
+    mockSearch.mockResolvedValueOnce({ hits: [], found: 0 });
+
+    const caller = artistCaller();
+    await caller.events.getMap(DEFAULT_INPUT);
+
+    const filterBy = getFirstCallArg()['filter_by'] as string;
+    expect(filterBy).not.toContain('is_gig_opportunity:=false');
   });
 });

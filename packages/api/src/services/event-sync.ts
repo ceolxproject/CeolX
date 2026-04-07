@@ -21,6 +21,7 @@ function toTypesenseDoc(event: Event) {
     venue_address: event.venueAddress ?? undefined,
     cover_image: event.coverImage ?? undefined,
     is_gig_opportunity: event.isGigOpportunity ?? false,
+    status: event.status,
   };
 }
 

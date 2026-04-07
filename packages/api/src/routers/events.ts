@@ -28,11 +28,14 @@ const CreateEventInput = z.object({
 });
 
 export const eventsRouter = router({
-  getMap: publicProcedure.input(MapQueryInput).query(async ({ input }) => {
+  getMap: publicProcedure.input(MapQueryInput).query(async ({ input, ctx }) => {
     const { swLat, swLng, neLat, neLng, limit } = input;
     const centerLat = (swLat + neLat) / 2;
     const centerLng = (swLng + neLng) / 2;
     const nowUnix = Math.floor(Date.now() / 1000);
+
+    const isArtist = ctx.session?.user?.currentRole === 'artist';
+    const gigFilter = isArtist ? '' : ' && is_gig_opportunity:=false';
 
     const result = await typesenseClient
       .collections('events')
@@ -42,7 +45,9 @@ export const eventsRouter = router({
         query_by: 'title',
         filter_by:
           `location:(${swLat},${swLng}, ${swLat},${neLng}, ${neLat},${neLng}, ${neLat},${swLng})` +
-          ` && date_start:>=${nowUnix}`,
+          ` && date_start:>=${nowUnix}` +
+          ` && status:=active` +
+          gigFilter,
         sort_by: `location(${centerLat},${centerLng}):asc`,
         per_page: limit,
       });
