@@ -9,6 +9,34 @@ export const MAP_EXPAND_RADIUS_KM = [5, 25, 100] as const;
 export const IRELAND_CENTER_LAT = 53.1424;
 export const IRELAND_CENTER_LNG = -7.6921;
 
+// Ireland initial map region (used by MapView initialRegion)
+export const IRELAND_INITIAL_REGION = {
+  latitude: IRELAND_CENTER_LAT,
+  longitude: IRELAND_CENTER_LNG,
+  latitudeDelta: 4,
+  longitudeDelta: 5,
+};
+
+// Event category display labels
+export const CATEGORY_LABELS: Record<string, string> = {
+  Traditional: 'Traditional session',
+  Contemporary: 'Contemporary',
+  Fusion: 'Fusion',
+  Celtic: 'Celtic',
+  Folk: 'Folk',
+  Session: 'Session',
+};
+
+// Event category emoji icons
+export const CATEGORY_ICONS: Record<string, string> = {
+  Traditional: '🎵',
+  Contemporary: '🎸',
+  Fusion: '🎹',
+  Celtic: '☘️',
+  Folk: '🪕',
+  Session: '🎶',
+};
+
 // Event moderation
 export const MAX_REJECTION_REASON_LENGTH = 500;
 

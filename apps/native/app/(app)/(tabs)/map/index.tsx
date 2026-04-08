@@ -1,45 +1,19 @@
-import * as Location from 'expo-location';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { ActivityIndicator, Animated, Platform, Pressable, Text, View } from 'react-native';
 import MapView from 'react-native-map-clustering';
 import type { Region } from 'react-native-maps';
 import { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 
-import { IRELAND_CENTER_LAT, IRELAND_CENTER_LNG } from '@CeolX/shared';
+import { CATEGORY_ICONS, CATEGORY_LABELS } from '@CeolX/shared';
 
 import { EventPreviewCard } from '@/components/EventPreviewCard';
 import { MapEventPin } from '@/components/MapEventPin';
 import { MapFilterSheet } from '@/components/MapFilterSheet';
 import { MapHeader } from '@/components/MapHeader';
 import { MapSearchBar } from '@/components/MapSearchBar';
+import { useGpsRegion } from '@/hooks/use-gps-region';
 import { useMapEvents } from '@/hooks/use-map-events';
-
-const CATEGORY_LABELS: Record<string, string> = {
-  Traditional: 'Traditional session',
-  Contemporary: 'Contemporary',
-  Fusion: 'Fusion',
-  Celtic: 'Celtic',
-  Folk: 'Folk',
-  Session: 'Session',
-};
-
-const CATEGORY_ICONS: Record<string, string> = {
-  Traditional: '🎵',
-  Contemporary: '🎸',
-  Fusion: '🎹',
-  Celtic: '☘️',
-  Folk: '🪕',
-  Session: '🎶',
-};
-
-const IRELAND_INITIAL_REGION = {
-  latitude: IRELAND_CENTER_LAT,
-  longitude: IRELAND_CENTER_LNG,
-  latitudeDelta: 4,
-  longitudeDelta: 5,
-};
-
-const PANEL_HEIGHT = 160; // compact card height for slide animation
+import { usePanelAnimation } from '@/hooks/use-panel-animation';
 
 type MapEvent = {
   id: string;
@@ -58,12 +32,8 @@ type MapEvent = {
 // Typed shape of the cluster object passed by react-native-map-clustering
 type ClusterObject = {
   id: string | number;
-  geometry: {
-    coordinates: [number, number]; // [lng, lat]
-  };
-  properties: {
-    point_count: number;
-  };
+  geometry: { coordinates: [number, number] }; // [lng, lat]
+  properties: { point_count: number };
   onPress: () => void;
 };
 
@@ -77,75 +47,22 @@ export default function MapScreen() {
     setFilters,
     activeFilterCount,
   } = useMapEvents();
-  const [selectedEvent, setSelectedEvent] = useState<MapEvent | null>(null);
+  const { initialRegion, gpsGranted, mapKey } = useGpsRegion();
+  const {
+    selectedItem: selectedEvent,
+    panelAnim,
+    markerJustPressedRef,
+    selectItem,
+    dismissPanel,
+  } = usePanelAnimation<MapEvent>();
   const [filterSheetVisible, setFilterSheetVisible] = useState(false);
-  const [gpsGranted, setGpsGranted] = useState(false);
-  const [mapKey, setMapKey] = useState(0);
-  const [initialRegion, setInitialRegion] = useState(IRELAND_INITIAL_REGION);
-
-  // Animated slide-up panel instead of @gorhom/bottom-sheet
-  const panelAnim = useRef(new Animated.Value(PANEL_HEIGHT)).current;
-  const markerJustPressedRef = useRef(false);
-
-  const showPanel = useCallback(() => {
-    Animated.spring(panelAnim, {
-      toValue: 0,
-      useNativeDriver: true,
-      tension: 80,
-      friction: 12,
-    }).start();
-  }, [panelAnim]);
-
-  const hidePanel = useCallback(() => {
-    Animated.timing(panelAnim, {
-      toValue: PANEL_HEIGHT,
-      duration: 200,
-      useNativeDriver: true,
-    }).start(() => setSelectedEvent(null));
-  }, [panelAnim]);
-
-  useEffect(() => {
-    void (async () => {
-      try {
-        const { status } = await Location.getForegroundPermissionsAsync();
-        if (status !== Location.PermissionStatus.GRANTED) return;
-        setGpsGranted(true);
-        const pos = await Location.getLastKnownPositionAsync();
-        if (pos) {
-          setInitialRegion({
-            latitude: pos.coords.latitude,
-            longitude: pos.coords.longitude,
-            latitudeDelta: 0.5,
-            longitudeDelta: 0.5,
-          });
-          setMapKey((k) => k + 1);
-        }
-      } catch {
-        // Silently fall back to Ireland center
-      }
-    })();
-  }, []);
-
-  const handleMarkerPress = useCallback(
-    (event: MapEvent) => {
-      markerJustPressedRef.current = true;
-      setSelectedEvent(event);
-      showPanel();
-      setTimeout(() => {
-        markerJustPressedRef.current = false;
-      }, 600);
-    },
-    [showPanel]
-  );
 
   const handleRegionChangeComplete = useCallback(
     (region: Region) => {
-      if (!markerJustPressedRef.current) {
-        hidePanel();
-      }
+      if (!markerJustPressedRef.current) dismissPanel();
       onRegionChangeComplete(region);
     },
-    [onRegionChangeComplete, hidePanel]
+    [onRegionChangeComplete, dismissPanel, markerJustPressedRef]
   );
 
   const renderCluster = useCallback(
@@ -185,7 +102,7 @@ export default function MapScreen() {
             coordinate={{ latitude: event.lat, longitude: event.lng }}
             tracksViewChanges={selectedEvent?.id === event.id}
           >
-            <Pressable onPress={() => handleMarkerPress(event)}>
+            <Pressable onPress={() => selectItem(event)}>
               <View className="items-center">
                 <MapEventPin
                   type="single"
@@ -214,7 +131,6 @@ export default function MapScreen() {
         activeFilterCount={activeFilterCount}
       />
 
-      {/* Loading overlay */}
       {isLoading && (
         <ActivityIndicator
           style={{ position: 'absolute', alignSelf: 'center', top: 24 }}
@@ -223,7 +139,6 @@ export default function MapScreen() {
         />
       )}
 
-      {/* Empty state */}
       {!isLoading && events.length === 0 && (
         <View className="absolute bottom-[100px] self-center bg-[rgba(43,43,43,0.92)] px-5 py-[10px] rounded-[20px] max-w-[280px]">
           <Text className="text-white text-[14px] text-center">
@@ -232,17 +147,15 @@ export default function MapScreen() {
         </View>
       )}
 
-      {/* Event preview card — slides up from bottom */}
       {selectedEvent && (
         <Animated.View
           className="absolute bottom-[90px] left-4 right-4"
           style={{ transform: [{ translateY: panelAnim }] }}
         >
-          <EventPreviewCard event={selectedEvent} onDismiss={hidePanel} />
+          <EventPreviewCard event={selectedEvent} onDismiss={dismissPanel} />
         </Animated.View>
       )}
 
-      {/* Filter sheet */}
       <MapFilterSheet
         visible={filterSheetVisible}
         filters={filters}
