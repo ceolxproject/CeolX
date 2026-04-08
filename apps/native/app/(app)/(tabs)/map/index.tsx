@@ -1,3 +1,4 @@
+import { useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, Animated, Platform, Pressable, Text, View } from 'react-native';
 import MapView from 'react-native-map-clustering';
@@ -7,6 +8,8 @@ import { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import { CATEGORY_ICONS, CATEGORY_LABELS } from '@CeolX/shared';
 
 import { EventPreviewCard } from '@/components/EventPreviewCard';
+import { LocationBanner } from '@/components/LocationBanner';
+import { MapEmptyStateCard } from '@/components/MapEmptyStateCard';
 import { MapEventPin } from '@/components/MapEventPin';
 import { MapFilterSheet } from '@/components/MapFilterSheet';
 import { MapHeader } from '@/components/MapHeader';
@@ -38,16 +41,22 @@ type ClusterObject = {
 };
 
 export default function MapScreen() {
+  const router = useRouter();
+  const { initialRegion, gpsGranted, locationSource, mapKey } = useGpsRegion();
+  const mapEventsResult = useMapEvents({
+    centerLat: initialRegion.latitude,
+    centerLng: initialRegion.longitude,
+  });
+  const events = mapEventsResult.events as MapEvent[];
   const {
-    events,
     isLoading,
+    expandExhausted,
     onRegionChangeComplete,
     onSearch,
     filters,
     setFilters,
     activeFilterCount,
-  } = useMapEvents();
-  const { initialRegion, gpsGranted, mapKey } = useGpsRegion();
+  } = mapEventsResult;
   const {
     selectedItem: selectedEvent,
     panelAnim,
@@ -56,6 +65,10 @@ export default function MapScreen() {
     dismissPanel,
   } = usePanelAnimation<MapEvent>();
   const [filterSheetVisible, setFilterSheetVisible] = useState(false);
+  const [bannerDismissed, setBannerDismissed] = useState(false);
+  const [emptyCardDismissed, setEmptyCardDismissed] = useState(false);
+
+  const showBanner = !bannerDismissed && (locationSource === 'ip' || locationSource === 'default');
 
   const handleRegionChangeComplete = useCallback(
     (region: Region) => {
@@ -131,6 +144,8 @@ export default function MapScreen() {
         activeFilterCount={activeFilterCount}
       />
 
+      {showBanner && <LocationBanner onDismiss={() => setBannerDismissed(true)} />}
+
       {isLoading && (
         <ActivityIndicator
           style={{ position: 'absolute', alignSelf: 'center', top: 24 }}
@@ -139,12 +154,11 @@ export default function MapScreen() {
         />
       )}
 
-      {!isLoading && events.length === 0 && (
-        <View className="absolute bottom-[100px] self-center bg-[rgba(43,43,43,0.92)] px-5 py-[10px] rounded-[20px] max-w-[280px]">
-          <Text className="text-white text-[14px] text-center">
-            No events near here. Try searching for Dublin, Galway, or Cork.
-          </Text>
-        </View>
+      {!isLoading && expandExhausted && !emptyCardDismissed && (
+        <MapEmptyStateCard
+          onDismiss={() => setEmptyCardDismissed(true)}
+          onBrowseAll={() => router.push('/(app)/(tabs)/discover')}
+        />
       )}
 
       {selectedEvent && (

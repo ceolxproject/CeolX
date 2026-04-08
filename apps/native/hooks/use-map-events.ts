@@ -36,6 +36,20 @@ export function regionToBoundingBox(region: Region): BoundingBox {
   };
 }
 
+type MapEventResult = {
+  id: string;
+  title: string;
+  lat: number;
+  lng: number;
+  category: string;
+  dateStart: string;
+  dateEnd?: string;
+  venueAddress?: string;
+  coverImageUrl?: string;
+  isGigOpportunity: boolean;
+  distanceMeters?: number;
+};
+
 /**
  * Silent auto-expand: when the primary query returns 0 events, sequentially
  * try expanding the search radius using MAP_EXPAND_RADIUS_KM [5, 25, 100].
@@ -48,9 +62,9 @@ export async function expandSearch(
   centerLng: number,
   fetchFn: (
     bbox: BoundingBox & { limit: number }
-  ) => Promise<{ events: unknown[]; totalCount: number }>,
+  ) => Promise<{ events: MapEventResult[]; totalCount: number }>,
   abortRef: { current: boolean }
-): Promise<{ events: unknown[]; exhausted: boolean }> {
+): Promise<{ events: MapEventResult[]; exhausted: boolean }> {
   for (const radiusKm of MAP_EXPAND_RADIUS_KM) {
     if (abortRef.current) return { events: [], exhausted: false };
 
@@ -77,7 +91,7 @@ export function useMapEvents(opts?: UseMapEventsOpts) {
   const [viewport, setViewport] = useState<BoundingBox & { limit: number }>(IRELAND_BBOX);
   const [searchQuery, setSearchQuery] = useState('');
   const [filters, setFilters] = useState<MapFilters>({});
-  const [expandedEvents, setExpandedEvents] = useState<unknown[] | null>(null);
+  const [expandedEvents, setExpandedEvents] = useState<MapEventResult[] | null>(null);
   const [expandExhausted, setExpandExhausted] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -97,7 +111,7 @@ export function useMapEvents(opts?: UseMapEventsOpts) {
     placeholderData: keepPreviousData,
   });
 
-  const primaryEvents = data?.events ?? [];
+  const primaryEvents = (data?.events ?? []) as MapEventResult[];
 
   // Silent auto-expand when primary query returns 0 events
   useEffect(() => {
@@ -118,7 +132,7 @@ export function useMapEvents(opts?: UseMapEventsOpts) {
       async (bbox) => {
         const expandQueryOptions = trpc.events.getMap.queryOptions(bbox);
         return queryClient.fetchQuery(expandQueryOptions) as Promise<{
-          events: unknown[];
+          events: MapEventResult[];
           totalCount: number;
         }>;
       },
