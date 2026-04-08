@@ -54,7 +54,7 @@ Tracks completed tasks per milestone. Each entry links to its PR.
 ## M3 — Map & Discovery
 
 - [x] M3-T1 · Map Integration & Viewport Query — PR #30
-- [ ] M3-T2 · Location Permission Fallback
+- [x] M3-T2 · Location Permission Fallback — PR #31
 - [ ] M3-T3 · Pin Clustering & Search
 - [ ] M3-T4 · Feed View (Algorithmic)
 
