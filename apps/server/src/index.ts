@@ -15,6 +15,7 @@ import '@CeolX/env/server'; // validates required env vars at startup
 
 import { isAllowedOrigin } from './config/cors';
 import { errorHandler } from './middleware/errorHandler';
+import locationRoutes from './routes/location';
 import webhooksRoutes from './routes/webhooks';
 
 const app = new Hono();
@@ -73,6 +74,10 @@ app.use(
     },
   })
 );
+
+// IP geolocation proxy — server-side lookup, no auth required
+app.use('/location/*', rateLimiter(RATE_LIMIT_TIERS.authLogin));
+app.route('/location', locationRoutes);
 
 // Stripe webhook — raw body required, cannot go through tRPC (wired in M8-T2)
 app.route('/api/webhooks', webhooksRoutes);
