@@ -9,6 +9,7 @@ const SEARCH_BAR_GAP = 8;
 
 interface MapSearchBarProps {
   placeholder?: string;
+  value?: string;
   onChangeText?: (text: string) => void;
   onFilterPress?: () => void;
   activeFilterCount?: number;
@@ -16,6 +17,7 @@ interface MapSearchBarProps {
 
 export function MapSearchBar({
   placeholder = 'Search by county / artist / category',
+  value,
   onChangeText,
   onFilterPress,
   activeFilterCount = 0,
@@ -37,6 +39,7 @@ export function MapSearchBar({
           style={{ padding: 0 }}
           placeholder={placeholder}
           placeholderTextColor="#8D8D8D"
+          value={value}
           onChangeText={onChangeText}
           returnKeyType="search"
           autoCorrect={false}
