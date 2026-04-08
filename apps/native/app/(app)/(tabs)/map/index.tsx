@@ -1,9 +1,9 @@
 import { useCallback, useRef, useState } from 'react';
 import { ActivityIndicator, Animated, Platform, Pressable, Text, View } from 'react-native';
 import MapView from 'react-native-map-clustering';
+import type RNMapView from 'react-native-maps';
 import type { Region } from 'react-native-maps';
 import { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
-import type RNMapView from 'react-native-maps';
 
 import { CATEGORY_ICONS, CATEGORY_LABELS } from '@CeolX/shared';
 
@@ -178,10 +178,7 @@ export default function MapScreen() {
       />
 
       {isDropdownVisible && (
-        <CountySuggestionsDropdown
-          suggestions={suggestions}
-          onSelect={handleCountySelect}
-        />
+        <CountySuggestionsDropdown suggestions={suggestions} onSelect={handleCountySelect} />
       )}
 
       {isLoading && (
