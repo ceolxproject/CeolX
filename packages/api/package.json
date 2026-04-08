@@ -18,11 +18,11 @@
     "@CeolX/db": "workspace:*",
     "@CeolX/env": "workspace:*",
     "@CeolX/shared": "workspace:*",
-    "drizzle-orm": "^0.45.1",
     "@trpc/client": "catalog:",
     "@trpc/server": "catalog:",
     "dotenv": "catalog:",
     "drizzle-orm": "^0.45.1",
+    "typesense": "^3.0.5",
     "zod": "catalog:"
   },
   "devDependencies": {

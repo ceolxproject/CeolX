@@ -10,8 +10,9 @@
     }
   },
   "scripts": {
-    "db:check": "tsx src/check.ts",
-    "db:seed": "tsx src/seed.ts",
+    "db:check": "tsx --env-file ../../apps/server/.env src/check.ts",
+    "db:seed": "tsx --env-file ../../apps/server/.env src/seed.ts",
+    "db:seed-map-demo": "tsx --env-file ../../apps/server/.env src/seed-map-demo.ts",
     "db:push": "drizzle-kit push",
     "db:generate": "drizzle-kit generate",
     "db:studio": "drizzle-kit studio",
@@ -28,6 +29,7 @@
     "dotenv": "catalog:",
     "drizzle-orm": "^0.45.1",
     "pg": "^8.17.1",
+    "typesense": "^3.0.5",
     "zod": "catalog:"
   },
   "devDependencies": {

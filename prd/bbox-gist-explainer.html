@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bounding Box Queries &amp; GIST Indexing — CeolX</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg:#0f1117; --surface:#1a1d27; --surface2:#222536; --border:#2e3248;
+    --accent:#6c8dfa; --green:#34d399; --orange:#fb923c; --red:#f87171;
+    --yellow:#fbbf24; --text:#e2e8f0; --muted:#64748b;
+  }
+  body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; background:var(--bg); color:var(--text); min-height:100vh; line-height:1.6; }
+  header { padding:20px 40px; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:16px; }
+  .logo { font-size:20px; font-weight:700; color:var(--accent); }
+  .logo span { color:var(--text); }
+  header h1 { font-size:14px; color:var(--muted); font-weight:500; }
+  .tag { margin-left:auto; background:color-mix(in srgb,var(--accent) 15%,transparent); color:var(--accent); border:1px solid color-mix(in srgb,var(--accent) 30%,transparent); padding:3px 10px; border-radius:99px; font-size:12px; font-weight:600; }
+  .tabs { display:flex; border-bottom:1px solid var(--border); padding:0 40px; }
+  .tab { padding:12px 20px; font-size:13px; font-weight:500; color:var(--muted); cursor:pointer; border-bottom:2px solid transparent; transition:all .2s; user-select:none; }
+  .tab:hover { color:var(--text); }
+  .tab.active { color:var(--accent); border-bottom-color:var(--accent); }
+  .section { display:none; padding:32px 40px; max-width:1200px; margin:0 auto; }
+  .section.active { display:block; }
+  .card { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:24px; margin-bottom:20px; }
+  .card h2 { font-size:15px; font-weight:600; margin-bottom:6px; }
+  .card p { font-size:13px; color:var(--muted); line-height:1.7; }
+  .grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+  .map-wrap { position:relative; background:var(--surface2); border:1px solid var(--border); border-radius:10px; overflow:hidden; }
+  #mapCanvas { display:block; }
+  .sql-box { background:#0d1117; border:1px solid var(--border); border-radius:8px; padding:16px 18px; font-family:'SF Mono','Fira Code','Consolas',monospace; font-size:12.5px; line-height:1.9; position:relative; }
+  .stat-row { display:flex; gap:12px; flex-wrap:wrap; margin-top:14px; }
+  .stat { background:var(--surface2); border:1px solid var(--border); border-radius:8px; padding:8px 14px; font-size:12px; }
+  .stat-label { color:var(--muted); font-size:11px; margin-bottom:2px; }
+  .stat-val { font-weight:700; font-size:15px; }
+  .stat-val.green { color:var(--green); }
+  .stat-val.orange { color:var(--orange); }
+  .stat-val.red { color:var(--red); }
+  .legend { display:flex; gap:16px; flex-wrap:wrap; font-size:12px; color:var(--muted); margin-top:12px; }
+  .legend-item { display:flex; align-items:center; gap:6px; }
+  .dot { width:10px; height:10px; border-radius:50%; display:inline-block; flex-shrink:0; }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  thead th { text-align:left; padding:10px 14px; background:var(--surface2); color:var(--muted); font-weight:500; font-size:12px; text-transform:uppercase; letter-spacing:.05em; }
+  tbody td { padding:10px 14px; border-bottom:1px solid var(--border); }
+  tbody tr:last-child td { border-bottom:none; }
+  .check { color:var(--green); font-weight:700; }
+  .cross { color:var(--red); font-weight:700; }
+  .neutral { color:var(--yellow); }
+  .row-hl { background:color-mix(in srgb,var(--green) 5%,transparent); }
+  .hint { font-size:12px; color:var(--muted); display:flex; align-items:center; gap:6px; margin-bottom:10px; }
+  .controls { display:flex; align-items:center; gap:12px; margin-bottom:12px; flex-wrap:wrap; }
+  .controls label { font-size:12px; color:var(--muted); }
+  input[type=range] { -webkit-appearance:none; height:4px; background:var(--border); border-radius:4px; outline:none; width:140px; }
+  input[type=range]::-webkit-slider-thumb { -webkit-appearance:none; width:14px; height:14px; background:var(--accent); border-radius:50%; cursor:pointer; }
+  .copy-btn { background:var(--surface2); border:1px solid var(--border); color:var(--muted); padding:5px 12px; border-radius:6px; font-size:11px; cursor:pointer; position:absolute; top:10px; right:10px; transition:all .2s; font-family:inherit; }
+  .copy-btn:hover { color:var(--text); border-color:var(--accent); }
+  h3 { font-size:14px; font-weight:600; margin-bottom:10px; }
+  .sep { height:1px; background:var(--border); margin:20px 0; }
+  .flow { display:flex; align-items:center; flex-wrap:wrap; margin-bottom:16px; }
+  .flow-box { background:var(--surface2); border:1px solid var(--border); border-radius:8px; padding:10px 14px; font-size:12px; text-align:center; min-width:110px; }
+  .flow-box.accent { border-color:var(--accent); color:var(--accent); }
+  .flow-box.green { border-color:var(--green); color:var(--green); }
+  .flow-arrow { padding:0 8px; color:var(--muted); font-size:16px; }
+  .index-grid { display:grid; grid-template-columns:repeat(8,1fr); gap:3px; margin:12px 0; }
+  .index-cell { aspect-ratio:1; border-radius:4px; background:var(--surface2); border:1px solid var(--border); display:flex; align-items:center; justify-content:center; font-size:9px; color:var(--muted); transition:all .3s; }
+  .index-cell.has-data { background:color-mix(in srgb,var(--accent) 15%,var(--surface2)); border-color:color-mix(in srgb,var(--accent) 40%,transparent); color:var(--accent); }
+  .index-cell.in-query { background:color-mix(in srgb,var(--green) 25%,var(--surface2)); border-color:var(--green); color:var(--green); }
+  .index-cell.skipped { opacity:.3; }
+  /* syntax highlight spans — static classes, no dynamic injection */
+  .kw { color:#ff7b72; } .fn { color:#d2a8ff; } .str { color:#a5d6ff; }
+  .num { color:#79c0ff; } .cm { color:#8b949e; } .hi { color:var(--yellow); font-weight:600; }
+  #sqlCoordSW, #sqlCoordNE { color:var(--yellow); font-weight:600; }
+  #sqlCoordLatB, #sqlCoordLngB { color:var(--yellow); font-weight:600; }
+  #sqlRows { color:#8b949e; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">Ceol<span>X</span></div>
+  <h1>Bounding Box Queries &amp; GIST Indexing — Visual Explainer</h1>
+  <span class="tag">Engineering Context · V1 Architecture</span>
+</header>
+
+<div class="tabs">
+  <div class="tab active" data-tab="map" onclick="showTab(this,'map')">① Live Map Query</div>
+  <div class="tab" data-tab="gist" onclick="showTab(this,'gist')">② GIST Index Structure</div>
+  <div class="tab" data-tab="flow" onclick="showTab(this,'flow')">③ Request Lifecycle</div>
+  <div class="tab" data-tab="compare" onclick="showTab(this,'compare')">④ vs Typesense</div>
+</div>
+
+<!-- ───────────────────── TAB 1: LIVE MAP ───────────────────── -->
+<div class="section active" id="tab-map">
+
+  <div class="card">
+    <h2>What is a Bounding Box Query?</h2>
+    <p>When a user views the map the app sends the four corners of the visible viewport — SW and NE lat/lng — to the backend. PostgreSQL uses the GIST spatial index to instantly find only the events that fall within those bounds. No full-table scan. No distance calculations for every row.</p>
+  </div>
+
+  <div class="grid-2" style="align-items:start;">
+    <div>
+      <div class="hint">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5"/></svg>
+        Drag the yellow viewport rectangle to pan the map
+      </div>
+      <div class="controls">
+        <label>Zoom:</label>
+        <input type="range" id="zoomSlider" min="1" max="4" step="0.1" value="2" oninput="setZoom(this.value)">
+        <span id="zoomLabel" style="font-size:12px;color:var(--muted);">2×</span>
+        <label style="margin-left:12px;">Events:</label>
+        <input type="range" id="eventCount" min="5" max="60" step="5" value="25" oninput="regenerateEvents(this.value)">
+        <span id="eventLabel" style="font-size:12px;color:var(--muted);">25</span>
+      </div>
+      <div class="map-wrap">
+        <canvas id="mapCanvas" width="520" height="480"></canvas>
+      </div>
+      <div class="legend" style="margin-top:10px;">
+        <div class="legend-item"><span class="dot" style="background:var(--green)"></span> Inside viewport (returned)</div>
+        <div class="legend-item"><span class="dot" style="background:var(--red)"></span> Outside viewport (skipped)</div>
+        <div class="legend-item"><span class="dot" style="background:var(--yellow)"></span> Viewport boundary</div>
+      </div>
+    </div>
+
+    <div>
+      <h3>Live SQL Query</h3>
+      <div class="sql-box" id="sqlBox">
+        <button class="copy-btn" id="copyMainBtn" onclick="copySQL()">Copy</button>
+        <!-- Static SQL skeleton — only coordinate spans are updated via textContent -->
+        <span class="kw">SELECT</span> id, title, lat, lng, category, status<br>
+        <span class="kw">FROM</span> events<br>
+        <span class="kw">WHERE</span><br>
+        &nbsp;&nbsp;status <span class="kw">=</span> <span class="str">'active'</span><br>
+        &nbsp;&nbsp;<span class="kw">AND</span> lat <span class="kw">BETWEEN</span> <span id="sqlSwLat" class="hi">--</span> <span class="kw">AND</span> <span id="sqlNeLat" class="hi">--</span><br>
+        &nbsp;&nbsp;<span class="kw">AND</span> lng <span class="kw">BETWEEN</span> <span id="sqlSwLng" class="hi">--</span> <span class="kw">AND</span> <span id="sqlNeLng" class="hi">--</span><br>
+        <span class="kw">ORDER BY</span> date_start <span class="kw">ASC</span><br>
+        <span class="kw">LIMIT</span> <span class="num">50</span>;<br><br>
+        <span class="cm">-- Index used: idx_events_spatial (GIST)</span><br>
+        <span class="cm" id="sqlRows">-- Rows returned: -- | Rows skipped: --</span>
+      </div>
+
+      <div class="stat-row">
+        <div class="stat"><div class="stat-label">Returned</div><div class="stat-val green" id="statIn">—</div></div>
+        <div class="stat"><div class="stat-label">Skipped</div><div class="stat-val red" id="statOut">—</div></div>
+        <div class="stat"><div class="stat-label">Index efficiency</div><div class="stat-val orange" id="statEff">—</div></div>
+        <div class="stat"><div class="stat-label">Est. query time</div><div class="stat-val green" id="statTime">—</div></div>
+      </div>
+
+      <div class="sep"></div>
+      <h3>Why the index matters</h3>
+      <div class="card" style="padding:16px;background:var(--surface2);">
+        <p style="font-size:12px;line-height:1.8;">
+          Without an index, PostgreSQL reads <strong style="color:var(--text)">every row</strong> and checks if its lat/lng falls in the box — an <strong style="color:var(--red)">O(n)</strong> full scan.<br><br>
+          With a <strong style="color:var(--accent)">GIST index</strong>, the database navigates an R-tree, pruning entire branches that can't intersect the query box. Most rows are <strong style="color:var(--green)">never touched</strong>.<br><br>
+          At 500 events the difference is negligible. At 500,000 it's the difference between a 2ms query and a 2-second hang.
+        </p>
+      </div>
+      <div class="card" style="padding:16px;margin-top:12px;background:color-mix(in srgb,var(--green) 5%,var(--surface));border-color:color-mix(in srgb,var(--green) 30%,transparent);">
+        <h2 style="color:var(--green);font-size:13px;">⚡ Redis caching layer</h2>
+        <p style="font-size:12px;margin-top:6px;line-height:1.8;">
+          The query result is cached in Redis using the bounding box coords as the key (rounded to 4 decimal places).<br><br>
+          <strong style="color:var(--text)">Same drag area within 10s?</strong> Redis returns instantly — Postgres never runs.<br><br>
+          This is the same "caching on map drag" benefit raised for Typesense — achieved with zero extra infrastructure.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <div class="sep"></div>
+  <h3>Spatial grid — which cells the index checks</h3>
+  <div class="card" style="background:var(--surface2);">
+    <p style="font-size:12px;margin-bottom:12px;">Green cells overlap the current viewport — the GIST tree walks into these. Dim cells are pruned immediately without reading a single row inside them.</p>
+    <div class="index-grid" id="indexGrid"></div>
+    <div class="legend" style="margin-top:10px;">
+      <div class="legend-item"><span class="dot" style="background:var(--green)"></span> In query (checked)</div>
+      <div class="legend-item"><span class="dot" style="background:var(--accent)"></span> Has data (out of viewport)</div>
+      <div class="legend-item"><span class="dot" style="background:var(--muted);opacity:.4"></span> Pruned by index</div>
+    </div>
+  </div>
+</div>
+
+<!-- ───────────────────── TAB 2: GIST STRUCTURE ───────────────────── -->
+<div class="section" id="tab-gist">
+  <div class="grid-2" style="align-items:start;">
+    <div>
+      <div class="card">
+        <h2>What is a GIST Index?</h2>
+        <p>GIST (Generalised Search Tree) is PostgreSQL's framework for indexing non-scalar data — including spatial coordinates. For lat/lng it builds an <strong style="color:var(--accent)">R-tree</strong>: a hierarchy of nested bounding boxes that covers all your data. Each node stores the minimum bounding rectangle (MBR) of its children. A query prunes any node whose MBR doesn't overlap the search box.</p>
+      </div>
+      <div class="card" style="background:var(--surface2);">
+        <h2 style="margin-bottom:12px;">R-tree traversal for a viewport query</h2>
+        <canvas id="gistCanvas" width="460" height="380"></canvas>
+        <div class="legend" style="margin-top:10px;">
+          <div class="legend-item"><span class="dot" style="background:var(--green)"></span> Intersects query → search inside</div>
+          <div class="legend-item"><span class="dot" style="background:var(--red)"></span> No overlap → branch skipped</div>
+          <div class="legend-item"><span class="dot" style="background:var(--yellow)"></span> Query bounding box</div>
+          <div class="legend-item"><span class="dot" style="background:var(--muted)"></span> R-tree node MBR</div>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="card">
+        <h2 style="margin-bottom:12px;">Creating the index</h2>
+        <div class="sql-box" style="position:relative;">
+          <button class="copy-btn" onclick="copyGist()">Copy</button>
+          <span class="cm">-- One-time migration — runs in seconds even on large tables</span><br>
+          <span class="kw">CREATE INDEX</span> idx_events_spatial<br>
+          &nbsp;&nbsp;<span class="kw">ON</span> events<br>
+          &nbsp;&nbsp;<span class="kw">USING</span> <span class="fn">GIST</span> (<br>
+          &nbsp;&nbsp;&nbsp;&nbsp;<span class="fn">point</span>(lng, lat)<br>
+          &nbsp;&nbsp;);<br>
+          <br>
+          <span class="cm">-- Or with PostGIS geography (more precise for long distances)</span><br>
+          <span class="cm">-- ALTER TABLE events ADD COLUMN location geography(POINT,4326);</span><br>
+          <span class="cm">-- CREATE INDEX idx_events_geo ON events USING GIST(location);</span>
+        </div>
+      </div>
+      <div class="card" style="background:var(--surface2);">
+        <h2 style="margin-bottom:12px;">GIST vs B-tree</h2>
+        <table>
+          <thead><tr><th>Property</th><th>B-tree</th><th>GIST (spatial)</th></tr></thead>
+          <tbody>
+            <tr><td>Best for</td><td>Scalars (int, text, date)</td><td>Multi-dim (lat/lng, polygons)</td></tr>
+            <tr><td>Range query</td><td>1D only</td><td>2D box, radius, polygon</td></tr>
+            <tr><td>"Near me" query</td><td class="cross">✗ Not efficient</td><td class="check">✓ Native</td></tr>
+            <tr><td>Internal algorithm</td><td>Balanced tree</td><td>R-tree (nested MBRs)</td></tr>
+            <tr><td>Viewport bounding box</td><td class="cross">✗ Requires two indexes</td><td class="check">✓ Single index scan</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="card" style="background:var(--surface2);margin-top:0;">
+        <h2>Key point for map drag</h2>
+        <p style="font-size:12px;line-height:1.8;">
+          A B-tree on <code style="color:var(--accent)">lat</code> can range-scan rows by latitude — but it has no knowledge of longitude. You'd need a second B-tree on <code style="color:var(--accent)">lng</code>, and Postgres would still intersect two large result sets. The GIST R-tree tests both dimensions simultaneously in a single traversal — this is why it's the right index type for map queries.
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ───────────────────── TAB 3: FLOW ───────────────────── -->
+<div class="section" id="tab-flow">
+  <div class="card">
+    <h2>Full request lifecycle — map pan</h2>
+    <p>From user gesture to pins appearing on screen. The debounce is intentional (UX); everything after it completes in well under 100ms.</p>
+  </div>
+
+  <div class="card" style="background:var(--surface2);">
+    <div class="flow">
+      <div class="flow-box"><div style="font-weight:600;font-size:12px;">User drags map</div><div style="color:var(--muted);font-size:10px;margin-top:3px;">gesture event</div></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box accent"><div style="font-weight:600;font-size:12px;">400ms debounce</div><div style="font-size:10px;margin-top:3px;">UX throttle</div></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box"><div style="font-weight:600;font-size:12px;">SW/NE coords<br>sent to API</div><div style="color:var(--muted);font-size:10px;margin-top:3px;">4 numbers only</div></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box"><div style="font-weight:600;font-size:12px;">Redis cache<br>check</div><div style="color:var(--muted);font-size:10px;margin-top:3px;">bbox key · ~1ms</div></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box"><div style="font-weight:600;font-size:12px;">PostgreSQL<br>GIST query</div><div style="color:var(--muted);font-size:10px;margin-top:3px;">on cache miss · ~5ms</div></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box green"><div style="font-weight:600;font-size:12px;">Respond +<br>cache write</div><div style="font-size:10px;margin-top:3px;">≤50 events</div></div>
+    </div>
+    <div style="padding:14px;background:var(--surface);border-radius:8px;font-size:12px;color:var(--muted);line-height:1.8;">
+      <strong style="color:var(--text);">Cache hit path</strong> (same viewport within 10s): User drags → API → Redis → respond. Postgres never runs. ~2ms.<br>
+      <strong style="color:var(--text);">Cache miss path</strong>: User drags → API → Redis miss → GIST query → cache write → respond. ~15–40ms.
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <h2>① Debounce (400ms)</h2>
+      <p style="font-size:12px;line-height:1.8;">React Native Maps fires continuous pan events. The app waits 400ms of inactivity before making an API call — preventing dozens of requests during a single drag. The user perceives this as instant because pins from the previous position remain visible during the drag.</p>
+    </div>
+    <div class="card">
+      <h2>② Payload — just 4 numbers</h2>
+      <p style="font-size:12px;line-height:1.8;"><code style="color:var(--accent)">{ swLat, swLng, neLat, neLng }</code> — the SW and NE corners of the visible viewport. Nothing else. No device location in this request, no user ID. The server derives everything it needs from these four values.</p>
+    </div>
+    <div class="card">
+      <h2>③ Redis key strategy</h2>
+      <p style="font-size:12px;line-height:1.8;">Coords are rounded to 4 decimal places (~11m precision at Irish latitude) before forming the cache key. This ensures small sub-pixel map jitter doesn't create unnecessary cache misses. TTL: 10 seconds.</p>
+    </div>
+    <div class="card" style="background:color-mix(in srgb,var(--green) 5%,var(--surface));border-color:color-mix(in srgb,var(--green) 30%,transparent);">
+      <h2 style="color:var(--green);">Total P95: &lt; 50ms</h2>
+      <p style="font-size:12px;line-height:1.8;">Debounce: 400ms wait (deliberate UX). API routing: ~1ms. Redis: ~1ms. Postgres GIST: ~3–8ms. Network (Ireland): ~20–30ms. Well within the 100ms threshold where users perceive interactions as instant.</p>
+    </div>
+  </div>
+
+  <div class="sep"></div>
+  <h3>Redis key structure</h3>
+  <div class="sql-box">
+    <span class="cm">// Round to 4 decimal places (~11m precision) — nearby drags share the same key</span><br>
+    <span class="kw">const</span> r4 = (n) =&gt; Math.<span class="fn">round</span>(n * <span class="num">10000</span>) / <span class="num">10000</span>;<br>
+    <span class="kw">const</span> key = <span class="str">`bbox:${r4(swLat)}:${r4(swLng)}:${r4(neLat)}:${r4(neLng)}`</span>;<br>
+    <br>
+    <span class="cm">// Example: "bbox:52.6341:-8.6240:53.1421:-7.9103"</span><br>
+    <br>
+    <span class="kw">const</span> cached = <span class="kw">await</span> redis.<span class="fn">get</span>(key);<br>
+    <span class="kw">if</span> (cached) <span class="kw">return</span> <span class="fn">JSON.parse</span>(cached);   <span class="cm">// ← Postgres never runs</span><br>
+    <br>
+    <span class="kw">const</span> result = <span class="kw">await</span> db.<span class="fn">getBoundingBoxEvents</span>({ swLat, swLng, neLat, neLng });<br>
+    <span class="kw">await</span> redis.<span class="fn">setex</span>(key, <span class="num">10</span>, <span class="fn">JSON.stringify</span>(result));<br>
+    <span class="kw">return</span> result;
+  </div>
+</div>
+
+<!-- ───────────────────── TAB 4: COMPARE ───────────────────── -->
+<div class="section" id="tab-compare">
+  <div class="card">
+    <h2>PostgreSQL + GIST + Redis vs Typesense</h2>
+    <p>The question: does Typesense solve a problem we actually have in V1? A direct comparison across every dimension that was raised.</p>
+  </div>
+
+  <div class="card" style="overflow-x:auto;">
+    <table>
+      <thead>
+        <tr><th>Capability / Concern</th><th>PostgreSQL + GIST + Redis</th><th>Typesense</th><th>V1 requirement?</th></tr>
+      </thead>
+      <tbody>
+        <tr class="row-hl"><td><strong>Bounding box (viewport) queries</strong></td><td class="check">✓ Native GIST, exact</td><td class="neutral">△ Radius-based (needs conversion)</td><td class="check">✓ Core feature</td></tr>
+        <tr class="row-hl"><td><strong>Caching repeated map drags</strong></td><td class="check">✓ Redis with bbox key</td><td class="check">✓ Internal search cache</td><td class="check">✓ Core feature</td></tr>
+        <tr><td>Typo-tolerant text search ("dulin" → Dublin)</td><td class="cross">✗ Not built-in</td><td class="check">✓ Best-in-class</td><td class="cross">✗ Not in V1</td></tr>
+        <tr><td>Faceted search with counts</td><td class="neutral">△ Possible via SQL GROUP BY</td><td class="check">✓ Native</td><td class="cross">✗ Not in V1</td></tr>
+        <tr><td>Relevance ranking / boosting</td><td class="cross">✗ Manual</td><td class="check">✓ Native</td><td class="cross">✗ Not in V1</td></tr>
+        <tr><td>Feed filters (county, category, date)</td><td class="check">✓ Standard SQL</td><td class="check">✓ Supported</td><td class="check">✓ Core feature</td></tr>
+        <tr><td>Sync pipeline (event create/update/delete)</td><td class="check">✓ Nothing extra — source of truth</td><td class="cross">✗ Must build + maintain</td><td>—</td></tr>
+        <tr><td>Build effort</td><td class="check">✓ Index already planned</td><td class="cross">✗ ~2–3 extra days</td><td>—</td></tr>
+        <tr><td>Monthly infra cost</td><td class="check">✓ $0 extra (Neon already paid)</td><td class="cross">✗ ~$25–50/month</td><td>—</td></tr>
+        <tr><td>Services to operate</td><td class="check">✓ Postgres + Redis (already in stack)</td><td class="cross">✗ + Typesense Cloud</td><td>—</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="grid-2" style="margin-top:20px;">
+    <div class="card" style="border-color:color-mix(in srgb,var(--green) 40%,transparent);">
+      <h2 style="color:var(--green);">Recommendation: PostgreSQL + GIST + Redis</h2>
+      <p style="font-size:12px;line-height:1.8;margin-top:8px;">
+        Every V1 requirement is handled by the current stack.<br><br>
+        Typesense's caching advantage — the primary argument raised — is identically covered by Redis, which is already in the architecture. Adding Typesense in V1 means: 2–3 days build, a sync pipeline to maintain, $25–50/month extra infra, and a third service that can fail independently.
+      </p>
+    </div>
+    <div class="card" style="border-color:color-mix(in srgb,var(--accent) 40%,transparent);">
+      <h2 style="color:var(--accent);">Future upgrade path</h2>
+      <p style="font-size:12px;line-height:1.8;margin-top:8px;">
+        Typesense becomes the right choice when:<br><br>
+        • Users search artist names / event titles with typo tolerance<br>
+        • Feed needs dynamic facets with result counts<br>
+        • Relevance ranking matters (boosting popular events)<br>
+        • Scale grows beyond ~10,000 events in DB<br><br>
+        The GIST index stays regardless — geo queries always live in Postgres.
+      </p>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── Constants ───────────────────────────────────
+const W = 520, H = 480;
+const B = { minLat:51.3, maxLat:55.5, minLng:-10.7, maxLng:-5.8 };
+const IRELAND = [[.48,.02],[.55,.05],[.62,.04],[.68,.08],[.75,.06],[.82,.10],[.88,.16],[.92,.22],[.95,.30],[.98,.38],[.96,.46],[.90,.52],[.85,.56],[.80,.62],[.82,.68],[.84,.74],[.82,.80],[.76,.85],[.70,.88],[.62,.90],[.55,.92],[.48,.93],[.40,.92],[.32,.90],[.24,.86],[.18,.80],[.14,.73],[.12,.66],[.10,.58],[.08,.50],[.06,.42],[.08,.34],[.12,.26],[.18,.20],[.24,.14],[.30,.09],[.38,.05],[.44,.03],[.48,.02]];
+
+let events = [], viewport = { x:130, y:120, w:260, h:200 };
+let zoom = 2, dragging = false, dragOffset = { x:0, y:0 };
+
+// ─── Event generation ────────────────────────────
+function pip(px, py) {
+  let inside = false;
+  for (let i=0,j=IRELAND.length-1; i<IRELAND.length; j=i++) {
+    const [xi,yi]=IRELAND[i],[xj,yj]=IRELAND[j];
+    if (((yi>py)!==(yj>py)) && (px < (xj-xi)*(py-yi)/(yj-yi)+xi)) inside=!inside;
+  }
+  return inside;
+}
+
+function generateEvents(n) {
+  events = [];
+  const cats = ['Trad','Folk','Céilí','Session','Concert'];
+  for (let i=0;i<n;i++) {
+    let x,y,tries=0;
+    do { x=.1+Math.random()*.8; y=.05+Math.random()*.88; tries++; }
+    while (!pip(x,y) && tries<50);
+    if (tries<50) events.push({ x, y,
+      lat: B.minLat+(1-y)*(B.maxLat-B.minLat),
+      lng: B.minLng+x*(B.maxLng-B.minLng),
+      cat: cats[Math.floor(Math.random()*5)] });
+  }
+}
+
+// ─── Map drawing ─────────────────────────────────
+const mapCanvas = document.getElementById('mapCanvas');
+const ctx = mapCanvas.getContext('2d');
+
+function drawMap() {
+  ctx.clearRect(0,0,W,H);
+  const grad = ctx.createLinearGradient(0,0,W,H);
+  grad.addColorStop(0,'#0d1520'); grad.addColorStop(1,'#0a1219');
+  ctx.fillStyle=grad; ctx.fillRect(0,0,W,H);
+
+  // Grid
+  ctx.strokeStyle='rgba(46,50,72,.5)'; ctx.lineWidth=.5;
+  for (let gx=0;gx<=W;gx+=W/8) { ctx.beginPath();ctx.moveTo(gx,0);ctx.lineTo(gx,H);ctx.stroke(); }
+  for (let gy=0;gy<=H;gy+=H/8) { ctx.beginPath();ctx.moveTo(0,gy);ctx.lineTo(W,gy);ctx.stroke(); }
+
+  // Ireland
+  ctx.beginPath();
+  IRELAND.forEach(([px,py],i) => { const cx=px*W,cy=py*H; i===0?ctx.moveTo(cx,cy):ctx.lineTo(cx,cy); });
+  ctx.closePath();
+  ctx.fillStyle='#1a2535'; ctx.fill();
+  ctx.strokeStyle='#2a3a50'; ctx.lineWidth=1.5; ctx.stroke();
+
+  // Dim overlay outside viewport
+  ctx.fillStyle='rgba(0,0,0,.38)';
+  ctx.fillRect(0,0,viewport.x,H);
+  ctx.fillRect(viewport.x+viewport.w,0,W-viewport.x-viewport.w,H);
+  ctx.fillRect(viewport.x,0,viewport.w,viewport.y);
+  ctx.fillRect(viewport.x,viewport.y+viewport.h,viewport.w,H-viewport.y-viewport.h);
+
+  // Viewport box
+  ctx.shadowColor='rgba(108,141,250,.3)'; ctx.shadowBlur=18;
+  ctx.strokeStyle='#fbbf24'; ctx.lineWidth=2;
+  ctx.setLineDash([6,3]); ctx.strokeRect(viewport.x,viewport.y,viewport.w,viewport.h); ctx.setLineDash([]);
+  ctx.fillStyle='rgba(251,191,36,.04)'; ctx.fillRect(viewport.x,viewport.y,viewport.w,viewport.h);
+  ctx.shadowBlur=0;
+
+  // Corner handles
+  [[viewport.x,viewport.y],[viewport.x+viewport.w,viewport.y],[viewport.x,viewport.y+viewport.h],[viewport.x+viewport.w,viewport.y+viewport.h]].forEach(([cx,cy]) => {
+    ctx.beginPath();ctx.arc(cx,cy,4,0,Math.PI*2);ctx.fillStyle='#fbbf24';ctx.fill();
+  });
+
+  // Events
+  const coords = getCoords();
+  let inC=0, outC=0;
+  events.forEach(e => {
+    const ex=e.x*W, ey=e.y*H;
+    const inside = ex>=viewport.x && ex<=viewport.x+viewport.w && ey>=viewport.y && ey<=viewport.y+viewport.h;
+    if (inside) {
+      ctx.shadowColor='rgba(52,211,153,.6)'; ctx.shadowBlur=8;
+      ctx.beginPath();ctx.arc(ex,ey,6,0,Math.PI*2);ctx.fillStyle='#34d399';ctx.fill();
+      ctx.shadowBlur=0;
+      ctx.strokeStyle='rgba(52,211,153,.3)';ctx.lineWidth=1.5;ctx.stroke();
+      inC++;
+    } else {
+      ctx.beginPath();ctx.arc(ex,ey,5,0,Math.PI*2);ctx.fillStyle='rgba(248,113,113,.5)';ctx.fill();
+      ctx.strokeStyle='rgba(248,113,113,.2)';ctx.lineWidth=1;ctx.stroke();
+      outC++;
+    }
+  });
+
+  // Coord labels
+  ctx.font='10px SF Mono,Consolas,monospace'; ctx.fillStyle='rgba(251,191,36,.8)';
+  ctx.fillText('SW: '+coords.swLat+', '+coords.swLng, viewport.x+4, viewport.y+viewport.h-4);
+  ctx.fillText('NE: '+coords.neLat+', '+coords.neLng, viewport.x+4, viewport.y+14);
+
+  updateSQL(coords, inC, outC);
+  updateIndexGrid(coords);
+}
+
+function getCoords() {
+  return {
+    swLat: +((B.minLat+(1-(viewport.y+viewport.h)/H)*(B.maxLat-B.minLat)).toFixed(4)),
+    swLng: +((B.minLng+(viewport.x/W)*(B.maxLng-B.minLng)).toFixed(4)),
+    neLat: +((B.minLat+(1-viewport.y/H)*(B.maxLat-B.minLat)).toFixed(4)),
+    neLng: +((B.minLng+((viewport.x+viewport.w)/W)*(B.maxLng-B.minLng)).toFixed(4)),
+  };
+}
+
+// ─── SQL update (textContent only, no innerHTML) ─
+function updateSQL(c, inC, outC) {
+  document.getElementById('sqlSwLat').textContent = c.swLat;
+  document.getElementById('sqlNeLat').textContent = c.neLat;
+  document.getElementById('sqlSwLng').textContent = c.swLng;
+  document.getElementById('sqlNeLng').textContent = c.neLng;
+  document.getElementById('sqlRows').textContent =
+    '-- Rows returned: '+inC+' | Rows skipped by index: '+outC;
+
+  document.getElementById('statIn').textContent = inC;
+  document.getElementById('statOut').textContent = outC;
+  const pct = outC > 0 ? Math.round(outC/(inC+outC)*100) : 0;
+  const effEl = document.getElementById('statEff');
+  effEl.textContent = pct+'% pruned';
+  effEl.className = 'stat-val '+(pct > 60 ? 'green' : 'orange');
+  document.getElementById('statTime').textContent = '~'+(2+Math.round(inC*.1))+'ms';
+}
+
+// ─── Drag ────────────────────────────────────────
+mapCanvas.addEventListener('mousedown', e => {
+  const r=mapCanvas.getBoundingClientRect(), mx=e.clientX-r.left, my=e.clientY-r.top;
+  if (mx>viewport.x && mx<viewport.x+viewport.w && my>viewport.y && my<viewport.y+viewport.h) {
+    dragging=true; dragOffset={x:mx-viewport.x,y:my-viewport.y};
+  }
+});
+mapCanvas.addEventListener('mousemove', e => {
+  const r=mapCanvas.getBoundingClientRect(), mx=e.clientX-r.left, my=e.clientY-r.top;
+  const inVP = mx>viewport.x && mx<viewport.x+viewport.w && my>viewport.y && my<viewport.y+viewport.h;
+  mapCanvas.style.cursor = dragging?'grabbing':inVP?'grab':'default';
+  if (!dragging) return;
+  viewport.x=Math.max(0,Math.min(W-viewport.w,mx-dragOffset.x));
+  viewport.y=Math.max(0,Math.min(H-viewport.h,my-dragOffset.y));
+  drawMap();
+});
+mapCanvas.addEventListener('mouseup', () => dragging=false);
+mapCanvas.addEventListener('mouseleave', () => dragging=false);
+
+// ─── Controls ────────────────────────────────────
+function setZoom(z) {
+  zoom=parseFloat(z);
+  document.getElementById('zoomLabel').textContent=zoom+'×';
+  viewport.w=Math.round(340/zoom); viewport.h=Math.round(260/zoom);
+  viewport.x=Math.max(0,Math.min(W-viewport.w,viewport.x));
+  viewport.y=Math.max(0,Math.min(H-viewport.h,viewport.y));
+  drawMap();
+}
+function regenerateEvents(n) {
+  document.getElementById('eventLabel').textContent=n;
+  generateEvents(parseInt(n)); drawMap();
+}
+
+// ─── Index grid ───────────────────────────────────
+function buildIndexGrid() {
+  const grid=document.getElementById('indexGrid');
+  for (let i=0;i<64;i++) {
+    const cell=document.createElement('div');
+    cell.className='index-cell';
+    grid.appendChild(cell);
+  }
+}
+function updateIndexGrid(c) {
+  const cells=document.querySelectorAll('.index-cell'), N=8;
+  cells.forEach((cell,i) => {
+    const gx=i%N, gy=Math.floor(i/N);
+    const cMinLng=B.minLng+(gx/N)*(B.maxLng-B.minLng), cMaxLng=B.minLng+((gx+1)/N)*(B.maxLng-B.minLng);
+    const cMinLat=B.minLat+(gy/N)*(B.maxLat-B.minLat), cMaxLat=B.minLat+((gy+1)/N)*(B.maxLat-B.minLat);
+    const overlaps=c.swLng<cMaxLng&&c.neLng>cMinLng&&c.swLat<cMaxLat&&c.neLat>cMinLat;
+    const hasData=events.some(e=>e.lng>=cMinLng&&e.lng<cMaxLng&&e.lat>=cMinLat&&e.lat<cMaxLat);
+    cell.className='index-cell';
+    if (overlaps && hasData) { cell.classList.add('in-query'); cell.textContent='●'; }
+    else if (hasData) { cell.classList.add('has-data'); cell.textContent='·'; }
+    else { cell.classList.add('skipped'); cell.textContent=''; }
+  });
+}
+
+// ─── GIST tree drawing ────────────────────────────
+function drawGIST() {
+  const canvas=document.getElementById('gistCanvas');
+  const c=canvas.getContext('2d');
+  c.clearRect(0,0,460,380);
+  c.fillStyle='#13161f'; c.fillRect(0,0,460,380);
+
+  function mbr(x,y,w,h,color,label,skip) {
+    c.strokeStyle=skip?'rgba(248,113,113,.4)':color; c.lineWidth=1.5;
+    c.strokeRect(x,y,w,h);
+    c.fillStyle=skip?'rgba(248,113,113,.03)':'rgba(255,255,255,.02)'; c.fillRect(x,y,w,h);
+    c.fillStyle=skip?'rgba(248,113,113,.5)':'rgba(100,116,139,.8)';
+    c.font='9px SF Mono,monospace'; c.fillText(label,x+4,y+11);
+  }
+
+  mbr(20,20,420,340,'#2e3248','Root MBR (all Ireland events)',false);
+  mbr(30,35,195,315,'#3a4060','Node A — West Ireland',false);
+  mbr(245,35,185,315,'#3a4060','Node B — East Ireland',false);
+  mbr(40,210,80,130,'#2a4a6a','Leaf W1',false);
+  mbr(140,210,70,80,'#2a4a6a','Leaf W2',false);
+  mbr(255,175,90,110,'#2a4a6a','Leaf E1',false);
+  mbr(360,65,60,85,'#2a4a6a','Leaf E2 (skipped)',true);
+
+  // Query box
+  const qx=155,qy=105,qw=185,qh=155;
+  c.strokeStyle='#fbbf24'; c.lineWidth=2.5; c.setLineDash([5,3]);
+  c.strokeRect(qx,qy,qw,qh); c.setLineDash([]);
+  c.fillStyle='rgba(251,191,36,.05)'; c.fillRect(qx,qy,qw,qh);
+  c.fillStyle='#fbbf24'; c.font='bold 10px SF Mono,monospace'; c.fillText('Query BBox (viewport)',qx+4,qy-4);
+
+  // Points
+  [[80,265],[105,295],[175,245],[195,265],[285,205],[315,245],[275,275]].forEach(([px,py]) => {
+    const inQ=px>=qx&&px<=qx+qw&&py>=qy&&py<=qy+qh;
+    c.beginPath(); c.arc(px,py,5,0,Math.PI*2);
+    c.fillStyle=inQ?'#34d399':'rgba(248,113,113,.6)'; c.fill();
+    if (inQ) { c.strokeStyle='rgba(52,211,153,.35)'; c.lineWidth=8; c.beginPath();c.arc(px,py,10,0,Math.PI*2);c.stroke(); c.lineWidth=1; }
+  });
+
+  c.fillStyle='#f87171'; c.font='bold 10px SF Mono,monospace'; c.fillText('✗ skip (no overlap)',365,165);
+  c.fillStyle='#34d399'; c.font='10px SF Mono,monospace'; c.fillText('✓ intersects query',160,22);
+  c.fillStyle='#64748b'; c.font='10px SF Mono,monospace'; c.fillText('R-tree depth: 3 levels',4,375);
+}
+
+// ─── Tabs ─────────────────────────────────────────
+function showTab(el, name) {
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
+  el.classList.add('active');
+  if (name==='gist') drawGIST();
+}
+
+// ─── Copy ─────────────────────────────────────────
+function copySQL() {
+  const c=getCoords();
+  const text="SELECT id, title, lat, lng, category, status\nFROM events\nWHERE status = 'active'\n  AND lat BETWEEN "+c.swLat+" AND "+c.neLat+"\n  AND lng BETWEEN "+c.swLng+" AND "+c.neLng+"\nORDER BY date_start ASC\nLIMIT 50;";
+  navigator.clipboard.writeText(text);
+  const btn=document.getElementById('copyMainBtn');
+  btn.textContent='Copied!'; setTimeout(()=>btn.textContent='Copy',1500);
+}
+function copyGist() {
+  navigator.clipboard.writeText("CREATE INDEX idx_events_spatial\n  ON events\n  USING GIST (\n    point(lng, lat)\n  );");
+  const btns=document.querySelectorAll('.copy-btn');
+  btns.forEach(b=>{ if(b.id!=='copyMainBtn'){ b.textContent='Copied!'; setTimeout(()=>b.textContent='Copy',1500); }});
+}
+
+// ─── Init ─────────────────────────────────────────
+generateEvents(25);
+buildIndexGrid();
+drawMap();
+setZoom(2);
+</script>
+</body>
+</html>
