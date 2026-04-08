@@ -9,7 +9,11 @@ const MapQueryInput = z.object({
   swLng: z.number(),
   neLat: z.number(),
   neLng: z.number(),
+  query: z.string().max(100).optional(),
   limit: z.number().int().min(1).max(50).default(50),
+  category: z.string().optional(),
+  county: z.string().optional(),
+  dateRange: z.enum(['today', 'this_week', 'this_weekend', 'this_month']).optional(),
 });
 
 const CreateEventInput = z.object({
@@ -30,29 +34,86 @@ const CreateEventInput = z.object({
 
 export const eventsRouter = router({
   getMap: publicProcedure.input(MapQueryInput).query(async ({ input, ctx }) => {
-    const { swLat, swLng, neLat, neLng, limit } = input;
+    const { swLat, swLng, neLat, neLng, query, limit, category, county, dateRange } = input;
     const centerLat = (swLat + neLat) / 2;
     const centerLng = (swLng + neLng) / 2;
     const nowUnix = Math.floor(Date.now() / 1000);
 
     // Gig opportunity posts are visible to Artists only per PRD.
-    // Venues create them; they do not appear in Venue/Spectator map view.
     const isArtist = ctx.session?.user?.currentRole === 'artist';
     const gigFilter = isArtist ? '' : ' && is_gig_opportunity:=false';
+
+    // Category filter
+    const categoryFilter = category ? ` && category:=${category}` : '';
+
+    // County filter — matches against venue_address field
+    const countyFilter = county ? ` && venue_address:${county}` : '';
+
+    // Date range filter — compute unix timestamp bounds
+    let dateFilter = ` && date_start:>=${nowUnix}`;
+    if (dateRange) {
+      const now = new Date();
+      let rangeStart: Date;
+      let rangeEnd: Date;
+
+      switch (dateRange) {
+        case 'today':
+          rangeStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+          rangeEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+          break;
+        case 'this_week': {
+          const dayOfWeek = now.getDay();
+          const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+          rangeStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() + mondayOffset);
+          rangeEnd = new Date(
+            rangeStart.getFullYear(),
+            rangeStart.getMonth(),
+            rangeStart.getDate() + 7
+          );
+          break;
+        }
+        case 'this_weekend': {
+          const day = now.getDay();
+          const satOffset = day === 0 ? -1 : 6 - day;
+          rangeStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() + satOffset);
+          rangeEnd = new Date(
+            rangeStart.getFullYear(),
+            rangeStart.getMonth(),
+            rangeStart.getDate() + 2
+          );
+          break;
+        }
+        case 'this_month':
+          rangeStart = new Date(now.getFullYear(), now.getMonth(), 1);
+          rangeEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+          break;
+      }
+
+      const startUnix = Math.max(Math.floor(rangeStart.getTime() / 1000), nowUnix);
+      const endUnix = Math.floor(rangeEnd.getTime() / 1000);
+      dateFilter = ` && date_start:>=${startUnix} && date_start:<${endUnix}`;
+    }
+
+    const searchQuery = query?.trim() || '*';
 
     try {
       const result = await typesenseClient
         .collections('events')
         .documents()
         .search({
-          q: '*',
-          query_by: 'title',
+          q: searchQuery,
+          query_by: 'title,category,venue_address',
           filter_by:
             `location:(${swLat},${swLng},${swLat},${neLng},${neLat},${neLng},${neLat},${swLng})` +
-            ` && date_start:>=${nowUnix}` +
+            dateFilter +
             ` && status:=active` +
-            gigFilter,
-          sort_by: `location(${centerLat},${centerLng}):asc`,
+            gigFilter +
+            categoryFilter +
+            countyFilter,
+          sort_by:
+            searchQuery === '*'
+              ? `location(${centerLat},${centerLng}):asc`
+              : `_text_match:desc,location(${centerLat},${centerLng}):asc`,
           per_page: limit,
         });
 

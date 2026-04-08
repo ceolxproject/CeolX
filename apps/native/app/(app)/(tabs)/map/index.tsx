@@ -1,16 +1,15 @@
-import type GorhomBottomSheet from '@gorhom/bottom-sheet';
 import * as Location from 'expo-location';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Platform, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Animated, Platform, Pressable, Text, View } from 'react-native';
 import MapView from 'react-native-map-clustering';
 import type { Region } from 'react-native-maps';
 import { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 
 import { IRELAND_CENTER_LAT, IRELAND_CENTER_LNG } from '@CeolX/shared';
 
-import { BottomSheet } from '@/components/BottomSheet';
 import { EventPreviewCard } from '@/components/EventPreviewCard';
 import { MapEventPin } from '@/components/MapEventPin';
+import { MapFilterSheet } from '@/components/MapFilterSheet';
 import { MapHeader } from '@/components/MapHeader';
 import { MapSearchBar } from '@/components/MapSearchBar';
 import { useMapEvents } from '@/hooks/use-map-events';
@@ -40,6 +39,8 @@ const IRELAND_INITIAL_REGION = {
   longitudeDelta: 5,
 };
 
+const PANEL_HEIGHT = 160; // compact card height for slide animation
+
 type MapEvent = {
   id: string;
   title: string;
@@ -67,15 +68,42 @@ type ClusterObject = {
 };
 
 export default function MapScreen() {
-  const { events, isLoading, onRegionChangeComplete } = useMapEvents();
+  const {
+    events,
+    isLoading,
+    onRegionChangeComplete,
+    onSearch,
+    filters,
+    setFilters,
+    activeFilterCount,
+  } = useMapEvents();
   const [selectedEvent, setSelectedEvent] = useState<MapEvent | null>(null);
+  const [filterSheetVisible, setFilterSheetVisible] = useState(false);
   const [gpsGranted, setGpsGranted] = useState(false);
-  // mapKey forces a remount when the GPS region resolves so initialRegion is applied.
   const [mapKey, setMapKey] = useState(0);
   const [initialRegion, setInitialRegion] = useState(IRELAND_INITIAL_REGION);
-  const bottomSheetRef = useRef<GorhomBottomSheet>(null);
 
-  // Try to get last known GPS location for initial map center
+  // Animated slide-up panel instead of @gorhom/bottom-sheet
+  const panelAnim = useRef(new Animated.Value(PANEL_HEIGHT)).current;
+  const markerJustPressedRef = useRef(false);
+
+  const showPanel = useCallback(() => {
+    Animated.spring(panelAnim, {
+      toValue: 0,
+      useNativeDriver: true,
+      tension: 80,
+      friction: 12,
+    }).start();
+  }, [panelAnim]);
+
+  const hidePanel = useCallback(() => {
+    Animated.timing(panelAnim, {
+      toValue: PANEL_HEIGHT,
+      duration: 200,
+      useNativeDriver: true,
+    }).start(() => setSelectedEvent(null));
+  }, [panelAnim]);
+
   useEffect(() => {
     void (async () => {
       try {
@@ -98,19 +126,26 @@ export default function MapScreen() {
     })();
   }, []);
 
-  const handleMarkerPress = useCallback((event: MapEvent) => {
-    setSelectedEvent(event);
-    bottomSheetRef.current?.snapToIndex(0);
-  }, []);
+  const handleMarkerPress = useCallback(
+    (event: MapEvent) => {
+      markerJustPressedRef.current = true;
+      setSelectedEvent(event);
+      showPanel();
+      setTimeout(() => {
+        markerJustPressedRef.current = false;
+      }, 600);
+    },
+    [showPanel]
+  );
 
-  // Close the bottom sheet when the user pans so stale event previews are dismissed
   const handleRegionChangeComplete = useCallback(
     (region: Region) => {
-      bottomSheetRef.current?.close();
-      setSelectedEvent(null);
+      if (!markerJustPressedRef.current) {
+        hidePanel();
+      }
       onRegionChangeComplete(region);
     },
-    [onRegionChangeComplete]
+    [onRegionChangeComplete, hidePanel]
   );
 
   const renderCluster = useCallback(
@@ -130,11 +165,11 @@ export default function MapScreen() {
   );
 
   return (
-    <View style={styles.container}>
+    <View className="flex-1 bg-[#080808]">
       {/* Full-screen map */}
       <MapView
         key={mapKey}
-        style={StyleSheet.absoluteFill}
+        style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0 }}
         provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
         initialRegion={initialRegion}
         onRegionChangeComplete={handleRegionChangeComplete}
@@ -149,97 +184,71 @@ export default function MapScreen() {
             key={event.id}
             coordinate={{ latitude: event.lat, longitude: event.lng }}
             tracksViewChanges={selectedEvent?.id === event.id}
-            onPress={() => handleMarkerPress(event)}
           >
-            <View style={styles.markerContainer}>
-              <MapEventPin
-                type="single"
-                coverImageUrl={event.coverImageUrl}
-                category={CATEGORY_LABELS[event.category] ?? event.category}
-                categoryIcon={CATEGORY_ICONS[event.category]}
-                isSelected={selectedEvent?.id === event.id}
-              />
-              {/* Inline label when selected */}
-              {selectedEvent?.id === event.id ? (
-                <View style={styles.inlineLabel}>
-                  <Text style={styles.inlineLabelText} numberOfLines={1}>
-                    {event.title}
-                  </Text>
-                </View>
-              ) : null}
-            </View>
+            <Pressable onPress={() => handleMarkerPress(event)}>
+              <View className="items-center">
+                <MapEventPin
+                  type="single"
+                  coverImageUrl={event.coverImageUrl}
+                  category={CATEGORY_LABELS[event.category] ?? event.category}
+                  categoryIcon={CATEGORY_ICONS[event.category]}
+                  isSelected={selectedEvent?.id === event.id}
+                />
+                {selectedEvent?.id === event.id ? (
+                  <View className="mt-1 bg-[rgba(255,255,255,0.92)] px-2 py-[3px] rounded-[10px] max-w-[140px]">
+                    <Text className="text-[11px] text-[#080808] font-semibold" numberOfLines={1}>
+                      {event.title}
+                    </Text>
+                  </View>
+                ) : null}
+              </View>
+            </Pressable>
           </Marker>
         ))}
       </MapView>
 
       <MapHeader />
-      <MapSearchBar />
+      <MapSearchBar
+        onChangeText={onSearch}
+        onFilterPress={() => setFilterSheetVisible(true)}
+        activeFilterCount={activeFilterCount}
+      />
 
       {/* Loading overlay */}
       {isLoading && (
-        <ActivityIndicator style={styles.loadingIndicator} size="large" color="#6155F5" />
+        <ActivityIndicator
+          style={{ position: 'absolute', alignSelf: 'center', top: 24 }}
+          size="large"
+          color="#6155F5"
+        />
       )}
 
       {/* Empty state */}
       {!isLoading && events.length === 0 && (
-        <View style={styles.emptyState}>
-          <Text style={styles.emptyStateText}>
+        <View className="absolute bottom-[100px] self-center bg-[rgba(43,43,43,0.92)] px-5 py-[10px] rounded-[20px] max-w-[280px]">
+          <Text className="text-white text-[14px] text-center">
             No events near here. Try searching for Dublin, Galway, or Cork.
           </Text>
         </View>
       )}
 
-      {/* Event preview bottom sheet */}
-      <BottomSheet ref={bottomSheetRef} snapPoints={['35%', '65%']}>
-        {selectedEvent ? <EventPreviewCard event={selectedEvent} /> : null}
-      </BottomSheet>
+      {/* Event preview card — slides up from bottom */}
+      {selectedEvent && (
+        <Animated.View
+          className="absolute bottom-[90px] left-4 right-4"
+          style={{ transform: [{ translateY: panelAnim }] }}
+        >
+          <EventPreviewCard event={selectedEvent} onDismiss={hidePanel} />
+        </Animated.View>
+      )}
+
+      {/* Filter sheet */}
+      <MapFilterSheet
+        visible={filterSheetVisible}
+        filters={filters}
+        onApply={setFilters}
+        onClose={() => setFilterSheetVisible(false)}
+      />
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#080808',
-  },
-  markerContainer: {
-    alignItems: 'center',
-  },
-  inlineLabel: {
-    marginTop: 4,
-    backgroundColor: 'rgba(255,255,255,0.92)',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 10,
-    maxWidth: 140,
-  },
-  inlineLabelText: {
-    fontSize: 11,
-    color: '#080808',
-    fontWeight: '600',
-  },
-
-  // Loading
-  loadingIndicator: {
-    position: 'absolute',
-    alignSelf: 'center',
-    top: 24,
-  },
-
-  // Empty state
-  emptyState: {
-    position: 'absolute',
-    bottom: 100,
-    alignSelf: 'center',
-    backgroundColor: 'rgba(43,43,43,0.92)',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 20,
-    maxWidth: 280,
-  },
-  emptyStateText: {
-    color: '#ffffff',
-    fontSize: 14,
-    textAlign: 'center',
-  },
-});

@@ -1,4 +1,5 @@
-import { Image, StyleSheet, Text, View } from 'react-native';
+import { cn } from 'heroui-native';
+import { Image, Text, View } from 'react-native';
 
 type SinglePinProps = {
   type: 'single';
@@ -18,8 +19,8 @@ type MapEventPinProps = SinglePinProps | ClusterPinProps;
 export function MapEventPin(props: MapEventPinProps) {
   if (props.type === 'cluster') {
     return (
-      <View style={styles.clusterPin}>
-        <Text style={styles.clusterText}>{props.count}</Text>
+      <View className="w-9 h-9 rounded-full bg-[#C8FF2F] items-center justify-center">
+        <Text className="text-white text-[13px] font-bold">{props.count}</Text>
       </View>
     );
   }
@@ -28,135 +29,48 @@ export function MapEventPin(props: MapEventPinProps) {
 
   const pinSize = isSelected ? 56 : 44;
   const pinRadius = isSelected ? 28 : 22;
+  const pinStyle = { width: pinSize, height: pinSize, borderRadius: pinRadius };
+
+  const PinContent = () => (
+    <View className="border-2 border-white overflow-hidden" style={pinStyle}>
+      {coverImageUrl ? (
+        <Image source={{ uri: coverImageUrl }} style={pinStyle} resizeMode="cover" />
+      ) : (
+        <View className={cn('bg-[#C8FF2F] items-center justify-center')} style={pinStyle}>
+          <Text className="text-[18px]">{categoryIcon ?? '🎵'}</Text>
+        </View>
+      )}
+    </View>
+  );
 
   return (
-    <View style={styles.pinWrapper}>
+    <View className="items-center">
       {/* Category badge above the pin */}
       {(category ?? categoryIcon) ? (
-        <View style={styles.categoryBadge}>
-          {categoryIcon ? <Text style={styles.categoryBadgeIcon}>{categoryIcon}</Text> : null}
-          {category ? <Text style={styles.categoryBadgeText}>{category}</Text> : null}
+        <View className="flex-row items-center bg-[#C8FF2F] px-2 py-0.5 rounded-full mb-1 gap-[3px]">
+          {categoryIcon ? <Text className="text-[10px]">{categoryIcon}</Text> : null}
+          {category ? (
+            <Text
+              className="text-[10px] text-black font-semibold"
+              style={{ fontFamily: 'Urbanist_700Bold' }}
+            >
+              {category}
+            </Text>
+          ) : null}
         </View>
       ) : null}
 
       {/* Outer glow ring — only when selected */}
       {isSelected ? (
-        <View style={styles.glowRing}>
-          <View
-            style={[styles.pinCircle, { width: pinSize, height: pinSize, borderRadius: pinRadius }]}
-          >
-            {coverImageUrl ? (
-              <Image
-                source={{ uri: coverImageUrl }}
-                style={{ width: pinSize, height: pinSize, borderRadius: pinRadius }}
-                resizeMode="cover"
-              />
-            ) : (
-              <View
-                style={[
-                  styles.pinFallback,
-                  { width: pinSize, height: pinSize, borderRadius: pinRadius },
-                ]}
-              >
-                <Text style={styles.pinFallbackIcon}>{categoryIcon ?? '🎵'}</Text>
-              </View>
-            )}
-          </View>
+        <View
+          className="w-[70px] h-[70px] rounded-[35px] border-[3px] border-[#6155F5] items-center justify-center"
+          style={{ boxShadow: '0 0 8px rgba(97,85,245,0.7)' }}
+        >
+          <PinContent />
         </View>
       ) : (
-        <View
-          style={[styles.pinCircle, { width: pinSize, height: pinSize, borderRadius: pinRadius }]}
-        >
-          {coverImageUrl ? (
-            <Image
-              source={{ uri: coverImageUrl }}
-              style={{ width: pinSize, height: pinSize, borderRadius: pinRadius }}
-              resizeMode="cover"
-            />
-          ) : (
-            <View
-              style={[
-                styles.pinFallback,
-                { width: pinSize, height: pinSize, borderRadius: pinRadius },
-              ]}
-            >
-              <Text style={styles.pinFallbackIcon}>{categoryIcon ?? '🎵'}</Text>
-            </View>
-          )}
-        </View>
+        <PinContent />
       )}
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  // Cluster
-  clusterPin: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#C8FF2F',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  clusterText: {
-    color: '#ffffff',
-    fontSize: 13,
-    fontWeight: '700',
-  },
-
-  // Single pin
-  pinWrapper: {
-    alignItems: 'center',
-  },
-  pinCircle: {
-    borderWidth: 2,
-    borderColor: '#ffffff',
-    overflow: 'hidden',
-  },
-  pinFallback: {
-    backgroundColor: '#C8FF2F',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  pinFallbackIcon: {
-    fontSize: 18,
-  },
-
-  // Selected glow ring
-  glowRing: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
-    borderWidth: 3,
-    borderColor: '#6155F5',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#6155F5',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.7,
-    shadowRadius: 8,
-    elevation: 8,
-  },
-
-  // Category badge
-  categoryBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#C8FF2F',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 20,
-    marginBottom: 4,
-    gap: 3,
-  },
-  categoryBadgeIcon: {
-    fontSize: 10,
-  },
-  categoryBadgeText: {
-    fontSize: 10,
-    color: '#000000',
-    fontWeight: '600',
-    fontFamily: 'Urbanist_700Bold',
-  },
-});

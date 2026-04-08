@@ -35,6 +35,47 @@ export const EVENT_CATEGORIES = [
 ] as const;
 export type EventCategory = (typeof EVENT_CATEGORIES)[number];
 
+// Date range filter options for map/feed
+export const DATE_RANGE_OPTIONS = ['today', 'this_week', 'this_weekend', 'this_month'] as const;
+export type DateRangeOption = (typeof DATE_RANGE_OPTIONS)[number];
+
+// 32 counties of Ireland (Republic + Northern Ireland)
+export const IRISH_COUNTIES = [
+  'Antrim',
+  'Armagh',
+  'Carlow',
+  'Cavan',
+  'Clare',
+  'Cork',
+  'Derry',
+  'Donegal',
+  'Down',
+  'Dublin',
+  'Fermanagh',
+  'Galway',
+  'Kerry',
+  'Kildare',
+  'Kilkenny',
+  'Laois',
+  'Leitrim',
+  'Limerick',
+  'Longford',
+  'Louth',
+  'Mayo',
+  'Meath',
+  'Monaghan',
+  'Offaly',
+  'Roscommon',
+  'Sligo',
+  'Tipperary',
+  'Tyrone',
+  'Waterford',
+  'Westmeath',
+  'Wexford',
+  'Wicklow',
+] as const;
+export type IrishCounty = (typeof IRISH_COUNTIES)[number];
+
 // Notification persona targeting
 export const NOTIFICATION_PERSONAS = ['artist', 'venue', 'spectator'] as const;
 export type NotificationPersona = (typeof NOTIFICATION_PERSONAS)[number];

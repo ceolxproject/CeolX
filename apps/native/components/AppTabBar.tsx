@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { cn } from 'heroui-native';
+import { Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type IoniconsName = React.ComponentProps<typeof Ionicons>['name'];
@@ -10,7 +11,7 @@ export const TAB_CONFIG: Array<{
   activeIcon: IoniconsName;
   inactiveIcon: IoniconsName;
 }> = [
-  { name: 'map', label: 'Map', activeIcon: 'map-pin', inactiveIcon: 'map-pin-outline' },
+  { name: 'map', label: 'Map', activeIcon: 'location', inactiveIcon: 'location-outline' },
   { name: 'discover', label: 'Discover', activeIcon: 'home', inactiveIcon: 'home-outline' },
   { name: 'bookings', label: 'Bookings', activeIcon: 'mail', inactiveIcon: 'mail-outline' },
   { name: 'profile', label: 'Profile', activeIcon: 'person', inactiveIcon: 'person-outline' },
@@ -47,9 +48,12 @@ export function AppTabBar({ state, navigation, onFabPress }: AppTabBarProps) {
     };
 
     return (
-      <Pressable key={tab.name} onPress={onPress} style={styles.tabItem}>
+      <Pressable key={tab.name} onPress={onPress} className="flex-1 items-center pt-1">
         <View
-          style={[styles.iconPill, isFocused ? styles.iconPillActive : styles.iconPillInactive]}
+          className={cn(
+            'w-7 h-7 rounded-full items-center justify-center',
+            isFocused ? 'bg-[#D4FC5A]' : 'bg-[rgba(141,141,141,0.3)]'
+          )}
         >
           <Ionicons
             name={isFocused ? tab.activeIcon : tab.inactiveIcon}
@@ -57,89 +61,38 @@ export function AppTabBar({ state, navigation, onFabPress }: AppTabBarProps) {
             color={isFocused ? '#080808' : '#ffffff'}
           />
         </View>
-        <Text style={[styles.tabLabel, isFocused && styles.tabLabelActive]}>{tab.label}</Text>
+        <Text className={cn('text-white text-[10px] mt-0.5', isFocused && 'font-semibold')}>
+          {tab.label}
+        </Text>
       </Pressable>
     );
   };
 
   return (
-    <View style={[styles.container, { paddingBottom: insets.bottom, height: 60 + insets.bottom }]}>
+    <View
+      className="flex-row items-start bg-[#6155F5] pt-2"
+      style={{ paddingBottom: insets.bottom, height: 60 + insets.bottom }}
+    >
       {/* Left two tabs */}
-      <View style={styles.tabGroup}>
+      <View className="flex-1 flex-row justify-around">
         {TAB_CONFIG.slice(0, 2).map((tab, i) => renderTab(tab, i))}
       </View>
 
       {/* Center FAB */}
-      <View style={styles.fabSlot}>
-        <Pressable style={styles.fab} onPress={onFabPress}>
-          <Ionicons name="add" size={28} color="#080808" />
+      <View className="w-[72px] items-center">
+        <Pressable
+          className="absolute -top-6 w-12 h-12 rounded-full bg-[#8d8d8d] items-center justify-center"
+          style={{ boxShadow: '0 2px 4px rgba(0,0,0,0.2)' }}
+          onPress={onFabPress}
+        >
+          <Ionicons name="add" size={28} color="#ffffff" />
         </Pressable>
       </View>
 
       {/* Right two tabs */}
-      <View style={styles.tabGroup}>
+      <View className="flex-1 flex-row justify-around">
         {TAB_CONFIG.slice(2, 4).map((tab, i) => renderTab(tab, i + 2))}
       </View>
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    backgroundColor: '#6155F5',
-    paddingTop: 8,
-    borderTopWidth: 0,
-  },
-  tabGroup: {
-    flex: 1,
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-  },
-  tabItem: {
-    flex: 1,
-    alignItems: 'center',
-    paddingTop: 4,
-  },
-  iconPill: {
-    width: 28,
-    height: 28,
-    borderRadius: 100,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  iconPillActive: {
-    backgroundColor: '#D4FC5A',
-  },
-  iconPillInactive: {
-    backgroundColor: 'rgba(141,141,141,0.3)',
-  },
-  tabLabel: {
-    color: '#ffffff',
-    fontSize: 10,
-    marginTop: 2,
-  },
-  tabLabelActive: {
-    fontWeight: '600',
-  },
-  fabSlot: {
-    width: 72,
-    alignItems: 'center',
-  },
-  fab: {
-    position: 'absolute',
-    top: -24,
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: '#ffffff',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 6,
-  },
-});
