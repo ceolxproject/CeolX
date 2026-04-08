@@ -43,33 +43,33 @@ CeolX is a **location-aware Irish music discovery platform** built for **Chongie
 
 There are **4 personas**. One account supports **one active persona at a time** (Option A role switching — see below).
 
-| Persona                  | Description                                                                   | Paid?             |
-| ------------------------ | ----------------------------------------------------------------------------- | ----------------- |
-| **Spectator** (End User) | Music fans discovering events. No public profile. Anonymous consumer.         | Free              |
-| **Musician / Artist**    | Promotes performances, gets booked by venues. Public profile.                 | Free in V1        |
-| **Venue / Business**     | Pubs, cultural hubs, event promoters. Lists gigs, recruits artists, runs ads. | Paid subscription |
-| **Super Admin**          | Single internal CeolX admin. Web dashboard only. One account only.            | N/A               |
+| Persona                  | Description                                                                   | Paid?                                     |
+| ------------------------ | ----------------------------------------------------------------------------- | ----------------------------------------- |
+| **Spectator** (End User) | Music fans discovering events. No public profile. Anonymous consumer.         | Free                                      |
+| **Musician / Artist**    | Promotes performances, gets booked by venues. Public profile.                 | Paid subscription (lower tier than Venue) |
+| **Venue / Business**     | Pubs, cultural hubs, event promoters. Lists gigs, recruits artists, runs ads. | Paid subscription                         |
+| **Super Admin**          | Single internal CeolX admin. Web dashboard only. One account only.            | N/A                                       |
 
 ---
 
-## Persona Switching (Option A — Finalised)
+## Persona Selection (Finalised — updated 08/04/2026)
 
-- One active persona at a time. User selects initial persona at sign-up.
-- Can switch from **Settings > Switch Account Type** at any time after onboarding.
-- **Data model**: `users.current_role` (enum: `spectator | artist | venue`). Separate `artist_profiles` and `venue_profiles` tables. Switching flips `is_active` — **no data is deleted on switch**.
-- **Switching to Venue without subscription**: activation email is sent (see Venue Subscription). Venue persona activates only after Stripe webhook confirms payment.
-- **Switching away from Venue**: subscription stays active, billing continues. Profile goes dormant (`is_active: false`).
-- **Switching away from Artist**: `is_active: false`. Past approved events stay live until their date passes.
-- **Pending events in moderation queue**: if user switches persona while events are in `pending_review`, those events stay in the queue and follow normal moderation path.
+Persona is selected at sign-up and is **fixed for that account**.
 
-### Notification routing across personas
+> **Artist ↔ Venue switching is NOT supported** — MoM 3rd Apr 2026, Section 2.1. Separate accounts are required if a user needs both roles. There is no "Switch Account Type" setting.
+
+- **Data model**: `users.current_role` (enum: `spectator | artist | venue`). Set at sign-up. Not mutable after registration.
+- Separate `artist_profiles` and `venue_profiles` tables.
+- No `is_active` toggling on role switch — roles are permanent per account.
+
+### Notification routing
 
 All personas share one FCM token per device. Each notification payload includes:
 
 - `persona`: role the notification relates to (`artist`, `venue`, `spectator`)
 - `route`: deep link route (e.g. `/events/123`)
 
-On tap: if user is already in the correct persona → navigate directly. If not → app auto-switches persona first, then navigates. Shows a brief toast confirming the switch.
+On tap: navigate directly to the route. No persona auto-switching (switching is not supported).
 
 ---
 
@@ -85,34 +85,38 @@ Powered by **BetterAuth**.
 
 ---
 
-## Event Moderation (Pre-publication — Finalised)
+## Event Moderation (Post-publication — Updated 08/04/2026)
 
-**Every event** created by an Artist or Venue goes through admin moderation **before going live**. Profile creation and profile edits are NOT moderated.
+**Events go live immediately** upon creation. The Super Admin reviews content after the fact and can remove inappropriate events. Profile creation and profile edits are NOT moderated.
+
+> **MoM 3rd Apr 2026 (Section 4)**: Sean agreed content goes live immediately. Super Admin manually reviews after publication. Inappropriate content can be flagged and removed.
 
 ### Event status lifecycle
 
 ```
-draft → pending_review → active → archived
-                       ↘ rejected → (creator edits) → pending_review
+draft → active → archived
+             ↘ removed (admin takedown) → (creator edits + resubmits) → active
 ```
 
-- On creation: `status = pending_review`. Not visible to any user except the creator and Super Admin.
-- **Admin approves** → `status = active`. Visible on map and feed. Creator gets push notification.
-- **Admin rejects** → `status = rejected`, `rejection_reason` populated. Creator gets push notification with reason. Creator can edit and resubmit → back to `pending_review`.
+- On creation: `status = active`. Immediately visible on map and feed.
+- **Admin removes** → `status = removed`, `removal_reason` populated. Creator gets push notification with reason. Creator can edit and resubmit → back to `active`.
 - After event date passes → soft archived (`status = archived`). Stays in DB, removed from map/feed, visible on creator's profile under Past Events.
 - Hard delete is never used.
+- `pending_review` and `rejected` statuses kept in schema enum for potential future use but not used in V1.
 
-**Rationale**: Because users can switch from Spectator to Artist, moderation prevents random/spam events from appearing on the map.
+**Admin content review dashboard**: Shows all active events, sorted newest first. Admin can remove any event with a mandatory reason.
 
 ---
 
-## Venue Subscription (Web-based Stripe — Finalised)
+## Subscriptions (Web-based Stripe — Finalised, updated 08/04/2026)
 
-**Not in-app**. Apple Rule 3.1.1 prohibits third-party payment processors for in-app digital purchases. Solution: subscription via web.
+**Both Artist and Venue require paid subscriptions.** Artist pricing is lower than Venue. Neither is free in V1 (MoM 3rd Apr 2026, Section 2.2).
 
-### Flow
+**Not in-app**. Apple Rule 3.1.1 prohibits third-party payment processors for in-app digital purchases. Solution: subscription via web for both roles.
 
-1. User selects Venue/Business persona (sign-up or role switch)
+### Venue Flow
+
+1. User selects Venue/Business persona at sign-up
 2. `venue_profiles.subscription_status = inactive`. Profile not visible.
 3. **Postmark** sends activation email with Stripe subscription link (`ceolx.ie/subscribe`)
 4. In-app shows: _"Your profile is not yet visible to artists. Check your email to activate."_ + **Resend Email** button
@@ -121,6 +125,10 @@ draft → pending_review → active → archived
 7. Logs in with CeolX credentials → completes Stripe checkout
 8. Stripe webhook → Hono backend → `subscription_status = active`
 9. App activates Venue persona (next refresh or WebSocket push)
+
+### Artist Flow
+
+Same web-based pattern as Venue. Different Stripe price ID (lower tier). `artist_profiles.subscription_status` follows the same lifecycle: `inactive → active → past_due → cancelled`. Artist profile not visible until subscription is active.
 
 ### Revenue
 
@@ -301,8 +309,10 @@ packages/
 - Irish music genre only — no expansion planned for V1
 - English only in V1
 - Location permission is mandatory for the app to function (fallback chain exists — see Map section)
+- **Artist ↔ Venue switching is not supported** — separate accounts required (MoM 3rd Apr 2026)
 - Gig opportunity events (`is_gig_opportunity: true`) are visible to Artists only, not Spectators
-- Artist accounts are free in V1
+- **Both Artist and Venue require paid subscriptions** — Artist pricing lower than Venue (MoM 3rd Apr 2026)
+- Artist profile is not visible until subscription is active
 - Venue profile is not visible until subscription is active
 - All events soft-deleted — no hard deletes ever
 - Recurring events not supported in V1
