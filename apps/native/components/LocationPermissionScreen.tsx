@@ -36,21 +36,29 @@ export function LocationPermissionScreen({ onDone }: Props) {
 
       {/* Bottom sheet */}
       <View
-        className="bg-[#333335] rounded-t-[20px] px-6 pt-10 gap-4"
-        style={{ paddingBottom: Math.max(insets.bottom + 16, 32) }}
+        className="bg-[#333335] px-6 pt-10"
+        style={{
+          paddingBottom: Math.max(insets.bottom + 16, 32),
+          shadowColor: 'rgba(179,185,208,0.25)',
+          shadowOffset: { width: 0, height: -20 },
+          shadowOpacity: 1,
+          shadowRadius: 100,
+          elevation: 20,
+        }}
       >
-        <View className="items-center mb-2">
-          <Text className="text-white text-sm text-center">
-            Allow <Text className="font-bold">CEOLX</Text> to access your location?
-          </Text>
-        </View>
-
         <Pressable
           onPress={handleDetect}
           className="bg-[#6155F5] py-4 rounded-full items-center justify-center"
         >
           <Text className="text-white text-base font-semibold">Detect my location</Text>
         </Pressable>
+
+        {/* Or separator */}
+        <View className="flex-row items-center gap-4 my-6 px-2.5">
+          <View className="flex-1 h-px bg-[#7E8492]" />
+          <Text className="text-[#7E8492] text-sm font-medium">Or</Text>
+          <View className="flex-1 h-px bg-[#7E8492]" />
+        </View>
 
         <Pressable
           onPress={onDone}
