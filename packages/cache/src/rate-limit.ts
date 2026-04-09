@@ -12,6 +12,8 @@ export type RateLimitTier = {
 export const RATE_LIMIT_TIERS = {
   authLogin: { limit: 10, window: '15 m', keyBy: 'ip' },
   authenticatedGeneral: { limit: 120, window: '1 m', keyBy: 'userId' },
+  /** Unauthenticated IP-keyed lookups (e.g. /location/ip). Higher than authLogin — called on every map open. */
+  locationLookup: { limit: 60, window: '1 m', keyBy: 'ip' },
   /** Defined for future use — wired in Milestone 04 when RBAC is implemented. */
   adminGeneral: { limit: 300, window: '1 m', keyBy: 'userId' },
   /** Defined for future use — wired in Milestone 04 when RBAC is implemented. */

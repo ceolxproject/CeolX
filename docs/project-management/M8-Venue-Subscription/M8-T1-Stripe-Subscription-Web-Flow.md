@@ -9,6 +9,8 @@
 
 ---
 
+> **Scope note (08/04/2026 — MoM 3rd Apr 2026, Section 2.2)**: Both Artist and Venue now require paid subscriptions. Artist pricing is lower than Venue. This task (M8-T1) covers the Venue checkout flow only. A separate task (M8-T5) covers the Artist checkout flow using the same pattern with `STRIPE_ARTIST_PRICE_ID`.
+
 ## Description
 
 Build the Venue subscription flow at `ceolx.ie/subscribe`. Unlike in-app purchases (prohibited by Apple Rule 3.1.1), Venues subscribe via web-based Stripe Checkout. The flow: user selects Venue persona → Postmark activation email sent with `ceolx.ie/subscribe` link → Venue logs in with CeolX credentials on the page → redirected to Stripe Checkout → on success, Stripe webhook activates the Venue profile → app detects activation and removes the pending state.
@@ -137,7 +139,7 @@ Handle Stripe webhook events (e.g., `checkout.session.completed`).
 
 - R7.1: Stripe live secret key stored as `STRIPE_SECRET_KEY` (prod) + test key for staging
 - R7.2: Stripe webhook signing secret stored as `STRIPE_WEBHOOK_SECRET`
-- R7.3: Stripe price ID (subscription product) stored as `STRIPE_PRICE_ID`
+- R7.3: Venue price ID stored as `STRIPE_VENUE_PRICE_ID`; Artist price ID stored as `STRIPE_ARTIST_PRICE_ID`
 - R7.4: Stripe Customer Portal configured in Stripe Dashboard (branding, cancellation policy) before launch
 - R7.5: Revenue math: Stripe fee ~2.9% + €0.30 per transaction → CeolX net ~97% (vs ~85% with Apple IAP)
 
