@@ -1,17 +1,19 @@
-# M3-T4 · Feed View + Algorithmic Ranking
+# M3-T4 · Feed View (Algorithmic) + Discover Tab
 
-| Field          | Value                                                                                                             |
-| -------------- | ----------------------------------------------------------------------------------------------------------------- |
-| **Milestone**  | M3 — Map & Discovery                                                                                              |
-| **Status**     | 🔲 To Do                                                                                                          |
-| **Depends on** | M1-T2 (events table), M1-T3 (API scaffold), M2-T4 (persona system), M3-T2 (user location), M6-T3 (follows system) |
-| **PRD Ref**    | Section 9.2.2 (Feed View), Section 5.1 (End User Features), Section 6.1 (Artist Features)                         |
+| Field          | Value                                                                                                                                            |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Milestone**  | M3 — Map & Discovery                                                                                                                             |
+| **Status**     | 🔲 To Do                                                                                                                                         |
+| **Depends on** | M1-T2 (events table), M1-T3 (API scaffold), M2-T4 (persona system), M3-T1 (map/location handling), M3-T2 (user location), M6-T3 (follows system) |
+| **PRD Ref**    | Section 9.1 (Feed & Discovery), Section 9.2.2 (Feed View), Section 5.1 (End User Features), Section 6.1 (Artist Features)                        |
 
 ---
 
 ## Description
 
-The Feed view displays events as vertically scrollable cards, ranked by an algorithmic combination of recency, distance from user's location, and whether the user follows the event creator. The ranking formula is: **40% recency + 40% proximity + 20% social signals**. Recency scores newer events higher; proximity scores closer events higher; social signals boost events from artists the user follows. The Feed serves as an alternative discovery surface to the Map view — users who prefer a list layout instead of map pins discover events here. Pagination is cursor-based, loading 15 events per page. Pull-to-refresh resets to page 1. Gig opportunity events (`is_gig_opportunity: true`) are visible to Artist persona only, hidden from Spectators and Venues.
+The Discover tab is a feed-based alternative to the map. Events are displayed as vertically scrollable cards, ranked by an algorithmic combination of recency, distance from user's location, and whether the user follows the event creator. The ranking formula is: **40% recency + 40% proximity + 20% social signals**. Recency scores newer events higher; proximity scores closer events higher; social signals boost events from artists the user follows. The Feed serves as an alternative discovery surface to the Map view — users who prefer a list layout instead of map pins discover events here.
+
+Pagination loads 20 events per page. Pull-to-refresh resets to page 1. Category filter chips at the top allow quick filtering by music category. Promotional posts from followed accounts are interleaved inline. Gig opportunity events (`is_gig_opportunity: true`) are visible to Artist persona only (with a "Gig Opportunity" label), hidden from Spectators and Venues.
 
 ---
 
@@ -25,7 +27,7 @@ The Feed view displays events as vertically scrollable cards, ranked by an algor
 
 ## API Endpoints
 
-### GET /feed
+### GET /events/feed
 
 Fetch algorithmically ranked events with pagination.
 
@@ -35,9 +37,10 @@ Fetch algorithmically ranked events with pagination.
 {
   "latitude": 53.3432,
   "longitude": -6.2545,
-  "limit": 15,
+  "limit": 20,
   "offset": 0,
-  "persona": "spectator|artist|venue"
+  "persona": "spectator|artist|venue",
+  "category": "trad_session"
 }
 ```
 
@@ -60,10 +63,11 @@ Fetch algorithmically ranked events with pagination.
       "creator_profile_id": "artist_123",
       "distance_km": 0.5,
       "is_followed_creator": false,
+      "is_gig_opportunity": false,
       "ranking_score": 0.78
     }
   ],
-  "hasMore": true,
+  "hasNextPage": true,
   "totalCount": 245
 }
 ```
@@ -88,17 +92,21 @@ Fetch algorithmically ranked events with pagination.
 
 ### Feed Layout
 
+- **Category filter chips** — horizontal scroll row at the top of the feed for filtering by music category
 - Events displayed as vertically scrollable cards (full-width or with margins)
-- Each card shows: cover image, title, date/time, location (venue address or lat/lng), creator name (artist or venue), distance from user (e.g., "12 km away")
+- Each card shows: cover image, title, date/time, location (venue address or lat/lng), creator name (artist or venue), distance from user (e.g., "12 km away"), category tag
 - Tapping a card opens Event Detail screen (same as M4-T2)
+- Tapping an artist or venue name on a card navigates to their Profile screen
 - Category badge or icon shown on each card (matching M3-T1 design)
+- **Promotional posts** from followed accounts appear interleaved inline in the feed
+- Gig opportunity events show a **"Gig Opportunity"** label in the Artist feed
 
 ### Pagination
 
-- API returns 10-15 events per page (limit parameter configurable)
-- Offset-based pagination: `offset = 0, 15, 30, 45, ...`
-- On reaching end of list, a "Load more" button or auto-pagination loads the next batch
-- `hasMore` boolean indicates whether more events exist beyond the current page
+- API returns 20 events per page (limit parameter configurable)
+- Offset-based pagination: `offset = 0, 20, 40, 60, ...`
+- Infinite scroll — next page loads automatically when user scrolls near the bottom
+- `hasNextPage` boolean indicates whether more events exist beyond the current page
 - Pull-to-refresh resets pagination and re-fetches the first page
 
 ### Gig Opportunity Visibility
@@ -124,18 +132,22 @@ Fetch algorithmically ranked events with pagination.
 
 ## Acceptance Criteria
 
-- [ ] Feed screen renders with vertically scrollable event cards
+- [ ] Discover tab shows a vertical scrollable feed of event cards
+- [ ] Each event card shows cover image, title, date, distance, category tag
 - [ ] Events ranked correctly by the 40/40/20 algorithm (verified by comparing top-ranked events against formula)
 - [ ] Distance calculated from user's current location (or cached location) — correct in km
 - [ ] Recency score reflects event creation date — newer events ranked higher
 - [ ] Social score reflects follow status — followed creators' events ranked higher
-- [ ] Pagination loads 15 events per page; "Load more" or auto-pagination available
+- [ ] Pagination loads 20 events per page; infinite scroll loads next page when near bottom
 - [ ] Pull-to-refresh resets pagination and re-fetches first page
-- [ ] Gig opportunity events visible to Artist persona on Feed
+- [ ] Category chips at top filter the feed
+- [ ] Gig opportunity events visible to Artist persona on Feed with "Gig Opportunity" label
 - [ ] Gig opportunity events hidden from Spectator persona on Feed
+- [ ] Promotional posts from followed accounts appear inline in the feed
 - [ ] Save button visible on each card; saving updates `saved_events` table
 - [ ] Empty state shows non-blocking message when no events available
 - [ ] Tapping an event card opens Event Detail screen with correct event data
+- [ ] Tapping artist/venue name on a card navigates to their Profile screen
 - [ ] Distance shown on each card matches user's current location
 - [ ] Loading indicator shown during pagination fetches
 
@@ -234,7 +246,7 @@ import { calculateRankingScore } from '../services/feedRanking';
 
 const app = new Hono();
 
-app.get('/feed', async (c) => {
+app.get('/events/feed', async (c) => {
   const auth = getAuth(c);
   if (!auth) {
     return c.json({ error: 'Unauthorized' }, 401);
@@ -242,7 +254,7 @@ app.get('/feed', async (c) => {
 
   const latitude = parseFloat(c.req.query('latitude') || '');
   const longitude = parseFloat(c.req.query('longitude') || '');
-  const limit = parseInt(c.req.query('limit') || '15', 10);
+  const limit = parseInt(c.req.query('limit') || '20', 10);
   const offset = parseInt(c.req.query('offset') || '0', 10);
   const persona = c.req.query('persona') || 'spectator';
 
@@ -312,10 +324,11 @@ app.get('/feed', async (c) => {
         creator_profile_id: e.created_by,
         distance_km: calculateDistance(latitude, longitude, e.lat, e.lng),
         is_followed_creator: e.is_followed_creator,
+        is_gig_opportunity: e.is_gig_opportunity,
         ranking_score: e.ranking_score,
         is_saved: savedSet.has(e.id),
       })),
-      hasMore: offset + limit < rankedEvents.length,
+      hasNextPage: offset + limit < rankedEvents.length,
       totalCount: rankedEvents.length,
     });
   } catch (error) {
@@ -378,7 +391,7 @@ export const FeedScreen: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [offset, setOffset] = useState(0);
-  const [hasMore, setHasMore] = useState(true);
+  const [hasNextPage, setHasNextPage] = useState(true);
   const currentPersona = 'spectator'; // Get from auth context
 
   const fetchFeed = useCallback(
@@ -390,11 +403,11 @@ export const FeedScreen: React.FC = () => {
       else setLoading(true);
 
       try {
-        const response = await api.get('/feed', {
+        const response = await api.get('/events/feed', {
           params: {
             latitude: location.lat,
             longitude: location.lng,
-            limit: 15,
+            limit: 20,
             offset: pageOffset,
             persona: currentPersona,
           },
@@ -407,7 +420,7 @@ export const FeedScreen: React.FC = () => {
         }
 
         setOffset(pageOffset + response.data.events.length);
-        setHasMore(response.data.hasMore);
+        setHasNextPage(response.data.hasNextPage);
       } catch (error) {
         console.error('Feed fetch error:', error);
       } finally {
@@ -423,7 +436,7 @@ export const FeedScreen: React.FC = () => {
   }, [location]);
 
   const handleLoadMore = () => {
-    if (hasMore && !loading) {
+    if (hasNextPage && !loading) {
       fetchFeed(offset);
     }
   };
