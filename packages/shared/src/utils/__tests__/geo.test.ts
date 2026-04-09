@@ -6,6 +6,8 @@ import {
   formatDistance,
   getBoundingBox,
   clampToIreland,
+  isValidCoordinate,
+  filterValidMapEvents,
 } from '../geo.js';
 
 describe('isWithinIreland', () => {
@@ -86,5 +88,94 @@ describe('clampToIreland', () => {
   it('clamps longitude above maximum', () => {
     const result = clampToIreland(53.3498, -5.0);
     expect(result.lng).toBe(-5.9);
+  });
+});
+
+describe('isValidCoordinate', () => {
+  it('accepts valid Dublin coordinates', () => {
+    expect(isValidCoordinate(53.3498, -6.2603)).toBe(true);
+  });
+
+  it('accepts boundary values (-90, -180)', () => {
+    expect(isValidCoordinate(-90, -180)).toBe(true);
+    expect(isValidCoordinate(90, 180)).toBe(true);
+  });
+
+  it('rejects null values', () => {
+    expect(isValidCoordinate(null, -6.26)).toBe(false);
+    expect(isValidCoordinate(53.35, null)).toBe(false);
+  });
+
+  it('rejects undefined values', () => {
+    expect(isValidCoordinate(undefined, -6.26)).toBe(false);
+  });
+
+  it('rejects NaN', () => {
+    expect(isValidCoordinate(NaN, -6.26)).toBe(false);
+    expect(isValidCoordinate(53.35, NaN)).toBe(false);
+  });
+
+  it('rejects Infinity', () => {
+    expect(isValidCoordinate(Infinity, -6.26)).toBe(false);
+    expect(isValidCoordinate(53.35, -Infinity)).toBe(false);
+  });
+
+  it('rejects strings', () => {
+    expect(isValidCoordinate('53.35', '-6.26')).toBe(false);
+  });
+
+  it('rejects out-of-range latitude', () => {
+    expect(isValidCoordinate(91, -6.26)).toBe(false);
+    expect(isValidCoordinate(-91, -6.26)).toBe(false);
+  });
+
+  it('rejects out-of-range longitude', () => {
+    expect(isValidCoordinate(53.35, 181)).toBe(false);
+    expect(isValidCoordinate(53.35, -181)).toBe(false);
+  });
+});
+
+describe('filterValidMapEvents', () => {
+  const validEvent = { id: '1', lat: 53.35, lng: -6.26 };
+  const validEvent2 = { id: '5', lat: 51.9, lng: -8.47 };
+  const nullLatEvent = { id: '2', lat: null as unknown as number, lng: -6.26 };
+  const nanLngEvent = { id: '3', lat: 53.35, lng: NaN };
+  const missingCoordsEvent = { id: '4' } as { id: string; lat: number; lng: number };
+
+  it('splits events into valid and invalid', () => {
+    const { valid, invalid } = filterValidMapEvents([validEvent, nullLatEvent, nanLngEvent]);
+    expect(valid).toEqual([validEvent]);
+    expect(invalid).toEqual([nullLatEvent, nanLngEvent]);
+  });
+
+  it('returns all invalid when no events are valid', () => {
+    const { valid, invalid } = filterValidMapEvents([nullLatEvent, nanLngEvent]);
+    expect(valid).toEqual([]);
+    expect(invalid).toEqual([nullLatEvent, nanLngEvent]);
+  });
+
+  it('returns all valid when every event has good coordinates', () => {
+    const { valid, invalid } = filterValidMapEvents([validEvent, validEvent2]);
+    expect(valid).toEqual([validEvent, validEvent2]);
+    expect(invalid).toEqual([]);
+  });
+
+  it('collects all invalid events including missing coords', () => {
+    const { invalid } = filterValidMapEvents([
+      validEvent,
+      nullLatEvent,
+      nanLngEvent,
+      missingCoordsEvent,
+    ]);
+    expect(invalid).toHaveLength(3);
+    expect(invalid).toContain(nullLatEvent);
+    expect(invalid).toContain(nanLngEvent);
+    expect(invalid).toContain(missingCoordsEvent);
+  });
+
+  it('handles empty array', () => {
+    const { valid, invalid } = filterValidMapEvents([]);
+    expect(valid).toEqual([]);
+    expect(invalid).toEqual([]);
   });
 });
