@@ -90,6 +90,7 @@ async function resolveViaIp(
         res.status,
         '— falling back to Ireland default'
       );
+      setRegion(IRELAND_INITIAL_REGION);
       setSource('default');
       return;
     }
@@ -110,6 +111,8 @@ async function resolveViaIp(
     console.error('[resolveViaIp] IP geolocation fetch failed:', err);
   }
 
+  // Explicit region reset — don't rely on useState initial value being correct
+  setRegion(IRELAND_INITIAL_REGION);
   setSource('default');
 }
 

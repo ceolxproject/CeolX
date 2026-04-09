@@ -154,7 +154,8 @@ export function useMapEvents(opts?: UseMapEventsOpts) {
       .catch((err: unknown) => {
         if (!expandAbortRef.current) {
           console.error('[useMapEvents] expandSearch failed:', err);
-          setExpandExhausted(true);
+          // Don't set expandExhausted — a network error is not "no events exist".
+          // The primary query's isError state will drive the error UI instead.
         }
       });
 

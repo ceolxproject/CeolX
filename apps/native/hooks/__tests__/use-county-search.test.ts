@@ -122,3 +122,55 @@ describe('filterCounties', () => {
     expect(results.length).toBeLessThanOrEqual(5);
   });
 });
+
+describe('data consistency', () => {
+  it('every county in IRISH_COUNTIES has a matching entry in COUNTY_CENTERS', () => {
+    // Uses the mocked data above — validates the mock stays in sync.
+    // The real compile-time guarantee comes from `satisfies Record<IrishCounty, ...>`
+    // in packages/shared/src/constants.ts.
+    const counties = [
+      'Antrim',
+      'Armagh',
+      'Carlow',
+      'Cavan',
+      'Clare',
+      'Cork',
+      'Derry',
+      'Donegal',
+      'Down',
+      'Dublin',
+      'Fermanagh',
+      'Galway',
+      'Kerry',
+      'Kildare',
+      'Kilkenny',
+      'Laois',
+      'Leitrim',
+      'Limerick',
+      'Longford',
+      'Louth',
+      'Mayo',
+      'Meath',
+      'Monaghan',
+      'Offaly',
+      'Roscommon',
+      'Sligo',
+      'Tipperary',
+      'Tyrone',
+      'Waterford',
+      'Westmeath',
+      'Wexford',
+      'Wicklow',
+    ];
+
+    // filterCounties should find every county when searching by its exact name
+    for (const county of counties) {
+      const results = filterCounties(county);
+      expect(results.length, `No result for "${county}"`).toBeGreaterThanOrEqual(1);
+      expect(
+        results.some((r) => r.name === county),
+        `"${county}" not in results`
+      ).toBe(true);
+    }
+  });
+});

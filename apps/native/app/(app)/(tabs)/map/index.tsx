@@ -106,9 +106,8 @@ export default function MapScreen() {
 
   const handleCountySelect = useCallback(
     (result: CountyResult) => {
-      dismissDropdown();
-      clearSearch();
-      mapRef.current?.animateToRegion(
+      if (!mapRef.current) return;
+      mapRef.current.animateToRegion(
         {
           latitude: result.centre.lat,
           longitude: result.centre.lng,
@@ -117,8 +116,12 @@ export default function MapScreen() {
         },
         800
       );
+      // Clear Typesense text filter so the viewport query returns all events
+      onSearch('');
+      dismissDropdown();
+      clearSearch();
     },
-    [dismissDropdown, clearSearch]
+    [onSearch, dismissDropdown, clearSearch]
   );
 
   const handleRegionChangeComplete = useCallback(
@@ -131,7 +134,8 @@ export default function MapScreen() {
 
   const handleMapPress = useCallback(() => {
     dismissDropdown();
-  }, [dismissDropdown]);
+    dismissPanel();
+  }, [dismissDropdown, dismissPanel]);
 
   const renderCluster = useCallback(
     (cluster: ClusterObject) => (

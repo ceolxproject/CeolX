@@ -2,11 +2,13 @@ import { Ionicons } from '@expo/vector-icons';
 import { Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import {
+  MAP_HEADER_HEIGHT,
+  MAP_SEARCH_BAR_GAP,
+  MAP_SEARCH_BAR_HEIGHT,
+} from '@/constants/map-layout';
 import type { CountyResult } from '@/hooks/use-county-search';
 
-const HEADER_HEIGHT = 52;
-const SEARCH_BAR_GAP = 8;
-const SEARCH_BAR_HEIGHT = 44;
 const DROPDOWN_GAP = 4;
 
 interface CountySuggestionsDropdownProps {
@@ -19,25 +21,23 @@ export function CountySuggestionsDropdown({
   onSelect,
 }: CountySuggestionsDropdownProps) {
   const insets = useSafeAreaInsets();
-  const top = insets.top + HEADER_HEIGHT + SEARCH_BAR_GAP + SEARCH_BAR_HEIGHT + DROPDOWN_GAP;
+  const top =
+    insets.top + MAP_HEADER_HEIGHT + MAP_SEARCH_BAR_GAP + MAP_SEARCH_BAR_HEIGHT + DROPDOWN_GAP;
 
   if (suggestions.length === 0) return null;
 
   return (
     <View
-      className="absolute left-4 right-4 bg-white rounded-2xl overflow-hidden"
-      style={{
-        top,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.15,
-        shadowRadius: 12,
-        elevation: 8,
-      }}
+      accessibilityRole="list"
+      accessibilityLabel="County suggestions"
+      className="absolute left-4 right-4 bg-white rounded-2xl overflow-hidden shadow-lg"
+      style={{ top, elevation: 8 }}
     >
       {suggestions.map((result) => (
         <Pressable
           key={result.name}
+          accessibilityRole="button"
+          accessibilityLabel={`${result.name}, County, Ireland`}
           className="flex-row items-center px-4 py-3 gap-3 active:bg-[#F5F5F5]"
           onPress={() => onSelect(result)}
         >
