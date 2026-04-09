@@ -4,15 +4,16 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 // Mocks — declared before imports
 // ---------------------------------------------------------------------------
 
-const mockRequestForegroundPermissionsAsync = vi.fn();
+const mockGetForegroundPermissionsAsync = vi.fn();
 const mockGetLastKnownPositionAsync = vi.fn();
 
 vi.mock('expo-location', () => ({
-  requestForegroundPermissionsAsync: (...args: unknown[]) =>
-    mockRequestForegroundPermissionsAsync(...args) as unknown,
+  getForegroundPermissionsAsync: (...args: unknown[]) =>
+    mockGetForegroundPermissionsAsync(...args) as unknown,
   getLastKnownPositionAsync: (...args: unknown[]) =>
     mockGetLastKnownPositionAsync(...args) as unknown,
   PermissionStatus: { GRANTED: 'granted', DENIED: 'denied', UNDETERMINED: 'undetermined' },
+  // requestForegroundPermissionsAsync is the responsibility of LocationPermissionScreen
 }));
 
 vi.mock('@CeolX/shared', () => ({
@@ -47,7 +48,7 @@ import { resolveLocation } from '../use-gps-region';
 function createSetters() {
   return {
     setInitialRegion: vi.fn(),
-    setGpsGranted: vi.fn(),
+    setGpsPermissionGranted: vi.fn(),
     setLocationSource: vi.fn(),
     setMapKey: vi.fn(),
   };
@@ -66,8 +67,8 @@ afterEach(() => {
 // ---------------------------------------------------------------------------
 
 describe('resolveLocation', () => {
-  it('requests permission (not just checks)', async () => {
-    mockRequestForegroundPermissionsAsync.mockResolvedValue({ status: 'granted' });
+  it('reads permission passively without prompting', async () => {
+    mockGetForegroundPermissionsAsync.mockResolvedValue({ status: 'granted' });
     mockGetLastKnownPositionAsync.mockResolvedValue({
       coords: { latitude: 53.35, longitude: -6.26 },
     });
@@ -75,11 +76,11 @@ describe('resolveLocation', () => {
     const setters = createSetters();
     await resolveLocation(setters);
 
-    expect(mockRequestForegroundPermissionsAsync).toHaveBeenCalledOnce();
+    expect(mockGetForegroundPermissionsAsync).toHaveBeenCalledOnce();
   });
 
   it('sets GPS region when permission granted and position available', async () => {
-    mockRequestForegroundPermissionsAsync.mockResolvedValue({ status: 'granted' });
+    mockGetForegroundPermissionsAsync.mockResolvedValue({ status: 'granted' });
     mockGetLastKnownPositionAsync.mockResolvedValue({
       coords: { latitude: 53.35, longitude: -6.26 },
     });
@@ -87,7 +88,7 @@ describe('resolveLocation', () => {
     const setters = createSetters();
     await resolveLocation(setters);
 
-    expect(setters.setGpsGranted).toHaveBeenCalledWith(true);
+    expect(setters.setGpsPermissionGranted).toHaveBeenCalledWith(true);
     expect(setters.setLocationSource).toHaveBeenCalledWith('gps');
     expect(setters.setInitialRegion).toHaveBeenCalledWith(
       expect.objectContaining({ latitude: 53.35, longitude: -6.26 })
@@ -96,7 +97,7 @@ describe('resolveLocation', () => {
   });
 
   it('falls back to IP geolocation when permission denied', async () => {
-    mockRequestForegroundPermissionsAsync.mockResolvedValue({ status: 'denied' });
+    mockGetForegroundPermissionsAsync.mockResolvedValue({ status: 'denied' });
     fetchSpy.mockResolvedValueOnce(
       new Response(
         JSON.stringify({
@@ -121,18 +122,18 @@ describe('resolveLocation', () => {
   });
 
   it('falls back to Ireland default when IP returns ok:false', async () => {
-    mockRequestForegroundPermissionsAsync.mockResolvedValue({ status: 'denied' });
+    mockGetForegroundPermissionsAsync.mockResolvedValue({ status: 'denied' });
     fetchSpy.mockResolvedValueOnce(new Response(JSON.stringify({ ok: false }), { status: 200 }));
 
     const setters = createSetters();
     await resolveLocation(setters);
 
     expect(setters.setLocationSource).toHaveBeenCalledWith('default');
-    expect(setters.setInitialRegion).not.toHaveBeenCalled();
+    expect(setters.setInitialRegion).not.toHaveBeenCalled(); // Ireland default is the useState initial value
   });
 
   it('falls back to Ireland default when IP fetch throws', async () => {
-    mockRequestForegroundPermissionsAsync.mockResolvedValue({ status: 'denied' });
+    mockGetForegroundPermissionsAsync.mockResolvedValue({ status: 'denied' });
     fetchSpy.mockRejectedValueOnce(new Error('Network error'));
 
     const setters = createSetters();
@@ -142,7 +143,7 @@ describe('resolveLocation', () => {
   });
 
   it('falls through to IP when granted but no position available', async () => {
-    mockRequestForegroundPermissionsAsync.mockResolvedValue({ status: 'granted' });
+    mockGetForegroundPermissionsAsync.mockResolvedValue({ status: 'granted' });
     mockGetLastKnownPositionAsync.mockResolvedValue(null);
     fetchSpy.mockResolvedValueOnce(
       new Response(JSON.stringify({ ok: true, latitude: 53.27, longitude: -9.05 }), { status: 200 })
@@ -151,12 +152,12 @@ describe('resolveLocation', () => {
     const setters = createSetters();
     await resolveLocation(setters);
 
-    expect(setters.setGpsGranted).toHaveBeenCalledWith(true);
+    expect(setters.setGpsPermissionGranted).toHaveBeenCalledWith(true);
     expect(setters.setLocationSource).toHaveBeenCalledWith('ip');
   });
 
-  it('falls back to default when requestPermission throws', async () => {
-    mockRequestForegroundPermissionsAsync.mockRejectedValue(new Error('Unavailable'));
+  it('falls back to default when permission check throws', async () => {
+    mockGetForegroundPermissionsAsync.mockRejectedValue(new Error('Unavailable'));
 
     const setters = createSetters();
     await resolveLocation(setters);

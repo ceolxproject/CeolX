@@ -76,7 +76,7 @@ app.use(
 );
 
 // IP geolocation proxy — server-side lookup, no auth required
-app.use('/location/*', rateLimiter(RATE_LIMIT_TIERS.authLogin));
+app.use('/location/*', rateLimiter(RATE_LIMIT_TIERS.locationLookup));
 app.route('/location', locationRoutes);
 
 // Stripe webhook — raw body required, cannot go through tRPC (wired in M8-T2)

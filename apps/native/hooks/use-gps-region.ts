@@ -15,7 +15,7 @@ export type LocationSource = 'gps' | 'ip' | 'default' | 'pending';
 
 type GpsRegionResult = {
   initialRegion: MapRegion;
-  gpsGranted: boolean;
+  gpsPermissionGranted: boolean;
   locationSource: LocationSource;
   /** Increment to remount MapView after region changes */
   mapKey: number;
@@ -25,41 +25,53 @@ const GPS_ZOOM = { latitudeDelta: 0.5, longitudeDelta: 0.5 };
 
 type Setters = {
   setInitialRegion: (r: MapRegion) => void;
-  setGpsGranted: (v: boolean) => void;
+  setGpsPermissionGranted: (v: boolean) => void;
   setLocationSource: (s: LocationSource) => void;
   setMapKey: (fn: (k: number) => number) => void;
 };
 
 /**
  * Core fallback chain logic — exported for direct testing.
- * 1. GPS granted + position → user's location
- * 2. GPS denied (or no position) → IP geolocation via server proxy
- * 3. IP fails → Ireland centre
+ *
+ * Reads the OS permission state WITHOUT prompting (getForegroundPermissionsAsync).
+ * The permission dialog is the responsibility of LocationPermissionScreen.
+ *
+ * 1. GPS granted + position available → user's location
+ * 2. GPS denied or undetermined (or no position) → IP geolocation via server proxy
+ * 3. IP fails → Ireland centre (53.1424, -7.6921)
  */
 export async function resolveLocation(setters: Setters): Promise<void> {
-  const { setInitialRegion, setGpsGranted, setLocationSource, setMapKey } = setters;
+  const { setInitialRegion, setGpsPermissionGranted, setLocationSource, setMapKey } = setters;
 
   try {
-    const { status } = await Location.requestForegroundPermissionsAsync();
+    const { status } = await Location.getForegroundPermissionsAsync();
 
     if (status === Location.PermissionStatus.GRANTED) {
-      setGpsGranted(true);
-      const pos = await Location.getLastKnownPositionAsync();
-      if (pos) {
-        setInitialRegion({
-          latitude: pos.coords.latitude,
-          longitude: pos.coords.longitude,
-          ...GPS_ZOOM,
-        });
-        setLocationSource('gps');
-        setMapKey((k) => k + 1);
-        return;
+      setGpsPermissionGranted(true);
+
+      try {
+        const pos = await Location.getLastKnownPositionAsync();
+        if (pos) {
+          setInitialRegion({
+            latitude: pos.coords.latitude,
+            longitude: pos.coords.longitude,
+            ...GPS_ZOOM,
+          });
+          setLocationSource('gps');
+          setMapKey((k) => k + 1);
+          return;
+        }
+        // Permission granted but no cached position — fall through to IP
+      } catch (err: unknown) {
+        console.error('[resolveLocation] getLastKnownPositionAsync failed:', err);
+        // Fall through to IP
       }
-      // Permission granted but no cached position — fall through to IP
     }
 
     await resolveViaIp(setInitialRegion, setLocationSource, setMapKey);
-  } catch {
+  } catch (err: unknown) {
+    console.error('[resolveLocation] Permission check failed:', err);
+    setInitialRegion(IRELAND_INITIAL_REGION);
     setLocationSource('default');
   }
 }
@@ -71,6 +83,17 @@ async function resolveViaIp(
 ): Promise<void> {
   try {
     const res = await fetch(`${env.EXPO_PUBLIC_SERVER_URL}/location/ip`);
+
+    if (!res.ok) {
+      console.warn(
+        '[resolveViaIp] Server returned',
+        res.status,
+        '— falling back to Ireland default'
+      );
+      setSource('default');
+      return;
+    }
+
     const data = (await res.json()) as { ok: boolean; latitude?: number; longitude?: number };
 
     if (data.ok && typeof data.latitude === 'number' && typeof data.longitude === 'number') {
@@ -83,28 +106,34 @@ async function resolveViaIp(
       setKey((k) => k + 1);
       return;
     }
-  } catch {
-    // Fall through to default
+  } catch (err: unknown) {
+    console.error('[resolveViaIp] IP geolocation fetch failed:', err);
   }
 
   setSource('default');
 }
 
 /**
- * Resolves the initial map region using a three-step fallback chain:
- * 1. GPS granted + position available → user's location
- * 2. GPS denied (or no position) → IP geolocation via server proxy
- * 3. IP fails → Ireland centre (53.1424, -7.6921)
+ * Resolves the initial map region using a three-step fallback chain.
+ *
+ * @param enabled - Delay resolution while the location permission priming
+ *   screen is visible. Defaults to true.
  */
-export function useGpsRegion(): GpsRegionResult {
+export function useGpsRegion(enabled = true): GpsRegionResult {
   const [initialRegion, setInitialRegion] = useState<MapRegion>(IRELAND_INITIAL_REGION);
-  const [gpsGranted, setGpsGranted] = useState(false);
+  const [gpsPermissionGranted, setGpsPermissionGranted] = useState(false);
   const [locationSource, setLocationSource] = useState<LocationSource>('pending');
   const [mapKey, setMapKey] = useState(0);
 
   useEffect(() => {
-    void resolveLocation({ setInitialRegion, setGpsGranted, setLocationSource, setMapKey });
-  }, []);
+    if (!enabled) return;
+    void resolveLocation({
+      setInitialRegion,
+      setGpsPermissionGranted,
+      setLocationSource,
+      setMapKey,
+    });
+  }, [enabled]);
 
-  return { initialRegion, gpsGranted, locationSource, mapKey };
+  return { initialRegion, gpsPermissionGranted, locationSource, mapKey };
 }

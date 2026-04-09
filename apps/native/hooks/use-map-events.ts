@@ -115,7 +115,12 @@ export function useMapEvents(opts?: UseMapEventsOpts) {
 
   // Silent auto-expand when primary query returns 0 events
   useEffect(() => {
-    if (isLoading || primaryEvents.length > 0 || !opts?.centerLat || !opts?.centerLng) {
+    if (
+      isLoading ||
+      primaryEvents.length > 0 ||
+      opts?.centerLat === undefined ||
+      opts?.centerLng === undefined
+    ) {
       // Reset expansion state when primary query has results or is loading
       if (primaryEvents.length > 0) {
         setExpandedEvents(null);
@@ -137,14 +142,21 @@ export function useMapEvents(opts?: UseMapEventsOpts) {
         }>;
       },
       expandAbortRef
-    ).then((result) => {
-      if (!expandAbortRef.current) {
-        if (result.events.length > 0) {
-          setExpandedEvents(result.events);
+    )
+      .then((result) => {
+        if (!expandAbortRef.current) {
+          if (result.events.length > 0) {
+            setExpandedEvents(result.events);
+          }
+          setExpandExhausted(result.exhausted);
         }
-        setExpandExhausted(result.exhausted);
-      }
-    });
+      })
+      .catch((err: unknown) => {
+        if (!expandAbortRef.current) {
+          console.error('[useMapEvents] expandSearch failed:', err);
+          setExpandExhausted(true);
+        }
+      });
 
     return () => {
       expandAbortRef.current = true;

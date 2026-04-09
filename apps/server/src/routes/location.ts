@@ -46,7 +46,13 @@ location.get('/ip', async (c) => {
       city: typeof data['city'] === 'string' ? data['city'] : null,
       region: typeof data['region'] === 'string' ? data['region'] : null,
     });
-  } catch {
+  } catch (err: unknown) {
+    const isAbort = err instanceof Error && err.name === 'AbortError';
+    if (isAbort) {
+      console.warn(`[location/ip] ipapi.co timed out after ${IPAPI_TIMEOUT_MS}ms for ip=${ip}`);
+    } else {
+      console.error('[location/ip] ipapi.co fetch failed for ip=%s', ip, err);
+    }
     return c.json({ ok: false });
   }
 });
