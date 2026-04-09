@@ -50,6 +50,43 @@ export function getBoundingBox(lat: number, lng: number, radiusKm: number): Boun
   };
 }
 
+/**
+ * Returns true if lat/lng are finite numbers within valid geographic bounds.
+ */
+export function isValidCoordinate(lat: unknown, lng: unknown): boolean {
+  return (
+    typeof lat === 'number' &&
+    typeof lng === 'number' &&
+    Number.isFinite(lat) &&
+    Number.isFinite(lng) &&
+    lat >= -90 &&
+    lat <= 90 &&
+    lng >= -180 &&
+    lng <= 180
+  );
+}
+
+/**
+ * Splits map events into valid and invalid based on coordinate validation.
+ * Callers decide how to log/report the invalid set (e.g. one batched Sentry call).
+ */
+export function filterValidMapEvents<T extends { id?: string; lat: unknown; lng: unknown }>(
+  events: T[]
+): { valid: T[]; invalid: T[] } {
+  const valid: T[] = [];
+  const invalid: T[] = [];
+
+  for (const event of events) {
+    if (isValidCoordinate(event.lat, event.lng)) {
+      valid.push(event);
+    } else {
+      invalid.push(event);
+    }
+  }
+
+  return { valid, invalid };
+}
+
 export function clampToIreland(lat: number, lng: number): LatLng {
   return {
     lat: Math.max(IRELAND_BOUNDS.minLat, Math.min(IRELAND_BOUNDS.maxLat, lat)),

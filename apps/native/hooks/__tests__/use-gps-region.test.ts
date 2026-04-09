@@ -129,7 +129,9 @@ describe('resolveLocation', () => {
     await resolveLocation(setters);
 
     expect(setters.setLocationSource).toHaveBeenCalledWith('default');
-    expect(setters.setInitialRegion).not.toHaveBeenCalled(); // Ireland default is the useState initial value
+    expect(setters.setInitialRegion).toHaveBeenCalledWith(
+      expect.objectContaining({ latitude: 53.1424, longitude: -7.6921 })
+    );
   });
 
   it('falls back to Ireland default when IP fetch throws', async () => {
@@ -140,6 +142,9 @@ describe('resolveLocation', () => {
     await resolveLocation(setters);
 
     expect(setters.setLocationSource).toHaveBeenCalledWith('default');
+    expect(setters.setInitialRegion).toHaveBeenCalledWith(
+      expect.objectContaining({ latitude: 53.1424, longitude: -7.6921 })
+    );
   });
 
   it('falls through to IP when granted but no position available', async () => {

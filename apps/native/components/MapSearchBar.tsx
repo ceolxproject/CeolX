@@ -4,11 +4,11 @@ import { useRef } from 'react';
 import { Pressable, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-const HEADER_HEIGHT = 52;
-const SEARCH_BAR_GAP = 8;
+import { MAP_HEADER_HEIGHT, MAP_SEARCH_BAR_GAP } from '@/constants/map-layout';
 
 interface MapSearchBarProps {
   placeholder?: string;
+  value?: string;
   onChangeText?: (text: string) => void;
   onFilterPress?: () => void;
   activeFilterCount?: number;
@@ -16,12 +16,13 @@ interface MapSearchBarProps {
 
 export function MapSearchBar({
   placeholder = 'Search by county / artist / category',
+  value,
   onChangeText,
   onFilterPress,
   activeFilterCount = 0,
 }: MapSearchBarProps) {
   const insets = useSafeAreaInsets();
-  const top = insets.top + HEADER_HEIGHT + SEARCH_BAR_GAP;
+  const top = insets.top + MAP_HEADER_HEIGHT + MAP_SEARCH_BAR_GAP;
   const inputRef = useRef<TextInput>(null);
 
   return (
@@ -37,6 +38,7 @@ export function MapSearchBar({
           style={{ padding: 0 }}
           placeholder={placeholder}
           placeholderTextColor="#8D8D8D"
+          value={value}
           onChangeText={onChangeText}
           returnKeyType="search"
           autoCorrect={false}

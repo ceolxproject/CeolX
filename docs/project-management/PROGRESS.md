@@ -55,7 +55,7 @@ Tracks completed tasks per milestone. Each entry links to its PR.
 
 - [x] M3-T1 · Map Integration & Viewport Query — PR #30
 - [x] M3-T2 · Location Permission Fallback — PR #31
-- [ ] M3-T3 · Pin Clustering & Search
+- [x] M3-T3 · Pin Clustering & Search — PR #32
 - [ ] M3-T4 · Feed View (Algorithmic)
 
 ## M4 — Event System
