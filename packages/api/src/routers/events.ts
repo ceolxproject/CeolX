@@ -1,7 +1,15 @@
 import { TRPCError } from '@trpc/server';
+import { and, eq, sql } from 'drizzle-orm';
 import { z } from 'zod';
 
+import { db } from '@CeolX/db';
+import { events, savedEvents } from '@CeolX/db/schema/events';
+import { follows } from '@CeolX/db/schema/social';
+import { artistProfiles, venueProfiles } from '@CeolX/db/schema/users';
+import { feedQuerySchema } from '@CeolX/shared/validators';
+
 import { creatorProcedure, protectedProcedure, publicProcedure, router } from '../index';
+import { rankFeedEvents, type RawFeedEvent } from '../lib/feed-ranking';
 import { typesenseClient } from '../lib/typesense';
 
 const MapQueryInput = z.object({
@@ -147,6 +155,115 @@ export const eventsRouter = router({
     }
   }),
 
+  // Algorithmic feed: ranked by 40% recency + 40% proximity + 20% social
+  getFeed: publicProcedure.input(feedQuerySchema).query(async ({ input, ctx }) => {
+    const { lat, lng, limit, offset, category, query } = input;
+    const userId = ctx.session?.user?.id ?? null;
+    const isArtist = ctx.session?.user?.currentRole === 'artist';
+
+    try {
+      // --- Fetch user context (follows + saved events) in parallel ---
+      const [followedIds, savedEventIds] = await Promise.all([
+        userId
+          ? db
+              .select({ followeeId: follows.followeeId })
+              .from(follows)
+              .where(eq(follows.followerId, userId))
+              .then((rows) => new Set(rows.map((r) => r.followeeId)))
+          : Promise.resolve(new Set<string>()),
+        userId
+          ? db
+              .select({ eventId: savedEvents.eventId })
+              .from(savedEvents)
+              .where(eq(savedEvents.userId, userId))
+              .then((rows) => new Set(rows.map((r) => r.eventId)))
+          : Promise.resolve(new Set<string>()),
+      ]);
+
+      // --- Build event query conditions ---
+      const conditions = [eq(events.status, 'active'), sql`${events.dateStart} >= NOW()`];
+
+      if (!isArtist) {
+        conditions.push(eq(events.isGigOpportunity, false));
+      }
+
+      if (category) {
+        conditions.push(eq(events.category, category));
+      }
+
+      if (query) {
+        conditions.push(sql`${events.title} ILIKE ${'%' + query + '%'}`);
+      }
+
+      // --- Fetch events with creator info and joined count ---
+      const eventRows = await db
+        .select({
+          id: events.id,
+          title: events.title,
+          dateStart: events.dateStart,
+          dateEnd: events.dateEnd,
+          lat: events.lat,
+          lng: events.lng,
+          venueAddress: events.venueAddress,
+          category: events.category,
+          coverImageUrl: events.coverImage,
+          isGigOpportunity: events.isGigOpportunity,
+          createdAt: events.createdAt,
+          createdBy: events.createdBy,
+          artistStageName: artistProfiles.stageName,
+          venueName: venueProfiles.venueName,
+          joinedCount: sql<number>`(
+            SELECT COUNT(*)::int FROM saved_events se WHERE se.event_id = ${events.id}
+          )`,
+        })
+        .from(events)
+        .leftJoin(artistProfiles, eq(artistProfiles.userId, events.createdBy))
+        .leftJoin(venueProfiles, eq(venueProfiles.userId, events.createdBy))
+        .where(and(...conditions))
+        .limit(500);
+
+      // --- Transform to RawFeedEvent shape ---
+      const rawEvents: RawFeedEvent[] = eventRows.map((row) => ({
+        id: row.id,
+        title: row.title,
+        dateStart: row.dateStart.toISOString(),
+        dateEnd: row.dateEnd?.toISOString(),
+        lat: Number(row.lat),
+        lng: Number(row.lng),
+        venueAddress: row.venueAddress,
+        category: row.category,
+        coverImageUrl: row.coverImageUrl,
+        isGigOpportunity: row.isGigOpportunity ?? false,
+        createdAt: row.createdAt.toISOString(),
+        creatorName: row.artistStageName ?? row.venueName ?? 'Unknown',
+        creatorId: row.createdBy,
+        joinedCount: row.joinedCount ?? 0,
+      }));
+
+      // --- Rank and paginate ---
+      const ranked = rankFeedEvents(rawEvents, lat, lng, followedIds);
+      const paginated = ranked.slice(offset, offset + limit);
+
+      return {
+        events: paginated.map((e) => ({
+          ...e,
+          venueAddress: e.venueAddress ?? undefined,
+          coverImageUrl: e.coverImageUrl ?? undefined,
+          dateEnd: e.dateEnd ?? undefined,
+          isSaved: savedEventIds.has(e.id),
+        })),
+        hasNextPage: offset + limit < ranked.length,
+        totalCount: ranked.length,
+      };
+    } catch (err) {
+      throw new TRPCError({
+        code: 'INTERNAL_SERVER_ERROR',
+        message: 'Failed to fetch feed',
+        cause: err,
+      });
+    }
+  }),
+
   // TODO M4-T1: create event (sets status = pending_review)
   create: creatorProcedure.input(CreateEventInput).mutation(() => {
     return { message: 'not implemented' };
@@ -164,15 +281,26 @@ export const eventsRouter = router({
       return { message: 'not implemented' };
     }),
 
-  // TODO M4-T2: save event to current user's saved list
-  save: protectedProcedure.input(z.object({ id: z.string() })).mutation(() => {
-    return { message: 'not implemented' };
-  }),
+  // Save event to current user's saved list (idempotent via ON CONFLICT DO NOTHING)
+  save: protectedProcedure
+    .input(z.object({ id: z.string().uuid() }))
+    .mutation(async ({ input, ctx }) => {
+      await db
+        .insert(savedEvents)
+        .values({ userId: ctx.userId, eventId: input.id })
+        .onConflictDoNothing({ target: [savedEvents.userId, savedEvents.eventId] });
+      return { saved: true };
+    }),
 
-  // TODO M4-T2: remove event from current user's saved list
-  unsave: protectedProcedure.input(z.object({ id: z.string() })).mutation(() => {
-    return { message: 'not implemented' };
-  }),
+  // Remove event from current user's saved list
+  unsave: protectedProcedure
+    .input(z.object({ id: z.string().uuid() }))
+    .mutation(async ({ input, ctx }) => {
+      await db
+        .delete(savedEvents)
+        .where(and(eq(savedEvents.userId, ctx.userId), eq(savedEvents.eventId, input.id)));
+      return { saved: false };
+    }),
 
   // TODO M4-T1 / M10-T1: generate presigned S3 URL for cover image direct upload
   getPresignedUrl: protectedProcedure

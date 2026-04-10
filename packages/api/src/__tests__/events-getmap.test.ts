@@ -3,6 +3,61 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { t, router } from '../index';
 import { eventsRouter } from '../routers/events';
 
+// ─── Mock database modules (events router imports @CeolX/db + schema) ───────
+
+vi.mock('@CeolX/db/schema/events', () => ({
+  events: {
+    id: 'id',
+    title: 'title',
+    status: 'status',
+    dateStart: 'date_start',
+    category: 'category',
+    isGigOpportunity: 'is_gig_opportunity',
+    lat: 'lat',
+    lng: 'lng',
+    venueAddress: 'venue_address',
+    coverImage: 'cover_image',
+    createdAt: 'created_at',
+    createdBy: 'created_by',
+    dateEnd: 'date_end',
+  },
+  savedEvents: { userId: 'user_id', eventId: 'event_id', id: 'id' },
+}));
+
+vi.mock('@CeolX/db/schema/social', () => ({
+  follows: { followerId: 'follower_id', followeeId: 'followee_id' },
+}));
+
+vi.mock('@CeolX/db/schema/users', () => ({
+  artistProfiles: { userId: 'user_id', stageName: 'stage_name' },
+  venueProfiles: { userId: 'user_id', venueName: 'venue_name' },
+}));
+
+vi.mock('@CeolX/db', () => ({
+  db: {
+    select: vi.fn(() => ({
+      from: vi.fn(() => ({
+        where: vi.fn(() => ({ then: vi.fn((cb: (v: unknown[]) => void) => cb([])) })),
+        leftJoin: vi.fn(() => ({
+          leftJoin: vi.fn(() => ({
+            where: vi.fn(() => ({
+              limit: vi.fn(() => Promise.resolve([])),
+            })),
+          })),
+        })),
+      })),
+    })),
+    insert: vi.fn(() => ({
+      values: vi.fn(() => ({
+        onConflictDoNothing: vi.fn(() => Promise.resolve()),
+      })),
+    })),
+    delete: vi.fn(() => ({
+      where: vi.fn(() => Promise.resolve()),
+    })),
+  },
+}));
+
 // ─── Mock typesense module ────────────────────────────────────────────────────
 
 const mockSearch = vi.fn();
