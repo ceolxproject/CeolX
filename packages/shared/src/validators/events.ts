@@ -40,6 +40,16 @@ export const rejectEventSchema = z.object({
   rejectionReason: z.string().min(10, 'Rejection reason must be at least 10 characters').max(500),
 });
 
+export const feedQuerySchema = z.object({
+  lat: z.number().min(-90).max(90),
+  lng: z.number().min(-180).max(180),
+  limit: z.number().int().min(1).max(50).default(20),
+  offset: z.number().int().min(0).default(0),
+  category: z.enum(EVENT_CATEGORIES).optional(),
+  query: z.string().max(100).optional(),
+});
+
 export type CreateEventInput = z.infer<typeof createEventSchema>;
 export type UpdateEventInput = z.infer<typeof updateEventSchema>;
 export type RejectEventInput = z.infer<typeof rejectEventSchema>;
+export type FeedQueryInput = z.infer<typeof feedQuerySchema>;
