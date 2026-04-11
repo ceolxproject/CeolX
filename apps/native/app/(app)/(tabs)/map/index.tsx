@@ -1,7 +1,7 @@
 import * as Sentry from '@sentry/react-native';
 import { useRouter } from 'expo-router';
 import { useCallback, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Animated, Platform, Pressable, Text, View } from 'react-native';
+import { ActivityIndicator, Animated, Modal, Platform, Pressable, Text, View } from 'react-native';
 import MapView from 'react-native-map-clustering';
 import type RNMapView from 'react-native-maps';
 import type { Region } from 'react-native-maps';
@@ -170,7 +170,11 @@ export default function MapScreen() {
 
   if (promptState === 'checking') return null;
   if (promptState === 'show') {
-    return <LocationPermissionScreen onDone={markSeen} />;
+    return (
+      <Modal visible animationType="none" statusBarTranslucent>
+        <LocationPermissionScreen onDone={markSeen} />
+      </Modal>
+    );
   }
 
   return (
