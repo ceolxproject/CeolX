@@ -1,4 +1,5 @@
 import { cn } from 'heroui-native';
+import { Fragment } from 'react';
 import { Text, View } from 'react-native';
 
 type Props = {
@@ -12,8 +13,8 @@ export function StepIndicator({ currentStep, labels = DEFAULT_LABELS }: Props) {
   const steps = [1, 2, 3] as const;
 
   return (
-    <View className="px-6 py-4">
-      {/* Dots and lines row */}
+    <View className="py-4">
+      {/* Dots and lines — flat siblings so flex-1 lines span cleanly between dots */}
       <View className="flex-row items-center">
         {steps.map((step, index) => {
           const isCompleted = step < currentStep;
@@ -21,53 +22,46 @@ export function StepIndicator({ currentStep, labels = DEFAULT_LABELS }: Props) {
           const isFilled = isCompleted || isActive;
 
           return (
-            <View key={step} className="flex-row items-center flex-1 last:flex-none">
-              {/* Dot */}
+            <Fragment key={step}>
               <View
                 className={cn(
                   'w-3 h-3 rounded-full',
                   isFilled ? 'bg-[#C8FF2F]' : 'border-[1.5px] border-neutral-500 bg-transparent'
                 )}
               />
-              {/* Line after dot (except last) */}
               {index < steps.length - 1 && (
                 <View
                   className={cn(
-                    'h-[1.5px] flex-1',
+                    'flex-1 h-[1.5px]',
                     isCompleted ? 'bg-[#C8FF2F]' : 'bg-neutral-500'
                   )}
                 />
               )}
-            </View>
+            </Fragment>
           );
         })}
       </View>
 
-      {/* Labels row */}
-      <View className="flex-row mt-2">
+      {/* Labels — absolute so left/center/right align to screen edges, not flex columns */}
+      <View className="relative h-5 mt-2">
         {labels.map((label, index) => {
           const step = (index + 1) as 1 | 2 | 3;
           const isFilled = step <= currentStep;
 
           return (
-            <View
+            <Text
               key={label}
+              numberOfLines={1}
               className={cn(
-                'flex-1',
-                index === 0 && 'items-start',
-                index === 1 && 'items-center',
-                index === 2 && 'items-end'
+                'absolute text-[10px] font-urbanist',
+                index === 0 && 'left-0',
+                index === 1 && 'left-0 right-0 text-center',
+                index === 2 && 'right-0',
+                isFilled ? 'text-white font-bold' : 'text-neutral-500 font-medium'
               )}
             >
-              <Text
-                className={cn(
-                  'text-[10px] font-urbanist',
-                  isFilled ? 'text-white font-bold' : 'text-neutral-500 font-medium'
-                )}
-              >
-                {label}
-              </Text>
-            </View>
+              {label}
+            </Text>
           );
         })}
       </View>

@@ -1,9 +1,11 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
-import { ActivityIndicator, Alert, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { Container } from '@/components/container';
+import { AppTabBar, TAB_CONFIG } from '@/components/AppTabBar';
 import { BasicDetailsStep } from '@/components/events/BasicDetailsStep';
 import { CategoryPicker } from '@/components/events/CategoryPicker';
 import { DateVenueStep } from '@/components/events/DateVenueStep';
@@ -15,6 +17,7 @@ import { trpc } from '@/utils/trpc';
 export default function EditEventScreen() {
   const { eventId } = useLocalSearchParams<{ eventId: string }>();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { data: me } = useQuery(trpc.users.me.queryOptions());
   const isVenue = me?.currentRole === 'venue';
   const [showCategoryPicker, setShowCategoryPicker] = useState(false);
@@ -51,115 +54,137 @@ export default function EditEventScreen() {
     },
   });
 
+  const handleBackPress = () => {
+    Alert.alert('Leave without saving?', 'Your unsaved changes will be lost.', [
+      { text: 'Stay', style: 'cancel' },
+      { text: 'Leave', style: 'destructive', onPress: () => router.back() },
+    ]);
+  };
+
+  const tabBarState = {
+    index: -1,
+    routes: TAB_CONFIG.map((t) => ({ key: t.name, name: t.name })),
+  };
+  const tabBarNavigation = {
+    emit: () => ({ defaultPrevented: false }),
+    navigate: (name: string) => router.replace(`/(app)/(tabs)/${name}` as never),
+  };
+
   if (isLoading) {
     return (
-      <Container isScrollable={false}>
-        <View className="flex-1 items-center justify-center">
-          <ActivityIndicator size="large" color="#C8FF2F" />
-        </View>
-      </Container>
+      <View className="flex-1 bg-background items-center justify-center">
+        <ActivityIndicator size="large" color="#C8FF2F" />
+      </View>
     );
   }
 
   if (!event) {
     return (
-      <Container isScrollable={false}>
-        <View className="flex-1 items-center justify-center px-5">
-          <Text className="text-lg text-white">Event not found</Text>
-        </View>
-      </Container>
+      <View className="flex-1 bg-background items-center justify-center px-5">
+        <Text className="text-lg text-white">Event not found</Text>
+      </View>
     );
   }
 
   if (event.status === 'archived') {
     return (
-      <Container isScrollable={false}>
-        <View className="flex-1 items-center justify-center px-5">
-          <Text className="text-center text-lg text-white">Cannot edit an archived event.</Text>
-        </View>
-      </Container>
+      <View className="flex-1 bg-background items-center justify-center px-5">
+        <Text className="text-center text-lg text-white">Cannot edit an archived event.</Text>
+      </View>
     );
   }
 
   return (
-    <Container>
-      <View className="flex-1 px-5 pt-4">
-        <Text className="mb-4 text-2xl font-bold text-white">Edit Event</Text>
+    <View className="flex-1 bg-background" style={{ paddingTop: insets.top }}>
+      {/* Header */}
+      <View className="flex-row items-center px-5 pt-4 pb-1">
+        <Pressable onPress={handleBackPress} hitSlop={8} className="mr-3">
+          <Ionicons name="arrow-back" size={24} color="#ffffff" />
+        </Pressable>
+        <Text className="flex-1 text-2xl font-bold text-white">Edit Event</Text>
+      </View>
 
-        {event.status === 'removed' && event.removalReason && (
-          <View className="mb-4 rounded-lg bg-red-900/30 px-4 py-3">
-            <Text className="mb-1 text-sm font-semibold text-red-400">
-              This event was removed by admin
-            </Text>
-            <Text className="text-sm text-red-300">{event.removalReason}</Text>
-            <Text className="mt-1 text-xs text-white/60">Edit and save to resubmit as active.</Text>
-          </View>
+      {event.status === 'removed' && event.removalReason && (
+        <View className="mx-5 mb-3 rounded-lg bg-red-900/30 px-4 py-3">
+          <Text className="mb-1 text-sm font-semibold text-red-400">
+            This event was removed by admin
+          </Text>
+          <Text className="text-sm text-red-300">{event.removalReason}</Text>
+          <Text className="mt-1 text-xs text-white/60">Edit and save to resubmit as active.</Text>
+        </View>
+      )}
+
+      {/* Step indicator */}
+      <View className="px-5">
+        <StepIndicator currentStep={form.currentStep as 1 | 2 | 3} />
+      </View>
+
+      {/* Form steps */}
+      <View className="flex-1 mt-2">
+        {form.currentStep === 1 && (
+          <BasicDetailsStep
+            title={form.title}
+            onTitleChange={form.setTitle}
+            description={form.description}
+            onDescriptionChange={form.setDescription}
+            coverImageUri={form.coverImageUri}
+            onPickImage={() => {}}
+            category={form.category}
+            onCategoryChange={form.setCategory}
+            onCategoryPress={() => setShowCategoryPicker(true)}
+            collectionId={form.collectionId}
+            onCollectionIdChange={form.setCollectionId}
+            errors={form.errors}
+            onContinue={form.goNext}
+            isVenue={isVenue}
+          />
         )}
 
-        <StepIndicator currentStep={form.currentStep as 1 | 2 | 3} />
+        {form.currentStep === 2 && (
+          <DateVenueStep
+            dateStart={form.dateStart}
+            onDateStartChange={form.setDateStart}
+            startTime={form.startTime}
+            onStartTimeChange={form.setStartTime}
+            endTime={form.endTime}
+            onEndTimeChange={form.setEndTime}
+            lat={form.lat}
+            lng={form.lng}
+            onLocationChange={(lat, lng) => {
+              form.setLat(lat);
+              form.setLng(lng);
+            }}
+            venueAddress={form.venueAddress}
+            onVenueAddressChange={form.setVenueAddress}
+            showManualAddress={showManualAddress}
+            onToggleManualAddress={() => setShowManualAddress(!showManualAddress)}
+            errors={form.errors}
+            onContinue={form.goNext}
+            onBack={form.goBack}
+          />
+        )}
 
-        <View className="mt-6 flex-1">
-          {form.currentStep === 1 && (
-            <BasicDetailsStep
-              title={form.title}
-              onTitleChange={form.setTitle}
-              description={form.description}
-              onDescriptionChange={form.setDescription}
-              coverImageUri={form.coverImageUri}
-              onPickImage={() => {}}
-              category={form.category}
-              onCategoryChange={form.setCategory}
-              collectionId={form.collectionId}
-              onCollectionIdChange={form.setCollectionId}
-              errors={form.errors}
-              onContinue={form.goNext}
-              isVenue={isVenue}
-            />
-          )}
-
-          {form.currentStep === 2 && (
-            <DateVenueStep
-              dateStart={form.dateStart}
-              onDateStartChange={form.setDateStart}
-              startTime={form.startTime}
-              onStartTimeChange={form.setStartTime}
-              endTime={form.endTime}
-              onEndTimeChange={form.setEndTime}
-              lat={form.lat}
-              lng={form.lng}
-              onLocationChange={(lat, lng) => {
-                form.setLat(lat);
-                form.setLng(lng);
-              }}
-              venueAddress={form.venueAddress}
-              onVenueAddressChange={form.setVenueAddress}
-              showManualAddress={showManualAddress}
-              onToggleManualAddress={() => setShowManualAddress(!showManualAddress)}
-              errors={form.errors}
-              onContinue={form.goNext}
-              onBack={form.goBack}
-            />
-          )}
-
-          {form.currentStep === 3 && (
-            <TicketAdsStep
-              ticketPrice={form.ticketPrice}
-              onTicketPriceChange={form.setTicketPrice}
-              ticketLink={form.ticketLink}
-              onTicketLinkChange={form.setTicketLink}
-              adTitle={form.adTitle}
-              onAdTitleChange={form.setAdTitle}
-              adDescription={form.adDescription}
-              onAdDescriptionChange={form.setAdDescription}
-              errors={form.errors}
-              onSubmit={form.handleSubmit}
-              onBack={form.goBack}
-              isPending={form.isPending}
-              isEditing
-            />
-          )}
-        </View>
+        {form.currentStep === 3 && (
+          <TicketAdsStep
+            ticketPrice={form.ticketPrice}
+            onTicketPriceChange={form.setTicketPrice}
+            ticketLink={form.ticketLink}
+            onTicketLinkChange={form.setTicketLink}
+            adTitle={form.adTitle}
+            onAdTitleChange={form.setAdTitle}
+            adDescription={form.adDescription}
+            onAdDescriptionChange={form.setAdDescription}
+            errors={form.errors}
+            onSubmit={form.handleSubmit}
+            onBack={form.goBack}
+            isPending={form.isPending}
+            isEditing
+          />
+        )}
       </View>
+
+      {/* Bottom tab bar */}
+      <AppTabBar state={tabBarState} descriptors={{}} navigation={tabBarNavigation} />
 
       <CategoryPicker
         visible={showCategoryPicker}
@@ -167,6 +192,6 @@ export default function EditEventScreen() {
         onSelect={form.setCategory}
         onClose={() => setShowCategoryPicker(false)}
       />
-    </Container>
+    </View>
   );
 }

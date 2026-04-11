@@ -45,6 +45,8 @@ interface UseEventFormOptions {
   eventId?: string;
   /** Pre-populated data for edit mode. */
   initialData?: EventFormData;
+  /** Called after a successful create or update. */
+  onSuccess?: () => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -292,6 +294,8 @@ export function useEventForm(options?: UseEventFormOptions) {
     } else {
       await createMutation.mutateAsync(parsed.data);
     }
+
+    options?.onSuccess?.();
   }, [
     validateStep1,
     validateStep2,

@@ -1,11 +1,13 @@
-import { Tabs } from 'expo-router';
+import { Tabs, useRouter } from 'expo-router';
 
 import { AppTabBar } from '@/components/AppTabBar';
 
 export default function TabsLayout() {
+  const router = useRouter();
+
   return (
     <Tabs
-      tabBar={(props) => <AppTabBar {...props} />}
+      tabBar={(props) => <AppTabBar {...props} onFabPress={() => router.push('/events/create')} />}
       screenOptions={{
         headerShown: false,
         // Force dark bg on every tab screen so the white React Navigation

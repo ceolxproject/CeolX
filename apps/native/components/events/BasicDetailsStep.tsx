@@ -13,6 +13,7 @@ type Props = {
   onPickImage: () => void;
   category: string;
   onCategoryChange: (v: string) => void;
+  onCategoryPress: () => void;
   collectionId: string | null;
   onCollectionIdChange: (v: string | null) => void;
   errors: Record<string, string>;
@@ -30,9 +31,10 @@ export function BasicDetailsStep({
   coverImageUri,
   onPickImage,
   category,
-  onCategoryChange,
-  collectionId,
-  onCollectionIdChange,
+  onCategoryChange: _onCategoryChange,
+  onCategoryPress,
+  collectionId: _collectionId,
+  onCollectionIdChange: _onCollectionIdChange,
   errors,
   onContinue,
   isVenue,
@@ -131,7 +133,7 @@ export function BasicDetailsStep({
       <View className="gap-2">
         <Text className="text-sm font-semibold text-gray-3 font-urbanist">Category</Text>
         <Pressable
-          onPress={() => onCategoryChange(category)}
+          onPress={onCategoryPress}
           className={cn(
             'flex-row items-center justify-between rounded-lg border bg-surface px-4 py-3',
             errors.category ? 'border-error' : 'border-gray-8'
@@ -149,34 +151,43 @@ export function BasicDetailsStep({
         )}
       </View>
 
-      {/* ── Collection (optional) — Venues only ── */}
+      {/* ── Collection (optional) — Venues only, coming M4-T4 ── */}
       {isVenue && (
         <View className="gap-2">
           <View className="flex-row items-center justify-between">
             <Text className="text-sm font-semibold text-gray-3 font-urbanist">
               Collection (optional)
             </Text>
-            <Pressable onPress={() => onCollectionIdChange(null)}>
-              <Text className="text-xs font-bold text-[#6C63FF] font-urbanist tracking-wider">
-                CREATE NEW
+            <View className="rounded-full bg-[#6C63FF]/20 px-2 py-0.5">
+              <Text className="text-[10px] font-bold text-[#6C63FF] font-urbanist tracking-wider">
+                M4-T4
               </Text>
-            </Pressable>
+            </View>
           </View>
-          <Pressable
-            onPress={() => onCollectionIdChange(collectionId)}
-            className="flex-row items-center justify-between rounded-lg border border-gray-8 bg-surface px-4 py-3"
-          >
-            <Text
-              className={cn('text-sm font-urbanist', collectionId ? 'text-white' : 'text-gray-7')}
-            >
-              {collectionId ?? 'Select Collection'}
-            </Text>
+          <View className="flex-row items-center justify-between rounded-lg border border-gray-8 bg-surface px-4 py-3 opacity-50">
+            <Text className="text-sm font-urbanist text-gray-7">Coming in M4-T4</Text>
             <Ionicons name="chevron-down" size={18} color="#8d8d8d" />
-          </Pressable>
+          </View>
         </View>
       )}
 
-      {/* Collaborators deferred to M5/M6 — invite flow with search + email */}
+      {/* ── Collaborators (optional) — coming M5/M6 ── */}
+      <View className="gap-2">
+        <View className="flex-row items-center justify-between">
+          <Text className="text-sm font-semibold text-gray-3 font-urbanist">
+            Collaborators (optional)
+          </Text>
+          <View className="rounded-full bg-[#6C63FF]/20 px-2 py-0.5">
+            <Text className="text-[10px] font-bold text-[#6C63FF] font-urbanist tracking-wider">
+              M5/M6
+            </Text>
+          </View>
+        </View>
+        <View className="flex-row items-center justify-between rounded-lg border border-gray-8 bg-surface px-4 py-3 opacity-50">
+          <Text className="text-sm font-urbanist text-gray-7">Invite artists & collaborators</Text>
+          <Ionicons name="add" size={18} color="#8d8d8d" />
+        </View>
+      </View>
 
       {/* ── Continue Button ── */}
       <Pressable
