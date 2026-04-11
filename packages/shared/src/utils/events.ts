@@ -7,6 +7,7 @@ export function getEventStatusLabel(status: EventStatus): string {
     active: 'Live',
     rejected: 'Rejected',
     archived: 'Archived',
+    removed: 'Removed',
   };
   return labels[status];
 }
@@ -18,6 +19,7 @@ export function getEventStatusColour(status: EventStatus): string {
     active: '#662FFF',
     rejected: '#EF4444',
     archived: '#8D8D8D',
+    removed: '#DC2626',
   };
   return colours[status];
 }

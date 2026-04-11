@@ -7,7 +7,7 @@ import {
   resetPasswordSchema,
   consentSchema,
   createEventSchema,
-  rejectEventSchema,
+  removeEventSchema,
   onboardingSchema,
   switchRoleSchema,
   createArtistOnboardingSchema,
@@ -203,27 +203,53 @@ describe('createEventSchema', () => {
     expect(createEventSchema.safeParse({ ...valid, lng: -181 }).success).toBe(false);
   });
 
-  it('rejects when neither venueId nor venueAddress provided', () => {
-    const noVenue = {
+  it('rejects when neither coordinates nor venueAddress provided', () => {
+    const noLocation = {
       title: valid.title,
       description: valid.description,
       dateStart: valid.dateStart,
-      lat: valid.lat,
-      lng: valid.lng,
       category: valid.category,
       isGigOpportunity: valid.isGigOpportunity,
     };
-    expect(createEventSchema.safeParse(noVenue).success).toBe(false);
+    expect(createEventSchema.safeParse(noLocation).success).toBe(false);
   });
 
-  it('accepts with venueId instead of venueAddress', () => {
+  it('accepts with venueAddress instead of coordinates', () => {
+    const withAddress = {
+      title: valid.title,
+      description: valid.description,
+      dateStart: valid.dateStart,
+      venueAddress: "O'Brien's Pub, Dublin",
+      category: valid.category,
+    };
+    expect(createEventSchema.safeParse(withAddress).success).toBe(true);
+  });
+
+  it('rejects dateEnd before dateStart', () => {
     expect(
       createEventSchema.safeParse({
         ...valid,
-        venueAddress: undefined,
-        venueId: '550e8400-e29b-41d4-a716-446655440000',
+        dateEnd: '2026-07-01T20:00:00.000Z',
+      }).success
+    ).toBe(false);
+  });
+
+  it('accepts new fields (ticketPrice, collaborators, etc.)', () => {
+    expect(
+      createEventSchema.safeParse({
+        ...valid,
+        ticketPrice: 1500,
+        ticketQuantity: 100,
+        adTitle: 'Special offer',
+        adDescription: 'Early bird discount',
+        collaborators: ['550e8400-e29b-41d4-a716-446655440000'],
       }).success
     ).toBe(true);
+  });
+
+  it('rejects more than 10 collaborators', () => {
+    const tooMany = Array.from({ length: 11 }, (_, i) => `550e8400-e29b-41d4-a716-44665544000${i}`);
+    expect(createEventSchema.safeParse({ ...valid, collaborators: tooMany }).success).toBe(false);
   });
 });
 
@@ -311,18 +337,18 @@ describe('createArtistOnboardingSchema', () => {
   });
 });
 
-describe('rejectEventSchema', () => {
+describe('removeEventSchema', () => {
   it('accepts a reason of sufficient length', () => {
     expect(
-      rejectEventSchema.safeParse({ rejectionReason: 'This event is not Irish music.' }).success
+      removeEventSchema.safeParse({ removalReason: 'This event is not Irish music.' }).success
     ).toBe(true);
   });
 
   it('rejects reason shorter than 10 characters', () => {
-    expect(rejectEventSchema.safeParse({ rejectionReason: 'Too short' }).success).toBe(false);
+    expect(removeEventSchema.safeParse({ removalReason: 'Too short' }).success).toBe(false);
   });
 
   it('rejects empty reason', () => {
-    expect(rejectEventSchema.safeParse({ rejectionReason: '' }).success).toBe(false);
+    expect(removeEventSchema.safeParse({ removalReason: '' }).success).toBe(false);
   });
 });
