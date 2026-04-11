@@ -149,8 +149,8 @@ export default function MapScreen() {
 
   const handleMapPress = useCallback(() => {
     dismissDropdown();
-    dismissPanel();
-  }, [dismissDropdown, dismissPanel]);
+    if (!markerJustPressedRef.current) dismissPanel();
+  }, [dismissDropdown, dismissPanel, markerJustPressedRef]);
 
   const renderCluster = useCallback(
     (cluster: ClusterObject) => (
