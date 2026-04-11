@@ -311,7 +311,6 @@ export const eventsRouter = router({
           category: eventData.category,
           ticketLink: eventData.ticketLink ?? null,
           ticketPrice: eventData.ticketPrice ?? null,
-          ticketQuantity: eventData.ticketQuantity ?? null,
           isGigOpportunity: eventData.isGigOpportunity,
           collectionId: eventData.collectionId ?? null,
           adTitle: eventData.adTitle ?? null,
@@ -408,8 +407,6 @@ export const eventsRouter = router({
       if (updateData.category !== undefined) setValues.category = updateData.category;
       if (updateData.ticketLink !== undefined) setValues.ticketLink = updateData.ticketLink;
       if (updateData.ticketPrice !== undefined) setValues.ticketPrice = updateData.ticketPrice;
-      if (updateData.ticketQuantity !== undefined)
-        setValues.ticketQuantity = updateData.ticketQuantity;
       if (updateData.isGigOpportunity !== undefined)
         setValues.isGigOpportunity = updateData.isGigOpportunity;
       if (updateData.collectionId !== undefined) setValues.collectionId = updateData.collectionId;

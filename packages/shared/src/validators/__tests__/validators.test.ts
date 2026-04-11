@@ -239,7 +239,6 @@ describe('createEventSchema', () => {
       createEventSchema.safeParse({
         ...valid,
         ticketPrice: 1500,
-        ticketQuantity: 100,
         adTitle: 'Special offer',
         adDescription: 'Early bird discount',
         collaborators: ['550e8400-e29b-41d4-a716-446655440000'],

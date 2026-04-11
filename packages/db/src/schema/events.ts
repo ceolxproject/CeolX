@@ -61,7 +61,6 @@ export const events = pgTable(
     category: varchar('category', { length: 100 }).notNull(),
     ticketLink: text('ticket_link'), // external URL — not validated in DB
     ticketPrice: integer('ticket_price'), // stored in cents (e.g. 49900 = €499.00)
-    ticketQuantity: integer('ticket_quantity'),
     isGigOpportunity: boolean('is_gig_opportunity').default(false), // visible to Artists only when true
     collectionId: uuid('collection_id').references(() => collections.id, { onDelete: 'set null' }),
     adTitle: varchar('ad_title', { length: 100 }),

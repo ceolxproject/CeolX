@@ -27,10 +27,6 @@ export default function CreateEventScreen() {
     },
   });
 
-  const handlePickImage = async () => {
-    // ImageUploader handles its own picker logic via onImagePicked
-  };
-
   return (
     <Container>
       <View className="flex-1 px-5 pt-4">
@@ -46,13 +42,11 @@ export default function CreateEventScreen() {
               description={form.description}
               onDescriptionChange={form.setDescription}
               coverImageUri={form.coverImageUri}
-              onPickImage={handlePickImage}
+              onPickImage={() => {}}
               category={form.category}
               onCategoryChange={form.setCategory}
               collectionId={form.collectionId}
               onCollectionIdChange={form.setCollectionId}
-              collaborators={form.collaborators}
-              onCollaboratorsChange={form.setCollaborators}
               errors={form.errors}
               onContinue={form.goNext}
               isVenue={isVenue}
@@ -89,15 +83,10 @@ export default function CreateEventScreen() {
               onTicketPriceChange={form.setTicketPrice}
               ticketLink={form.ticketLink}
               onTicketLinkChange={form.setTicketLink}
-              ticketQuantity={form.ticketQuantity}
-              onTicketQuantityChange={form.setTicketQuantity}
               adTitle={form.adTitle}
               onAdTitleChange={form.setAdTitle}
               adDescription={form.adDescription}
               onAdDescriptionChange={form.setAdDescription}
-              isGigOpportunity={form.isGigOpportunity}
-              onIsGigOpportunityChange={form.setIsGigOpportunity}
-              isVenue={isVenue}
               errors={form.errors}
               onSubmit={form.handleSubmit}
               onBack={form.goBack}

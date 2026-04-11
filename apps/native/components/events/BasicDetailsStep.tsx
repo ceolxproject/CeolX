@@ -15,8 +15,6 @@ type Props = {
   onCategoryChange: (v: string) => void;
   collectionId: string | null;
   onCollectionIdChange: (v: string | null) => void;
-  collaborators: string[];
-  onCollaboratorsChange: (v: string[]) => void;
   errors: Record<string, string>;
   onContinue: () => void;
   isVenue: boolean;
@@ -35,8 +33,6 @@ export function BasicDetailsStep({
   onCategoryChange,
   collectionId,
   onCollectionIdChange,
-  collaborators,
-  onCollaboratorsChange,
   errors,
   onContinue,
   isVenue,
@@ -180,30 +176,7 @@ export function BasicDetailsStep({
         </View>
       )}
 
-      {/* ── Collaborators ── */}
-      <View className="gap-2">
-        <Text className="text-sm font-semibold text-gray-3 font-urbanist">Collaborators</Text>
-        <TextInput
-          className={cn(
-            'rounded-lg border bg-surface px-4 py-3 text-sm text-white font-urbanist',
-            errors.collaborators ? 'border-error' : 'border-gray-8'
-          )}
-          placeholder="Who will perform in this event?"
-          placeholderTextColor="#8d8d8d"
-          value={collaborators.join(', ')}
-          onChangeText={(text) =>
-            onCollaboratorsChange(
-              text
-                .split(',')
-                .map((s) => s.trim())
-                .filter(Boolean)
-            )
-          }
-        />
-        {errors.collaborators && (
-          <Text className="text-xs text-error font-urbanist">{errors.collaborators}</Text>
-        )}
-      </View>
+      {/* Collaborators deferred to M5/M6 — invite flow with search + email */}
 
       {/* ── Continue Button ── */}
       <Pressable

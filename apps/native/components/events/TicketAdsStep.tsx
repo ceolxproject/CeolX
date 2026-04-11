@@ -1,22 +1,15 @@
 import { cn } from 'heroui-native';
 import { ActivityIndicator, Pressable, Text, TextInput, View } from 'react-native';
 
-import { CheckboxField } from '@/components/CheckboxField';
-
 type Props = {
   ticketPrice: string;
   onTicketPriceChange: (v: string) => void;
   ticketLink: string;
   onTicketLinkChange: (v: string) => void;
-  ticketQuantity: string;
-  onTicketQuantityChange: (v: string) => void;
   adTitle: string;
   onAdTitleChange: (v: string) => void;
   adDescription: string;
   onAdDescriptionChange: (v: string) => void;
-  isGigOpportunity: boolean;
-  onIsGigOpportunityChange: (v: boolean) => void;
-  isVenue: boolean;
   errors: Record<string, string>;
   onSubmit: () => void;
   onBack: () => void;
@@ -31,15 +24,10 @@ export function TicketAdsStep({
   onTicketPriceChange,
   ticketLink,
   onTicketLinkChange,
-  ticketQuantity,
-  onTicketQuantityChange,
   adTitle,
   onAdTitleChange,
   adDescription,
   onAdDescriptionChange,
-  isGigOpportunity,
-  onIsGigOpportunityChange,
-  isVenue,
   errors,
   onSubmit,
   onBack,
@@ -53,11 +41,11 @@ export function TicketAdsStep({
         <Text className="text-sm font-medium text-gray-3">Ticket Price</Text>
         <View
           className={cn(
-            'flex-row items-center rounded-lg border px-3 py-2.5 bg-surface',
+            'flex-row items-center rounded-lg border bg-surface px-3 py-2.5',
             errors.ticketPrice ? 'border-error' : 'border-gray-8'
           )}
         >
-          <Text className="text-sm text-neutral-400 mr-1">€</Text>
+          <Text className="mr-1 text-sm text-neutral-400">€</Text>
           <TextInput
             className="flex-1 text-sm text-white"
             placeholder="0.00"
@@ -75,7 +63,7 @@ export function TicketAdsStep({
         <Text className="text-sm font-medium text-gray-3">Ticket Link</Text>
         <View
           className={cn(
-            'rounded-lg border px-3 py-2.5 bg-surface',
+            'rounded-lg border bg-surface px-3 py-2.5',
             errors.ticketLink ? 'border-error' : 'border-gray-8'
           )}
         >
@@ -92,35 +80,12 @@ export function TicketAdsStep({
         {errors.ticketLink && <Text className="text-xs text-error">{errors.ticketLink}</Text>}
       </View>
 
-      {/* ── Ticket Quantity ── */}
-      <View className="gap-1.5">
-        <Text className="text-sm font-medium text-gray-3">Ticket Quantity</Text>
-        <View
-          className={cn(
-            'rounded-lg border px-3 py-2.5 bg-surface',
-            errors.ticketQuantity ? 'border-error' : 'border-gray-8'
-          )}
-        >
-          <TextInput
-            className="text-sm text-white"
-            placeholder="Total No. of Tickets"
-            placeholderTextColor="#8d8d8d"
-            keyboardType="numeric"
-            value={ticketQuantity}
-            onChangeText={onTicketQuantityChange}
-          />
-        </View>
-        {errors.ticketQuantity && (
-          <Text className="text-xs text-error">{errors.ticketQuantity}</Text>
-        )}
-      </View>
-
       {/* ── Ad Title ── */}
       <View className="gap-1.5">
         <Text className="text-sm font-medium text-gray-3">Ad Title (optional)</Text>
         <View
           className={cn(
-            'rounded-lg border px-3 py-2.5 bg-surface',
+            'rounded-lg border bg-surface px-3 py-2.5',
             errors.adTitle ? 'border-error' : 'border-gray-8'
           )}
         >
@@ -143,7 +108,7 @@ export function TicketAdsStep({
         <Text className="text-sm font-medium text-gray-3">Ad Description (optional)</Text>
         <View
           className={cn(
-            'rounded-lg border px-3 py-2.5 bg-surface',
+            'rounded-lg border bg-surface px-3 py-2.5',
             errors.adDescription ? 'border-error' : 'border-gray-8'
           )}
         >
@@ -158,34 +123,27 @@ export function TicketAdsStep({
             multiline
           />
         </View>
-        <Text className="text-xs text-neutral-500 text-right">
+        <Text className="text-right text-xs text-neutral-500">
           {adDescription.length}/{AD_DESC_MAX}
         </Text>
         {errors.adDescription && <Text className="text-xs text-error">{errors.adDescription}</Text>}
       </View>
 
-      {/* ── Gig Opportunity (Venue only) ── */}
-      {isVenue && (
-        <CheckboxField
-          checked={isGigOpportunity}
-          onChange={onIsGigOpportunityChange}
-          label="Mark as Gig Opportunity (visible to artists only)"
-        />
-      )}
+      {/* ── Gig Opportunity & Collaborators deferred to M5/M6 ── */}
 
       {/* ── Buttons ── */}
-      <View className="flex-row gap-3 mt-2">
+      <View className="mt-2 flex-row gap-3">
         <Pressable
           className="flex-1 items-center justify-center rounded-lg border border-white py-3"
           onPress={onBack}
           disabled={isPending}
         >
-          <Text className="text-white font-semibold text-base">BACK</Text>
+          <Text className="text-base font-semibold text-white">BACK</Text>
         </Pressable>
 
         <Pressable
           className={cn(
-            'flex-1 items-center justify-center rounded-lg bg-blue-10 py-3',
+            'flex-1 items-center justify-center rounded-lg bg-[#6C63FF] py-3',
             isPending && 'opacity-50'
           )}
           onPress={onSubmit}
@@ -194,7 +152,7 @@ export function TicketAdsStep({
           {isPending ? (
             <ActivityIndicator size="small" color="#fff" />
           ) : (
-            <Text className="text-white font-semibold text-base">
+            <Text className="text-base font-semibold text-white">
               {isEditing ? 'SAVE CHANGES' : 'CREATE EVENT'}
             </Text>
           )}

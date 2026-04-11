@@ -31,7 +31,6 @@ export default function EditEventScreen() {
           coverImageUri: event.coverImage,
           category: event.category,
           collectionId: event.collectionId,
-          collaborators: event.collaborators?.map((c) => c.artistProfileId) ?? [],
           dateStart: new Date(event.dateStart),
           startTime: new Date(event.dateStart),
           endTime: event.dateEnd ? new Date(event.dateEnd) : null,
@@ -41,10 +40,8 @@ export default function EditEventScreen() {
           venueId: event.venueId ?? null,
           ticketPrice: event.ticketPrice ? String(event.ticketPrice / 100) : '',
           ticketLink: event.ticketLink ?? '',
-          ticketQuantity: event.ticketQuantity ? String(event.ticketQuantity) : '',
           adTitle: event.adTitle ?? '',
           adDescription: event.adDescription ?? '',
-          isGigOpportunity: event.isGigOpportunity ?? false,
         }
       : undefined,
     onSuccess: () => {
@@ -114,8 +111,6 @@ export default function EditEventScreen() {
               onCategoryChange={form.setCategory}
               collectionId={form.collectionId}
               onCollectionIdChange={form.setCollectionId}
-              collaborators={form.collaborators}
-              onCollaboratorsChange={form.setCollaborators}
               errors={form.errors}
               onContinue={form.goNext}
               isVenue={isVenue}
@@ -152,15 +147,10 @@ export default function EditEventScreen() {
               onTicketPriceChange={form.setTicketPrice}
               ticketLink={form.ticketLink}
               onTicketLinkChange={form.setTicketLink}
-              ticketQuantity={form.ticketQuantity}
-              onTicketQuantityChange={form.setTicketQuantity}
               adTitle={form.adTitle}
               onAdTitleChange={form.setAdTitle}
               adDescription={form.adDescription}
               onAdDescriptionChange={form.setAdDescription}
-              isGigOpportunity={form.isGigOpportunity}
-              onIsGigOpportunityChange={form.setIsGigOpportunity}
-              isVenue={isVenue}
               errors={form.errors}
               onSubmit={form.handleSubmit}
               onBack={form.goBack}
