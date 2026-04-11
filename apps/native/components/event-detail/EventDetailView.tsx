@@ -1,3 +1,4 @@
+import { useMutation } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 import { Alert, FlatList, Linking, Platform, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -18,6 +19,7 @@ import { StickyBottomBar } from './StickyBottomBar';
 
 import { useGpsRegion } from '@/hooks/use-gps-region';
 import type { EventDetailData } from '@/types/event-detail';
+import { trpc } from '@/utils/trpc';
 
 interface EventDetailViewProps {
   event: EventDetailData;
@@ -41,9 +43,16 @@ export function EventDetailView({
     return distanceBetween(initialRegion.latitude, initialRegion.longitude, event.lat, event.lng);
   }, [initialRegion.latitude, initialRegion.longitude, event.lat, event.lng, locationSource]);
 
+  const { mutate: save } = useMutation(trpc.events.save.mutationOptions());
+  const { mutate: unsave } = useMutation(trpc.events.unsave.mutationOptions());
+
   const handleToggleSave = () => {
-    // TODO: Wire to real save/unsave mutation when backend is ready
-    setIsSaved((prev) => !prev);
+    setIsSaved((prev) => !prev); // optimistic update
+    if (isSaved) {
+      unsave({ id: event.id }, { onError: () => setIsSaved(true) });
+    } else {
+      save({ id: event.id }, { onError: () => setIsSaved(false) });
+    }
   };
 
   const handleRequestToPerform = () => {
@@ -73,7 +82,7 @@ export function EventDetailView({
   };
 
   const formattedDate = formatDetailDate(event.dateStart);
-  const formattedTime = formatDetailTime(event.dateStart, event.dateEnd);
+  const formattedTime = formatDetailTime(event.dateStart, event.dateEnd ?? undefined);
 
   return (
     <View className="flex-1 bg-surface-dark" style={{ paddingTop: insets.top }}>
@@ -85,7 +94,10 @@ export function EventDetailView({
         <EventDetailHeader onBack={onBack} isSaved={isSaved} onToggleSave={handleToggleSave} />
 
         {/* Hero Image */}
-        <EventHeroImage coverImageUrl={event.coverImageUrl} attendeeCount={event.attendeeCount} />
+        <EventHeroImage
+          coverImageUrl={event.coverImageUrl ?? undefined}
+          attendeeCount={event.attendeeCount}
+        />
 
         {/* Category badge overlapping image */}
         <CategoryBadge category={event.category} className="ml-4 -mt-6 z-10" />
@@ -160,7 +172,7 @@ export function EventDetailView({
           <LocationMapPreview
             lat={event.lat}
             lng={event.lng}
-            venueAddress={event.venueAddress}
+            venueAddress={event.venueAddress ?? undefined}
             distanceKm={distanceKm}
           />
         </View>
@@ -192,7 +204,7 @@ export function EventDetailView({
       {/* Sticky bottom bar */}
       <View style={{ paddingBottom: insets.bottom }}>
         <StickyBottomBar
-          ticketPrice={event.ticketPrice}
+          ticketPrice={event.ticketPrice ?? undefined}
           isArtist={isArtist}
           isGigOpportunity={event.isGigOpportunity}
           isSaved={isSaved}

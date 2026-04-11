@@ -3,7 +3,7 @@
 | Field          | Value                                                                                                                       |
 | -------------- | --------------------------------------------------------------------------------------------------------------------------- |
 | **Milestone**  | M4 — Event System                                                                                                           |
-| **Status**     | 🔲 To Do                                                                                                                    |
+| **Status**     | ✅ Complete                                                                                                                 |
 | **Depends on** | M4-T1 (events must exist), M3-T1 (map pins link to this screen), M3-T4 (feed cards link to this), M4-T4 (saved events view) |
 | **PRD Ref**    | Section 5.1 (End User Features), Section 6.1 (Artist Features), Section 9.3 (Event Data Model)                              |
 

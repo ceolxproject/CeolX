@@ -3,7 +3,7 @@
 | Field          | Value                                                                                                                       |
 | -------------- | --------------------------------------------------------------------------------------------------------------------------- |
 | **Milestone**  | M4 — Event System                                                                                                           |
-| **Status**     | 🔲 To Do                                                                                                                    |
+| **Status**     | ✅ Complete                                                                                                                 |
 | **Depends on** | M2-T4 (persona system), M1-T2 (events table + GIST index), M1-T3 (API scaffold), M10-T1 (S3 + CloudFront media)             |
 | **PRD Ref**    | Section 6.1 (Artist Features), Section 7.1 (Venue Features), Section 9.3 (Event Data Model), Section 9.4 (Event Moderation) |
 

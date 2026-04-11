@@ -7,15 +7,15 @@
 export interface EventDetailArtist {
   id: string;
   stageName: string;
-  genre?: string;
-  profileImageUrl?: string;
+  genre?: string | null;
+  profileImageUrl?: string | null;
   eventCount: number;
 }
 
 export interface EventDetailCreator {
   id: string;
   name: string;
-  imageUrl?: string;
+  imageUrl?: string | null;
   type: 'artist' | 'venue';
 }
 
@@ -24,8 +24,8 @@ export interface RelatedEvent {
   title: string;
   dateStart: string;
   category: string;
-  coverImageUrl?: string;
-  venueAddress?: string;
+  coverImageUrl?: string | null;
+  venueAddress?: string | null;
 }
 
 export interface EventDetailData {
@@ -33,19 +33,19 @@ export interface EventDetailData {
   title: string;
   description: string;
   dateStart: string;
-  dateEnd?: string;
+  dateEnd?: string | null;
   lat: number;
   lng: number;
-  venueAddress?: string;
+  venueAddress?: string | null;
   category: string;
-  coverImageUrl?: string;
-  ticketLink?: string;
-  ticketPrice?: number;
+  coverImageUrl?: string | null;
+  ticketLink?: string | null;
+  ticketPrice?: number | null;
   isGigOpportunity: boolean;
   status: string;
   creator: EventDetailCreator;
   collaborators: EventDetailArtist[];
-  collection?: { id: string; name: string };
+  collection?: { id: string; name: string } | null;
   isSaved: boolean;
   attendeeCount: number;
   relatedEvents: RelatedEvent[];

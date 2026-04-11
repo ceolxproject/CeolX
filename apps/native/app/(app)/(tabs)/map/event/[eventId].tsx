@@ -2,7 +2,6 @@ import { useQuery } from '@tanstack/react-query';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 
 import { EventDetailSkeleton, EventDetailView } from '@/components/event-detail';
-import { MOCK_EVENT_DETAIL } from '@/mocks/event-detail';
 import { trpc } from '@/utils/trpc';
 
 export default function MapEventDetailScreen() {
@@ -11,9 +10,9 @@ export default function MapEventDetailScreen() {
   const { data: me } = useQuery(trpc.users.me.queryOptions());
   const isArtist = me?.currentRole === 'artist';
 
-  // TODO: Replace mock data with real API call when events.byId is implemented
-  const event = { ...MOCK_EVENT_DETAIL, id: eventId ?? MOCK_EVENT_DETAIL.id };
-  const isLoading = false;
+  const { data: event, isLoading } = useQuery(
+    trpc.events.byId.queryOptions({ id: eventId ?? '' }, { enabled: !!eventId })
+  );
 
   if (isLoading || !event) {
     return <EventDetailSkeleton />;
