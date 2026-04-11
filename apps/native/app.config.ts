@@ -35,6 +35,11 @@ const config = {
       monochromeImage: './assets/images/android-icon-monochrome.png',
     },
     package: 'ie.ceolx.app',
+    config: {
+      googleMaps: {
+        apiKey: process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY ?? '',
+      },
+    },
     permissions: [
       'android.permission.ACCESS_FINE_LOCATION',
       'android.permission.CAMERA',
@@ -57,6 +62,12 @@ const config = {
     'expo-secure-store',
     'expo-notifications',
     'expo-apple-authentication',
+    [
+      'react-native-maps',
+      {
+        googleMapsApiKey: process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY ?? '',
+      },
+    ],
   ],
   experiments: {
     typedRoutes: true,

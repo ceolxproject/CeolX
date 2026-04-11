@@ -28,6 +28,10 @@ export const EVENTS_COLLECTION_SCHEMA: CollectionCreateSchema = {
     { name: 'cover_image', type: 'string', optional: true },
     { name: 'is_gig_opportunity', type: 'bool' },
     { name: 'status', type: 'string' },
+    { name: 'creator_id', type: 'string' },
+    { name: 'creator_name', type: 'string' },
+    { name: 'created_at', type: 'int64' },
+    { name: 'joined_count', type: 'int32' },
   ],
   default_sorting_field: 'date_start',
 };

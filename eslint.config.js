@@ -21,6 +21,7 @@ export default tseslint.config(
       '**/metro.config.js',
       '**/metro.config.cjs',
       '**/babel.config.js',
+      '**/index.js',
       'eslint.config.js',
       'commitlint.config.js',
     ],

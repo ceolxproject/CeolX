@@ -1,6 +1,11 @@
 {
   "version": 1,
   "skills": {
+    "agent-device": {
+      "source": "callstackincubator/agent-device",
+      "sourceType": "github",
+      "computedHash": "7207fe756743511136bb785efb28d9c1eaf167402c9f03569a27aa9860500a62"
+    },
     "better-auth-best-practices": {
       "source": "better-auth/skills",
       "sourceType": "github",
@@ -10,6 +15,11 @@
       "source": "expo/skills",
       "sourceType": "github",
       "computedHash": "342df93f481a0dba919f372d6c7b40d2b4bf5b51dd24363aea2e5d0bae27a6fa"
+    },
+    "dogfood": {
+      "source": "callstackincubator/agent-device",
+      "sourceType": "github",
+      "computedHash": "47e0ea18e07bbe14fc7547b3f79f9f4f1bd895e6d7cbb514055076d78c6ba9d0"
     },
     "expo-cicd-workflows": {
       "source": "expo/skills",

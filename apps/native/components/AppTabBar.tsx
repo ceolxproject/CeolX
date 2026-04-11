@@ -13,7 +13,7 @@ export const TAB_CONFIG: Array<{
 }> = [
   { name: 'map', label: 'Map', activeIcon: 'location', inactiveIcon: 'location-outline' },
   { name: 'discover', label: 'Discover', activeIcon: 'home', inactiveIcon: 'home-outline' },
-  { name: 'bookings', label: 'Bookings', activeIcon: 'mail', inactiveIcon: 'mail-outline' },
+  { name: 'bookings', label: 'Requests', activeIcon: 'mail', inactiveIcon: 'mail-outline' },
   { name: 'profile', label: 'Profile', activeIcon: 'person', inactiveIcon: 'person-outline' },
 ];
 
