@@ -5,7 +5,8 @@ export async function ensureEventsCollection(): Promise<void> {
     await typesenseClient.collections('events').retrieve();
     // Collection already exists — nothing to do
   } catch (err: unknown) {
-    if (err instanceof Error && err.message.includes('Not Found')) {
+    // Typesense throws ObjectNotFound (httpStatus 404) when collection doesn't exist
+    if (err && typeof err === 'object' && 'httpStatus' in err && err.httpStatus === 404) {
       await typesenseClient.collections().create(EVENTS_COLLECTION_SCHEMA);
     } else {
       throw err;

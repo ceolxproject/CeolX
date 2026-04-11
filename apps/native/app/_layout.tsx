@@ -1,4 +1,5 @@
 import '@/global.css';
+
 import { Inter_500Medium, Inter_600SemiBold } from '@expo-google-fonts/inter';
 import {
   Urbanist_400Regular,
@@ -15,6 +16,11 @@ import { Stack } from 'expo-router';
 import { HeroUINativeProvider } from 'heroui-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
+import { Uniwind } from 'uniwind';
+
+// CeolX is a dark-only app — force dark theme before any render so Tailwind dark
+// bg classes apply correctly regardless of the device system appearance setting.
+Uniwind.setTheme('dark');
 
 import { AppToastProvider } from '@/components/AppToast';
 import { FallbackComponent } from '@/components/sentry-fallback';

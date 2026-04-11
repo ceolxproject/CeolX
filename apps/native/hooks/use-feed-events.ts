@@ -1,7 +1,7 @@
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
-import type { EventCategory, FeedEvent } from '@CeolX/shared';
+import type { EventCategory, FeedEvent, FeedQueryInput } from '@CeolX/shared';
 import { MAP_DEBOUNCE_MS } from '@CeolX/shared';
 
 import { trpc } from '@/utils/trpc';
@@ -18,6 +18,7 @@ export function useFeedEvents({ lat, lng, enabled = true }: UseFeedEventsOpts) {
   const queryClient = useQueryClient();
 
   const [category, setCategory] = useState<EventCategory | undefined>();
+  const [dateRange, setDateRange] = useState<FeedQueryInput['dateRange']>(undefined);
   const [searchQuery, setSearchQuery] = useState('');
   const [offset, setOffset] = useState(0);
   const [accumulatedEvents, setAccumulatedEvents] = useState<FeedEvent[]>([]);
@@ -31,6 +32,7 @@ export function useFeedEvents({ lat, lng, enabled = true }: UseFeedEventsOpts) {
     limit: FEED_PAGE_SIZE,
     offset,
     category,
+    dateRange,
     query: searchQuery.trim() || undefined,
   };
 
@@ -41,26 +43,28 @@ export function useFeedEvents({ lat, lng, enabled = true }: UseFeedEventsOpts) {
     placeholderData: keepPreviousData,
   });
 
-  // Sync data into accumulated events when data changes
-  if (data && !isFetching) {
+  // Sync data into accumulated events when data arrives.
+  // Must be in useEffect — calling setState in the render body causes infinite re-renders.
+  useEffect(() => {
+    if (!data || isFetching) return;
     const newEvents = data.events as FeedEvent[];
-    if (offset === 0 && accumulatedEvents !== newEvents) {
-      // First page or refresh — replace
+    if (offset === 0) {
+      // First page or refresh — replace only if the content actually changed
       if (
         accumulatedEvents.length !== newEvents.length ||
-        (accumulatedEvents.length > 0 && accumulatedEvents[0]?.id !== newEvents[0]?.id)
+        (newEvents.length > 0 && accumulatedEvents[0]?.id !== newEvents[0]?.id)
       ) {
         setAccumulatedEvents(newEvents);
         setHasNextPage(data.hasNextPage);
         setTotalCount(data.totalCount);
       }
-    } else if (offset > 0 && accumulatedEvents.length < offset + newEvents.length) {
+    } else if (accumulatedEvents.length < offset + newEvents.length) {
       // Subsequent page — append
       setAccumulatedEvents((prev) => [...prev, ...newEvents]);
       setHasNextPage(data.hasNextPage);
       setTotalCount(data.totalCount);
     }
-  }
+  }, [data, isFetching]);
 
   const loadMore = useCallback(() => {
     if (hasNextPage && !isFetching) {
@@ -91,6 +95,12 @@ export function useFeedEvents({ lat, lng, enabled = true }: UseFeedEventsOpts) {
     setAccumulatedEvents([]);
   }, []);
 
+  const onDateRangeChange = useCallback((range: FeedQueryInput['dateRange']) => {
+    setDateRange(range);
+    setOffset(0);
+    setAccumulatedEvents([]);
+  }, []);
+
   return {
     events: accumulatedEvents,
     isLoading: isLoading && offset === 0,
@@ -102,6 +112,8 @@ export function useFeedEvents({ lat, lng, enabled = true }: UseFeedEventsOpts) {
     refresh,
     category,
     setCategory: onCategoryChange,
+    dateRange,
+    setDateRange: onDateRangeChange,
     searchQuery,
     onSearch,
   };

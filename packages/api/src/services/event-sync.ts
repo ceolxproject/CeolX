@@ -1,8 +1,9 @@
-import { and, eq, gte } from 'drizzle-orm';
+import { and, count, eq, gte } from 'drizzle-orm';
 
 import { db } from '@CeolX/db';
-import { events } from '@CeolX/db/schema/events';
+import { events, savedEvents } from '@CeolX/db/schema/events';
 import type { Event } from '@CeolX/db/schema/events';
+import { artistProfiles, venueProfiles } from '@CeolX/db/schema/users';
 
 import { typesenseClient } from '../lib/typesense';
 
@@ -10,7 +11,12 @@ import { typesenseClient } from '../lib/typesense';
 // Helpers
 // ---------------------------------------------------------------------------
 
-function toTypesenseDoc(event: Event) {
+type EnrichedEvent = Event & {
+  creatorName: string;
+  joinedCount: number;
+};
+
+function toTypesenseDoc(event: EnrichedEvent) {
   return {
     id: event.id,
     title: event.title,
@@ -22,6 +28,32 @@ function toTypesenseDoc(event: Event) {
     cover_image: event.coverImage ?? undefined,
     is_gig_opportunity: event.isGigOpportunity ?? false,
     status: event.status,
+    creator_id: event.createdBy,
+    creator_name: event.creatorName,
+    created_at: Math.floor(event.createdAt.getTime() / 1000),
+    joined_count: event.joinedCount,
+  };
+}
+
+async function enrichEvent(event: Event): Promise<EnrichedEvent> {
+  const [artistRow, venueRow, [joinedRow]] = await Promise.all([
+    db
+      .select({ stageName: artistProfiles.stageName })
+      .from(artistProfiles)
+      .where(eq(artistProfiles.userId, event.createdBy))
+      .limit(1),
+    db
+      .select({ venueName: venueProfiles.venueName })
+      .from(venueProfiles)
+      .where(eq(venueProfiles.userId, event.createdBy))
+      .limit(1),
+    db.select({ total: count() }).from(savedEvents).where(eq(savedEvents.eventId, event.id)),
+  ]);
+
+  return {
+    ...event,
+    creatorName: artistRow[0]?.stageName ?? venueRow[0]?.venueName ?? 'Unknown',
+    joinedCount: joinedRow?.total ?? 0,
   };
 }
 
@@ -30,7 +62,8 @@ function toTypesenseDoc(event: Event) {
 // Called on admin approval (status → active) or when an active event is updated.
 // ---------------------------------------------------------------------------
 export async function syncEventToTypesense(event: Event): Promise<void> {
-  const doc = toTypesenseDoc(event);
+  const enriched = await enrichEvent(event);
+  const doc = toTypesenseDoc(enriched);
   await typesenseClient.collections('events').documents().upsert(doc);
 }
 
@@ -51,19 +84,41 @@ export async function removeEventFromTypesense(eventId: string): Promise<void> {
 
 // ---------------------------------------------------------------------------
 // bulkSyncEventsToTypesense — fetch all active upcoming events from PostgreSQL
-// and bulk-import them to Typesense. Used for initial seed and recovery.
+// (with creator names and joined counts) and bulk-import to Typesense.
+// Used for initial seed and recovery.
 // ---------------------------------------------------------------------------
 export async function bulkSyncEventsToTypesense(): Promise<{ synced: number }> {
   const rows = await db
-    .select()
+    .select({
+      event: events,
+      artistStageName: artistProfiles.stageName,
+      venueName: venueProfiles.venueName,
+    })
     .from(events)
+    .leftJoin(artistProfiles, eq(artistProfiles.userId, events.createdBy))
+    .leftJoin(venueProfiles, eq(venueProfiles.userId, events.createdBy))
     .where(and(eq(events.status, 'active'), gte(events.dateStart, new Date())));
 
   if (rows.length === 0) {
     return { synced: 0 };
   }
 
-  const docs = rows.map(toTypesenseDoc);
+  // Fetch joined counts for all events in one query (no filter — we map by ID)
+  const joinedCounts = await db
+    .select({ eventId: savedEvents.eventId, total: count() })
+    .from(savedEvents)
+    .groupBy(savedEvents.eventId);
+
+  const joinedByEventId = new Map(joinedCounts.map((r) => [r.eventId, r.total]));
+
+  const docs = rows.map(({ event, artistStageName, venueName }) =>
+    toTypesenseDoc({
+      ...event,
+      creatorName: artistStageName ?? venueName ?? 'Unknown',
+      joinedCount: joinedByEventId.get(event.id) ?? 0,
+    })
+  );
+
   await typesenseClient.collections('events').documents().import(docs, { action: 'upsert' });
 
   return { synced: rows.length };

@@ -47,6 +47,7 @@ export const feedQuerySchema = z.object({
   offset: z.number().int().min(0).default(0),
   category: z.enum(EVENT_CATEGORIES).optional(),
   query: z.string().max(100).optional(),
+  dateRange: z.enum(['today', 'this_week', 'this_weekend', 'this_month']).optional(),
 });
 
 export type CreateEventInput = z.infer<typeof createEventSchema>;

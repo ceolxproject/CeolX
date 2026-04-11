@@ -3,39 +3,30 @@ import { cn } from 'heroui-native';
 import { Image, Pressable, Text, View } from 'react-native';
 
 import type { FeedEvent } from '@CeolX/shared';
-import { CATEGORY_ICONS, CATEGORY_LABELS, formatDistance } from '@CeolX/shared';
+import { CATEGORY_ICONS, CATEGORY_LABELS } from '@CeolX/shared';
 
 interface FeedEventCardProps {
   event: FeedEvent;
   onPress: () => void;
-  onSavePress: () => void;
   isArtist?: boolean;
   className?: string;
 }
 
-export function FeedEventCard({
-  event,
-  onPress,
-  onSavePress,
-  isArtist,
-  className,
-}: FeedEventCardProps) {
+export function FeedEventCard({ event, onPress, isArtist, className }: FeedEventCardProps) {
   const categoryLabel =
     CATEGORY_LABELS[event.category as keyof typeof CATEGORY_LABELS] ?? event.category;
   const categoryIcon = CATEGORY_ICONS[event.category as keyof typeof CATEGORY_ICONS] ?? '🎵';
   const formattedDate = formatEventDate(event.dateStart, event.dateEnd);
-  const distanceText =
-    event.distanceKm !== undefined ? formatDistance(event.distanceKm) : undefined;
 
   return (
     <Pressable
       onPress={onPress}
       className={cn(
-        'rounded-2xl border border-white/10 bg-white/5 overflow-hidden active:opacity-90',
+        'rounded-2xl border border-[rgba(141,141,141,0.4)] bg-[rgba(141,141,141,0.1)] overflow-hidden active:opacity-90',
         className
       )}
     >
-      {/* Cover image */}
+      {/* Cover image — real photos arrive in M10 (docs/project-management/M10-Media/M10-T1-Media-Upload-S3-Mux.md) */}
       <View className="h-[208px] relative">
         {event.coverImageUrl ? (
           <Image
@@ -107,29 +98,6 @@ export function FeedEventCard({
               {formattedDate}
             </Text>
           </View>
-        </View>
-
-        {/* Bottom row: distance + creator + save */}
-        <View className="flex-row items-center justify-between mt-3">
-          <View className="flex-row items-center gap-3">
-            {distanceText && (
-              <View className="flex-row items-center gap-1">
-                <Ionicons name="navigate-outline" size={12} color="rgba(255,255,255,0.4)" />
-                <Text className="text-xs text-white/40 font-urbanist">{distanceText} away</Text>
-              </View>
-            )}
-            <Text className="text-xs text-white/40 font-urbanist" numberOfLines={1}>
-              by {event.creatorName}
-            </Text>
-          </View>
-
-          <Pressable onPress={onSavePress} hitSlop={12}>
-            <Ionicons
-              name={event.isSaved ? 'heart' : 'heart-outline'}
-              size={22}
-              color={event.isSaved ? '#C8FF2F' : 'rgba(255,255,255,0.6)'}
-            />
-          </Pressable>
         </View>
       </View>
     </Pressable>
