@@ -1,20 +1,30 @@
-import { useLocalSearchParams } from 'expo-router';
-import { Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useQuery } from '@tanstack/react-query';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 
-export default function EventDetailScreen() {
+import { EventDetailSkeleton, EventDetailView } from '@/components/event-detail';
+import { MOCK_EVENT_DETAIL } from '@/mocks/event-detail';
+import { trpc } from '@/utils/trpc';
+
+export default function MapEventDetailScreen() {
   const { eventId } = useLocalSearchParams<{ eventId: string }>();
+  const router = useRouter();
+  const { data: me } = useQuery(trpc.users.me.queryOptions());
+  const isArtist = me?.currentRole === 'artist';
+
+  // TODO: Replace mock data with real API call when events.byId is implemented
+  const event = { ...MOCK_EVENT_DETAIL, id: eventId ?? MOCK_EVENT_DETAIL.id };
+  const isLoading = false;
+
+  if (isLoading || !event) {
+    return <EventDetailSkeleton />;
+  }
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#080808' }}>
-      <View className="p-4">
-        <Text className="text-xs font-medium text-gray-10 uppercase tracking-wide">Event ID</Text>
-        <Text className="text-base font-semibold text-white mb-4">{eventId}</Text>
-
-        <View className="rounded-lg bg-surface p-6 items-center">
-          <Text className="text-sm text-gray-10">Event detail goes here (M4-T2)</Text>
-        </View>
-      </View>
-    </SafeAreaView>
+    <EventDetailView
+      event={event}
+      isArtist={isArtist}
+      onBack={() => router.back()}
+      onNavigateToEvent={(id) => router.push(`/(app)/(tabs)/map/event/${id}`)}
+    />
   );
 }

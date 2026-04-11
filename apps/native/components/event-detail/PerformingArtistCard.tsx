@@ -1,0 +1,58 @@
+import { Ionicons } from '@expo/vector-icons';
+import { cn } from 'heroui-native';
+import { Image, Text, View } from 'react-native';
+
+import type { EventDetailArtist } from '@/types/event-detail';
+
+interface PerformingArtistCardProps {
+  artist: EventDetailArtist;
+  className?: string;
+}
+
+export function PerformingArtistCard({ artist, className }: PerformingArtistCardProps) {
+  return (
+    <View
+      className={cn(
+        'w-[138px] h-[177px] rounded-lg border border-[#3a3a3a] bg-[rgba(141,141,141,0.3)] overflow-hidden items-center',
+        className
+      )}
+    >
+      {/* Avatar */}
+      <View className="mt-4">
+        {artist.profileImageUrl ? (
+          <Image source={{ uri: artist.profileImageUrl }} className="w-16 h-16 rounded-full" />
+        ) : (
+          <View className="w-16 h-16 rounded-full bg-gray-10/50 items-center justify-center">
+            <Text className="text-2xl text-white font-sans">
+              {artist.stageName.charAt(0).toUpperCase()}
+            </Text>
+          </View>
+        )}
+      </View>
+
+      {/* Name */}
+      <Text
+        className="text-[15px] font-bold text-white font-sans text-center mt-2 px-2"
+        numberOfLines={1}
+      >
+        {artist.stageName}
+      </Text>
+
+      {/* Genre */}
+      {artist.genre && (
+        <Text
+          className="text-[11px] text-white font-sans text-center mt-0.5 px-2"
+          numberOfLines={1}
+        >
+          {artist.genre}
+        </Text>
+      )}
+
+      {/* Event count pill */}
+      <View className="flex-row items-center bg-white/20 rounded-full px-2 py-1 gap-0.5 mt-auto mb-3">
+        <Ionicons name="ticket-outline" size={12} color="#CED1D8" />
+        <Text className="text-[13px] text-[#CED1D8] font-sans">{artist.eventCount} events</Text>
+      </View>
+    </View>
+  );
+}
