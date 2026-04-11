@@ -9,6 +9,7 @@ export const EVENT_STATUSES = [
   'rejected',
   'active',
   'archived',
+  'removed',
 ] as const;
 export type EventStatus = (typeof EVENT_STATUSES)[number];
 

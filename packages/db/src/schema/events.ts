@@ -60,13 +60,17 @@ export const events = pgTable(
     venueAddress: text('venue_address'), // free-text fallback when no registered venue
     category: varchar('category', { length: 100 }).notNull(),
     ticketLink: text('ticket_link'), // external URL — not validated in DB
+    ticketPrice: integer('ticket_price'), // stored in cents (e.g. 49900 = €499.00)
     isGigOpportunity: boolean('is_gig_opportunity').default(false), // visible to Artists only when true
     collectionId: uuid('collection_id').references(() => collections.id, { onDelete: 'set null' }),
+    adTitle: varchar('ad_title', { length: 100 }),
+    adDescription: varchar('ad_description', { length: 50 }),
     createdBy: text('created_by')
       .notNull()
       .references(() => user.id, { onDelete: 'cascade' }),
-    status: eventStatusEnum('status').notNull().default('draft'),
-    rejectionReason: text('rejection_reason'), // populated only when status = 'rejected'
+    status: eventStatusEnum('status').notNull().default('active'),
+    rejectionReason: text('rejection_reason'), // legacy — kept for enum compat, not used in V1
+    removalReason: text('removal_reason'), // populated by admin on post-publication takedown
     viewCount: integer('view_count').default(0),
     createdAt: timestamp('created_at').notNull().defaultNow(),
     updatedAt: timestamp('updated_at').notNull().defaultNow(),
@@ -79,9 +83,9 @@ export const events = pgTable(
       .where(sql`${t.status} = 'active'`),
     index('events_status_date_idx').on(t.status, t.dateStart),
     index('events_created_by_idx').on(t.createdBy, t.status),
-    // Valid Irish coordinate ranges
-    check('lat_range_check', sql`${t.lat} BETWEEN 51 AND 55`),
-    check('lng_range_check', sql`${t.lng} BETWEEN -11 AND -5`),
+    // Valid global coordinate ranges
+    check('lat_range_check', sql`${t.lat} BETWEEN -90 AND 90`),
+    check('lng_range_check', sql`${t.lng} BETWEEN -180 AND 180`),
     check('date_range_check', sql`${t.dateEnd} IS NULL OR ${t.dateEnd} >= ${t.dateStart}`),
   ]
 );
@@ -103,6 +107,29 @@ export const savedEvents = pgTable(
     createdAt: timestamp('created_at').notNull().defaultNow(),
   },
   (t) => [uniqueIndex('saved_events_user_event_idx').on(t.userId, t.eventId)]
+);
+
+// ---------------------------------------------------------------------------
+// event_collaborators — artists collaborating on an event. Managed by the
+// event creator. Separate table (not array column) for relational queries
+// like "which artists are available on this date".
+// ---------------------------------------------------------------------------
+export const eventCollaborators = pgTable(
+  'event_collaborators',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    eventId: uuid('event_id')
+      .notNull()
+      .references(() => events.id, { onDelete: 'cascade' }),
+    artistProfileId: text('artist_profile_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex('event_collaborators_event_artist_idx').on(t.eventId, t.artistProfileId),
+    index('event_collaborators_event_idx').on(t.eventId),
+  ]
 );
 
 // ---------------------------------------------------------------------------
@@ -130,6 +157,7 @@ export const eventsRelations = relations(events, ({ one, many }) => ({
     references: [collections.id],
   }),
   savedBy: many(savedEvents),
+  collaborators: many(eventCollaborators),
 }));
 
 export const savedEventsRelations = relations(savedEvents, ({ one }) => ({
@@ -143,6 +171,17 @@ export const savedEventsRelations = relations(savedEvents, ({ one }) => ({
   }),
 }));
 
+export const eventCollaboratorsRelations = relations(eventCollaborators, ({ one }) => ({
+  event: one(events, {
+    fields: [eventCollaborators.eventId],
+    references: [events.id],
+  }),
+  artist: one(user, {
+    fields: [eventCollaborators.artistProfileId],
+    references: [user.id],
+  }),
+}));
+
 // ---------------------------------------------------------------------------
 // Inferred types
 // ---------------------------------------------------------------------------
@@ -152,3 +191,5 @@ export type Event = typeof events.$inferSelect;
 export type NewEvent = typeof events.$inferInsert;
 export type SavedEvent = typeof savedEvents.$inferSelect;
 export type NewSavedEvent = typeof savedEvents.$inferInsert;
+export type EventCollaborator = typeof eventCollaborators.$inferSelect;
+export type NewEventCollaborator = typeof eventCollaborators.$inferInsert;
