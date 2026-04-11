@@ -50,6 +50,8 @@ export default function AppLayout() {
   return (
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="(tabs)" />
+      <Stack.Screen name="events/create" options={{ presentation: 'modal' }} />
+      <Stack.Screen name="events/edit/[eventId]" options={{ presentation: 'modal' }} />
     </Stack>
   );
 }
