@@ -1,16 +1,21 @@
 import { Ionicons } from '@expo/vector-icons';
+import { useQuery } from '@tanstack/react-query';
 import { cn } from 'heroui-native';
 import { Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { trpc } from '@/utils/trpc';
+
 type IoniconsName = React.ComponentProps<typeof Ionicons>['name'];
 
-export const TAB_CONFIG: Array<{
+type TabConfig = {
   name: string;
   label: string;
   activeIcon: IoniconsName;
   inactiveIcon: IoniconsName;
-}> = [
+};
+
+export const TAB_CONFIG: TabConfig[] = [
   { name: 'map', label: 'Map', activeIcon: 'location', inactiveIcon: 'location-outline' },
   { name: 'discover', label: 'Discover', activeIcon: 'home', inactiveIcon: 'home-outline' },
   { name: 'bookings', label: 'Requests', activeIcon: 'mail', inactiveIcon: 'mail-outline' },
@@ -31,8 +36,17 @@ type AppTabBarProps = {
 
 export function AppTabBar({ state, navigation, onFabPress }: AppTabBarProps) {
   const insets = useSafeAreaInsets();
+  const { data: me } = useQuery(trpc.users.me.queryOptions());
+  const currentRole = me?.currentRole ?? 'spectator';
 
-  const renderTab = (tab: (typeof TAB_CONFIG)[number], actualIndex: number) => {
+  const getTabLabel = (tab: TabConfig) => {
+    if (tab.name === 'bookings') {
+      return currentRole === 'spectator' ? 'Bookings' : 'Requests';
+    }
+    return tab.label;
+  };
+
+  const renderTab = (tab: TabConfig, actualIndex: number) => {
     const isFocused = state.index === actualIndex;
     const route = state.routes[actualIndex];
 
@@ -62,7 +76,7 @@ export function AppTabBar({ state, navigation, onFabPress }: AppTabBarProps) {
           />
         </View>
         <Text className={cn('text-white text-[10px] mt-0.5', isFocused && 'font-semibold')}>
-          {tab.label}
+          {getTabLabel(tab)}
         </Text>
       </Pressable>
     );
