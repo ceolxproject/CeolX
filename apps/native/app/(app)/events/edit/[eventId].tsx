@@ -161,6 +161,9 @@ export default function EditEventScreen() {
             errors={form.errors}
             onContinue={form.goNext}
             onBack={form.goBack}
+            isVenue={isVenue}
+            myVenueAddress={me?.venueAddress}
+            isEditing
           />
         )}
 
@@ -179,6 +182,7 @@ export default function EditEventScreen() {
             onBack={form.goBack}
             isPending={form.isPending}
             isEditing
+            isVenue={isVenue}
           />
         )}
       </View>

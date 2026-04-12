@@ -36,6 +36,9 @@ export const usersRouter = router({
 
     // Determine whether onboarding is complete based on current role
     let onboardingComplete = true;
+    let venueAddress: string | null = null;
+    let venueProfileId: string | null = null;
+
     if (row.currentRole === 'artist') {
       const [profile] = await db
         .select({ id: artistProfiles.id })
@@ -45,14 +48,16 @@ export const usersRouter = router({
       onboardingComplete = !!profile;
     } else if (row.currentRole === 'venue') {
       const [profile] = await db
-        .select({ id: venueProfiles.id })
+        .select({ id: venueProfiles.id, address: venueProfiles.address })
         .from(venueProfiles)
         .where(eq(venueProfiles.userId, userId))
         .limit(1);
       onboardingComplete = !!profile;
+      venueAddress = profile?.address ?? null;
+      venueProfileId = profile?.id ?? null;
     }
 
-    return { ...row, onboardingComplete };
+    return { ...row, onboardingComplete, venueAddress, venueProfileId };
   }),
 
   /**

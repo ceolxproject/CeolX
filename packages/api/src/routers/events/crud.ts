@@ -134,11 +134,17 @@ export const byId = publicProcedure
       lng: parseFloat(event.lng),
       venueAddress: event.venueAddress ?? null,
       category: event.category,
+      coverImage: event.coverImage ?? null,
       coverImageUrl: event.coverImage ?? null,
       ticketLink: event.ticketLink ?? null,
       ticketPrice: event.ticketPrice ?? null,
       isGigOpportunity: event.isGigOpportunity ?? false,
+      adTitle: event.adTitle ?? null,
+      adDescription: event.adDescription ?? null,
+      venueId: event.venueId ?? null,
+      collectionId: event.collectionId ?? null,
       status: event.status,
+      removalReason: event.removalReason ?? null,
       creator: {
         id: event.createdBy,
         name:
@@ -182,6 +188,12 @@ export const create = creatorProcedure.input(createEventSchema).mutation(async (
   // artists can discover it and request to perform.
   const isVenue = ctx.session.user.currentRole === 'venue';
   const isGigOpportunity = isVenue && (!collaborators || collaborators.length === 0);
+
+  // Ad fields are venue-only — strip them for non-venue creators
+  if (!isVenue) {
+    eventData.adTitle = undefined;
+    eventData.adDescription = undefined;
+  }
 
   const event = await db.transaction(async (tx) => {
     const rows = await tx
@@ -253,6 +265,12 @@ export const update = protectedProcedure
     const { collaborators, ...updateData } = input.data;
     const isVenue = ctx.session.user.currentRole === 'venue';
 
+    // Ad fields are venue-only — strip them for non-venue creators
+    if (!isVenue) {
+      updateData.adTitle = undefined;
+      updateData.adDescription = undefined;
+    }
+
     const updated = await db.transaction(async (tx) => {
       // Build the update object — only set provided fields
       const setValues: Record<string, unknown> = { updatedAt: new Date() };
@@ -317,6 +335,39 @@ export const update = protectedProcedure
     } else {
       await removeEventFromTypesense(updated.id).catch(() => {});
     }
+
+    return updated;
+  });
+
+export const archive = protectedProcedure
+  .input(z.object({ id: z.string().uuid() }))
+  .mutation(async ({ input, ctx }) => {
+    const event = await db.query.events.findFirst({
+      where: eq(events.id, input.id),
+    });
+
+    if (!event) {
+      throw new TRPCError({ code: 'NOT_FOUND', message: 'Event not found' });
+    }
+
+    if (event.createdBy !== ctx.userId) {
+      throw new TRPCError({ code: 'FORBIDDEN', message: 'You can only archive your own events' });
+    }
+
+    if (event.status !== 'active') {
+      throw new TRPCError({
+        code: 'BAD_REQUEST',
+        message: 'Only active events can be archived',
+      });
+    }
+
+    const [updated] = await db
+      .update(events)
+      .set({ status: 'archived', updatedAt: new Date() })
+      .where(eq(events.id, input.id))
+      .returning();
+
+    await removeEventFromTypesense(input.id).catch(() => {});
 
     return updated;
   });

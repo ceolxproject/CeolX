@@ -15,6 +15,7 @@ type Props = {
   onBack: () => void;
   isPending: boolean;
   isEditing: boolean;
+  isVenue?: boolean;
 };
 
 const AD_DESC_MAX = 50;
@@ -33,6 +34,7 @@ export function TicketAdsStep({
   onBack,
   isPending,
   isEditing,
+  isVenue,
 }: Props) {
   return (
     <View className="gap-5">
@@ -80,54 +82,59 @@ export function TicketAdsStep({
         {errors.ticketLink && <Text className="text-xs text-error">{errors.ticketLink}</Text>}
       </View>
 
-      {/* ── Ad Title ── */}
-      <View className="gap-1.5">
-        <Text className="text-sm font-medium text-gray-3">Ad Title (optional)</Text>
-        <View
-          className={cn(
-            'rounded-lg border bg-surface px-3 py-2.5',
-            errors.adTitle ? 'border-error' : 'border-gray-8'
-          )}
-        >
-          <TextInput
-            className="text-sm text-white"
-            placeholder="Enter ad title"
-            placeholderTextColor="#8d8d8d"
-            value={adTitle}
-            onChangeText={onAdTitleChange}
-          />
-        </View>
-        <Text className="text-xs text-neutral-500">
-          Show special offers as pop-up notification to people within 5-15 km of your event.
-        </Text>
-        {errors.adTitle && <Text className="text-xs text-error">{errors.adTitle}</Text>}
-      </View>
+      {/* ── Ad Title & Description (venue only) ── */}
+      {isVenue && (
+        <>
+          <View className="gap-1.5">
+            <Text className="text-sm font-medium text-gray-3">Ad Title (optional)</Text>
+            <View
+              className={cn(
+                'rounded-lg border bg-surface px-3 py-2.5',
+                errors.adTitle ? 'border-error' : 'border-gray-8'
+              )}
+            >
+              <TextInput
+                className="text-sm text-white"
+                placeholder="Enter ad title"
+                placeholderTextColor="#8d8d8d"
+                value={adTitle}
+                onChangeText={onAdTitleChange}
+              />
+            </View>
+            <Text className="text-xs text-neutral-500">
+              Show special offers as pop-up notification to people within 5-15 km of your event.
+            </Text>
+            {errors.adTitle && <Text className="text-xs text-error">{errors.adTitle}</Text>}
+          </View>
 
-      {/* ── Ad Description ── */}
-      <View className="gap-1.5">
-        <Text className="text-sm font-medium text-gray-3">Ad Description (optional)</Text>
-        <View
-          className={cn(
-            'rounded-lg border bg-surface px-3 py-2.5',
-            errors.adDescription ? 'border-error' : 'border-gray-8'
-          )}
-        >
-          <TextInput
-            className="text-sm text-white"
-            placeholder="Describe your ad"
-            placeholderTextColor="#8d8d8d"
-            value={adDescription}
-            onChangeText={(text) => {
-              if (text.length <= AD_DESC_MAX) onAdDescriptionChange(text);
-            }}
-            multiline
-          />
-        </View>
-        <Text className="text-right text-xs text-neutral-500">
-          {adDescription.length}/{AD_DESC_MAX}
-        </Text>
-        {errors.adDescription && <Text className="text-xs text-error">{errors.adDescription}</Text>}
-      </View>
+          <View className="gap-1.5">
+            <Text className="text-sm font-medium text-gray-3">Ad Description (optional)</Text>
+            <View
+              className={cn(
+                'rounded-lg border bg-surface px-3 py-2.5',
+                errors.adDescription ? 'border-error' : 'border-gray-8'
+              )}
+            >
+              <TextInput
+                className="text-sm text-white"
+                placeholder="Describe your ad"
+                placeholderTextColor="#8d8d8d"
+                value={adDescription}
+                onChangeText={(text) => {
+                  if (text.length <= AD_DESC_MAX) onAdDescriptionChange(text);
+                }}
+                multiline
+              />
+            </View>
+            <Text className="text-right text-xs text-neutral-500">
+              {adDescription.length}/{AD_DESC_MAX}
+            </Text>
+            {errors.adDescription && (
+              <Text className="text-xs text-error">{errors.adDescription}</Text>
+            )}
+          </View>
+        </>
+      )}
 
       {/* ── Gig Opportunity & Collaborators deferred to M5/M6 ── */}
 
