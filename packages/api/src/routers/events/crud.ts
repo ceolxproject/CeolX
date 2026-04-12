@@ -1,5 +1,5 @@
 import { TRPCError } from '@trpc/server';
-import { and, eq, inArray, ne, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, ne, sql } from 'drizzle-orm';
 import { z } from 'zod';
 
 import { db } from '@CeolX/db';
@@ -8,7 +8,11 @@ import { bookings } from '@CeolX/db/schema/bookings';
 import { eventCollaborators, events, savedEvents } from '@CeolX/db/schema/events';
 import { notifications } from '@CeolX/db/schema/notifications';
 import { artistProfiles, venueProfiles } from '@CeolX/db/schema/users';
-import { createEventSchema, updateEventSchema } from '@CeolX/shared/validators';
+import {
+  createEventSchema,
+  myEventsQuerySchema,
+  updateEventSchema,
+} from '@CeolX/shared/validators';
 
 import { creatorProcedure, protectedProcedure, publicProcedure } from '../../index';
 import { syncEventToTypesense, removeEventFromTypesense } from '../../services/event-sync';
@@ -526,4 +530,54 @@ export const archive = protectedProcedure
     await removeEventFromTypesense(input.id).catch(() => {});
 
     return updated;
+  });
+
+// ─── My Events ───────────────────────────────────────────────────────────────
+
+export const getMyEvents = creatorProcedure
+  .input(myEventsQuerySchema)
+  .query(async ({ input, ctx }) => {
+    const { limit, offset } = input;
+
+    const [rows, countResult] = await Promise.all([
+      db
+        .select({
+          id: events.id,
+          title: events.title,
+          coverImage: events.coverImage,
+          dateStart: events.dateStart,
+          dateEnd: events.dateEnd,
+          category: events.category,
+          status: events.status,
+          rejectionReason: events.rejectionReason,
+          removalReason: events.removalReason,
+          venueAddress: events.venueAddress,
+          createdAt: events.createdAt,
+        })
+        .from(events)
+        .where(eq(events.createdBy, ctx.userId))
+        .orderBy(desc(events.createdAt))
+        .limit(limit)
+        .offset(offset),
+      db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(events)
+        .where(eq(events.createdBy, ctx.userId)),
+    ]);
+
+    const totalCount = countResult[0]?.count ?? 0;
+
+    return {
+      events: rows.map((e) => ({
+        ...e,
+        dateStart: e.dateStart.toISOString(),
+        dateEnd: e.dateEnd?.toISOString() ?? null,
+        coverImage: e.coverImage ?? null,
+        rejectionReason: e.rejectionReason ?? null,
+        removalReason: e.removalReason ?? null,
+        venueAddress: e.venueAddress ?? null,
+      })),
+      totalCount,
+      hasNextPage: offset + limit < totalCount,
+    };
   });
