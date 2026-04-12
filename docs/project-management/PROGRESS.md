@@ -63,7 +63,7 @@ Tracks completed tasks per milestone. Each entry links to its PR.
 - [ ] M4-T1 · Create & Edit Event
 - [ ] M4-T2 · Event Detail Screen
 - [ ] M4-T3 · Event Moderation Flow
-- [ ] M4-T4 · My Events & Collections
+- [x] M4-T4 · My Events & Collections
 
 ## M5 — Booking Flow (Artist ↔ Venue)
 
