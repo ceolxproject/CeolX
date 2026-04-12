@@ -65,6 +65,7 @@ export function useSaveEvent() {
     },
     onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: [['events', 'getFeed']] });
+      void queryClient.invalidateQueries({ queryKey: [['events', 'getSavedEvents']] });
     },
   });
 }
