@@ -37,11 +37,16 @@ export interface EventDetailData {
   lat: number;
   lng: number;
   venueAddress?: string | null;
+  venueId?: string | null;
   category: string;
+  coverImage?: string | null;
   coverImageUrl?: string | null;
   ticketLink?: string | null;
   ticketPrice?: number | null;
   isGigOpportunity: boolean;
+  collectionId?: string | null;
+  adTitle?: string | null;
+  adDescription?: string | null;
   status: string;
   removalReason?: string | null;
   creator: EventDetailCreator;

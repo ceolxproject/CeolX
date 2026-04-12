@@ -1,5 +1,5 @@
 import { cn } from 'heroui-native';
-import { ActivityIndicator, Pressable, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 
 type Props = {
   ticketPrice: string;
@@ -37,7 +37,12 @@ export function TicketAdsStep({
   isVenue,
 }: Props) {
   return (
-    <View className="gap-5">
+    <ScrollView
+      className="flex-1"
+      contentContainerClassName="px-5 pb-10 gap-5"
+      keyboardShouldPersistTaps="handled"
+      showsVerticalScrollIndicator={false}
+    >
       {/* ── Ticket Price ── */}
       <View className="gap-1.5">
         <Text className="text-sm font-medium text-gray-3">Ticket Price</Text>
@@ -165,6 +170,6 @@ export function TicketAdsStep({
           )}
         </Pressable>
       </View>
-    </View>
+    </ScrollView>
   );
 }

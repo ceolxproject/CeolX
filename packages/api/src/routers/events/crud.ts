@@ -153,7 +153,7 @@ export const byId = publicProcedure
           event.creator?.name ??
           'Unknown',
         imageUrl: event.creator?.image ?? null,
-        type: creatorArtistProfile ? 'artist' : 'venue',
+        type: creatorArtistProfile ? ('artist' as const) : ('venue' as const),
       },
       collaborators: event.collaborators.map((c) => {
         const profile = profileByUserId.get(c.artistProfileId);

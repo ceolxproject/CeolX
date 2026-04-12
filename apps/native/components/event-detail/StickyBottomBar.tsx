@@ -5,6 +5,7 @@ import { Pressable, Text, View } from 'react-native';
 interface StickyBottomBarProps {
   ticketPrice?: number;
   isArtist: boolean;
+  isOwner: boolean;
   isVenueEvent: boolean;
   isSaved: boolean;
   onToggleSave: () => void;
@@ -15,15 +16,16 @@ interface StickyBottomBarProps {
 export function StickyBottomBar({
   ticketPrice,
   isArtist,
+  isOwner,
   isVenueEvent,
   isSaved,
   onToggleSave,
   onRequestToPerform,
   className,
 }: StickyBottomBarProps) {
-  // Artists can request to perform on any venue event — whether or not it
-  // already has collaborators attached.
-  const showRequestToPerform = isArtist && isVenueEvent;
+  // Artists can request to perform on venue events they don't own.
+  // The isOwner guard is explicit — don't rely on creator.type inference alone.
+  const showRequestToPerform = isArtist && isVenueEvent && !isOwner;
 
   const priceLabel =
     ticketPrice !== undefined && ticketPrice !== null
