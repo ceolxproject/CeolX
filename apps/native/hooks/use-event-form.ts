@@ -1,4 +1,4 @@
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useState } from 'react';
 
 import type { EventCategory } from '@CeolX/shared';
@@ -118,6 +118,7 @@ function parseQuantity(value: string): number | undefined {
 
 export function useEventForm(options?: UseEventFormOptions) {
   const isEditing = !!options?.eventId;
+  const queryClient = useQueryClient();
 
   const init = defaults(options?.initialData);
 
@@ -290,6 +291,9 @@ export function useEventForm(options?: UseEventFormOptions) {
     } else {
       await createMutation.mutateAsync(parsed.data);
     }
+
+    // Invalidate cached event queries so detail/feed/map show updated data
+    void queryClient.invalidateQueries({ queryKey: [['events']] });
 
     options?.onSuccess?.();
   }, [
