@@ -1,9 +1,9 @@
 import { router } from '../../index';
 
-import { archive, byId, create, update } from './crud';
+import { archive, byId, create, getMyEvents, update } from './crud';
 import { getFeed } from './feed';
 import { getMap } from './map';
-import { getPresignedUrl, save, unsave } from './saved';
+import { getPresignedUrl, getSavedEvents, save, unsave } from './saved';
 
 export const eventsRouter = router({
   getMap,
@@ -14,5 +14,7 @@ export const eventsRouter = router({
   archive,
   save,
   unsave,
+  getMyEvents,
+  getSavedEvents,
   getPresignedUrl,
 });
