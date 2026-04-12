@@ -13,6 +13,7 @@ import { EventHeroImage } from './EventHeroImage';
 import { EventInfoRow } from './EventInfoRow';
 import { HostArtistInfoBox } from './HostArtistInfoBox';
 import { LocationMapPreview } from './LocationMapPreview';
+import { OwnerActionBar } from './OwnerActionBar';
 import { PerformingArtistCard } from './PerformingArtistCard';
 import { SectionDivider } from './SectionDivider';
 import { StickyBottomBar } from './StickyBottomBar';
@@ -24,15 +25,21 @@ import { trpc } from '@/utils/trpc';
 interface EventDetailViewProps {
   event: EventDetailData;
   isArtist: boolean;
+  isOwner: boolean;
   onBack: () => void;
   onNavigateToEvent: (eventId: string) => void;
+  onEdit: () => void;
+  onArchive: () => void;
 }
 
 export function EventDetailView({
   event,
   isArtist,
+  isOwner,
   onBack,
   onNavigateToEvent,
+  onEdit,
+  onArchive,
 }: EventDetailViewProps) {
   const insets = useSafeAreaInsets();
   const [isSaved, setIsSaved] = useState(event.isSaved);
@@ -101,6 +108,17 @@ export function EventDetailView({
 
         {/* Category badge overlapping image */}
         <CategoryBadge category={event.category} className="ml-4 -mt-6 z-10" />
+
+        {/* Removal reason banner — visible to owner when admin removed */}
+        {isOwner && event.status === 'removed' && event.removalReason && (
+          <View className="mx-4 mt-3 rounded-lg bg-red-900/30 px-4 py-3">
+            <Text className="mb-1 text-sm font-semibold text-red-400">
+              This event was removed by admin
+            </Text>
+            <Text className="text-sm text-red-300">{event.removalReason}</Text>
+            <Text className="mt-1 text-xs text-white/60">Edit and save to resubmit as active.</Text>
+          </View>
+        )}
 
         {/* Main content */}
         <View className="px-4">
@@ -201,16 +219,20 @@ export function EventDetailView({
         )}
       </ScrollView>
 
-      {/* Sticky bottom bar */}
+      {/* Sticky bottom bar — owner gets Edit/Archive, others get default */}
       <View style={{ paddingBottom: insets.bottom }}>
-        <StickyBottomBar
-          ticketPrice={event.ticketPrice ?? undefined}
-          isArtist={isArtist}
-          isVenueEvent={event.creator.type === 'venue'}
-          isSaved={isSaved}
-          onToggleSave={handleToggleSave}
-          onRequestToPerform={handleRequestToPerform}
-        />
+        {isOwner ? (
+          <OwnerActionBar eventStatus={event.status} onEdit={onEdit} onArchive={onArchive} />
+        ) : (
+          <StickyBottomBar
+            ticketPrice={event.ticketPrice ?? undefined}
+            isArtist={isArtist}
+            isVenueEvent={event.creator.type === 'venue'}
+            isSaved={isSaved}
+            onToggleSave={handleToggleSave}
+            onRequestToPerform={handleRequestToPerform}
+          />
+        )}
       </View>
     </View>
   );

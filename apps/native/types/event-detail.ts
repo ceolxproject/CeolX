@@ -43,6 +43,7 @@ export interface EventDetailData {
   ticketPrice?: number | null;
   isGigOpportunity: boolean;
   status: string;
+  removalReason?: string | null;
   creator: EventDetailCreator;
   collaborators: EventDetailArtist[];
   collection?: { id: string; name: string } | null;

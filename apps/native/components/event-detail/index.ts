@@ -7,6 +7,7 @@ export { EventHeroImage } from './EventHeroImage';
 export { EventInfoRow } from './EventInfoRow';
 export { HostArtistInfoBox } from './HostArtistInfoBox';
 export { LocationMapPreview } from './LocationMapPreview';
+export { OwnerActionBar } from './OwnerActionBar';
 export { PerformingArtistCard } from './PerformingArtistCard';
 export { SectionDivider } from './SectionDivider';
 export { StickyBottomBar } from './StickyBottomBar';
