@@ -459,10 +459,9 @@ export const bookingsRouter = router({
     return {
       artists: results.map((r) => ({
         id: r.id,
-        userId: r.userId,
         stageName: r.stageName,
         genre: r.genre,
-        image: imageMap.get(r.userId) ?? null,
+        profileImageUrl: imageMap.get(r.userId) ?? null,
       })),
     };
   }),
