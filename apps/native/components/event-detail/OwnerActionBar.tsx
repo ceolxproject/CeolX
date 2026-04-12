@@ -26,27 +26,15 @@ export function OwnerActionBar({ eventStatus, onEdit, onArchive, className }: Ow
   };
 
   return (
-    <View
-      className={cn('px-4 py-2.5 bg-black', className)}
-      style={{
-        shadowColor: 'rgba(239,239,244,0.25)',
-        shadowOffset: { width: 0, height: -2 },
-        shadowOpacity: 1,
-        shadowRadius: 12,
-        elevation: 12,
-      }}
-    >
-      <View className="flex-row items-center gap-2.5">
+    <View className={cn('px-4 py-2.5', className)}>
+      <View className="flex-row items-center gap-2">
         {/* Edit / Resubmit */}
         <Pressable
           onPress={onEdit}
-          className={cn(
-            'flex-row items-center justify-center rounded-full py-3 px-8 bg-green-10 active:opacity-90',
-            isRemoved ? 'flex-1' : 'flex-1'
-          )}
+          className="flex-1 flex-row items-center justify-center rounded-full h-11 bg-green-10 active:opacity-90"
         >
-          <Ionicons name="create-outline" size={18} color="#000" style={{ marginRight: 6 }} />
-          <Text className="text-base font-bold text-black tracking-wider uppercase font-sans">
+          <Ionicons name="create-outline" size={16} color="#000" style={{ marginRight: 6 }} />
+          <Text className="text-xs font-bold text-black tracking-widest uppercase font-urbanist">
             {isRemoved ? 'Edit & Resubmit' : 'Edit Event'}
           </Text>
         </Pressable>
@@ -55,10 +43,12 @@ export function OwnerActionBar({ eventStatus, onEdit, onArchive, className }: Ow
         {!isRemoved && (
           <Pressable
             onPress={handleArchive}
-            className="flex-row items-center justify-center rounded-full py-3 px-6 border border-red-400 active:opacity-80"
+            className="flex-1 flex-row items-center justify-center rounded-full h-11 border border-red-400 active:opacity-80"
           >
-            <Ionicons name="archive-outline" size={18} color="#f87171" style={{ marginRight: 6 }} />
-            <Text className="text-base font-bold text-red-400 font-sans">Archive</Text>
+            <Ionicons name="archive-outline" size={16} color="#f87171" style={{ marginRight: 6 }} />
+            <Text className="text-xs font-bold text-red-400 tracking-wider uppercase font-urbanist">
+              Archive
+            </Text>
           </Pressable>
         )}
       </View>

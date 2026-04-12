@@ -19,7 +19,7 @@ export function EventDetailHeader({
 }: EventDetailHeaderProps) {
   return (
     <View
-      className={cn('flex-row items-center justify-between px-5 py-3 bg-surface-dark', className)}
+      className={cn('flex-row items-center justify-between px-5 h-14 bg-background', className)}
     >
       <Pressable onPress={onBack} hitSlop={12} className="active:opacity-70">
         <Ionicons name="arrow-back" size={24} color="#fff" />

@@ -10,7 +10,7 @@ interface EventHeroImageProps {
 
 export function EventHeroImage({ coverImageUrl, attendeeCount, className }: EventHeroImageProps) {
   return (
-    <View className={cn('w-full aspect-[335/208] relative', className)}>
+    <View className={cn('w-full aspect-[375/208] relative', className)}>
       {coverImageUrl ? (
         <Image
           source={{ uri: coverImageUrl }}
@@ -18,15 +18,15 @@ export function EventHeroImage({ coverImageUrl, attendeeCount, className }: Even
           resizeMode="cover"
         />
       ) : (
-        <View className="absolute inset-0 w-full h-full bg-white/5 items-center justify-center">
-          <Text className="text-5xl">🎵</Text>
+        <View className="absolute inset-0 w-full h-full bg-surface items-center justify-center">
+          <Ionicons name="musical-notes" size={48} color="#3a3a3a" />
         </View>
       )}
 
       {attendeeCount > 0 && (
         <View className="absolute bottom-3 left-4 flex-row items-center bg-white rounded-full px-2 py-1 gap-1">
           <Ionicons name="people" size={10} color="#000" />
-          <Text className="text-[10px] font-semibold text-black font-sans">
+          <Text className="text-[10px] font-semibold text-black font-urbanist">
             {attendeeCount} people are attending
           </Text>
         </View>

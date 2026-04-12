@@ -92,10 +92,10 @@ export function EventDetailView({
   const formattedTime = formatDetailTime(event.dateStart, event.dateEnd ?? undefined);
 
   return (
-    <View className="flex-1 bg-surface-dark" style={{ paddingTop: insets.top }}>
+    <View className="flex-1 bg-background" style={{ paddingTop: insets.top }}>
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 80 + insets.bottom }}
+        contentContainerStyle={{ paddingBottom: 100 + insets.bottom }}
       >
         {/* Header */}
         <EventDetailHeader onBack={onBack} isSaved={isSaved} onToggleSave={handleToggleSave} />
@@ -112,18 +112,20 @@ export function EventDetailView({
         {/* Removal reason banner — visible to owner when admin removed */}
         {isOwner && event.status === 'removed' && event.removalReason && (
           <View className="mx-4 mt-3 rounded-lg bg-red-900/30 px-4 py-3">
-            <Text className="mb-1 text-sm font-semibold text-red-400">
+            <Text className="mb-1 text-sm font-semibold text-red-400 font-urbanist">
               This event was removed by admin
             </Text>
-            <Text className="text-sm text-red-300">{event.removalReason}</Text>
-            <Text className="mt-1 text-xs text-white/60">Edit and save to resubmit as active.</Text>
+            <Text className="text-sm text-red-300 font-urbanist">{event.removalReason}</Text>
+            <Text className="mt-1 text-xs text-white/60 font-urbanist">
+              Edit and save to resubmit as active.
+            </Text>
           </View>
         )}
 
         {/* Main content */}
-        <View className="px-4">
+        <View className="px-4 gap-7">
           {/* Title */}
-          <Text className="text-[28px] font-bold text-white font-sans mt-3 leading-8">
+          <Text className="text-[28px] font-bold text-white font-urbanist mt-3 leading-8">
             {event.title}
           </Text>
 
@@ -136,8 +138,8 @@ export function EventDetailView({
 
           {/* Ticket Price */}
           {event.ticketPrice !== undefined && event.ticketPrice !== null && (
-            <Text className="text-white font-sans mt-7">
-              <Text className="text-lg text-gray-10">Ticket Price: </Text>
+            <Text className="text-white font-urbanist">
+              <Text className="text-lg text-gray-7">Ticket Price: </Text>
               <Text className="text-xl font-bold">€{(event.ticketPrice / 100).toFixed(0)}</Text>
             </Text>
           )}
@@ -146,30 +148,31 @@ export function EventDetailView({
           <DescriptionSection description={event.description} />
 
           {/* Date / Time */}
-          <EventInfoRow
-            icon="calendar-outline"
-            title={formattedDate}
-            subtitle={formattedTime}
-            actionLabel="Add to calendar"
-            onAction={handleAddToCalendar}
-            className="mt-7"
-          />
+          <View className="gap-4">
+            <EventInfoRow
+              icon="calendar-outline"
+              title={formattedDate}
+              subtitle={formattedTime}
+              actionLabel="Add to calendar"
+              onAction={handleAddToCalendar}
+            />
 
-          {/* Location */}
-          <EventInfoRow
-            icon="location-outline"
-            title={event.venueAddress?.split(',')[0] ?? 'Venue TBC'}
-            subtitle={event.venueAddress ?? `${event.lat.toFixed(4)}, ${event.lng.toFixed(4)}`}
-            actionLabel="View map"
-            onAction={handleViewMap}
-          />
+            {/* Location */}
+            <EventInfoRow
+              icon="location-outline"
+              title={event.venueAddress?.split(',')[0] ?? 'Venue TBC'}
+              subtitle={event.venueAddress ?? `${event.lat.toFixed(4)}, ${event.lng.toFixed(4)}`}
+              actionLabel="View map"
+              onAction={handleViewMap}
+            />
+          </View>
         </View>
 
         {/* Performing Artists */}
         {event.collaborators.length > 0 && (
           <>
             <SectionDivider className="mx-4" />
-            <Text className="text-xl font-bold text-white font-sans px-4 mb-4">
+            <Text className="text-xl font-bold text-white font-urbanist px-4 mb-4">
               Performing Artist
             </Text>
             <FlatList
@@ -200,8 +203,10 @@ export function EventDetailView({
           <>
             <SectionDivider className="mx-4" />
             <View className="flex-row items-center justify-between px-4 mb-4">
-              <Text className="text-xl font-bold text-white font-sans">Explore the collection</Text>
-              <Text className="text-xs font-bold text-green-10 tracking-wider uppercase font-sans">
+              <Text className="text-xl font-bold text-white font-urbanist">
+                Explore the collection
+              </Text>
+              <Text className="text-xs font-bold text-green-10 tracking-wider uppercase font-urbanist">
                 see all
               </Text>
             </View>
@@ -219,8 +224,18 @@ export function EventDetailView({
         )}
       </ScrollView>
 
-      {/* Sticky bottom bar — owner gets Edit/Archive, others get default */}
-      <View style={{ paddingBottom: insets.bottom }}>
+      {/* Sticky bottom bar — pinned above safe area */}
+      <View
+        className="absolute bottom-0 left-0 right-0 bg-black"
+        style={{
+          paddingBottom: insets.bottom,
+          shadowColor: 'rgba(239,239,244,0.25)',
+          shadowOffset: { width: 0, height: -2 },
+          shadowOpacity: 1,
+          shadowRadius: 12,
+          elevation: 12,
+        }}
+      >
         {isOwner ? (
           <OwnerActionBar eventStatus={event.status} onEdit={onEdit} onArchive={onArchive} />
         ) : (
