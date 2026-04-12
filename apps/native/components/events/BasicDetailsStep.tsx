@@ -5,6 +5,9 @@ import { Image, Pressable, ScrollView, Text, TextInput, View } from 'react-nativ
 import type { EventCategory } from '@CeolX/shared';
 import { CATEGORY_LABELS } from '@CeolX/shared';
 
+import type { ExternalArtist, SelectedArtist } from './CollaboratorField';
+import { CollaboratorField } from './CollaboratorField';
+
 type Props = {
   title: string;
   onTitleChange: (v: string) => void;
@@ -17,6 +20,10 @@ type Props = {
   onCategoryPress: () => void;
   collectionId: string;
   onCollectionIdChange: (v: string) => void;
+  selectedArtists: SelectedArtist[];
+  onSelectedArtistsChange: (artists: SelectedArtist[]) => void;
+  externalArtists: ExternalArtist[];
+  onExternalArtistsChange: (artists: ExternalArtist[]) => void;
   errors: Record<string, string>;
   onContinue: () => void;
   isVenue: boolean;
@@ -36,6 +43,10 @@ export function BasicDetailsStep({
   onCategoryPress,
   collectionId: _collectionId,
   onCollectionIdChange: _onCollectionIdChange,
+  selectedArtists,
+  onSelectedArtistsChange,
+  externalArtists,
+  onExternalArtistsChange,
   errors,
   onContinue,
   isVenue,
@@ -172,23 +183,14 @@ export function BasicDetailsStep({
         </View>
       )}
 
-      {/* ── Collaborators (optional) — coming M5/M6 ── */}
-      <View className="gap-2">
-        <View className="flex-row items-center justify-between">
-          <Text className="text-sm font-semibold text-gray-3 font-urbanist">
-            Collaborators (optional)
-          </Text>
-          <View className="rounded-full bg-[#6C63FF]/20 px-2 py-0.5">
-            <Text className="text-[10px] font-bold text-[#6C63FF] font-urbanist tracking-wider">
-              M5/M6
-            </Text>
-          </View>
-        </View>
-        <View className="flex-row items-center justify-between rounded-lg border border-gray-8 bg-surface px-4 py-3 opacity-50">
-          <Text className="text-sm font-urbanist text-gray-7">Invite artists & collaborators</Text>
-          <Ionicons name="add" size={18} color="#8d8d8d" />
-        </View>
-      </View>
+      {/* ── Collaborators (optional) ── */}
+      <CollaboratorField
+        selectedArtists={selectedArtists}
+        onArtistsChange={onSelectedArtistsChange}
+        externalArtists={externalArtists}
+        onExternalArtistsChange={onExternalArtistsChange}
+        isVenue={isVenue}
+      />
 
       {/* ── Continue Button ── */}
       <Pressable

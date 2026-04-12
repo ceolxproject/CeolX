@@ -88,6 +88,10 @@ export default function CreateEventScreen() {
             onCategoryPress={() => setShowCategoryPicker(true)}
             collectionId={form.collectionId}
             onCollectionIdChange={form.setCollectionId}
+            selectedArtists={form.selectedArtists}
+            onSelectedArtistsChange={form.setSelectedArtists}
+            externalArtists={form.externalArtists}
+            onExternalArtistsChange={form.setExternalArtists}
             errors={form.errors}
             onContinue={form.goNext}
             isVenue={isVenue}

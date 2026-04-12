@@ -4,6 +4,7 @@ import { useCallback, useState } from 'react';
 import type { EventCategory } from '@CeolX/shared';
 import { createEventSchema } from '@CeolX/shared/validators';
 
+import type { ExternalArtist, SelectedArtist } from '@/components/events/CollaboratorField';
 import { trpc } from '@/utils/trpc';
 
 // ---------------------------------------------------------------------------
@@ -132,6 +133,17 @@ export function useEventForm(options?: UseEventFormOptions) {
   const [category, setCategory] = useState<EventCategory | ''>(init.category);
   const [collectionId, setCollectionId] = useState(init.collectionId);
   const [collaborators, setCollaborators] = useState<string[]>(init.collaborators);
+  const [selectedArtists, setSelectedArtistsState] = useState<SelectedArtist[]>([]);
+  const [externalArtists, setExternalArtists] = useState<ExternalArtist[]>([]);
+
+  // Keep collaborators (userId[]) in sync with selectedArtists
+  const setSelectedArtists = useCallback(
+    (artists: SelectedArtist[]) => {
+      setSelectedArtistsState(artists);
+      setCollaborators(artists.map((a) => a.userId));
+    },
+    [setCollaborators]
+  );
 
   // Step 2 — Date & Venue
   const [dateStart, setDateStart] = useState<Date | null>(init.dateStart);
@@ -343,6 +355,10 @@ export function useEventForm(options?: UseEventFormOptions) {
     setCollectionId,
     collaborators,
     setCollaborators,
+    selectedArtists,
+    setSelectedArtists,
+    externalArtists,
+    setExternalArtists,
 
     // Step 2 — Date & Venue
     dateStart,
