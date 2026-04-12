@@ -50,6 +50,13 @@
       "when": 1775925371617,
       "tag": "20260411163611_bent_phalanx",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1776192034000,
+      "tag": "20260413000034_extend_event_collaborators",
+      "breakpoints": true
     }
   ]
 }

@@ -105,8 +105,18 @@ export interface BookingSummary {
   status: BookingStatus;
   direction: BookingDirection;
   artistId: string;
+  artistName: string;
+  artistImage?: string;
   venueId: string;
-  eventId?: string;
+  venueName: string;
+  venueImage?: string;
+  eventId: string;
+  eventTitle: string;
+  eventCoverImage?: string;
+  eventCategory: string;
+  eventDateStart: string;
+  eventDateEnd?: string;
+  eventVenueAddress?: string;
   createdAt: string;
   updatedAt: string;
 }
