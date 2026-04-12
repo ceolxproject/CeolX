@@ -206,7 +206,7 @@ export function EventDetailView({
         <StickyBottomBar
           ticketPrice={event.ticketPrice ?? undefined}
           isArtist={isArtist}
-          isGigOpportunity={event.isGigOpportunity}
+          isVenueEvent={event.creator.type === 'venue'}
           isSaved={isSaved}
           onToggleSave={handleToggleSave}
           onRequestToPerform={handleRequestToPerform}

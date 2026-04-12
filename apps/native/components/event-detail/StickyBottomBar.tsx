@@ -5,7 +5,7 @@ import { Pressable, Text, View } from 'react-native';
 interface StickyBottomBarProps {
   ticketPrice?: number;
   isArtist: boolean;
-  isGigOpportunity: boolean;
+  isVenueEvent: boolean;
   isSaved: boolean;
   onToggleSave: () => void;
   onRequestToPerform: () => void;
@@ -15,13 +15,15 @@ interface StickyBottomBarProps {
 export function StickyBottomBar({
   ticketPrice,
   isArtist,
-  isGigOpportunity,
+  isVenueEvent,
   isSaved,
   onToggleSave,
   onRequestToPerform,
   className,
 }: StickyBottomBarProps) {
-  const showRequestToPerform = isArtist && isGigOpportunity;
+  // Artists can request to perform on any venue event — whether or not it
+  // already has collaborators attached.
+  const showRequestToPerform = isArtist && isVenueEvent;
 
   const priceLabel =
     ticketPrice !== undefined && ticketPrice !== null

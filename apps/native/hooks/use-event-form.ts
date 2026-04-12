@@ -35,7 +35,6 @@ export interface EventFormData {
   ticketQuantity: string;
   adTitle: string;
   adDescription: string;
-  isGigOpportunity: boolean;
 }
 
 type Step = 1 | 2 | 3;
@@ -76,7 +75,6 @@ function defaults(initial?: EventFormData): EventFormData {
     ticketQuantity: initial?.ticketQuantity ?? '',
     adTitle: initial?.adTitle ?? '',
     adDescription: initial?.adDescription ?? '',
-    isGigOpportunity: initial?.isGigOpportunity ?? false,
   };
 }
 
@@ -150,7 +148,6 @@ export function useEventForm(options?: UseEventFormOptions) {
   const [ticketQuantity, setTicketQuantity] = useState(init.ticketQuantity);
   const [adTitle, setAdTitle] = useState(init.adTitle);
   const [adDescription, setAdDescription] = useState(init.adDescription);
-  const [isGigOpportunity, setIsGigOpportunity] = useState(init.isGigOpportunity);
 
   // Validation errors (keyed by field path)
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -267,7 +264,6 @@ export function useEventForm(options?: UseEventFormOptions) {
       ticketLink: ticketLink.trim() || undefined,
       ticketPrice: priceToCents(ticketPrice),
       ticketQuantity: parseQuantity(ticketQuantity),
-      isGigOpportunity,
       collectionId: collectionId || undefined,
       collaborators: collaborators.length > 0 ? collaborators : undefined,
       adTitle: adTitle.trim() || undefined,
@@ -315,7 +311,6 @@ export function useEventForm(options?: UseEventFormOptions) {
     ticketLink,
     ticketPrice,
     ticketQuantity,
-    isGigOpportunity,
     collectionId,
     collaborators,
     adTitle,
@@ -374,8 +369,6 @@ export function useEventForm(options?: UseEventFormOptions) {
     setAdTitle,
     adDescription,
     setAdDescription,
-    isGigOpportunity,
-    setIsGigOpportunity,
 
     // Wizard state
     currentStep,

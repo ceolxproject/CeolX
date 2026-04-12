@@ -176,15 +176,12 @@ export const byId = publicProcedure
   });
 
 export const create = creatorProcedure.input(createEventSchema).mutation(async ({ input, ctx }) => {
-  // Only venues can create gig opportunities
-  if (input.isGigOpportunity && ctx.session.user.currentRole !== 'venue') {
-    throw new TRPCError({
-      code: 'FORBIDDEN',
-      message: 'Only venues can create gig opportunities',
-    });
-  }
-
   const { collaborators, ...eventData } = input;
+
+  // A venue event with no collaborators is automatically a gig opportunity —
+  // artists can discover it and request to perform.
+  const isVenue = ctx.session.user.currentRole === 'venue';
+  const isGigOpportunity = isVenue && (!collaborators || collaborators.length === 0);
 
   const event = await db.transaction(async (tx) => {
     const rows = await tx
@@ -202,7 +199,7 @@ export const create = creatorProcedure.input(createEventSchema).mutation(async (
         category: eventData.category,
         ticketLink: eventData.ticketLink ?? null,
         ticketPrice: eventData.ticketPrice ?? null,
-        isGigOpportunity: eventData.isGigOpportunity,
+        isGigOpportunity,
         collectionId: eventData.collectionId ?? null,
         adTitle: eventData.adTitle ?? null,
         adDescription: eventData.adDescription ?? null,
@@ -253,15 +250,8 @@ export const update = protectedProcedure
       throw new TRPCError({ code: 'FORBIDDEN', message: 'Cannot edit an archived event' });
     }
 
-    // Only venues can set gig opportunity flag
-    if (input.data.isGigOpportunity && ctx.session.user.currentRole !== 'venue') {
-      throw new TRPCError({
-        code: 'FORBIDDEN',
-        message: 'Only venues can create gig opportunities',
-      });
-    }
-
     const { collaborators, ...updateData } = input.data;
+    const isVenue = ctx.session.user.currentRole === 'venue';
 
     const updated = await db.transaction(async (tx) => {
       // Build the update object — only set provided fields
@@ -278,12 +268,17 @@ export const update = protectedProcedure
       if (updateData.category !== undefined) setValues.category = updateData.category;
       if (updateData.ticketLink !== undefined) setValues.ticketLink = updateData.ticketLink;
       if (updateData.ticketPrice !== undefined) setValues.ticketPrice = updateData.ticketPrice;
-      if (updateData.isGigOpportunity !== undefined)
-        setValues.isGigOpportunity = updateData.isGigOpportunity;
       if (updateData.collectionId !== undefined) setValues.collectionId = updateData.collectionId;
       if (updateData.adTitle !== undefined) setValues.adTitle = updateData.adTitle;
       if (updateData.adDescription !== undefined)
         setValues.adDescription = updateData.adDescription;
+
+      // Recompute isGigOpportunity when collaborators are explicitly updated:
+      // a venue event with no collaborators becomes a gig opportunity, and one
+      // with collaborators reverts to a normal event.
+      if (collaborators !== undefined) {
+        setValues.isGigOpportunity = isVenue && collaborators.length === 0;
+      }
 
       // If event was removed by admin and creator is resubmitting, re-activate
       if (event.status === 'removed') {
