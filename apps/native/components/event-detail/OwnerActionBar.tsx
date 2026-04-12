@@ -1,0 +1,57 @@
+import { Ionicons } from '@expo/vector-icons';
+import { cn } from 'heroui-native';
+import { Alert, Pressable, Text, View } from 'react-native';
+
+interface OwnerActionBarProps {
+  eventStatus: string;
+  onEdit: () => void;
+  onArchive: () => void;
+  className?: string;
+}
+
+export function OwnerActionBar({ eventStatus, onEdit, onArchive, className }: OwnerActionBarProps) {
+  if (eventStatus === 'archived') return null;
+
+  const isRemoved = eventStatus === 'removed';
+
+  const handleArchive = () => {
+    Alert.alert(
+      'Archive Event',
+      'This will remove the event from the map and feed. This action cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Archive', style: 'destructive', onPress: onArchive },
+      ]
+    );
+  };
+
+  return (
+    <View className={cn('px-4 py-2.5', className)}>
+      <View className="flex-row items-center gap-2">
+        {/* Edit / Resubmit */}
+        <Pressable
+          onPress={onEdit}
+          className="flex-1 flex-row items-center justify-center rounded-full h-11 bg-green-10 active:opacity-90"
+        >
+          <Ionicons name="create-outline" size={16} color="#000" style={{ marginRight: 6 }} />
+          <Text className="text-xs font-bold text-black tracking-widest uppercase font-urbanist">
+            {isRemoved ? 'Edit & Resubmit' : 'Edit Event'}
+          </Text>
+        </Pressable>
+
+        {/* Archive — only for active events */}
+        {!isRemoved && (
+          <Pressable
+            onPress={handleArchive}
+            className="flex-1 flex-row items-center justify-center rounded-full h-11 border border-red-400 active:opacity-80"
+          >
+            <Ionicons name="archive-outline" size={16} color="#f87171" style={{ marginRight: 6 }} />
+            <Text className="text-xs font-bold text-red-400 tracking-wider uppercase font-urbanist">
+              Archive
+            </Text>
+          </Pressable>
+        )}
+      </View>
+    </View>
+  );
+}

@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { cn } from 'heroui-native';
 import { Image, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 
+import type { EventCategory } from '@CeolX/shared';
 import { CATEGORY_LABELS } from '@CeolX/shared';
 
 type Props = {
@@ -11,11 +12,11 @@ type Props = {
   onDescriptionChange: (v: string) => void;
   coverImageUri: string | null;
   onPickImage: () => void;
-  category: string;
-  onCategoryChange: (v: string) => void;
+  category: EventCategory | '';
+  onCategoryChange: (v: EventCategory | '') => void;
   onCategoryPress: () => void;
-  collectionId: string | null;
-  onCollectionIdChange: (v: string | null) => void;
+  collectionId: string;
+  onCollectionIdChange: (v: string) => void;
   errors: Record<string, string>;
   onContinue: () => void;
   isVenue: boolean;

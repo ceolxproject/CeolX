@@ -3,12 +3,13 @@ import { cn } from 'heroui-native';
 import { useCallback, useMemo, useRef } from 'react';
 import { Pressable, Text } from 'react-native';
 
+import type { EventCategory } from '@CeolX/shared';
 import { EVENT_CATEGORIES } from '@CeolX/shared';
 
 type Props = {
   visible: boolean;
-  selected: string;
-  onSelect: (category: string) => void;
+  selected: EventCategory | '';
+  onSelect: (category: EventCategory | '') => void;
   onClose: () => void;
 };
 
@@ -17,7 +18,7 @@ export function CategoryPicker({ visible, selected, onSelect, onClose }: Props) 
   const snapPoints = useMemo(() => ['50%'], []);
 
   const handleSelect = useCallback(
-    (cat: string) => {
+    (cat: EventCategory) => {
       onSelect(cat);
       onClose();
     },

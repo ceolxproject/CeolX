@@ -5,6 +5,8 @@ import { useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import type { EventCategory } from '@CeolX/shared';
+
 import { AppTabBar, TAB_CONFIG } from '@/components/AppTabBar';
 import { BasicDetailsStep } from '@/components/events/BasicDetailsStep';
 import { CategoryPicker } from '@/components/events/CategoryPicker';
@@ -31,18 +33,21 @@ export default function EditEventScreen() {
       ? {
           title: event.title,
           description: event.description,
-          coverImageUri: event.coverImage,
-          category: event.category,
-          collectionId: event.collectionId,
+          coverImageUri: event.coverImage ?? null,
+          category: event.category as EventCategory,
+          collectionId: event.collectionId ?? '',
+          collaborators: event.collaborators.map((c) => c.id),
           dateStart: new Date(event.dateStart),
+          dateEnd: event.dateEnd ? new Date(event.dateEnd) : null,
           startTime: new Date(event.dateStart),
           endTime: event.dateEnd ? new Date(event.dateEnd) : null,
-          lat: event.lat ? parseFloat(event.lat) : null,
-          lng: event.lng ? parseFloat(event.lng) : null,
+          lat: event.lat,
+          lng: event.lng,
           venueAddress: event.venueAddress ?? '',
-          venueId: event.venueId ?? null,
+          venueId: event.venueId ?? '',
           ticketPrice: event.ticketPrice ? String(event.ticketPrice / 100) : '',
           ticketLink: event.ticketLink ?? '',
+          ticketQuantity: '',
           adTitle: event.adTitle ?? '',
           adDescription: event.adDescription ?? '',
         }
@@ -161,6 +166,9 @@ export default function EditEventScreen() {
             errors={form.errors}
             onContinue={form.goNext}
             onBack={form.goBack}
+            isVenue={isVenue}
+            myVenueAddress={me?.venueAddress}
+            isEditing
           />
         )}
 
@@ -179,6 +187,7 @@ export default function EditEventScreen() {
             onBack={form.goBack}
             isPending={form.isPending}
             isEditing
+            isVenue={isVenue}
           />
         )}
       </View>

@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { cn } from 'heroui-native';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -36,6 +36,11 @@ type Props = {
   errors: Record<string, string>;
   onContinue: () => void;
   onBack: () => void;
+  /** Registered venue address for "Use my venue" pre-fill (venue creators only) */
+  myVenueAddress?: string | null;
+  isVenue?: boolean;
+  /** When true, skip auto-pre-fill (user is editing an existing event with its own location) */
+  isEditing?: boolean;
 };
 
 function formatDate(date: Date): string {
@@ -74,6 +79,9 @@ export function DateVenueStep({
   errors,
   onContinue,
   onBack,
+  myVenueAddress,
+  isVenue,
+  isEditing,
 }: Props) {
   const mapRef = useRef<MapView>(null);
 
@@ -85,6 +93,7 @@ export function DateVenueStep({
   // Map venue search
   const [venueSearch, setVenueSearch] = useState('');
   const [isSearching, setIsSearching] = useState(false);
+  const [isPreFilling, setIsPreFilling] = useState(false);
 
   const reverseGeocode = async (latitude: number, longitude: number): Promise<string | null> => {
     try {
@@ -132,6 +141,41 @@ export function DateVenueStep({
     const resolved = await reverseGeocode(latitude, longitude);
     if (resolved) onVenueAddressChange(resolved);
   };
+
+  const handleUseMyVenue = async () => {
+    if (!myVenueAddress) return;
+    setIsPreFilling(true);
+    try {
+      const results = await Location.geocodeAsync(`${myVenueAddress}, Ireland`);
+      if (results.length > 0) {
+        const { latitude, longitude } = results[0];
+        onLocationChange(latitude, longitude);
+        onVenueAddressChange(myVenueAddress);
+        mapRef.current?.animateToRegion(
+          { latitude, longitude, latitudeDelta: 0.05, longitudeDelta: 0.05 },
+          400
+        );
+      } else {
+        // Geocoding failed — fall back to just setting the address text
+        onVenueAddressChange(myVenueAddress);
+        Alert.alert(
+          'Could not locate address',
+          "Your venue address was set but we couldn't find it on the map. You can adjust the pin manually."
+        );
+      }
+    } catch {
+      onVenueAddressChange(myVenueAddress);
+    } finally {
+      setIsPreFilling(false);
+    }
+  };
+
+  // Auto-pre-fill venue address on create (not edit) when venue has a registered address
+  useEffect(() => {
+    if (!isVenue || !myVenueAddress || isEditing || lat !== null) return;
+    void handleUseMyVenue();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [myVenueAddress]);
 
   return (
     <>
@@ -220,6 +264,26 @@ export function DateVenueStep({
             </Pressable>
           </View>
 
+          {isVenue && myVenueAddress && venueAddress !== myVenueAddress && (
+            <Pressable
+              className="flex-row items-center gap-2 rounded-lg border border-[#6C63FF]/40 bg-[#6C63FF]/10 px-3 py-2.5"
+              onPress={handleUseMyVenue}
+              disabled={isPreFilling}
+            >
+              <Ionicons name="business-outline" size={16} color="#6C63FF" />
+              {isPreFilling ? (
+                <ActivityIndicator size="small" color="#6C63FF" />
+              ) : (
+                <Text className="flex-1 text-sm text-[#6C63FF] font-urbanist">
+                  Reset to my venue
+                </Text>
+              )}
+              <Text className="shrink text-xs text-gray-7 font-urbanist" numberOfLines={1}>
+                {myVenueAddress}
+              </Text>
+            </Pressable>
+          )}
+
           {showManualAddress ? (
             <View className="gap-1">
               <View
@@ -252,7 +316,11 @@ export function DateVenueStep({
                 <Ionicons name="search-outline" size={16} color="#8d8d8d" />
                 <TextInput
                   className="flex-1 text-sm text-white font-urbanist"
-                  placeholder="Search city, county or venue name…"
+                  placeholder={
+                    isVenue
+                      ? 'Search city, county or venue name…'
+                      : 'Search for performance location…'
+                  }
                   placeholderTextColor="#8d8d8d"
                   value={venueSearch}
                   onChangeText={setVenueSearch}
@@ -303,7 +371,7 @@ export function DateVenueStep({
 
               <Text className="text-xs text-gray-7 font-urbanist">
                 {lat !== null && lng !== null
-                  ? `📍 ${lat.toFixed(5)}, ${lng.toFixed(5)}`
+                  ? `📍 ${venueAddress || `${lat.toFixed(5)}, ${lng.toFixed(5)}`}`
                   : 'Tap the map or search above to set a venue location'}
               </Text>
 

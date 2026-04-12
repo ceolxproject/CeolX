@@ -184,7 +184,6 @@ describe('createEventSchema', () => {
     lng: -6.2603,
     venueAddress: "O'Brien's Pub, Dublin",
     category: 'Traditional',
-    isGigOpportunity: false,
   };
 
   it('accepts valid event data', () => {
@@ -209,7 +208,6 @@ describe('createEventSchema', () => {
       description: valid.description,
       dateStart: valid.dateStart,
       category: valid.category,
-      isGigOpportunity: valid.isGigOpportunity,
     };
     expect(createEventSchema.safeParse(noLocation).success).toBe(false);
   });
