@@ -3,7 +3,7 @@
 | Field          | Value                                                                                                                       |
 | -------------- | --------------------------------------------------------------------------------------------------------------------------- |
 | **Milestone**  | M4 — Event System                                                                                                           |
-| **Status**     | 🔲 To Do                                                                                                                    |
+| **Status**     | ✅ Complete                                                                                                                 |
 | **Depends on** | M2-T4 (persona system), M1-T2 (events table + GIST index), M1-T3 (API scaffold), M10-T1 (S3 + CloudFront media)             |
 | **PRD Ref**    | Section 6.1 (Artist Features), Section 7.1 (Venue Features), Section 9.3 (Event Data Model), Section 9.4 (Event Moderation) |
 
@@ -11,7 +11,12 @@
 
 ## Description
 
-Artists and Venues (but not Spectators) can create new events and edit existing ones through the mobile app. Every new event automatically enters `pending_review` status and is invisible on the map/feed until the Super Admin approves it (see M4-T3). Creators can edit events in `draft`, `pending_review`, or `rejected` status — editing an `active` event is blocked (admin must reject it first to re-enter the submission flow). When a creator edits and resubmits a rejected event, the `rejection_reason` is cleared and the event re-enters `pending_review` for admin re-review. Event cover images are uploaded directly to AWS S3 via presigned URLs and served through CloudFront CDN. Location is captured via a tap-to-place mini-map (pin sets lat/lng) or free-text venue address fallback.
+Artists and Venues (but not Spectators) can create new events and edit existing ones through the mobile app. Every new event goes **live immediately** (`status = active`) — no admin pre-approval queue (post-moderation approach, MoM 3rd Apr 2026, Section 4). Creators can edit events in `draft` or `removed` status. Editing an `active` event is blocked. Event cover images are uploaded directly to AWS S3 via presigned URLs and served through CloudFront CDN. Location is captured via a tap-to-place mini-map (pin sets lat/lng) or free-text venue address fallback.
+
+Events support two types of collaborators:
+
+1. **Registered collaborators** — Artists already on the platform (linked profiles, clickable on Event Detail).
+2. **Unregistered collaborators** — Artists not yet on CeolX. Added by name + optional email. Displayed non-clickably on Event Detail. If email provided, a Postmark invitation email is sent encouraging them to join the platform.
 
 ---
 
@@ -28,7 +33,7 @@ Artists and Venues (but not Spectators) can create new events and edit existing 
 
 ### `events.create` (protectedProcedure · mutation)
 
-Create a new event. Sets `status = pending_review` automatically.
+Create a new event. Sets `status = active` immediately — events are live on creation.
 
 **Input:**
 
@@ -44,7 +49,11 @@ Create a new event. Sets `status = pending_review` automatically.
   venueAddress?: string,      // max 255 chars
   venueId?: string,           // FK to venues table
   category: string,           // required, from pre-seeded categories
-  collaborators?: string[],   // array of artist profile UUIDs, max 10
+  collaborators?: string[],   // registered artist profile UUIDs, max 10
+  unregisteredCollaborators?: Array<{
+    name: string,             // required, max 100 chars
+    email?: string,           // optional — triggers invite email via Postmark if provided
+  }>,                         // max 10 unregistered collaborators
   ticketLink?: string,        // external URL only
   isGigOpportunity?: boolean, // default false, venue-only
 }
@@ -58,7 +67,7 @@ Create a new event. Sets `status = pending_review` automatically.
 
 ### `events.update` (protectedProcedure · mutation)
 
-Edit an existing event. All fields optional (only provided fields updated). Editing resets `rejected` events back to `pending_review`.
+Edit an existing event. All fields optional (only provided fields updated). Editing resets `removed` events back to `active`.
 
 **Input:** `{ id: string, data: Partial<CreateEventInput> }`
 
@@ -118,14 +127,15 @@ await trpc.events.create.mutate({ ..., coverImage: cdnUrl });
 - `cover_image`: Optional, must be valid CloudFront CDN URL if provided
 - `is_gig_opportunity`: Optional boolean, default false, only settable by venue persona
 - `collection_id`: Optional, must be valid UUID and owned by the same venue if provided
-- `collaborators`: Optional array of artist profile UUIDs, max 10, must all be valid
+- `collaborators`: Optional array of registered artist profile UUIDs, max 10, must all be valid
+- `unregistered_collaborators`: Optional array of `{ name: string (max 100), email?: string (valid email) }`, max 10. Name required per entry. Email optional — if provided, invitation email sent via Postmark on event creation.
 
 ### Status Transitions
 
-- On create: `status = pending_review` automatically (never `active`)
-- On edit of rejected event + resubmit: `status = pending_review`, `rejection_reason = null`
-- Edit only allowed if `status IN ('draft', 'pending_review', 'rejected')` — editing `active` or `archived` events is blocked
-- Approval and archival are admin-only operations (M4-T3)
+- On create: `status = active` immediately — visible on map and feed right away (post-moderation, MoM 3rd Apr 2026)
+- On edit of `removed` event + resubmit: `status = active`, `removal_reason = null` — goes live again immediately
+- Edit only allowed if `status IN ('draft', 'removed')` — editing `active` or `archived` events is blocked
+- Admin can remove events post-publication (M4-T3)
 
 ### Cover Image Upload
 
@@ -152,11 +162,23 @@ await trpc.events.create.mutate({ ..., coverImage: cdnUrl });
 - Artist cannot create gig opportunities; error if attempted
 - Gig opportunities are visible to Artists on map/feed (they can apply, M5), hidden from Spectators
 
-### Collaborators
+### Collaborators (Registered)
 
-- Artist can invite other artists to collaborate on an event
+- Artist or Venue can tag registered artists as collaborators on an event
 - Collaborator list is read-only from the attendee perspective; only creator can edit
-- Collaborators appear on Event Detail screen with links to their profiles
+- Registered collaborators appear on Event Detail with clickable links to their profiles
+
+### Unregistered Collaborators
+
+- Venue or Artist can add artists not yet on CeolX by name + optional email
+- Stored as a JSONB array on the event: `[{ name, email? }]`
+- **Email invite flow**: if email provided at event creation, Postmark sends invitation email to the artist:
+  - Subject: _"[CreatorName] added you to an event on CeolX"_
+  - Body: event details (title, date, venue) + CTA button "Join CeolX to claim your profile"
+  - Deep link to sign-up with pre-filled email
+  - Invite sent once per unique email per event — no re-send on event edits
+- On Event Detail screen: unregistered collaborators shown by name only — **no profile link, no avatar** (non-clickable)
+- If an unregistered artist later signs up and their email matches, their profile is not auto-linked in V1 (manual link or V2 enhancement)
 
 ---
 
@@ -172,15 +194,18 @@ await trpc.events.create.mutate({ ..., coverImage: cdnUrl });
 - [ ] Pin coordinates captured as `lat` and `lng` (precise to 7 decimal places)
 - [ ] User can enter venue address as free-text fallback
 - [ ] Form submission calls POST /api/v1/events and validates response
-- [ ] On success, event created with `status = pending_review` (not visible on map/feed yet)
-- [ ] Creator receives confirmation: "Event submitted for review. You'll be notified when approved."
-- [ ] Edit Event screen accessible from My Events (M4-T4) for draft/pending/rejected events
-- [ ] Editing a rejected event clears the rejection reason on resubmission
-- [ ] Attempting to edit an active event shows error: "You cannot edit a live event. Contact support if needed."
+- [ ] On success, event created with `status = active` — immediately visible on map/feed
+- [ ] Creator receives confirmation: "Your event is now live!"
+- [ ] Edit Event screen accessible from My Events (M4-T4) for draft/removed events
+- [ ] Editing a removed event resets removal reason and goes live immediately on resubmit
+- [ ] Attempting to edit an active event shows error: "You cannot edit a live event."
 - [ ] Only the creator can edit their own event; other users receive 403 Forbidden
 - [ ] `is_gig_opportunity` checkbox only visible to Venue persona in form
 - [ ] Category dropdown pre-populated from backend categories list
-- [ ] Collaborators can be searched and added (optional multi-select)
+- [ ] Registered collaborators can be searched and added (multi-select from artist profiles)
+- [ ] Unregistered collaborators can be added by name + optional email (free-text entry)
+- [ ] Unregistered collaborator with email triggers Postmark invite email on event creation
+- [ ] Event Detail shows unregistered collaborators as plain text (non-clickable, no avatar)
 - [ ] Collection assignment available only for Venue persona (M4-T4)
 
 ---
@@ -284,6 +309,15 @@ const EventCreateSchema = z.object({
   is_gig_opportunity: z.boolean().optional().default(false),
   collection_id: z.string().uuid().optional(),
   collaborators: z.array(z.string().uuid()).max(10).optional(),
+  unregistered_collaborators: z
+    .array(
+      z.object({
+        name: z.string().min(1).max(100),
+        email: z.string().email().optional(),
+      })
+    )
+    .max(10)
+    .optional(),
 });
 
 app.post('/events', zValidator('json', EventCreateSchema), async (c) => {
@@ -332,14 +366,14 @@ app.post('/events', zValidator('json', EventCreateSchema), async (c) => {
       ticket_link: data.ticket_link || null,
       is_gig_opportunity: data.is_gig_opportunity || false,
       collection_id: data.collection_id || null,
-      status: 'pending_review',
-      rejection_reason: null,
+      status: 'active',
+      unregistered_collaborators: data.unregistered_collaborators || [],
       created_at: new Date(),
       updated_at: new Date(),
     })
     .returning();
 
-  // Add collaborators (optional)
+  // Add registered collaborators
   if (data.collaborators && data.collaborators.length > 0) {
     await db.insert(event_collaborators).values(
       data.collaborators.map((collab_id) => ({
@@ -347,6 +381,25 @@ app.post('/events', zValidator('json', EventCreateSchema), async (c) => {
         artist_id: collab_id,
       }))
     );
+  }
+
+  // Send invite emails to unregistered collaborators with emails
+  if (data.unregistered_collaborators) {
+    for (const collab of data.unregistered_collaborators) {
+      if (collab.email) {
+        await sendEmail({
+          to: collab.email,
+          templateAlias: 'artist-invite',
+          templateModel: {
+            artistName: collab.name,
+            creatorName: user.name,
+            eventTitle: data.title,
+            eventDate: data.date_start,
+            signUpLink: 'https://ceolx.ie/sign-up',
+          },
+        }).catch((err) => console.error(`Invite email failed for ${collab.email}:`, err));
+      }
+    }
   }
 
   setResponseStatus(c, 201);
@@ -375,8 +428,8 @@ app.put('/events/:id', zValidator('json', EventCreateSchema.partial()), async (c
     return c.json({ error: 'You can only edit your own events' }, 403);
   }
 
-  // Check status
-  if (!['draft', 'pending_review', 'rejected'].includes(event.status)) {
+  // Check status — only draft or removed events can be edited
+  if (!['draft', 'removed'].includes(event.status)) {
     return c.json({ error: `Cannot edit event with status ${event.status}` }, 403);
   }
 
@@ -394,8 +447,8 @@ app.put('/events/:id', zValidator('json', EventCreateSchema.partial()), async (c
       venue_address: data.venue_address !== undefined ? data.venue_address : event.venue_address,
       category: data.category !== undefined ? data.category : event.category,
       ticket_link: data.ticket_link !== undefined ? data.ticket_link : event.ticket_link,
-      status: event.status === 'rejected' ? 'pending_review' : event.status,
-      rejection_reason: event.status === 'rejected' ? null : event.rejection_reason,
+      status: event.status === 'removed' ? 'active' : event.status,
+      removal_reason: event.status === 'removed' ? null : event.removal_reason,
       updated_at: new Date(),
     })
     .where(eq(events.id, eventId))

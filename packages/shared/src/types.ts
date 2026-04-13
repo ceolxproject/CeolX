@@ -74,7 +74,6 @@ export interface EventSummary {
   venueAddress?: string;
   category: EventCategory;
   status: EventStatus;
-  isGigOpportunity: boolean;
   coverImageUrl?: string;
   ticketLink?: string;
   createdAt: string;
@@ -109,6 +108,35 @@ export interface BookingSummary {
   eventId?: string;
   createdAt: string;
   updatedAt: string;
+}
+
+// --- Feed types ---
+
+export interface FeedEvent {
+  id: string;
+  title: string;
+  dateStart: string; // ISO 8601
+  dateEnd?: string; // ISO 8601
+  lat: number;
+  lng: number;
+  venueAddress?: string;
+  category: EventCategory;
+  coverImageUrl?: string;
+  createdAt: string; // ISO 8601 — used for recency display
+  creatorName: string; // artist stageName or venue venueName
+  creatorId: string; // user ID of event creator
+  isFollowedCreator: boolean;
+  isSaved: boolean;
+  distanceKm?: number; // computed server-side from user location
+  joinedCount: number; // count of users who saved this event
+  score: number; // algorithmic ranking score (0-1)
+  collectionName?: string; // name of the collection this event belongs to, if any
+}
+
+export interface FeedResponse {
+  events: FeedEvent[];
+  hasNextPage: boolean;
+  totalCount: number;
 }
 
 // --- Notification payload shape ---

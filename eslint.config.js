@@ -19,7 +19,9 @@ export default tseslint.config(
       '**/*.d.ts',
       '**/*.gen.ts',
       '**/metro.config.js',
+      '**/metro.config.cjs',
       '**/babel.config.js',
+      '**/index.js',
       'eslint.config.js',
       'commitlint.config.js',
     ],
@@ -132,6 +134,31 @@ export default tseslint.config(
     rules: {
       '@typescript-eslint/no-explicit-any': 'off',
       'no-console': 'off',
+    },
+  },
+
+  // ── Seed scripts: relax unsafe rules ─────────────────────────────────────
+  // Drizzle's .returning() generics don't resolve fully through ESLint's
+  // type-checker. tsc --noEmit is clean; these are dev-only scripts.
+  {
+    files: ['**/seed.ts', '**/seed.*.ts'],
+    rules: {
+      '@typescript-eslint/no-unsafe-assignment': 'off',
+      '@typescript-eslint/no-unsafe-member-access': 'off',
+    },
+  },
+
+  // ── expo-image-picker wrapper ──────────────────────────────────────────────
+  // expo-image-picker uses moduleResolution:"bundler" (set by expo/tsconfig.base)
+  // which Metro resolves but ESLint's projectService cannot. The unsafe rules are
+  // scoped to this one wrapper; all callers receive explicit return types.
+  {
+    files: ['apps/native/utils/image-picker.ts'],
+    rules: {
+      '@typescript-eslint/no-unsafe-assignment': 'off',
+      '@typescript-eslint/no-unsafe-call': 'off',
+      '@typescript-eslint/no-unsafe-member-access': 'off',
+      '@typescript-eslint/no-unsafe-argument': 'off',
     },
   }
 );

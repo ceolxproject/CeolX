@@ -1,28 +1,19 @@
-import { Ionicons } from '@expo/vector-icons';
-import { Tabs } from 'expo-router';
+import { Tabs, useRouter } from 'expo-router';
 
-type IoniconsName = React.ComponentProps<typeof Ionicons>['name'];
-
-const TAB_ICON: Record<string, { active: IoniconsName; inactive: IoniconsName }> = {
-  map: { active: 'map', inactive: 'map-outline' },
-  discover: { active: 'compass', inactive: 'compass-outline' },
-  bookings: { active: 'calendar', inactive: 'calendar-outline' },
-  profile: { active: 'person', inactive: 'person-outline' },
-};
+import { AppTabBar } from '@/components/AppTabBar';
 
 export default function TabsLayout() {
+  const router = useRouter();
+
   return (
     <Tabs
-      screenOptions={({ route }) => ({
+      tabBar={(props) => <AppTabBar {...props} onFabPress={() => router.push('/events/create')} />}
+      screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: '#00a86b',
-        tabBarInactiveTintColor: 'gray',
-        tabBarIcon: ({ focused, color, size }) => {
-          const icons = TAB_ICON[route.name];
-          const name = icons ? (focused ? icons.active : icons.inactive) : 'ellipse-outline';
-          return <Ionicons name={name} size={size} color={color} />;
-        },
-      })}
+        // Force dark bg on every tab screen so the white React Navigation
+        // default doesn't bleed through while Tailwind classes are loading.
+        sceneStyle: { backgroundColor: '#080808' },
+      }}
     >
       <Tabs.Screen name="map" options={{ title: 'Map' }} />
       <Tabs.Screen name="discover" options={{ title: 'Discover' }} />

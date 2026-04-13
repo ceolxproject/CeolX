@@ -3,7 +3,7 @@
 | Field          | Value                                                     |
 | -------------- | --------------------------------------------------------- |
 | **Milestone**  | M1 — Project Setup & Infrastructure                       |
-| **Status**     | 🔲 To Do                                                  |
+| **Status**     | ✅ Done                                                   |
 | **Depends on** | M1-T1 (Turborepo monorepo must exist)                     |
 | **Blocks**     | M1.5 (Schema Design needs a working DB connection)        |
 | **PRD Ref**    | Section 10.1 (Tech Stack), Section 9.3 (Event Data Model) |

@@ -1,5 +1,8 @@
+import './instrumentation'; // Must be first — Sentry/OpenTelemetry instrumentations must register before application modules load
+
 import { serve } from '@hono/node-server';
 import { trpcServer } from '@hono/trpc-server';
+import * as Sentry from '@sentry/node';
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
@@ -12,6 +15,7 @@ import '@CeolX/env/server'; // validates required env vars at startup
 
 import { isAllowedOrigin } from './config/cors';
 import { errorHandler } from './middleware/errorHandler';
+import locationRoutes from './routes/location';
 import webhooksRoutes from './routes/webhooks';
 
 const app = new Hono();
@@ -56,8 +60,24 @@ app.use(
   trpcServer({
     router: appRouter,
     createContext: (_opts, context) => createContext({ context }),
+    onError: ({ error, path }) => {
+      if (error.code === 'INTERNAL_SERVER_ERROR') {
+        Sentry.captureException(error, {
+          extra: { trpcPath: path },
+        });
+        console.error('[tRPC Error]', {
+          path,
+          message: error.message,
+          stack: error.stack,
+        });
+      }
+    },
   })
 );
+
+// IP geolocation proxy — server-side lookup, no auth required
+app.use('/location/*', rateLimiter(RATE_LIMIT_TIERS.locationLookup));
+app.route('/location', locationRoutes);
 
 // Stripe webhook — raw body required, cannot go through tRPC (wired in M8-T2)
 app.route('/api/webhooks', webhooksRoutes);

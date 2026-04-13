@@ -7,6 +7,8 @@
 | **Depends on** | M5-T1 (Venue-initiated bookings), M5-T2 (Artist-initiated bookings) |
 | **PRD Ref**    | Section 9.4 (Booking Flow — full state machine)                     |
 
+> **Scope note (08/04/2026 — MoM 3rd Apr 2026, Section 2.1)**: Artist and Venue are **separate accounts** — persona switching between Artist and Venue is not supported. Bookings are always between two independent user accounts. No persona-based transition logic is required in the state machine.
+
 ---
 
 ## Description

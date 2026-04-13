@@ -3,7 +3,7 @@
 | Field          | Value                                                                                                                        |
 | -------------- | ---------------------------------------------------------------------------------------------------------------------------- |
 | **Milestone**  | M4 — Event System                                                                                                            |
-| **Status**     | 🔲 To Do                                                                                                                     |
+| **Status**     | ✅ Complete — PR [#36](https://github.com/Raft-Labs/CeolX/pull/36)                                                           |
 | **Depends on** | M4-T1 (events created), M4-T2 (event detail with save), M2-T4 (persona system), M10-T1 (S3 media)                            |
 | **PRD Ref**    | Section 5.1 (End User Features), Section 6.1 (Artist Features), Section 7.1 (Venue Features), Section 9.3 (Event Data Model) |
 

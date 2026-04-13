@@ -1,26 +1,47 @@
-import { useLocalSearchParams } from 'expo-router';
-import { StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { Alert } from 'react-native';
 
-import { layout, ph, typography } from '@/styles/shared';
+import { EventDetailSkeleton, EventDetailView } from '@/components/event-detail';
+import { trpc } from '@/utils/trpc';
 
 export default function EventDetailScreen() {
   const { eventId } = useLocalSearchParams<{ eventId: string }>();
+  const router = useRouter();
+  const queryClient = useQueryClient();
+
+  const { data: me } = useQuery(trpc.users.me.queryOptions());
+  const isArtist = me?.currentRole === 'artist';
+
+  const { data: event, isLoading } = useQuery(
+    trpc.events.byId.queryOptions({ id: eventId ?? '' }, { enabled: !!eventId })
+  );
+
+  const isOwner = !!(me?.id && event?.creator.id === me.id);
+
+  const { mutate: archiveEvent } = useMutation(
+    trpc.events.archive.mutationOptions({
+      onSuccess: () => {
+        void queryClient.invalidateQueries({ queryKey: [['events', 'byId']] });
+        Alert.alert('Archived', 'Your event has been archived.');
+        router.back();
+      },
+    })
+  );
+
+  if (isLoading || !event) {
+    return <EventDetailSkeleton />;
+  }
 
   return (
-    <SafeAreaView style={layout.container}>
-      <View style={layout.inner}>
-        <Text style={typography.metaLabel}>Event ID</Text>
-        <Text style={styles.id}>{eventId}</Text>
-
-        <View style={ph.box}>
-          <Text style={ph.text}>Event detail goes here (M4-T2)</Text>
-        </View>
-      </View>
-    </SafeAreaView>
+    <EventDetailView
+      event={event}
+      isArtist={isArtist}
+      isOwner={isOwner}
+      onBack={() => router.back()}
+      onNavigateToEvent={(id) => router.push(`/(app)/(tabs)/discover/event/${id}`)}
+      onEdit={() => router.push(`/(app)/events/edit/${event.id}`)}
+      onArchive={() => archiveEvent({ id: event.id })}
+    />
   );
 }
-
-const styles = StyleSheet.create({
-  id: { fontSize: 16, fontWeight: '600', marginBottom: 16 },
-});

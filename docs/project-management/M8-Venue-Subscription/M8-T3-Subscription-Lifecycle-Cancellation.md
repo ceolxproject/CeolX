@@ -5,9 +5,13 @@
 | **Milestone**  | M8 — Venue Subscription & Payments                                                     |
 | **Status**     | 🔲 To Do                                                                               |
 | **Depends on** | M8-T1 (Stripe checkout + initial webhook handler), M8-T2 (subscription status polling) |
-| **PRD Ref**    | Section 7.2 (Venue Subscription), Section 4.3 (Persona Switching)                      |
+| **PRD Ref**    | Section 7.2 (Venue Subscription)                                                       |
 
 ---
+
+> **Scope note (08/04/2026 — MoM 3rd Apr 2026, Section 2.1)**: Artist-Venue persona switching is **not supported** — separate accounts required. Persona switching lifecycle requirements have been removed from this task. Venue subscription is permanently tied to the Venue account.
+
+> **Scope note (08/04/2026 — MoM 3rd Apr 2026, Section 2.2)**: Artist subscription is also required (lower pricing tier). This task covers the Venue lifecycle only. A separate task (M8-T5) covers the Artist subscription lifecycle with the same pattern.
 
 ## Description
 
@@ -75,16 +79,6 @@ Extend the Stripe webhook handler to manage the full subscription lifecycle beyo
 - R3.3: Events created by Venue before cancellation are not deleted — they remain archived after event date passes
 - R3.4: Idempotent: if already `'cancelled'`, no duplicate emails
 
-### Persona Switching & Subscription Persistence
-
-- R4.1: When user switches away from Venue persona (to Spectator/Artist):
-  - `venue_profiles.is_active = false` (profile hidden)
-  - `subscription_status` **unchanged** — billing persists
-  - Venue can re-activate later without re-subscribing
-- R4.2: When user switches back to Venue persona:
-  - If `subscription_status = 'active'` → profile immediately visible
-  - If `subscription_status = 'past_due'` or `'cancelled'` → show pending/failed state (M8-T2, M8-T3 UI)
-
 ### Database State Sync
 
 - R5.1: `venue_profiles.subscription_status` enum: `'inactive' | 'active' | 'past_due' | 'cancelled'`
@@ -108,8 +102,6 @@ Extend the Stripe webhook handler to manage the full subscription lifecycle beyo
 - [ ] `invoice.payment_failed` webhook updates `subscription_status = 'past_due'`; sends failure email; hides profile
 - [ ] `customer.subscription.deleted` webhook updates `subscription_status = 'cancelled'`; sends cancellation email; hides profile
 - [ ] Venue profile hidden on map/search when `subscription_status = 'past_due'` or `'cancelled'`
-- [ ] Switching away from Venue doesn't cancel subscription; `subscription_status` persists
-- [ ] Switching back to Venue shows correct subscription state (active or failed)
 - [ ] All webhooks idempotent: processing same event twice doesn't create duplicates or re-send emails
 - [ ] Stripe signature validation rejects tampered payloads (returns 400)
 - [ ] Email/FCM failures don't fail webhook processing (logged separately)
