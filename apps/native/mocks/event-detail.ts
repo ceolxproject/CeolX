@@ -14,7 +14,7 @@ export const MOCK_EVENT_DETAIL: EventDetailData = {
   coverImageUrl: undefined,
   ticketLink: 'https://example.com/tickets/bodhran-buzz',
   ticketPrice: 99900,
-  isGigOpportunity: false,
+  unregisteredCollaborators: [],
   status: 'active',
   creator: {
     id: 'creator-1',

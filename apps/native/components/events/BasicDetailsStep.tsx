@@ -5,6 +5,9 @@ import { Image, Pressable, ScrollView, Text, TextInput, View } from 'react-nativ
 import type { EventCategory } from '@CeolX/shared';
 import { CATEGORY_LABELS } from '@CeolX/shared';
 
+import { CollaboratorPicker } from './CollaboratorPicker';
+import { InviteArtistPicker } from './InviteArtistPicker';
+
 type Props = {
   title: string;
   onTitleChange: (v: string) => void;
@@ -17,6 +20,12 @@ type Props = {
   onCategoryPress: () => void;
   collectionId: string;
   onCollectionIdChange: (v: string) => void;
+  collaborators: string[];
+  onCollaboratorsChange: (ids: string[]) => void;
+  platformInvites: string[];
+  onPlatformInvitesChange: (ids: string[]) => void;
+  unregisteredCollaborators: Array<{ name: string; email: string }>;
+  onUnregisteredCollaboratorsChange: (invites: Array<{ name: string; email: string }>) => void;
   errors: Record<string, string>;
   onContinue: () => void;
   isVenue: boolean;
@@ -36,6 +45,12 @@ export function BasicDetailsStep({
   onCategoryPress,
   collectionId: _collectionId,
   onCollectionIdChange: _onCollectionIdChange,
+  collaborators,
+  onCollaboratorsChange,
+  platformInvites,
+  onPlatformInvitesChange,
+  unregisteredCollaborators,
+  onUnregisteredCollaboratorsChange,
   errors,
   onContinue,
   isVenue,
@@ -172,23 +187,21 @@ export function BasicDetailsStep({
         </View>
       )}
 
-      {/* ── Collaborators (optional) — coming M5/M6 ── */}
-      <View className="gap-2">
-        <View className="flex-row items-center justify-between">
-          <Text className="text-sm font-semibold text-gray-3 font-urbanist">
-            Collaborators (optional)
-          </Text>
-          <View className="rounded-full bg-[#6C63FF]/20 px-2 py-0.5">
-            <Text className="text-[10px] font-bold text-[#6C63FF] font-urbanist tracking-wider">
-              M5/M6
-            </Text>
-          </View>
-        </View>
-        <View className="flex-row items-center justify-between rounded-lg border border-gray-8 bg-surface px-4 py-3 opacity-50">
-          <Text className="text-sm font-urbanist text-gray-7">Invite artists & collaborators</Text>
-          <Ionicons name="add" size={18} color="#8d8d8d" />
-        </View>
-      </View>
+      {/* ── Collaborators ── */}
+      <CollaboratorPicker
+        collaborators={collaborators}
+        onCollaboratorsChange={onCollaboratorsChange}
+        isRequired={isVenue}
+        error={errors.collaborators}
+      />
+
+      {/* ── Invite Artists ── */}
+      <InviteArtistPicker
+        platformInvites={platformInvites}
+        onPlatformInvitesChange={onPlatformInvitesChange}
+        unregisteredInvites={unregisteredCollaborators}
+        onUnregisteredInvitesChange={onUnregisteredCollaboratorsChange}
+      />
 
       {/* ── Continue Button ── */}
       <Pressable

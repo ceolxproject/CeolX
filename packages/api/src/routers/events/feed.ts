@@ -15,10 +15,8 @@ import { buildDateFilter } from './helpers';
 export const getFeed = publicProcedure.input(feedQuerySchema).query(async ({ input, ctx }) => {
   const { lat, lng, limit, offset, category, query, dateRange } = input;
   const userId = ctx.session?.user?.id ?? null;
-  const isArtist = ctx.session?.user?.currentRole === 'artist';
   const nowUnix = Math.floor(Date.now() / 1000);
 
-  const gigFilter = isArtist ? '' : ' && is_gig_opportunity:=false';
   const categoryFilter = category ? ` && category:=${category}` : '';
   const searchQuery = query?.trim() || '*';
   const dateFilter = buildDateFilter(dateRange, nowUnix);
@@ -33,11 +31,7 @@ export const getFeed = publicProcedure.input(feedQuerySchema).query(async ({ inp
           query_by: 'title,category,venue_address',
           // 100 km radius matches MAX_DISTANCE_KM in feed-ranking.ts
           filter_by:
-            `location:(${lat},${lng},100 km)` +
-            ` && status:=active` +
-            dateFilter +
-            gigFilter +
-            categoryFilter,
+            `location:(${lat},${lng},100 km)` + ` && status:=active` + dateFilter + categoryFilter,
           sort_by:
             searchQuery === '*'
               ? `location(${lat},${lng}):asc`
@@ -77,7 +71,6 @@ export const getFeed = publicProcedure.input(feedQuerySchema).query(async ({ inp
           : undefined,
         venueAddress: (doc['venue_address'] as string) || null,
         coverImageUrl: (doc['cover_image'] as string) || null,
-        isGigOpportunity: (doc['is_gig_opportunity'] as boolean) ?? false,
         createdAt: new Date((doc['created_at'] as number) * 1000).toISOString(),
         creatorId: doc['creator_id'] as string,
         creatorName: (doc['creator_name'] as string) || 'Unknown',

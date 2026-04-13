@@ -26,7 +26,6 @@ export const EVENTS_COLLECTION_SCHEMA: CollectionCreateSchema = {
     { name: 'date_end', type: 'int64', optional: true },
     { name: 'venue_address', type: 'string', optional: true },
     { name: 'cover_image', type: 'string', optional: true },
-    { name: 'is_gig_opportunity', type: 'bool' },
     { name: 'status', type: 'string' },
     { name: 'creator_id', type: 'string' },
     { name: 'creator_name', type: 'string' },

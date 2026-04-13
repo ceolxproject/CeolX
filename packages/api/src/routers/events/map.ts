@@ -5,14 +5,12 @@ import { typesenseClient } from '../../lib/typesense';
 
 import { buildDateFilter, MapQueryInput } from './helpers';
 
-export const getMap = publicProcedure.input(MapQueryInput).query(async ({ input, ctx }) => {
+export const getMap = publicProcedure.input(MapQueryInput).query(async ({ input }) => {
   const { swLat, swLng, neLat, neLng, query, limit, category, county, dateRange } = input;
   const centerLat = (swLat + neLat) / 2;
   const centerLng = (swLng + neLng) / 2;
   const nowUnix = Math.floor(Date.now() / 1000);
 
-  const isArtist = ctx.session?.user?.currentRole === 'artist';
-  const gigFilter = isArtist ? '' : ' && is_gig_opportunity:=false';
   const categoryFilter = category ? ` && category:=${category}` : '';
   const countyFilter = county ? ` && venue_address:${county}` : '';
   const dateFilter = buildDateFilter(dateRange, nowUnix);
@@ -29,7 +27,6 @@ export const getMap = publicProcedure.input(MapQueryInput).query(async ({ input,
           `location:(${swLat},${swLng},${swLat},${neLng},${neLat},${neLng},${neLat},${swLng})` +
           dateFilter +
           ` && status:=active` +
-          gigFilter +
           categoryFilter +
           countyFilter,
         sort_by:
@@ -54,7 +51,6 @@ export const getMap = publicProcedure.input(MapQueryInput).query(async ({ input,
           : undefined,
         venueAddress: (doc['venue_address'] as string) || undefined,
         coverImageUrl: (doc['cover_image'] as string) || undefined,
-        isGigOpportunity: (doc['is_gig_opportunity'] as boolean) ?? false,
         distanceMeters: hit.geo_distance_meters?.location,
       };
     });

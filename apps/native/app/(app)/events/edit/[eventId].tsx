@@ -37,6 +37,11 @@ export default function EditEventScreen() {
           category: event.category as EventCategory,
           collectionId: event.collectionId ?? '',
           collaborators: event.collaborators.map((c) => c.id),
+          platformInvites: [],
+          unregisteredCollaborators: (event.unregisteredCollaborators ?? []) as Array<{
+            name: string;
+            email: string;
+          }>,
           dateStart: new Date(event.dateStart),
           dateEnd: event.dateEnd ? new Date(event.dateEnd) : null,
           startTime: new Date(event.dateStart),
@@ -57,6 +62,7 @@ export default function EditEventScreen() {
         { text: 'Done', onPress: () => router.back() },
       ]);
     },
+    isVenue,
   });
 
   const handleBackPress = () => {
@@ -139,6 +145,18 @@ export default function EditEventScreen() {
             onCategoryPress={() => setShowCategoryPicker(true)}
             collectionId={form.collectionId}
             onCollectionIdChange={form.setCollectionId}
+            collaborators={form.collaborators}
+            onCollaboratorsChange={form.setCollaborators}
+            platformInvites={form.platformInvites}
+            onPlatformInvitesChange={form.setPlatformInvites as (ids: string[]) => void}
+            unregisteredCollaborators={
+              form.unregisteredCollaborators as Array<{ name: string; email: string }>
+            }
+            onUnregisteredCollaboratorsChange={
+              form.setUnregisteredCollaborators as (
+                invites: Array<{ name: string; email: string }>
+              ) => void
+            }
             errors={form.errors}
             onContinue={form.goNext}
             isVenue={isVenue}

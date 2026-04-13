@@ -12,7 +12,6 @@ vi.mock('@CeolX/db/schema/events', () => ({
     status: 'status',
     dateStart: 'date_start',
     category: 'category',
-    isGigOpportunity: 'is_gig_opportunity',
     lat: 'lat',
     lng: 'lng',
     venueAddress: 'venue_address',
@@ -150,7 +149,6 @@ const MOCK_HIT = {
     date_start: 1750000000,
     venue_address: 'The Crane Bar, Galway',
     cover_image: null,
-    is_gig_opportunity: false,
   },
   geo_distance_meters: { location: 1200 },
 };
@@ -279,37 +277,33 @@ describe('events.getMap', () => {
     expect(filterBy).toContain('status:=active');
   });
 
-  it('hides gig opportunity events from anonymous callers', async () => {
-    const gigHit = {
-      ...MOCK_HIT,
-      document: { ...MOCK_HIT.document, is_gig_opportunity: true },
-    };
-    mockSearch.mockResolvedValueOnce({ hits: [gigHit], found: 1 });
+  it('does not filter by is_gig_opportunity for anonymous callers (deprecated)', async () => {
+    mockSearch.mockResolvedValueOnce({ hits: [], found: 0 });
 
     const caller = anonCaller();
     await caller.events.getMap(DEFAULT_INPUT);
 
     const filterBy = getFirstCallArg()['filter_by'] as string;
-    expect(filterBy).toContain('is_gig_opportunity:=false');
+    expect(filterBy).not.toContain('is_gig_opportunity');
   });
 
-  it('does not hide gig opportunity events from artist callers', async () => {
+  it('does not filter by is_gig_opportunity for artist callers (deprecated)', async () => {
     mockSearch.mockResolvedValueOnce({ hits: [], found: 0 });
 
     const caller = artistCaller();
     await caller.events.getMap(DEFAULT_INPUT);
 
     const filterBy = getFirstCallArg()['filter_by'] as string;
-    expect(filterBy).not.toContain('is_gig_opportunity:=false');
+    expect(filterBy).not.toContain('is_gig_opportunity');
   });
 
-  it('hides gig opportunity events from spectator callers', async () => {
+  it('does not filter by is_gig_opportunity for spectator callers (deprecated)', async () => {
     mockSearch.mockResolvedValueOnce({ hits: [], found: 0 });
 
     const caller = spectatorCaller();
     await caller.events.getMap(DEFAULT_INPUT);
 
     const filterBy = getFirstCallArg()['filter_by'] as string;
-    expect(filterBy).toContain('is_gig_opportunity:=false');
+    expect(filterBy).not.toContain('is_gig_opportunity');
   });
 });

@@ -28,6 +28,7 @@ export default function CreateEventScreen() {
         { text: 'Done', onPress: () => router.replace('/(app)/(tabs)/discover') },
       ]);
     },
+    isVenue,
   });
 
   const handleBackPress = () => {
@@ -88,6 +89,12 @@ export default function CreateEventScreen() {
             onCategoryPress={() => setShowCategoryPicker(true)}
             collectionId={form.collectionId}
             onCollectionIdChange={form.setCollectionId}
+            collaborators={form.collaborators}
+            onCollaboratorsChange={form.setCollaborators}
+            platformInvites={form.platformInvites}
+            onPlatformInvitesChange={form.setPlatformInvites}
+            unregisteredCollaborators={form.unregisteredCollaborators}
+            onUnregisteredCollaboratorsChange={form.setUnregisteredCollaborators}
             errors={form.errors}
             onContinue={form.goNext}
             isVenue={isVenue}

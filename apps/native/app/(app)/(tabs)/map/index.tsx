@@ -36,7 +36,6 @@ type MapEvent = {
   dateEnd?: string;
   venueAddress?: string;
   coverImageUrl?: string;
-  isGigOpportunity: boolean;
   distanceMeters?: number;
 };
 
