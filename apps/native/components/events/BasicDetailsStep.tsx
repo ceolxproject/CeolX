@@ -1,14 +1,24 @@
 import { Ionicons } from '@expo/vector-icons';
 import { cn } from 'heroui-native';
-import { Image, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { useState } from 'react';
+import {
+  ActivityIndicator,
+  Image,
+  Modal,
+  Pressable,
+  ScrollView,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 
 import type { EventCategory } from '@CeolX/shared';
 
 import { CategoryPicker } from './CategoryPicker';
 import { CollaboratorPicker } from './CollaboratorPicker';
-import { CollectionPicker } from './CollectionPicker';
 import { InviteArtistPicker } from './InviteArtistPicker';
 
+import { useCollections, useCreateCollection } from '@/hooks/use-collections';
 import type { CollaboratorArtist } from '@/hooks/use-event-form';
 
 type Props = {
@@ -189,5 +199,177 @@ export function BasicDetailsStep({
         <Text className="text-white text-base font-bold font-urbanist">CONTINUE</Text>
       </Pressable>
     </ScrollView>
+  );
+}
+
+// ─── Collection Picker ────────────────────────────────────────────────────────
+
+function CollectionPicker({
+  collectionId,
+  onCollectionIdChange,
+}: {
+  collectionId: string;
+  onCollectionIdChange: (v: string) => void;
+}) {
+  const { data: collections, isLoading } = useCollections();
+  const createMutation = useCreateCollection();
+
+  const [visible, setVisible] = useState(false);
+  const [showCreate, setShowCreate] = useState(false);
+  const [newName, setNewName] = useState('');
+  const [newDescription, setNewDescription] = useState('');
+
+  const selectedName = collections?.find((c) => c.id === collectionId)?.name;
+
+  const handleSelect = (id: string) => {
+    onCollectionIdChange(id);
+    setVisible(false);
+  };
+
+  const handleClear = () => {
+    onCollectionIdChange('');
+    setVisible(false);
+  };
+
+  const handleCreate = async () => {
+    if (!newName.trim()) return;
+    const result = await createMutation.mutateAsync({
+      name: newName.trim(),
+      description: newDescription.trim() || undefined,
+    });
+    onCollectionIdChange(result.id);
+    setNewName('');
+    setNewDescription('');
+    setShowCreate(false);
+    setVisible(false);
+  };
+
+  return (
+    <View className="gap-2">
+      <Text className="text-sm font-semibold text-gray-3 font-urbanist">Collection (optional)</Text>
+      <Pressable
+        className="flex-row items-center justify-between rounded-lg border border-gray-8 bg-surface px-4 py-3"
+        onPress={() => setVisible(true)}
+      >
+        <Text className={cn('text-sm font-urbanist', selectedName ? 'text-white' : 'text-gray-7')}>
+          {selectedName ?? 'Select Collection'}
+        </Text>
+        <Ionicons name="chevron-down" size={18} color="#8d8d8d" />
+      </Pressable>
+
+      <Modal
+        visible={visible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setVisible(false)}
+      >
+        <Pressable className="flex-1 bg-black/60" onPress={() => setVisible(false)} />
+        <View className="bg-[#1a1a1a] rounded-t-2xl px-5 pt-4 pb-8 max-h-[70%]">
+          <View className="flex-row items-center justify-between mb-4">
+            <Text className="text-base font-bold text-white font-urbanist">Select Collection</Text>
+            <Pressable onPress={() => setVisible(false)}>
+              <Ionicons name="close" size={24} color="#fff" />
+            </Pressable>
+          </View>
+
+          <ScrollView showsVerticalScrollIndicator={false}>
+            {/* Clear selection */}
+            {collectionId && (
+              <Pressable className="py-3 border-b border-white/10" onPress={handleClear}>
+                <Text className="text-sm text-white/60 font-urbanist">
+                  None (remove from collection)
+                </Text>
+              </Pressable>
+            )}
+
+            {/* Existing collections */}
+            {isLoading ? (
+              <View className="py-8 items-center">
+                <ActivityIndicator color="#C8FF2F" />
+              </View>
+            ) : (
+              collections?.map((c) => (
+                <Pressable
+                  key={c.id}
+                  className={cn(
+                    'py-3 border-b border-white/10 flex-row items-center justify-between',
+                    c.id === collectionId && 'bg-white/5'
+                  )}
+                  onPress={() => handleSelect(c.id)}
+                >
+                  <View className="flex-1 mr-2">
+                    <Text className="text-sm font-semibold text-white font-urbanist">{c.name}</Text>
+                    <Text className="text-xs text-white/40 font-urbanist">
+                      {c.eventCount} event{c.eventCount !== 1 ? 's' : ''}
+                    </Text>
+                  </View>
+                  {c.id === collectionId && <Ionicons name="checkmark" size={18} color="#C8FF2F" />}
+                </Pressable>
+              ))
+            )}
+
+            {/* Create new */}
+            {!showCreate ? (
+              <Pressable
+                className="py-3 flex-row items-center gap-2"
+                onPress={() => setShowCreate(true)}
+              >
+                <Ionicons name="add-circle-outline" size={20} color="#C8FF2F" />
+                <Text className="text-sm font-semibold text-[#C8FF2F] font-urbanist">
+                  Create New Collection
+                </Text>
+              </Pressable>
+            ) : (
+              <View className="py-3 gap-3">
+                <TextInput
+                  className="h-10 rounded-lg bg-white/10 px-3 text-white text-sm font-urbanist"
+                  placeholder="Collection name"
+                  placeholderTextColor="rgba(255,255,255,0.4)"
+                  value={newName}
+                  onChangeText={setNewName}
+                  maxLength={100}
+                  autoFocus
+                />
+                <TextInput
+                  className="h-16 rounded-lg bg-white/10 px-3 pt-2 text-white text-sm font-urbanist"
+                  placeholder="Description (optional)"
+                  placeholderTextColor="rgba(255,255,255,0.4)"
+                  value={newDescription}
+                  onChangeText={setNewDescription}
+                  maxLength={500}
+                  multiline
+                  textAlignVertical="top"
+                />
+                <View className="flex-row gap-2">
+                  <Pressable
+                    className="flex-1 h-10 rounded-lg border border-white/20 items-center justify-center"
+                    onPress={() => {
+                      setShowCreate(false);
+                      setNewName('');
+                      setNewDescription('');
+                    }}
+                  >
+                    <Text className="text-sm text-white/60 font-urbanist">Cancel</Text>
+                  </Pressable>
+                  <Pressable
+                    className="flex-1 h-10 rounded-lg bg-[#C8FF2F] items-center justify-center"
+                    onPress={handleCreate}
+                    disabled={createMutation.isPending || !newName.trim()}
+                  >
+                    {createMutation.isPending ? (
+                      <ActivityIndicator color="#080808" />
+                    ) : (
+                      <Text className="text-sm font-bold text-black font-urbanist">
+                        Create & Select
+                      </Text>
+                    )}
+                  </Pressable>
+                </View>
+              </View>
+            )}
+          </ScrollView>
+        </View>
+      </Modal>
+    </View>
   );
 }
