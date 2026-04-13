@@ -1,8 +1,8 @@
 import { TRPCError } from '@trpc/server';
-import { eq } from 'drizzle-orm';
+import { eq, inArray } from 'drizzle-orm';
 
 import { db } from '@CeolX/db';
-import { savedEvents } from '@CeolX/db/schema/events';
+import { collections, events, savedEvents } from '@CeolX/db/schema/events';
 import { follows } from '@CeolX/db/schema/social';
 import { feedQuerySchema } from '@CeolX/shared/validators';
 
@@ -81,6 +81,18 @@ export const getFeed = publicProcedure.input(feedQuerySchema).query(async ({ inp
     const ranked = rankFeedEvents(rawEvents, lat, lng, followedIds);
     const paginated = ranked.slice(offset, offset + limit);
 
+    // Fetch collection names for paginated events in a single query
+    const eventIds = paginated.map((e) => e.id);
+    const collectionNameMap =
+      eventIds.length > 0
+        ? await db
+            .select({ eventId: events.id, collectionName: collections.name })
+            .from(events)
+            .innerJoin(collections, eq(events.collectionId, collections.id))
+            .where(inArray(events.id, eventIds))
+            .then((rows) => new Map(rows.map((r) => [r.eventId, r.collectionName])))
+        : new Map<string, string>();
+
     return {
       events: paginated.map((e) => ({
         ...e,
@@ -88,6 +100,7 @@ export const getFeed = publicProcedure.input(feedQuerySchema).query(async ({ inp
         coverImageUrl: e.coverImageUrl ?? undefined,
         dateEnd: e.dateEnd ?? undefined,
         isSaved: savedEventIds.has(e.id),
+        collectionName: collectionNameMap.get(e.id),
       })),
       hasNextPage: offset + limit < ranked.length,
       totalCount: ranked.length,

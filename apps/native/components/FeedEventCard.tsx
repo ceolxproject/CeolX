@@ -45,12 +45,17 @@ export function FeedEventCard({
           </View>
         )}
 
-        {/* Top-left category badge */}
-        <View className="absolute top-3 left-3 bg-[#080808] rounded-xl px-2 py-1.5">
-          <Text className="text-[12px] text-[#C8FF2F] font-semibold tracking-wide uppercase">
-            {categoryLabel}
-          </Text>
-        </View>
+        {/* Top-left collection badge — only shown when event belongs to a collection */}
+        {event.collectionName && (
+          <View
+            className="absolute top-3 left-3 rounded-xl px-2 py-1.5"
+            style={{ backgroundColor: 'rgba(8,8,8,0.85)' }}
+          >
+            <Text className="text-[12px] text-[#C8FF2F] font-semibold tracking-wide font-urbanist">
+              {event.collectionName}
+            </Text>
+          </View>
+        )}
 
         {/* Bottom overlay: category pill + joined count */}
         <View className="absolute bottom-3 left-3 right-3 flex-row items-center justify-between">
