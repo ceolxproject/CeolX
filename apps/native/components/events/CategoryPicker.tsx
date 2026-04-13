@@ -1,63 +1,77 @@
-import BottomSheet, { BottomSheetView } from '@gorhom/bottom-sheet';
+import { Ionicons } from '@expo/vector-icons';
 import { cn } from 'heroui-native';
-import { useCallback, useMemo, useRef } from 'react';
-import { Pressable, Text } from 'react-native';
+import { useState } from 'react';
+import { Pressable, Text, View } from 'react-native';
 
 import type { EventCategory } from '@CeolX/shared';
-import { EVENT_CATEGORIES } from '@CeolX/shared';
+import { CATEGORY_LABELS, EVENT_CATEGORIES } from '@CeolX/shared';
 
 type Props = {
-  visible: boolean;
-  selected: EventCategory | '';
-  onSelect: (category: EventCategory | '') => void;
-  onClose: () => void;
+  value: EventCategory | '';
+  onChange: (cat: EventCategory) => void;
+  error?: string;
 };
 
-export function CategoryPicker({ visible, selected, onSelect, onClose }: Props) {
-  const bottomSheetRef = useRef<BottomSheet>(null);
-  const snapPoints = useMemo(() => ['50%'], []);
+/**
+ * Inline attached dropdown for selecting an event category.
+ * Renders as a trigger button + an expandable list that opens below it,
+ * matching the Figma design (no bottom-sheet modal).
+ */
+export function CategoryPicker({ value, onChange, error }: Props) {
+  const [open, setOpen] = useState(false);
 
-  const handleSelect = useCallback(
-    (cat: EventCategory) => {
-      onSelect(cat);
-      onClose();
-    },
-    [onSelect, onClose]
-  );
-
-  if (!visible) return null;
+  const selectedLabel = value ? (CATEGORY_LABELS[value] ?? value) : null;
 
   return (
-    <BottomSheet
-      ref={bottomSheetRef}
-      snapPoints={snapPoints}
-      enablePanDownToClose
-      onClose={onClose}
-      backgroundStyle={{ backgroundColor: '#1b1b1b' }}
-      handleIndicatorStyle={{ backgroundColor: '#666' }}
-    >
-      <BottomSheetView className="flex-1 px-5 pt-2">
-        <Text className="mb-4 text-lg font-semibold text-white">Select Category</Text>
-        {EVENT_CATEGORIES.map((cat) => (
-          <Pressable
-            key={cat}
-            className={cn(
-              'mb-2 rounded-lg px-4 py-3',
-              selected === cat ? 'bg-[#C8FF2F]' : 'bg-white/10'
-            )}
-            onPress={() => handleSelect(cat)}
-          >
-            <Text
+    <View className="gap-1">
+      {/* ── Trigger ── */}
+      <Pressable
+        className={cn(
+          'flex-row items-center justify-between rounded-lg border bg-surface px-4 py-3',
+          error ? 'border-error' : open ? 'border-[#6C63FF]' : 'border-gray-8'
+        )}
+        onPress={() => setOpen((o) => !o)}
+        accessibilityRole="button"
+        accessibilityLabel="Select event category"
+      >
+        <Text className={cn('text-sm font-urbanist', selectedLabel ? 'text-white' : 'text-gray-7')}>
+          {selectedLabel ?? 'Select Category'}
+        </Text>
+        <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={18} color="#8d8d8d" />
+      </Pressable>
+
+      {/* ── Inline option list ── */}
+      {open && (
+        <View className="rounded-lg border border-gray-8 bg-surface overflow-hidden">
+          {EVENT_CATEGORIES.map((cat, index) => (
+            <Pressable
+              key={cat}
               className={cn(
-                'text-base',
-                selected === cat ? 'font-semibold text-black' : 'text-white'
+                'flex-row items-center gap-3 px-4 py-3 active:bg-white/5',
+                index < EVENT_CATEGORIES.length - 1 && 'border-b border-gray-8/40',
+                value === cat && 'bg-[#C8FF2F]/10'
               )}
+              onPress={() => {
+                onChange(cat);
+                setOpen(false);
+              }}
+              accessibilityRole="menuitem"
             >
-              {cat}
-            </Text>
-          </Pressable>
-        ))}
-      </BottomSheetView>
-    </BottomSheet>
+              <Text
+                className={cn(
+                  'flex-1 text-sm font-urbanist',
+                  value === cat ? 'font-bold text-[#C8FF2F]' : 'text-white'
+                )}
+              >
+                {CATEGORY_LABELS[cat] ?? cat}
+              </Text>
+              {value === cat && <Ionicons name="checkmark" size={16} color="#C8FF2F" />}
+            </Pressable>
+          ))}
+        </View>
+      )}
+
+      {error && <Text className="text-xs text-error font-urbanist">{error}</Text>}
+    </View>
   );
 }

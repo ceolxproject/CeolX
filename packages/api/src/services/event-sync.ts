@@ -26,7 +26,6 @@ function toTypesenseDoc(event: EnrichedEvent) {
     date_end: event.dateEnd ? Math.floor(event.dateEnd.getTime() / 1000) : undefined,
     venue_address: event.venueAddress ?? undefined,
     cover_image: event.coverImage ?? undefined,
-    is_gig_opportunity: event.isGigOpportunity ?? false,
     status: event.status,
     creator_id: event.createdBy,
     creator_name: event.creatorName,

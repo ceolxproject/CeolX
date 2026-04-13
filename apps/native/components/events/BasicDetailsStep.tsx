@@ -1,9 +1,27 @@
 import { Ionicons } from '@expo/vector-icons';
 import { cn } from 'heroui-native';
-import { Image, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { useState } from 'react';
+import {
+  ActivityIndicator,
+  Image,
+  Modal,
+  Pressable,
+  ScrollView,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 
 import type { EventCategory } from '@CeolX/shared';
-import { CATEGORY_LABELS } from '@CeolX/shared';
+
+import { CategoryPicker } from './CategoryPicker';
+import { CollaboratorPicker } from './CollaboratorPicker';
+import { CollectionPicker } from './CollectionPicker';
+import { InviteArtistPicker } from './InviteArtistPicker';
+
+import type { CollaboratorArtist } from '@/hooks/use-event-form';
+
+import { useCollections, useCreateCollection } from '@/hooks/use-collections';
 
 type Props = {
   title: string;
@@ -13,10 +31,17 @@ type Props = {
   coverImageUri: string | null;
   onPickImage: () => void;
   category: EventCategory | '';
-  onCategoryChange: (v: EventCategory | '') => void;
-  onCategoryPress: () => void;
+  onCategoryChange: (v: EventCategory) => void;
   collectionId: string;
   onCollectionIdChange: (v: string) => void;
+  collaborators: string[];
+  onCollaboratorsChange: (ids: string[]) => void;
+  collaboratorArtists: CollaboratorArtist[];
+  onCollaboratorArtistsChange: (artists: CollaboratorArtist[]) => void;
+  platformInvites: string[];
+  onPlatformInvitesChange: (ids: string[]) => void;
+  unregisteredCollaborators: Array<{ name: string; email: string }>;
+  onUnregisteredCollaboratorsChange: (invites: Array<{ name: string; email: string }>) => void;
   errors: Record<string, string>;
   onContinue: () => void;
   isVenue: boolean;
@@ -32,16 +57,21 @@ export function BasicDetailsStep({
   coverImageUri,
   onPickImage,
   category,
-  onCategoryChange: _onCategoryChange,
-  onCategoryPress,
-  collectionId: _collectionId,
-  onCollectionIdChange: _onCollectionIdChange,
+  onCategoryChange,
+  collectionId,
+  onCollectionIdChange,
+  collaborators,
+  onCollaboratorsChange,
+  collaboratorArtists,
+  onCollaboratorArtistsChange,
+  platformInvites,
+  onPlatformInvitesChange,
+  unregisteredCollaborators,
+  onUnregisteredCollaboratorsChange,
   errors,
   onContinue,
   isVenue,
 }: Props) {
-  const categoryLabel = category && CATEGORY_LABELS[category] ? CATEGORY_LABELS[category] : null;
-
   return (
     <ScrollView
       className="flex-1"
@@ -133,62 +163,34 @@ export function BasicDetailsStep({
       {/* ── Category ── */}
       <View className="gap-2">
         <Text className="text-sm font-semibold text-gray-3 font-urbanist">Category</Text>
-        <Pressable
-          onPress={onCategoryPress}
-          className={cn(
-            'flex-row items-center justify-between rounded-lg border bg-surface px-4 py-3',
-            errors.category ? 'border-error' : 'border-gray-8'
-          )}
-        >
-          <Text
-            className={cn('text-sm font-urbanist', categoryLabel ? 'text-white' : 'text-gray-7')}
-          >
-            {categoryLabel ?? 'Select Category'}
-          </Text>
-          <Ionicons name="chevron-down" size={18} color="#8d8d8d" />
-        </Pressable>
-        {errors.category && (
-          <Text className="text-xs text-error font-urbanist">{errors.category}</Text>
-        )}
+        <CategoryPicker value={category} onChange={onCategoryChange} error={errors.category} />
       </View>
 
-      {/* ── Collection (optional) — Venues only, coming M4-T4 ── */}
+      {/* ── Collection (optional) — Venues only ── */}
       {isVenue && (
-        <View className="gap-2">
-          <View className="flex-row items-center justify-between">
-            <Text className="text-sm font-semibold text-gray-3 font-urbanist">
-              Collection (optional)
-            </Text>
-            <View className="rounded-full bg-[#6C63FF]/20 px-2 py-0.5">
-              <Text className="text-[10px] font-bold text-[#6C63FF] font-urbanist tracking-wider">
-                M4-T4
-              </Text>
-            </View>
-          </View>
-          <View className="flex-row items-center justify-between rounded-lg border border-gray-8 bg-surface px-4 py-3 opacity-50">
-            <Text className="text-sm font-urbanist text-gray-7">Coming in M4-T4</Text>
-            <Ionicons name="chevron-down" size={18} color="#8d8d8d" />
-          </View>
-        </View>
+        <CollectionPicker collectionId={collectionId} onCollectionIdChange={onCollectionIdChange} />
       )}
 
-      {/* ── Collaborators (optional) — coming M5/M6 ── */}
-      <View className="gap-2">
-        <View className="flex-row items-center justify-between">
-          <Text className="text-sm font-semibold text-gray-3 font-urbanist">
-            Collaborators (optional)
-          </Text>
-          <View className="rounded-full bg-[#6C63FF]/20 px-2 py-0.5">
-            <Text className="text-[10px] font-bold text-[#6C63FF] font-urbanist tracking-wider">
-              M5/M6
-            </Text>
-          </View>
-        </View>
-        <View className="flex-row items-center justify-between rounded-lg border border-gray-8 bg-surface px-4 py-3 opacity-50">
-          <Text className="text-sm font-urbanist text-gray-7">Invite artists & collaborators</Text>
-          <Ionicons name="add" size={18} color="#8d8d8d" />
-        </View>
-      </View>
+      {/* ── Collaborators + Invite Artists — Venues only ── */}
+      {isVenue && (
+        <>
+          <CollaboratorPicker
+            collaborators={collaborators}
+            onCollaboratorsChange={onCollaboratorsChange}
+            initialSelectedArtists={collaboratorArtists}
+            onCollaboratorObjectsChange={onCollaboratorArtistsChange}
+            isRequired
+            error={errors.collaborators}
+          />
+
+          <InviteArtistPicker
+            platformInvites={platformInvites}
+            onPlatformInvitesChange={onPlatformInvitesChange}
+            unregisteredInvites={unregisteredCollaborators}
+            onUnregisteredInvitesChange={onUnregisteredCollaboratorsChange}
+          />
+        </>
+      )}
 
       {/* ── Continue Button ── */}
       <Pressable
@@ -199,5 +201,177 @@ export function BasicDetailsStep({
         <Text className="text-white text-base font-bold font-urbanist">CONTINUE</Text>
       </Pressable>
     </ScrollView>
+  );
+}
+
+// ─── Collection Picker ────────────────────────────────────────────────────────
+
+function CollectionPicker({
+  collectionId,
+  onCollectionIdChange,
+}: {
+  collectionId: string;
+  onCollectionIdChange: (v: string) => void;
+}) {
+  const { data: collections, isLoading } = useCollections();
+  const createMutation = useCreateCollection();
+
+  const [visible, setVisible] = useState(false);
+  const [showCreate, setShowCreate] = useState(false);
+  const [newName, setNewName] = useState('');
+  const [newDescription, setNewDescription] = useState('');
+
+  const selectedName = collections?.find((c) => c.id === collectionId)?.name;
+
+  const handleSelect = (id: string) => {
+    onCollectionIdChange(id);
+    setVisible(false);
+  };
+
+  const handleClear = () => {
+    onCollectionIdChange('');
+    setVisible(false);
+  };
+
+  const handleCreate = async () => {
+    if (!newName.trim()) return;
+    const result = await createMutation.mutateAsync({
+      name: newName.trim(),
+      description: newDescription.trim() || undefined,
+    });
+    onCollectionIdChange(result.id);
+    setNewName('');
+    setNewDescription('');
+    setShowCreate(false);
+    setVisible(false);
+  };
+
+  return (
+    <View className="gap-2">
+      <Text className="text-sm font-semibold text-gray-3 font-urbanist">Collection (optional)</Text>
+      <Pressable
+        className="flex-row items-center justify-between rounded-lg border border-gray-8 bg-surface px-4 py-3"
+        onPress={() => setVisible(true)}
+      >
+        <Text className={cn('text-sm font-urbanist', selectedName ? 'text-white' : 'text-gray-7')}>
+          {selectedName ?? 'Select Collection'}
+        </Text>
+        <Ionicons name="chevron-down" size={18} color="#8d8d8d" />
+      </Pressable>
+
+      <Modal
+        visible={visible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setVisible(false)}
+      >
+        <Pressable className="flex-1 bg-black/60" onPress={() => setVisible(false)} />
+        <View className="bg-[#1a1a1a] rounded-t-2xl px-5 pt-4 pb-8 max-h-[70%]">
+          <View className="flex-row items-center justify-between mb-4">
+            <Text className="text-base font-bold text-white font-urbanist">Select Collection</Text>
+            <Pressable onPress={() => setVisible(false)}>
+              <Ionicons name="close" size={24} color="#fff" />
+            </Pressable>
+          </View>
+
+          <ScrollView showsVerticalScrollIndicator={false}>
+            {/* Clear selection */}
+            {collectionId && (
+              <Pressable className="py-3 border-b border-white/10" onPress={handleClear}>
+                <Text className="text-sm text-white/60 font-urbanist">
+                  None (remove from collection)
+                </Text>
+              </Pressable>
+            )}
+
+            {/* Existing collections */}
+            {isLoading ? (
+              <View className="py-8 items-center">
+                <ActivityIndicator color="#C8FF2F" />
+              </View>
+            ) : (
+              collections?.map((c) => (
+                <Pressable
+                  key={c.id}
+                  className={cn(
+                    'py-3 border-b border-white/10 flex-row items-center justify-between',
+                    c.id === collectionId && 'bg-white/5'
+                  )}
+                  onPress={() => handleSelect(c.id)}
+                >
+                  <View className="flex-1 mr-2">
+                    <Text className="text-sm font-semibold text-white font-urbanist">{c.name}</Text>
+                    <Text className="text-xs text-white/40 font-urbanist">
+                      {c.eventCount} event{c.eventCount !== 1 ? 's' : ''}
+                    </Text>
+                  </View>
+                  {c.id === collectionId && <Ionicons name="checkmark" size={18} color="#C8FF2F" />}
+                </Pressable>
+              ))
+            )}
+
+            {/* Create new */}
+            {!showCreate ? (
+              <Pressable
+                className="py-3 flex-row items-center gap-2"
+                onPress={() => setShowCreate(true)}
+              >
+                <Ionicons name="add-circle-outline" size={20} color="#C8FF2F" />
+                <Text className="text-sm font-semibold text-[#C8FF2F] font-urbanist">
+                  Create New Collection
+                </Text>
+              </Pressable>
+            ) : (
+              <View className="py-3 gap-3">
+                <TextInput
+                  className="h-10 rounded-lg bg-white/10 px-3 text-white text-sm font-urbanist"
+                  placeholder="Collection name"
+                  placeholderTextColor="rgba(255,255,255,0.4)"
+                  value={newName}
+                  onChangeText={setNewName}
+                  maxLength={100}
+                  autoFocus
+                />
+                <TextInput
+                  className="h-16 rounded-lg bg-white/10 px-3 pt-2 text-white text-sm font-urbanist"
+                  placeholder="Description (optional)"
+                  placeholderTextColor="rgba(255,255,255,0.4)"
+                  value={newDescription}
+                  onChangeText={setNewDescription}
+                  maxLength={500}
+                  multiline
+                  textAlignVertical="top"
+                />
+                <View className="flex-row gap-2">
+                  <Pressable
+                    className="flex-1 h-10 rounded-lg border border-white/20 items-center justify-center"
+                    onPress={() => {
+                      setShowCreate(false);
+                      setNewName('');
+                      setNewDescription('');
+                    }}
+                  >
+                    <Text className="text-sm text-white/60 font-urbanist">Cancel</Text>
+                  </Pressable>
+                  <Pressable
+                    className="flex-1 h-10 rounded-lg bg-[#C8FF2F] items-center justify-center"
+                    onPress={handleCreate}
+                    disabled={createMutation.isPending || !newName.trim()}
+                  >
+                    {createMutation.isPending ? (
+                      <ActivityIndicator color="#080808" />
+                    ) : (
+                      <Text className="text-sm font-bold text-black font-urbanist">
+                        Create & Select
+                      </Text>
+                    )}
+                  </Pressable>
+                </View>
+              </View>
+            )}
+          </ScrollView>
+        </View>
+      </Modal>
+    </View>
   );
 }

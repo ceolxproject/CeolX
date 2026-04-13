@@ -14,6 +14,7 @@ import {
 } from 'drizzle-orm/pg-core';
 
 import { user } from './auth';
+import { bookings } from './bookings';
 import { eventStatusEnum } from './enums';
 import { venueProfiles } from './users';
 
@@ -61,7 +62,7 @@ export const events = pgTable(
     category: varchar('category', { length: 100 }).notNull(),
     ticketLink: text('ticket_link'), // external URL — not validated in DB
     ticketPrice: integer('ticket_price'), // stored in cents (e.g. 49900 = €499.00)
-    isGigOpportunity: boolean('is_gig_opportunity').default(false), // visible to Artists only when true
+    isGigOpportunity: boolean('is_gig_opportunity'), // DEPRECATED — nullable, no longer written
     collectionId: uuid('collection_id').references(() => collections.id, { onDelete: 'set null' }),
     adTitle: varchar('ad_title', { length: 100 }),
     adDescription: varchar('ad_description', { length: 50 }),
@@ -113,6 +114,10 @@ export const savedEvents = pgTable(
 // event_collaborators — artists collaborating on an event. Managed by the
 // event creator. Separate table (not array column) for relational queries
 // like "which artists are available on this date".
+//
+// Platform artists have artistProfileId set + bookingId linking to the
+// booking state machine. Non-platform artists have invitedName/invitedEmail
+// set instead (artistProfileId is null, no booking until they sign up).
 // ---------------------------------------------------------------------------
 export const eventCollaborators = pgTable(
   'event_collaborators',
@@ -121,14 +126,16 @@ export const eventCollaborators = pgTable(
     eventId: uuid('event_id')
       .notNull()
       .references(() => events.id, { onDelete: 'cascade' }),
-    artistProfileId: text('artist_profile_id')
-      .notNull()
-      .references(() => user.id, { onDelete: 'cascade' }),
+    artistProfileId: text('artist_profile_id').references(() => user.id, { onDelete: 'cascade' }),
+    invitedName: varchar('invited_name', { length: 150 }),
+    invitedEmail: varchar('invited_email', { length: 255 }),
+    bookingId: uuid('booking_id').references(() => bookings.id, { onDelete: 'set null' }),
     createdAt: timestamp('created_at').notNull().defaultNow(),
   },
   (t) => [
     uniqueIndex('event_collaborators_event_artist_idx').on(t.eventId, t.artistProfileId),
     index('event_collaborators_event_idx').on(t.eventId),
+    index('event_collaborators_booking_idx').on(t.bookingId),
   ]
 );
 
@@ -179,6 +186,10 @@ export const eventCollaboratorsRelations = relations(eventCollaborators, ({ one 
   artist: one(user, {
     fields: [eventCollaborators.artistProfileId],
     references: [user.id],
+  }),
+  booking: one(bookings, {
+    fields: [eventCollaborators.bookingId],
+    references: [bookings.id],
   }),
 }));
 

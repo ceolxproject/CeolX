@@ -17,7 +17,16 @@ const eventBaseShape = {
   ticketLink: z.string().url().optional(),
   ticketPrice: z.number().int().min(0).optional(),
   collectionId: z.string().uuid().optional(),
-  collaborators: z.array(z.string().uuid()).max(10).optional(),
+  collaborators: z.array(z.string().min(1)).max(10).optional(),
+  unregisteredCollaborators: z
+    .array(
+      z.object({
+        name: z.string().min(1).max(100).trim(),
+        email: z.string().email(),
+      })
+    )
+    .max(10)
+    .optional(),
   adTitle: z.string().max(100).optional(),
   adDescription: z.string().max(50).optional(),
 } as const;
