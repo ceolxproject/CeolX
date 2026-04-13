@@ -866,13 +866,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "unregistered_collaborators": {
-          "name": "unregistered_collaborators",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false,
-          "default": "'[]'::jsonb"
-        },
         "collection_id": {
           "name": "collection_id",
           "type": "uuid",

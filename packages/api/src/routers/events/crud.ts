@@ -184,7 +184,9 @@ export const byId = publicProcedure
           isExternal: false,
         };
       }),
-      unregisteredCollaborators: event.unregisteredCollaborators ?? [],
+      unregisteredCollaborators: event.collaborators
+        .filter((c) => !c.artistProfileId)
+        .map((c) => ({ name: c.invitedName ?? '', email: c.invitedEmail ?? '' })),
       collection: event.collection
         ? { id: event.collection.id, name: event.collection.name }
         : null,
@@ -236,7 +238,6 @@ export const create = creatorProcedure.input(createEventSchema).mutation(async (
         category: eventData.category,
         ticketLink: eventData.ticketLink ?? null,
         ticketPrice: eventData.ticketPrice ?? null,
-        unregisteredCollaborators: unregisteredCollaborators ?? [],
         collectionId: eventData.collectionId ?? null,
         adTitle: eventData.adTitle ?? null,
         adDescription: eventData.adDescription ?? null,
@@ -317,6 +318,17 @@ export const create = creatorProcedure.input(createEventSchema).mutation(async (
       }
     }
 
+    // Insert non-platform (invited) artists as eventCollaborators rows
+    if (unregisteredCollaborators && unregisteredCollaborators.length > 0) {
+      await tx.insert(eventCollaborators).values(
+        unregisteredCollaborators.map((invite) => ({
+          eventId: inserted.id,
+          invitedName: invite.name,
+          invitedEmail: invite.email,
+        }))
+      );
+    }
+
     return inserted;
   });
 
@@ -375,8 +387,6 @@ export const update = protectedProcedure
       if (updateData.adTitle !== undefined) setValues.adTitle = updateData.adTitle;
       if (updateData.adDescription !== undefined)
         setValues.adDescription = updateData.adDescription;
-      if (unregisteredCollaborators !== undefined)
-        setValues.unregisteredCollaborators = unregisteredCollaborators;
 
       // If event was removed by admin and creator is resubmitting, re-activate
       if (event.status === 'removed') {
@@ -483,6 +493,36 @@ export const update = protectedProcedure
               }))
             );
           }
+        }
+      }
+
+      // Update non-platform (invited) collaborators — replace all on edit
+      if (unregisteredCollaborators !== undefined) {
+        // Remove existing invited-only rows (artistProfileId IS NULL)
+        const existingInvited = await tx.query.eventCollaborators.findMany({
+          where: and(
+            eq(eventCollaborators.eventId, input.id),
+            sql`${eventCollaborators.artistProfileId} IS NULL`
+          ),
+          columns: { id: true },
+        });
+        if (existingInvited.length > 0) {
+          await tx.delete(eventCollaborators).where(
+            inArray(
+              eventCollaborators.id,
+              existingInvited.map((r) => r.id)
+            )
+          );
+        }
+
+        if (unregisteredCollaborators.length > 0) {
+          await tx.insert(eventCollaborators).values(
+            unregisteredCollaborators.map((invite) => ({
+              eventId: input.id,
+              invitedName: invite.name,
+              invitedEmail: invite.email,
+            }))
+          );
         }
       }
 
