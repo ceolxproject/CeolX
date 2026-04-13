@@ -5,7 +5,6 @@ import { Alert } from 'react-native';
 import type { EventCategory } from '@CeolX/shared';
 import { createEventSchema } from '@CeolX/shared/validators';
 
-import type { ExternalArtist, SelectedArtist } from '@/components/events/CollaboratorField';
 import { trpc } from '@/utils/trpc';
 
 // ---------------------------------------------------------------------------

@@ -19,9 +19,8 @@ import { CollaboratorPicker } from './CollaboratorPicker';
 import { CollectionPicker } from './CollectionPicker';
 import { InviteArtistPicker } from './InviteArtistPicker';
 
-import type { CollaboratorArtist } from '@/hooks/use-event-form';
-
 import { useCollections, useCreateCollection } from '@/hooks/use-collections';
+import type { CollaboratorArtist } from '@/hooks/use-event-form';
 
 type Props = {
   title: string;
