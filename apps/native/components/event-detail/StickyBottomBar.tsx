@@ -1,40 +1,39 @@
-import { Ionicons } from '@expo/vector-icons';
 import { cn } from 'heroui-native';
-import { Pressable, Text, View } from 'react-native';
+import { Linking, Pressable, Text, View } from 'react-native';
 
 interface StickyBottomBarProps {
-  ticketPrice?: number;
+  ticketPrice?: number | null;
+  ticketLink?: string | null;
   isArtist: boolean;
   isOwner: boolean;
   isVenueEvent: boolean;
-  isSaved: boolean;
-  onToggleSave: () => void;
   onRequestToPerform: () => void;
   className?: string;
 }
 
 export function StickyBottomBar({
   ticketPrice,
+  ticketLink,
   isArtist,
   isOwner,
   isVenueEvent,
-  isSaved,
-  onToggleSave,
   onRequestToPerform,
   className,
 }: StickyBottomBarProps) {
-  // Artists can request to perform on venue events they don't own.
-  // The isOwner guard is explicit — don't rely on creator.type inference alone.
   const showRequestToPerform = isArtist && isVenueEvent && !isOwner;
 
-  const priceLabel =
-    ticketPrice !== undefined && ticketPrice !== null
-      ? `€${(ticketPrice / 100).toFixed(0)}`
-      : 'Free';
+  const ticketLabel =
+    ticketPrice !== null && ticketPrice !== undefined && ticketPrice > 0
+      ? `Book Ticket FOR €${(ticketPrice / 100).toFixed(0)}`
+      : 'Book Ticket';
+
+  const handleBookTicket = () => {
+    if (ticketLink) void Linking.openURL(ticketLink);
+  };
 
   return (
     <View
-      className={cn('px-4 py-2.5 bg-black gap-2.5', className)}
+      className={cn('px-4 py-3 bg-black gap-2.5', className)}
       style={{
         shadowColor: 'rgba(239,239,244,0.25)',
         shadowOffset: { width: 0, height: -2 },
@@ -43,33 +42,34 @@ export function StickyBottomBar({
         elevation: 12,
       }}
     >
-      {/* Request to Perform — artists only, gig opportunities only */}
-      {showRequestToPerform && (
+      <View className="flex-row items-center gap-3">
+        {/* Book Ticket — purple filled */}
         <Pressable
-          onPress={onRequestToPerform}
-          className="flex-row items-center justify-center rounded-full py-3 px-8 bg-green-10 active:opacity-90"
+          onPress={handleBookTicket}
+          className="flex-1 items-center justify-center rounded-full py-3 bg-blue-10 active:opacity-80"
         >
-          <Text className="text-base font-bold text-black tracking-wider uppercase font-sans">
-            Request to Perform
+          <Text
+            className="text-xs font-bold text-white font-urbanist tracking-widest uppercase"
+            numberOfLines={1}
+          >
+            {ticketLabel}
           </Text>
         </Pressable>
-      )}
 
-      {/* Price display + Save — visible to everyone */}
-      <View className="flex-row items-center gap-2.5">
-        <View className="flex-1 flex-row items-center justify-center rounded-full py-3 px-8 bg-[#6155F5]">
-          <Ionicons name="pricetag-outline" size={16} color="#fff" style={{ marginRight: 6 }} />
-          <Text className="text-base font-bold text-white font-sans">
-            Ticket Price: {priceLabel}
-          </Text>
-        </View>
-
-        <Pressable
-          onPress={onToggleSave}
-          className="w-[45px] h-[45px] rounded-full bg-[#2a2a2a] items-center justify-center active:opacity-80"
-        >
-          <Ionicons name={isSaved ? 'bookmark' : 'bookmark-outline'} size={23} color="#fff" />
-        </Pressable>
+        {/* Request to Perform — outlined, artists on venue events only */}
+        {showRequestToPerform && (
+          <Pressable
+            onPress={onRequestToPerform}
+            className="flex-1 items-center justify-center rounded-full py-3 border border-white active:opacity-80"
+          >
+            <Text
+              className="text-xs font-bold text-white font-urbanist tracking-widest uppercase"
+              numberOfLines={1}
+            >
+              Request to Perform
+            </Text>
+          </Pressable>
+        )}
       </View>
     </View>
   );

@@ -3,8 +3,8 @@ import { cn } from 'heroui-native';
 import { Image, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 
 import type { EventCategory } from '@CeolX/shared';
-import { CATEGORY_LABELS } from '@CeolX/shared';
 
+import { CategoryPicker } from './CategoryPicker';
 import { CollaboratorPicker } from './CollaboratorPicker';
 import { CollectionPicker } from './CollectionPicker';
 import { InviteArtistPicker } from './InviteArtistPicker';
@@ -19,8 +19,7 @@ type Props = {
   coverImageUri: string | null;
   onPickImage: () => void;
   category: EventCategory | '';
-  onCategoryChange: (v: EventCategory | '') => void;
-  onCategoryPress: () => void;
+  onCategoryChange: (v: EventCategory) => void;
   collectionId: string;
   onCollectionIdChange: (v: string) => void;
   collaborators: string[];
@@ -46,8 +45,7 @@ export function BasicDetailsStep({
   coverImageUri,
   onPickImage,
   category,
-  onCategoryChange: _onCategoryChange,
-  onCategoryPress,
+  onCategoryChange,
   collectionId,
   onCollectionIdChange,
   collaborators,
@@ -62,8 +60,6 @@ export function BasicDetailsStep({
   onContinue,
   isVenue,
 }: Props) {
-  const categoryLabel = category && CATEGORY_LABELS[category] ? CATEGORY_LABELS[category] : null;
-
   return (
     <ScrollView
       className="flex-1"
@@ -155,23 +151,7 @@ export function BasicDetailsStep({
       {/* ── Category ── */}
       <View className="gap-2">
         <Text className="text-sm font-semibold text-gray-3 font-urbanist">Category</Text>
-        <Pressable
-          onPress={onCategoryPress}
-          className={cn(
-            'flex-row items-center justify-between rounded-lg border bg-surface px-4 py-3',
-            errors.category ? 'border-error' : 'border-gray-8'
-          )}
-        >
-          <Text
-            className={cn('text-sm font-urbanist', categoryLabel ? 'text-white' : 'text-gray-7')}
-          >
-            {categoryLabel ?? 'Select Category'}
-          </Text>
-          <Ionicons name="chevron-down" size={18} color="#8d8d8d" />
-        </Pressable>
-        {errors.category && (
-          <Text className="text-xs text-error font-urbanist">{errors.category}</Text>
-        )}
+        <CategoryPicker value={category} onChange={onCategoryChange} error={errors.category} />
       </View>
 
       {/* ── Collection (optional) — Venues only ── */}

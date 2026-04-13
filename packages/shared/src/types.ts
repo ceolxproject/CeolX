@@ -140,6 +140,7 @@ export interface FeedEvent {
   distanceKm?: number; // computed server-side from user location
   joinedCount: number; // count of users who saved this event
   score: number; // algorithmic ranking score (0-1)
+  collectionName?: string; // name of the collection this event belongs to, if any
 }
 
 export interface FeedResponse {

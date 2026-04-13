@@ -7,7 +7,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AppTabBar, TAB_CONFIG } from '@/components/AppTabBar';
 import { BasicDetailsStep } from '@/components/events/BasicDetailsStep';
-import { CategoryPicker } from '@/components/events/CategoryPicker';
 import { DateVenueStep } from '@/components/events/DateVenueStep';
 import { StepIndicator } from '@/components/events/StepIndicator';
 import { TicketAdsStep } from '@/components/events/TicketAdsStep';
@@ -19,7 +18,6 @@ export default function CreateEventScreen() {
   const insets = useSafeAreaInsets();
   const { data: me } = useQuery(trpc.users.me.queryOptions());
   const isVenue = me?.currentRole === 'venue';
-  const [showCategoryPicker, setShowCategoryPicker] = useState(false);
   const [showManualAddress, setShowManualAddress] = useState(false);
 
   const form = useEventForm({
@@ -76,7 +74,6 @@ export default function CreateEventScreen() {
             onPickImage={() => {}}
             category={form.category}
             onCategoryChange={form.setCategory}
-            onCategoryPress={() => setShowCategoryPicker(true)}
             collectionId={form.collectionId}
             onCollectionIdChange={form.setCollectionId}
             collaborators={form.collaborators}
@@ -109,6 +106,7 @@ export default function CreateEventScreen() {
             }}
             venueAddress={form.venueAddress}
             onVenueAddressChange={form.setVenueAddress}
+            onVenueIdChange={form.setVenueId}
             showManualAddress={showManualAddress}
             onToggleManualAddress={() => setShowManualAddress(!showManualAddress)}
             errors={form.errors}
@@ -141,13 +139,6 @@ export default function CreateEventScreen() {
 
       {/* Bottom tab bar — lets users navigate away without losing the back-stack */}
       <AppTabBar state={tabBarState} descriptors={{}} navigation={tabBarNavigation} />
-
-      <CategoryPicker
-        visible={showCategoryPicker}
-        selected={form.category}
-        onSelect={form.setCategory}
-        onClose={() => setShowCategoryPicker(false)}
-      />
     </View>
   );
 }
