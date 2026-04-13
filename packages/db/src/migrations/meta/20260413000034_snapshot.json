@@ -1,5 +1,5 @@
 {
-  "id": "e5512ad2-fed4-4dec-af82-af83d01092cf",
+  "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
   "prevId": "dd527821-9c96-4dd0-bfcc-842ce151186f",
   "version": "7",
   "dialect": "postgresql",
@@ -703,7 +703,25 @@
           "name": "artist_profile_id",
           "type": "text",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
+        },
+        "invited_name": {
+          "name": "invited_name",
+          "type": "varchar(150)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "invited_email": {
+          "name": "invited_email",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "booking_id": {
+          "name": "booking_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
         },
         "created_at": {
           "name": "created_at",
@@ -749,6 +767,21 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
+        },
+        "event_collaborators_booking_idx": {
+          "name": "event_collaborators_booking_idx",
+          "columns": [
+            {
+              "expression": "booking_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
         }
       },
       "foreignKeys": {
@@ -768,6 +801,15 @@
           "columnsFrom": ["artist_profile_id"],
           "columnsTo": ["id"],
           "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "event_collaborators_booking_id_bookings_id_fk": {
+          "name": "event_collaborators_booking_id_bookings_id_fk",
+          "tableFrom": "event_collaborators",
+          "tableTo": "bookings",
+          "columnsFrom": ["booking_id"],
+          "columnsTo": ["id"],
+          "onDelete": "set null",
           "onUpdate": "no action"
         }
       },
@@ -864,7 +906,8 @@
           "name": "is_gig_opportunity",
           "type": "boolean",
           "primaryKey": false,
-          "notNull": false
+          "notNull": false,
+          "default": false
         },
         "collection_id": {
           "name": "collection_id",

@@ -16,6 +16,7 @@ import type { EventCategory } from '@CeolX/shared';
 
 import { CategoryPicker } from './CategoryPicker';
 import { CollaboratorPicker } from './CollaboratorPicker';
+import { CollectionPicker } from './CollectionPicker';
 import { InviteArtistPicker } from './InviteArtistPicker';
 
 import { useCollections, useCreateCollection } from '@/hooks/use-collections';
