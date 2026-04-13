@@ -12,7 +12,12 @@ interface FeedEventCardProps {
   className?: string;
 }
 
-export function FeedEventCard({ event, onPress, isArtist, className }: FeedEventCardProps) {
+export function FeedEventCard({
+  event,
+  onPress,
+  isArtist: _isArtist,
+  className,
+}: FeedEventCardProps) {
   const categoryLabel =
     CATEGORY_LABELS[event.category as keyof typeof CATEGORY_LABELS] ?? event.category;
   const categoryIcon = CATEGORY_ICONS[event.category as keyof typeof CATEGORY_ICONS] ?? '🎵';
@@ -65,15 +70,6 @@ export function FeedEventCard({ event, onPress, isArtist, className }: FeedEvent
             </View>
           )}
         </View>
-
-        {/* Gig opportunity label (artist only) */}
-        {isArtist && event.isGigOpportunity && (
-          <View className="absolute top-3 right-3 bg-[#6155F5] rounded-lg px-2 py-1">
-            <Text className="text-[10px] font-semibold text-white font-urbanist">
-              Gig Opportunity
-            </Text>
-          </View>
-        )}
       </View>
 
       {/* Content area */}

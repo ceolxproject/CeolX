@@ -19,6 +19,8 @@ export interface EventFormData {
   category: EventCategory | '';
   collectionId: string;
   collaborators: string[];
+  platformInvites: string[];
+  unregisteredCollaborators: Array<{ name: string; email: string }>;
 
   // Step 2 — Date & Venue
   dateStart: Date | null;
@@ -47,6 +49,8 @@ interface UseEventFormOptions {
   initialData?: EventFormData;
   /** Called after a successful create or update. */
   onSuccess?: () => void;
+  /** Current user role — used to enforce persona-specific mandatory fields. */
+  isVenue?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -61,6 +65,8 @@ function defaults(initial?: EventFormData): EventFormData {
     category: initial?.category ?? '',
     collectionId: initial?.collectionId ?? '',
     collaborators: initial?.collaborators ?? [],
+    platformInvites: initial?.platformInvites ?? [],
+    unregisteredCollaborators: initial?.unregisteredCollaborators ?? [],
 
     dateStart: initial?.dateStart ?? null,
     dateEnd: initial?.dateEnd ?? null,
@@ -119,6 +125,7 @@ function parseQuantity(value: string): number | undefined {
 
 export function useEventForm(options?: UseEventFormOptions) {
   const isEditing = !!options?.eventId;
+  const isVenue = options?.isVenue ?? false;
   const queryClient = useQueryClient();
 
   const init = defaults(options?.initialData);
@@ -133,17 +140,10 @@ export function useEventForm(options?: UseEventFormOptions) {
   const [category, setCategory] = useState<EventCategory | ''>(init.category);
   const [collectionId, setCollectionId] = useState(init.collectionId);
   const [collaborators, setCollaborators] = useState<string[]>(init.collaborators);
-  const [selectedArtists, setSelectedArtistsState] = useState<SelectedArtist[]>([]);
-  const [externalArtists, setExternalArtists] = useState<ExternalArtist[]>([]);
-
-  // Keep collaborators (userId[]) in sync with selectedArtists
-  const setSelectedArtists = useCallback(
-    (artists: SelectedArtist[]) => {
-      setSelectedArtistsState(artists);
-      setCollaborators(artists.map((a) => a.userId));
-    },
-    [setCollaborators]
-  );
+  const [platformInvites, setPlatformInvites] = useState<string[]>(init.platformInvites);
+  const [unregisteredCollaborators, setUnregisteredCollaborators] = useState<
+    Array<{ name: string; email: string }>
+  >(init.unregisteredCollaborators);
 
   // Step 2 — Date & Venue
   const [dateStart, setDateStart] = useState<Date | null>(init.dateStart);
@@ -194,9 +194,13 @@ export function useEventForm(options?: UseEventFormOptions) {
       stepErrors.category = 'Category is required';
     }
 
+    if (isVenue && collaborators.length === 0) {
+      stepErrors.collaborators = 'At least one confirmed collaborator is required for venue events';
+    }
+
     setErrors(stepErrors);
     return Object.keys(stepErrors).length === 0;
-  }, [title, description, category]);
+  }, [title, description, category, isVenue, collaborators]);
 
   const validateStep2 = useCallback((): boolean => {
     const stepErrors: Record<string, string> = {};
@@ -279,6 +283,8 @@ export function useEventForm(options?: UseEventFormOptions) {
       ticketQuantity: parseQuantity(ticketQuantity),
       collectionId: collectionId || undefined,
       collaborators: collaborators.length > 0 ? collaborators : undefined,
+      unregisteredCollaborators:
+        unregisteredCollaborators.length > 0 ? unregisteredCollaborators : undefined,
       adTitle: adTitle.trim() || undefined,
       adDescription: adDescription.trim() || undefined,
     };
@@ -329,6 +335,7 @@ export function useEventForm(options?: UseEventFormOptions) {
     ticketQuantity,
     collectionId,
     collaborators,
+    unregisteredCollaborators,
     adTitle,
     adDescription,
     isEditing,
@@ -355,10 +362,10 @@ export function useEventForm(options?: UseEventFormOptions) {
     setCollectionId,
     collaborators,
     setCollaborators,
-    selectedArtists,
-    setSelectedArtists,
-    externalArtists,
-    setExternalArtists,
+    platformInvites,
+    setPlatformInvites,
+    unregisteredCollaborators,
+    setUnregisteredCollaborators,
 
     // Step 2 — Date & Venue
     dateStart,

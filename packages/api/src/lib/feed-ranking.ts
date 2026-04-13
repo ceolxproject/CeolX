@@ -16,7 +16,6 @@ export interface RawFeedEvent {
   venueAddress: string | null;
   category: string;
   coverImageUrl: string | null;
-  isGigOpportunity: boolean;
   createdAt: string;
   creatorName: string;
   creatorId: string;

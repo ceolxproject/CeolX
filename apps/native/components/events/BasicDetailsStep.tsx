@@ -5,8 +5,8 @@ import { Image, Pressable, ScrollView, Text, TextInput, View } from 'react-nativ
 import type { EventCategory } from '@CeolX/shared';
 import { CATEGORY_LABELS } from '@CeolX/shared';
 
-import type { ExternalArtist, SelectedArtist } from './CollaboratorField';
-import { CollaboratorField } from './CollaboratorField';
+import { CollaboratorPicker } from './CollaboratorPicker';
+import { InviteArtistPicker } from './InviteArtistPicker';
 
 type Props = {
   title: string;
@@ -20,10 +20,12 @@ type Props = {
   onCategoryPress: () => void;
   collectionId: string;
   onCollectionIdChange: (v: string) => void;
-  selectedArtists: SelectedArtist[];
-  onSelectedArtistsChange: (artists: SelectedArtist[]) => void;
-  externalArtists: ExternalArtist[];
-  onExternalArtistsChange: (artists: ExternalArtist[]) => void;
+  collaborators: string[];
+  onCollaboratorsChange: (ids: string[]) => void;
+  platformInvites: string[];
+  onPlatformInvitesChange: (ids: string[]) => void;
+  unregisteredCollaborators: Array<{ name: string; email: string }>;
+  onUnregisteredCollaboratorsChange: (invites: Array<{ name: string; email: string }>) => void;
   errors: Record<string, string>;
   onContinue: () => void;
   isVenue: boolean;
@@ -43,10 +45,12 @@ export function BasicDetailsStep({
   onCategoryPress,
   collectionId: _collectionId,
   onCollectionIdChange: _onCollectionIdChange,
-  selectedArtists,
-  onSelectedArtistsChange,
-  externalArtists,
-  onExternalArtistsChange,
+  collaborators,
+  onCollaboratorsChange,
+  platformInvites,
+  onPlatformInvitesChange,
+  unregisteredCollaborators,
+  onUnregisteredCollaboratorsChange,
   errors,
   onContinue,
   isVenue,
@@ -183,13 +187,20 @@ export function BasicDetailsStep({
         </View>
       )}
 
-      {/* ── Collaborators (optional) ── */}
-      <CollaboratorField
-        selectedArtists={selectedArtists}
-        onArtistsChange={onSelectedArtistsChange}
-        externalArtists={externalArtists}
-        onExternalArtistsChange={onExternalArtistsChange}
-        isVenue={isVenue}
+      {/* ── Collaborators ── */}
+      <CollaboratorPicker
+        collaborators={collaborators}
+        onCollaboratorsChange={onCollaboratorsChange}
+        isRequired={isVenue}
+        error={errors.collaborators}
+      />
+
+      {/* ── Invite Artists ── */}
+      <InviteArtistPicker
+        platformInvites={platformInvites}
+        onPlatformInvitesChange={onPlatformInvitesChange}
+        unregisteredInvites={unregisteredCollaborators}
+        onUnregisteredInvitesChange={onUnregisteredCollaboratorsChange}
       />
 
       {/* ── Continue Button ── */}

@@ -4,6 +4,7 @@ import {
   check,
   index,
   integer,
+  jsonb,
   numeric,
   pgTable,
   text,
@@ -62,7 +63,10 @@ export const events = pgTable(
     category: varchar('category', { length: 100 }).notNull(),
     ticketLink: text('ticket_link'), // external URL — not validated in DB
     ticketPrice: integer('ticket_price'), // stored in cents (e.g. 49900 = €499.00)
-    isGigOpportunity: boolean('is_gig_opportunity').default(false), // visible to Artists only when true
+    isGigOpportunity: boolean('is_gig_opportunity'), // DEPRECATED — nullable, no longer written
+    unregisteredCollaborators: jsonb('unregistered_collaborators')
+      .$type<Array<{ name: string; email: string }>>()
+      .default([]),
     collectionId: uuid('collection_id').references(() => collections.id, { onDelete: 'set null' }),
     adTitle: varchar('ad_title', { length: 100 }),
     adDescription: varchar('ad_description', { length: 50 }),
