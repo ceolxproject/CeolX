@@ -3,18 +3,18 @@ import { useQuery } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
 import { Image, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 
+import type { CollaboratorArtist } from '@/hooks/use-event-form';
 import { trpc } from '@/utils/trpc';
 
-type ArtistResult = {
-  id: string;
-  stageName: string;
-  genre: string | null;
-  image: string | null;
-};
+type ArtistResult = CollaboratorArtist;
 
 type Props = {
   collaborators: string[];
   onCollaboratorsChange: (ids: string[]) => void;
+  /** Full artist objects for already-selected collaborators.
+   *  Used to re-seed chips when this component remounts after step navigation. */
+  initialSelectedArtists?: ArtistResult[];
+  onCollaboratorObjectsChange: (artists: ArtistResult[]) => void;
   isRequired?: boolean;
   error?: string;
 };
@@ -22,12 +22,17 @@ type Props = {
 export function CollaboratorPicker({
   collaborators,
   onCollaboratorsChange,
+  initialSelectedArtists,
+  onCollaboratorObjectsChange,
   isRequired,
   error,
 }: Props) {
   const [query, setQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
-  const [selectedArtists, setSelectedArtists] = useState<ArtistResult[]>([]);
+  // Seeded from props on every (re)mount so chips survive step navigation.
+  const [selectedArtists, setSelectedArtists] = useState<ArtistResult[]>(
+    initialSelectedArtists ?? []
+  );
   const [showDropdown, setShowDropdown] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -47,16 +52,20 @@ export function CollaboratorPicker({
   const results = (data?.artists ?? []).filter((a) => !collaborators.includes(a.id));
 
   function addCollaborator(artist: ArtistResult) {
-    setSelectedArtists((prev) => [...prev, artist]);
-    onCollaboratorsChange([...collaborators, artist.id]);
+    const nextArtists = [...selectedArtists, artist];
+    setSelectedArtists(nextArtists);
+    onCollaboratorsChange(nextArtists.map((a) => a.id));
+    onCollaboratorObjectsChange(nextArtists);
     setQuery('');
     setDebouncedQuery('');
     setShowDropdown(false);
   }
 
   function removeCollaborator(id: string) {
-    setSelectedArtists((prev) => prev.filter((a) => a.id !== id));
-    onCollaboratorsChange(collaborators.filter((c) => c !== id));
+    const nextArtists = selectedArtists.filter((a) => a.id !== id);
+    setSelectedArtists(nextArtists);
+    onCollaboratorsChange(nextArtists.map((a) => a.id));
+    onCollaboratorObjectsChange(nextArtists);
   }
 
   return (

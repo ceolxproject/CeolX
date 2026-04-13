@@ -59,16 +59,6 @@ export default function CreateEventScreen() {
         <Text className="flex-1 text-2xl font-bold text-white">Create New Event</Text>
       </View>
 
-      {/* Artist context banner */}
-      {!isVenue && me?.currentRole === 'artist' && (
-        <View className="mx-5 mt-2 rounded-lg bg-white/5 px-4 py-3">
-          <Text className="text-xs leading-5 text-gray-7 font-urbanist">
-            Create events for your own performances — self-organised sessions, independent gigs, or
-            shows you've arranged. Pin the location where you'll be performing.
-          </Text>
-        </View>
-      )}
-
       {/* Step indicator */}
       <View className="px-5">
         <StepIndicator currentStep={form.currentStep as 1 | 2 | 3} />
@@ -91,6 +81,8 @@ export default function CreateEventScreen() {
             onCollectionIdChange={form.setCollectionId}
             collaborators={form.collaborators}
             onCollaboratorsChange={form.setCollaborators}
+            collaboratorArtists={form.collaboratorArtists}
+            onCollaboratorArtistsChange={form.setCollaboratorArtists}
             platformInvites={form.platformInvites}
             onPlatformInvitesChange={form.setPlatformInvites}
             unregisteredCollaborators={form.unregisteredCollaborators}
