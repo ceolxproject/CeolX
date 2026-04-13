@@ -12,7 +12,12 @@ interface FeedEventCardProps {
   className?: string;
 }
 
-export function FeedEventCard({ event, onPress, isArtist, className }: FeedEventCardProps) {
+export function FeedEventCard({
+  event,
+  onPress,
+  isArtist: _isArtist,
+  className,
+}: FeedEventCardProps) {
   const categoryLabel =
     CATEGORY_LABELS[event.category as keyof typeof CATEGORY_LABELS] ?? event.category;
   const categoryIcon = CATEGORY_ICONS[event.category as keyof typeof CATEGORY_ICONS] ?? '🎵';
@@ -40,12 +45,17 @@ export function FeedEventCard({ event, onPress, isArtist, className }: FeedEvent
           </View>
         )}
 
-        {/* Top-left category badge */}
-        <View className="absolute top-3 left-3 bg-[#080808] rounded-xl px-2 py-1.5">
-          <Text className="text-[12px] text-[#C8FF2F] font-semibold tracking-wide uppercase">
-            {categoryLabel}
-          </Text>
-        </View>
+        {/* Top-left collection badge — only shown when event belongs to a collection */}
+        {event.collectionName && (
+          <View
+            className="absolute top-3 left-3 rounded-xl px-2 py-1.5"
+            style={{ backgroundColor: 'rgba(8,8,8,0.85)' }}
+          >
+            <Text className="text-[12px] text-[#C8FF2F] font-semibold tracking-wide font-urbanist">
+              {event.collectionName}
+            </Text>
+          </View>
+        )}
 
         {/* Bottom overlay: category pill + joined count */}
         <View className="absolute bottom-3 left-3 right-3 flex-row items-center justify-between">
@@ -65,15 +75,6 @@ export function FeedEventCard({ event, onPress, isArtist, className }: FeedEvent
             </View>
           )}
         </View>
-
-        {/* Gig opportunity label (artist only) */}
-        {isArtist && event.isGigOpportunity && (
-          <View className="absolute top-3 right-3 bg-[#6155F5] rounded-lg px-2 py-1">
-            <Text className="text-[10px] font-semibold text-white font-urbanist">
-              Gig Opportunity
-            </Text>
-          </View>
-        )}
       </View>
 
       {/* Content area */}

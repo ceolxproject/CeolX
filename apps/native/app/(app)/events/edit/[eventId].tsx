@@ -9,11 +9,11 @@ import type { EventCategory } from '@CeolX/shared';
 
 import { AppTabBar, TAB_CONFIG } from '@/components/AppTabBar';
 import { BasicDetailsStep } from '@/components/events/BasicDetailsStep';
-import { CategoryPicker } from '@/components/events/CategoryPicker';
 import { DateVenueStep } from '@/components/events/DateVenueStep';
 import { StepIndicator } from '@/components/events/StepIndicator';
 import { TicketAdsStep } from '@/components/events/TicketAdsStep';
 import { useEventForm } from '@/hooks/use-event-form';
+import type { CollaboratorArtist } from '@/hooks/use-event-form';
 import { trpc } from '@/utils/trpc';
 
 export default function EditEventScreen() {
@@ -22,7 +22,6 @@ export default function EditEventScreen() {
   const insets = useSafeAreaInsets();
   const { data: me } = useQuery(trpc.users.me.queryOptions());
   const isVenue = me?.currentRole === 'venue';
-  const [showCategoryPicker, setShowCategoryPicker] = useState(false);
   const [showManualAddress, setShowManualAddress] = useState(false);
 
   const { data: event, isLoading } = useQuery(trpc.events.byId.queryOptions({ id: eventId }));
@@ -37,6 +36,19 @@ export default function EditEventScreen() {
           category: event.category as EventCategory,
           collectionId: event.collectionId ?? '',
           collaborators: event.collaborators.map((c) => c.id),
+          collaboratorArtists: event.collaborators.map(
+            (c): CollaboratorArtist => ({
+              id: c.id,
+              stageName: c.stageName,
+              genre: c.genre,
+              image: c.profileImageUrl ?? null,
+            })
+          ),
+          platformInvites: [],
+          unregisteredCollaborators: (event.unregisteredCollaborators ?? []) as Array<{
+            name: string;
+            email: string;
+          }>,
           dateStart: new Date(event.dateStart),
           dateEnd: event.dateEnd ? new Date(event.dateEnd) : null,
           startTime: new Date(event.dateStart),
@@ -57,6 +69,7 @@ export default function EditEventScreen() {
         { text: 'Done', onPress: () => router.back() },
       ]);
     },
+    isVenue,
   });
 
   const handleBackPress = () => {
@@ -136,9 +149,22 @@ export default function EditEventScreen() {
             onPickImage={() => {}}
             category={form.category}
             onCategoryChange={form.setCategory}
-            onCategoryPress={() => setShowCategoryPicker(true)}
             collectionId={form.collectionId}
             onCollectionIdChange={form.setCollectionId}
+            collaborators={form.collaborators}
+            onCollaboratorsChange={form.setCollaborators}
+            collaboratorArtists={form.collaboratorArtists}
+            onCollaboratorArtistsChange={form.setCollaboratorArtists}
+            platformInvites={form.platformInvites}
+            onPlatformInvitesChange={form.setPlatformInvites}
+            unregisteredCollaborators={
+              form.unregisteredCollaborators as Array<{ name: string; email: string }>
+            }
+            onUnregisteredCollaboratorsChange={
+              form.setUnregisteredCollaborators as (
+                invites: Array<{ name: string; email: string }>
+              ) => void
+            }
             errors={form.errors}
             onContinue={form.goNext}
             isVenue={isVenue}
@@ -161,6 +187,7 @@ export default function EditEventScreen() {
             }}
             venueAddress={form.venueAddress}
             onVenueAddressChange={form.setVenueAddress}
+            onVenueIdChange={form.setVenueId}
             showManualAddress={showManualAddress}
             onToggleManualAddress={() => setShowManualAddress(!showManualAddress)}
             errors={form.errors}
@@ -194,13 +221,6 @@ export default function EditEventScreen() {
 
       {/* Bottom tab bar */}
       <AppTabBar state={tabBarState} descriptors={{}} navigation={tabBarNavigation} />
-
-      <CategoryPicker
-        visible={showCategoryPicker}
-        selected={form.category}
-        onSelect={form.setCategory}
-        onClose={() => setShowCategoryPicker(false)}
-      />
     </View>
   );
 }

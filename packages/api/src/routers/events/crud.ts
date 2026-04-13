@@ -142,7 +142,6 @@ export const byId = publicProcedure
       coverImageUrl: event.coverImage ?? null,
       ticketLink: event.ticketLink ?? null,
       ticketPrice: event.ticketPrice ?? null,
-      isGigOpportunity: event.isGigOpportunity ?? false,
       adTitle: event.adTitle ?? null,
       adDescription: event.adDescription ?? null,
       venueId: event.venueId ?? null,
@@ -169,6 +168,7 @@ export const byId = publicProcedure
           eventCount: countByUserId.get(c.artistProfileId) ?? 0,
         };
       }),
+      unregisteredCollaborators: event.unregisteredCollaborators ?? [],
       collection: event.collection
         ? { id: event.collection.id, name: event.collection.name }
         : null,
@@ -186,12 +186,17 @@ export const byId = publicProcedure
   });
 
 export const create = creatorProcedure.input(createEventSchema).mutation(async ({ input, ctx }) => {
-  const { collaborators, ...eventData } = input;
+  const { collaborators, unregisteredCollaborators, ...eventData } = input;
 
-  // A venue event with no collaborators is automatically a gig opportunity —
-  // artists can discover it and request to perform.
   const isVenue = ctx.session.user.currentRole === 'venue';
-  const isGigOpportunity = isVenue && (!collaborators || collaborators.length === 0);
+
+  // Venue events must have at least one confirmed platform collaborator
+  if (isVenue && (!collaborators || collaborators.length === 0)) {
+    throw new TRPCError({
+      code: 'BAD_REQUEST',
+      message: 'Venue events must have at least one confirmed collaborator',
+    });
+  }
 
   // Ad fields are venue-only — strip them for non-venue creators
   if (!isVenue) {
@@ -215,7 +220,7 @@ export const create = creatorProcedure.input(createEventSchema).mutation(async (
         category: eventData.category,
         ticketLink: eventData.ticketLink ?? null,
         ticketPrice: eventData.ticketPrice ?? null,
-        isGigOpportunity,
+        unregisteredCollaborators: unregisteredCollaborators ?? [],
         collectionId: eventData.collectionId ?? null,
         adTitle: eventData.adTitle ?? null,
         adDescription: eventData.adDescription ?? null,
@@ -266,7 +271,7 @@ export const update = protectedProcedure
       throw new TRPCError({ code: 'FORBIDDEN', message: 'Cannot edit an archived event' });
     }
 
-    const { collaborators, ...updateData } = input.data;
+    const { collaborators, unregisteredCollaborators, ...updateData } = input.data;
     const isVenue = ctx.session.user.currentRole === 'venue';
 
     // Ad fields are venue-only — strip them for non-venue creators
@@ -294,13 +299,8 @@ export const update = protectedProcedure
       if (updateData.adTitle !== undefined) setValues.adTitle = updateData.adTitle;
       if (updateData.adDescription !== undefined)
         setValues.adDescription = updateData.adDescription;
-
-      // Recompute isGigOpportunity when collaborators are explicitly updated:
-      // a venue event with no collaborators becomes a gig opportunity, and one
-      // with collaborators reverts to a normal event.
-      if (collaborators !== undefined) {
-        setValues.isGigOpportunity = isVenue && collaborators.length === 0;
-      }
+      if (unregisteredCollaborators !== undefined)
+        setValues.unregisteredCollaborators = unregisteredCollaborators;
 
       // If event was removed by admin and creator is resubmitting, re-activate
       if (event.status === 'removed') {

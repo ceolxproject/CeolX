@@ -7,7 +7,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AppTabBar, TAB_CONFIG } from '@/components/AppTabBar';
 import { BasicDetailsStep } from '@/components/events/BasicDetailsStep';
-import { CategoryPicker } from '@/components/events/CategoryPicker';
 import { DateVenueStep } from '@/components/events/DateVenueStep';
 import { StepIndicator } from '@/components/events/StepIndicator';
 import { TicketAdsStep } from '@/components/events/TicketAdsStep';
@@ -19,7 +18,6 @@ export default function CreateEventScreen() {
   const insets = useSafeAreaInsets();
   const { data: me } = useQuery(trpc.users.me.queryOptions());
   const isVenue = me?.currentRole === 'venue';
-  const [showCategoryPicker, setShowCategoryPicker] = useState(false);
   const [showManualAddress, setShowManualAddress] = useState(false);
 
   const form = useEventForm({
@@ -28,6 +26,7 @@ export default function CreateEventScreen() {
         { text: 'Done', onPress: () => router.replace('/(app)/(tabs)/discover') },
       ]);
     },
+    isVenue,
   });
 
   const handleBackPress = () => {
@@ -58,16 +57,6 @@ export default function CreateEventScreen() {
         <Text className="flex-1 text-2xl font-bold text-white">Create New Event</Text>
       </View>
 
-      {/* Artist context banner */}
-      {!isVenue && me?.currentRole === 'artist' && (
-        <View className="mx-5 mt-2 rounded-lg bg-white/5 px-4 py-3">
-          <Text className="text-xs leading-5 text-gray-7 font-urbanist">
-            Create events for your own performances — self-organised sessions, independent gigs, or
-            shows you've arranged. Pin the location where you'll be performing.
-          </Text>
-        </View>
-      )}
-
       {/* Step indicator */}
       <View className="px-5">
         <StepIndicator currentStep={form.currentStep as 1 | 2 | 3} />
@@ -85,9 +74,16 @@ export default function CreateEventScreen() {
             onPickImage={() => {}}
             category={form.category}
             onCategoryChange={form.setCategory}
-            onCategoryPress={() => setShowCategoryPicker(true)}
             collectionId={form.collectionId}
             onCollectionIdChange={form.setCollectionId}
+            collaborators={form.collaborators}
+            onCollaboratorsChange={form.setCollaborators}
+            collaboratorArtists={form.collaboratorArtists}
+            onCollaboratorArtistsChange={form.setCollaboratorArtists}
+            platformInvites={form.platformInvites}
+            onPlatformInvitesChange={form.setPlatformInvites}
+            unregisteredCollaborators={form.unregisteredCollaborators}
+            onUnregisteredCollaboratorsChange={form.setUnregisteredCollaborators}
             errors={form.errors}
             onContinue={form.goNext}
             isVenue={isVenue}
@@ -110,6 +106,7 @@ export default function CreateEventScreen() {
             }}
             venueAddress={form.venueAddress}
             onVenueAddressChange={form.setVenueAddress}
+            onVenueIdChange={form.setVenueId}
             showManualAddress={showManualAddress}
             onToggleManualAddress={() => setShowManualAddress(!showManualAddress)}
             errors={form.errors}
@@ -142,13 +139,6 @@ export default function CreateEventScreen() {
 
       {/* Bottom tab bar — lets users navigate away without losing the back-stack */}
       <AppTabBar state={tabBarState} descriptors={{}} navigation={tabBarNavigation} />
-
-      <CategoryPicker
-        visible={showCategoryPicker}
-        selected={form.category}
-        onSelect={form.setCategory}
-        onClose={() => setShowCategoryPicker(false)}
-      />
     </View>
   );
 }

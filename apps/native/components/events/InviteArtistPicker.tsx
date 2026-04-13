@@ -1,0 +1,271 @@
+import { Ionicons } from '@expo/vector-icons';
+import { useQuery } from '@tanstack/react-query';
+import { useEffect, useRef, useState } from 'react';
+import { Image, Modal, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+
+import { trpc } from '@/utils/trpc';
+
+type ArtistResult = {
+  id: string;
+  stageName: string;
+  genre: string | null;
+  image: string | null;
+};
+
+type UnregisteredInvite = {
+  name: string;
+  email: string;
+};
+
+type Props = {
+  platformInvites: string[];
+  onPlatformInvitesChange: (ids: string[]) => void;
+  unregisteredInvites: UnregisteredInvite[];
+  onUnregisteredInvitesChange: (invites: UnregisteredInvite[]) => void;
+};
+
+export function InviteArtistPicker({
+  platformInvites,
+  onPlatformInvitesChange,
+  unregisteredInvites,
+  onUnregisteredInvitesChange,
+}: Props) {
+  const [query, setQuery] = useState('');
+  const [debouncedQuery, setDebouncedQuery] = useState('');
+  const [selectedPlatformArtists, setSelectedPlatformArtists] = useState<ArtistResult[]>([]);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const [showInviteModal, setShowInviteModal] = useState(false);
+  const [inviteName, setInviteName] = useState('');
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteErrors, setInviteErrors] = useState<{ name?: string; email?: string }>({});
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => setDebouncedQuery(query), 400);
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, [query]);
+
+  const { data } = useQuery({
+    ...trpc.artists.search.queryOptions({ q: debouncedQuery }),
+    enabled: debouncedQuery.length >= 1,
+  });
+
+  const results = (data?.artists ?? []).filter((a) => !platformInvites.includes(a.id));
+
+  function addPlatformInvite(artist: ArtistResult) {
+    setSelectedPlatformArtists((prev) => [...prev, artist]);
+    onPlatformInvitesChange([...platformInvites, artist.id]);
+    setQuery('');
+    setDebouncedQuery('');
+    setShowDropdown(false);
+  }
+
+  function removePlatformInvite(id: string) {
+    setSelectedPlatformArtists((prev) => prev.filter((a) => a.id !== id));
+    onPlatformInvitesChange(platformInvites.filter((i) => i !== id));
+  }
+
+  function removeUnregisteredInvite(email: string) {
+    onUnregisteredInvitesChange(unregisteredInvites.filter((i) => i.email !== email));
+  }
+
+  function handleSendInvite() {
+    const errors: { name?: string; email?: string } = {};
+    if (!inviteName.trim()) errors.name = 'Name is required';
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!inviteEmail.trim()) {
+      errors.email = 'Email is required';
+    } else if (!emailRegex.test(inviteEmail.trim())) {
+      errors.email = 'Enter a valid email address';
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setInviteErrors(errors);
+      return;
+    }
+
+    onUnregisteredInvitesChange([
+      ...unregisteredInvites,
+      { name: inviteName.trim(), email: inviteEmail.trim() },
+    ]);
+    setInviteName('');
+    setInviteEmail('');
+    setInviteErrors({});
+    setShowInviteModal(false);
+  }
+
+  const hasInvites = selectedPlatformArtists.length > 0 || unregisteredInvites.length > 0;
+
+  return (
+    <View className="gap-2">
+      <View className="flex-row items-center justify-between">
+        <Text className="text-sm font-semibold text-gray-3 font-urbanist">
+          Invite Artists (optional)
+        </Text>
+        <Text className="text-xs text-gray-7 font-urbanist">Platform or outside</Text>
+      </View>
+
+      {/* Search input */}
+      <View className="flex-row items-center rounded-lg border border-gray-8 bg-surface px-4 py-3 gap-2">
+        <Ionicons name="mail-outline" size={16} color="#8d8d8d" />
+        <TextInput
+          className="flex-1 text-sm text-white font-urbanist"
+          placeholder="Search artists to invite..."
+          placeholderTextColor="#8d8d8d"
+          value={query}
+          onChangeText={(v) => {
+            setQuery(v);
+            setShowDropdown(true);
+          }}
+          onFocus={() => setShowDropdown(true)}
+        />
+      </View>
+
+      {/* Dropdown results + invite button */}
+      {showDropdown && (results.length > 0 || query.length > 0) && (
+        <View className="rounded-lg border border-gray-8 bg-surface overflow-hidden">
+          {results.map((artist) => (
+            <Pressable
+              key={artist.id}
+              onPress={() => addPlatformInvite(artist)}
+              className="flex-row items-center gap-3 px-4 py-3 border-b border-gray-8 active:bg-white/10"
+            >
+              {artist.image ? (
+                <Image source={{ uri: artist.image }} className="w-8 h-8 rounded-full" />
+              ) : (
+                <View className="w-8 h-8 rounded-full bg-gray-8 items-center justify-center">
+                  <Ionicons name="person" size={14} color="#8d8d8d" />
+                </View>
+              )}
+              <View className="flex-1">
+                <Text className="text-sm text-white font-urbanist">{artist.stageName}</Text>
+                {artist.genre && (
+                  <Text className="text-xs text-gray-7 font-urbanist">{artist.genre}</Text>
+                )}
+              </View>
+              <Ionicons name="paper-plane-outline" size={18} color="#8d8d8d" />
+            </Pressable>
+          ))}
+
+          {/* Invite outside-platform artist */}
+          <Pressable
+            onPress={() => {
+              setShowDropdown(false);
+              setShowInviteModal(true);
+            }}
+            className="flex-row items-center gap-3 px-4 py-3 active:bg-white/10"
+          >
+            <View className="w-8 h-8 rounded-full bg-[#6C63FF]/20 items-center justify-center">
+              <Ionicons name="person-add-outline" size={14} color="#6C63FF" />
+            </View>
+            <Text className="text-sm font-semibold text-[#6C63FF] font-urbanist">
+              Invite Artist
+            </Text>
+            <Text className="text-xs text-gray-7 font-urbanist">(not on platform)</Text>
+          </Pressable>
+        </View>
+      )}
+
+      {/* Invite chips */}
+      {hasInvites && (
+        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+          <View className="flex-row gap-2">
+            {selectedPlatformArtists.map((artist) => (
+              <View
+                key={artist.id}
+                className="flex-row items-center gap-1.5 rounded-full bg-white/10 px-3 py-1.5 border border-gray-8"
+              >
+                <Ionicons name="paper-plane-outline" size={12} color="#8d8d8d" />
+                <Text className="text-xs text-gray-3 font-semibold font-urbanist">
+                  {artist.stageName}
+                </Text>
+                <Pressable onPress={() => removePlatformInvite(artist.id)} hitSlop={8}>
+                  <Ionicons name="close-circle" size={14} color="#8d8d8d" />
+                </Pressable>
+              </View>
+            ))}
+            {unregisteredInvites.map((invite) => (
+              <View
+                key={invite.email}
+                className="flex-row items-center gap-1.5 rounded-full bg-white/10 px-3 py-1.5 border border-gray-8"
+              >
+                <Ionicons name="mail-outline" size={12} color="#8d8d8d" />
+                <Text className="text-xs text-gray-3 font-semibold font-urbanist">
+                  {invite.name}
+                </Text>
+                <Pressable onPress={() => removeUnregisteredInvite(invite.email)} hitSlop={8}>
+                  <Ionicons name="close-circle" size={14} color="#8d8d8d" />
+                </Pressable>
+              </View>
+            ))}
+          </View>
+        </ScrollView>
+      )}
+
+      {/* Invite outside-platform modal */}
+      <Modal
+        visible={showInviteModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowInviteModal(false)}
+      >
+        <Pressable
+          className="flex-1 bg-black/60 items-center justify-center px-5"
+          onPress={() => setShowInviteModal(false)}
+        >
+          <Pressable
+            className="w-full rounded-2xl bg-[#1a1a1a] border border-gray-8 p-5 gap-4"
+            onPress={() => {}}
+          >
+            <View className="flex-row items-center justify-between">
+              <Text className="text-base font-bold text-white font-urbanist">Invite Artist</Text>
+              <Pressable onPress={() => setShowInviteModal(false)} hitSlop={8}>
+                <Ionicons name="close" size={20} color="#8d8d8d" />
+              </Pressable>
+            </View>
+
+            <View className="gap-2">
+              <Text className="text-sm font-semibold text-gray-3 font-urbanist">Name *</Text>
+              <TextInput
+                className={`rounded-lg border bg-surface px-4 py-3 text-sm text-white font-urbanist ${inviteErrors.name ? 'border-error' : 'border-gray-8'}`}
+                placeholder="Artist name"
+                placeholderTextColor="#8d8d8d"
+                value={inviteName}
+                onChangeText={setInviteName}
+              />
+              {inviteErrors.name && (
+                <Text className="text-xs text-error font-urbanist">{inviteErrors.name}</Text>
+              )}
+            </View>
+
+            <View className="gap-2">
+              <Text className="text-sm font-semibold text-gray-3 font-urbanist">Email *</Text>
+              <TextInput
+                className={`rounded-lg border bg-surface px-4 py-3 text-sm text-white font-urbanist ${inviteErrors.email ? 'border-error' : 'border-gray-8'}`}
+                placeholder="artist@example.com"
+                placeholderTextColor="#8d8d8d"
+                value={inviteEmail}
+                onChangeText={setInviteEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+              />
+              {inviteErrors.email && (
+                <Text className="text-xs text-error font-urbanist">{inviteErrors.email}</Text>
+              )}
+            </View>
+
+            <Pressable
+              onPress={handleSendInvite}
+              className="bg-[#6C63FF] rounded-xl py-3.5 items-center"
+            >
+              <Text className="text-white text-sm font-bold font-urbanist">Send Invite</Text>
+            </Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
+    </View>
+  );
+}

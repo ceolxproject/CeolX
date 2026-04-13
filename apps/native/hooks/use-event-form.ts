@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useState } from 'react';
+import { Alert } from 'react-native';
 
 import type { EventCategory } from '@CeolX/shared';
 import { createEventSchema } from '@CeolX/shared/validators';
@@ -10,6 +11,15 @@ import { trpc } from '@/utils/trpc';
 // Types
 // ---------------------------------------------------------------------------
 
+/** Full artist object stored alongside collaborator IDs so the picker can
+ *  re-hydrate its chip display after the component remounts (step navigation). */
+export type CollaboratorArtist = {
+  id: string;
+  stageName: string;
+  genre: string | null;
+  image: string | null;
+};
+
 export interface EventFormData {
   // Step 1 — Basic Details
   title: string;
@@ -18,6 +28,9 @@ export interface EventFormData {
   category: EventCategory | '';
   collectionId: string;
   collaborators: string[];
+  collaboratorArtists: CollaboratorArtist[];
+  platformInvites: string[];
+  unregisteredCollaborators: Array<{ name: string; email: string }>;
 
   // Step 2 — Date & Venue
   dateStart: Date | null;
@@ -46,6 +59,8 @@ interface UseEventFormOptions {
   initialData?: EventFormData;
   /** Called after a successful create or update. */
   onSuccess?: () => void;
+  /** Current user role — used to enforce persona-specific mandatory fields. */
+  isVenue?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -60,6 +75,9 @@ function defaults(initial?: EventFormData): EventFormData {
     category: initial?.category ?? '',
     collectionId: initial?.collectionId ?? '',
     collaborators: initial?.collaborators ?? [],
+    collaboratorArtists: initial?.collaboratorArtists ?? [],
+    platformInvites: initial?.platformInvites ?? [],
+    unregisteredCollaborators: initial?.unregisteredCollaborators ?? [],
 
     dateStart: initial?.dateStart ?? null,
     dateEnd: initial?.dateEnd ?? null,
@@ -118,6 +136,7 @@ function parseQuantity(value: string): number | undefined {
 
 export function useEventForm(options?: UseEventFormOptions) {
   const isEditing = !!options?.eventId;
+  const isVenue = options?.isVenue ?? false;
   const queryClient = useQueryClient();
 
   const init = defaults(options?.initialData);
@@ -132,6 +151,13 @@ export function useEventForm(options?: UseEventFormOptions) {
   const [category, setCategory] = useState<EventCategory | ''>(init.category);
   const [collectionId, setCollectionId] = useState(init.collectionId);
   const [collaborators, setCollaborators] = useState<string[]>(init.collaborators);
+  const [collaboratorArtists, setCollaboratorArtists] = useState<CollaboratorArtist[]>(
+    init.collaboratorArtists
+  );
+  const [platformInvites, setPlatformInvites] = useState<string[]>(init.platformInvites);
+  const [unregisteredCollaborators, setUnregisteredCollaborators] = useState<
+    Array<{ name: string; email: string }>
+  >(init.unregisteredCollaborators);
 
   // Step 2 — Date & Venue
   const [dateStart, setDateStart] = useState<Date | null>(init.dateStart);
@@ -182,9 +208,13 @@ export function useEventForm(options?: UseEventFormOptions) {
       stepErrors.category = 'Category is required';
     }
 
+    if (isVenue && collaborators.length === 0) {
+      stepErrors.collaborators = 'At least one confirmed collaborator is required for venue events';
+    }
+
     setErrors(stepErrors);
     return Object.keys(stepErrors).length === 0;
-  }, [title, description, category]);
+  }, [title, description, category, isVenue, collaborators]);
 
   const validateStep2 = useCallback((): boolean => {
     const stepErrors: Record<string, string> = {};
@@ -243,8 +273,24 @@ export function useEventForm(options?: UseEventFormOptions) {
   // ---------------------------------------------------------------------------
 
   const handleSubmit = useCallback(async () => {
-    // Run all step validations
-    if (!validateStep1() || !validateStep2() || !validateStep3()) {
+    // Run all step validations upfront. Errors from earlier steps may not be
+    // visible on step 3's UI, so we navigate back to the first failing step
+    // and surface an alert so the user knows what to fix.
+    const step1Ok = validateStep1();
+    const step2Ok = validateStep2();
+    const step3Ok = validateStep3();
+
+    if (!step1Ok) {
+      setCurrentStep(1);
+      Alert.alert('Missing details', 'Please fix the errors on step 1 before submitting.');
+      return;
+    }
+    if (!step2Ok) {
+      setCurrentStep(2);
+      Alert.alert('Missing details', 'Please fix the errors on step 2 before submitting.');
+      return;
+    }
+    if (!step3Ok) {
       return;
     }
 
@@ -267,6 +313,8 @@ export function useEventForm(options?: UseEventFormOptions) {
       ticketQuantity: parseQuantity(ticketQuantity),
       collectionId: collectionId || undefined,
       collaborators: collaborators.length > 0 ? collaborators : undefined,
+      unregisteredCollaborators:
+        unregisteredCollaborators.length > 0 ? unregisteredCollaborators : undefined,
       adTitle: adTitle.trim() || undefined,
       adDescription: adDescription.trim() || undefined,
     };
@@ -280,16 +328,29 @@ export function useEventForm(options?: UseEventFormOptions) {
         fieldErrors[issue.path.join('.')] = issue.message;
       }
       setErrors(fieldErrors);
+      // Navigate back to step 1 so the field errors are actually visible
+      setCurrentStep(1);
+      Alert.alert(
+        'Invalid event data',
+        parsed.error.issues[0]?.message ?? 'Please check all fields.'
+      );
       return;
     }
 
-    if (isEditing && options?.eventId) {
-      await updateMutation.mutateAsync({
-        id: options.eventId,
-        data: parsed.data,
-      });
-    } else {
-      await createMutation.mutateAsync(parsed.data);
+    try {
+      if (isEditing && options?.eventId) {
+        await updateMutation.mutateAsync({
+          id: options.eventId,
+          data: parsed.data,
+        });
+      } else {
+        await createMutation.mutateAsync(parsed.data);
+      }
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : 'Something went wrong. Please try again.';
+      Alert.alert('Failed to save event', message);
+      return;
     }
 
     // Invalidate cached event queries so detail/feed/map show updated data
@@ -317,6 +378,7 @@ export function useEventForm(options?: UseEventFormOptions) {
     ticketQuantity,
     collectionId,
     collaborators,
+    unregisteredCollaborators,
     adTitle,
     adDescription,
     isEditing,
@@ -343,6 +405,12 @@ export function useEventForm(options?: UseEventFormOptions) {
     setCollectionId,
     collaborators,
     setCollaborators,
+    collaboratorArtists,
+    setCollaboratorArtists,
+    platformInvites,
+    setPlatformInvites,
+    unregisteredCollaborators,
+    setUnregisteredCollaborators,
 
     // Step 2 — Date & Venue
     dateStart,

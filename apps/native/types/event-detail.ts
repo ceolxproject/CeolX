@@ -43,8 +43,8 @@ export interface EventDetailData {
   coverImageUrl?: string | null;
   ticketLink?: string | null;
   ticketPrice?: number | null;
-  isGigOpportunity: boolean;
   collectionId?: string | null;
+  unregisteredCollaborators: Array<{ name: string; email: string }>;
   adTitle?: string | null;
   adDescription?: string | null;
   status: string;

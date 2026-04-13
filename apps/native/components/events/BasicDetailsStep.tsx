@@ -13,9 +13,13 @@ import {
 } from 'react-native';
 
 import type { EventCategory } from '@CeolX/shared';
-import { CATEGORY_LABELS } from '@CeolX/shared';
+
+import { CategoryPicker } from './CategoryPicker';
+import { CollaboratorPicker } from './CollaboratorPicker';
+import { InviteArtistPicker } from './InviteArtistPicker';
 
 import { useCollections, useCreateCollection } from '@/hooks/use-collections';
+import type { CollaboratorArtist } from '@/hooks/use-event-form';
 
 type Props = {
   title: string;
@@ -25,10 +29,17 @@ type Props = {
   coverImageUri: string | null;
   onPickImage: () => void;
   category: EventCategory | '';
-  onCategoryChange: (v: EventCategory | '') => void;
-  onCategoryPress: () => void;
+  onCategoryChange: (v: EventCategory) => void;
   collectionId: string;
   onCollectionIdChange: (v: string) => void;
+  collaborators: string[];
+  onCollaboratorsChange: (ids: string[]) => void;
+  collaboratorArtists: CollaboratorArtist[];
+  onCollaboratorArtistsChange: (artists: CollaboratorArtist[]) => void;
+  platformInvites: string[];
+  onPlatformInvitesChange: (ids: string[]) => void;
+  unregisteredCollaborators: Array<{ name: string; email: string }>;
+  onUnregisteredCollaboratorsChange: (invites: Array<{ name: string; email: string }>) => void;
   errors: Record<string, string>;
   onContinue: () => void;
   isVenue: boolean;
@@ -44,16 +55,21 @@ export function BasicDetailsStep({
   coverImageUri,
   onPickImage,
   category,
-  onCategoryChange: _onCategoryChange,
-  onCategoryPress,
+  onCategoryChange,
   collectionId,
   onCollectionIdChange,
+  collaborators,
+  onCollaboratorsChange,
+  collaboratorArtists,
+  onCollaboratorArtistsChange,
+  platformInvites,
+  onPlatformInvitesChange,
+  unregisteredCollaborators,
+  onUnregisteredCollaboratorsChange,
   errors,
   onContinue,
   isVenue,
 }: Props) {
-  const categoryLabel = category && CATEGORY_LABELS[category] ? CATEGORY_LABELS[category] : null;
-
   return (
     <ScrollView
       className="flex-1"
@@ -145,23 +161,7 @@ export function BasicDetailsStep({
       {/* ── Category ── */}
       <View className="gap-2">
         <Text className="text-sm font-semibold text-gray-3 font-urbanist">Category</Text>
-        <Pressable
-          onPress={onCategoryPress}
-          className={cn(
-            'flex-row items-center justify-between rounded-lg border bg-surface px-4 py-3',
-            errors.category ? 'border-error' : 'border-gray-8'
-          )}
-        >
-          <Text
-            className={cn('text-sm font-urbanist', categoryLabel ? 'text-white' : 'text-gray-7')}
-          >
-            {categoryLabel ?? 'Select Category'}
-          </Text>
-          <Ionicons name="chevron-down" size={18} color="#8d8d8d" />
-        </Pressable>
-        {errors.category && (
-          <Text className="text-xs text-error font-urbanist">{errors.category}</Text>
-        )}
+        <CategoryPicker value={category} onChange={onCategoryChange} error={errors.category} />
       </View>
 
       {/* ── Collection (optional) — Venues only ── */}
@@ -169,23 +169,26 @@ export function BasicDetailsStep({
         <CollectionPicker collectionId={collectionId} onCollectionIdChange={onCollectionIdChange} />
       )}
 
-      {/* ── Collaborators (optional) — coming M5/M6 ── */}
-      <View className="gap-2">
-        <View className="flex-row items-center justify-between">
-          <Text className="text-sm font-semibold text-gray-3 font-urbanist">
-            Collaborators (optional)
-          </Text>
-          <View className="rounded-full bg-[#6C63FF]/20 px-2 py-0.5">
-            <Text className="text-[10px] font-bold text-[#6C63FF] font-urbanist tracking-wider">
-              M5/M6
-            </Text>
-          </View>
-        </View>
-        <View className="flex-row items-center justify-between rounded-lg border border-gray-8 bg-surface px-4 py-3 opacity-50">
-          <Text className="text-sm font-urbanist text-gray-7">Invite artists & collaborators</Text>
-          <Ionicons name="add" size={18} color="#8d8d8d" />
-        </View>
-      </View>
+      {/* ── Collaborators + Invite Artists — Venues only ── */}
+      {isVenue && (
+        <>
+          <CollaboratorPicker
+            collaborators={collaborators}
+            onCollaboratorsChange={onCollaboratorsChange}
+            initialSelectedArtists={collaboratorArtists}
+            onCollaboratorObjectsChange={onCollaboratorArtistsChange}
+            isRequired
+            error={errors.collaborators}
+          />
+
+          <InviteArtistPicker
+            platformInvites={platformInvites}
+            onPlatformInvitesChange={onPlatformInvitesChange}
+            unregisteredInvites={unregisteredCollaborators}
+            onUnregisteredInvitesChange={onUnregisteredCollaboratorsChange}
+          />
+        </>
+      )}
 
       {/* ── Continue Button ── */}
       <Pressable

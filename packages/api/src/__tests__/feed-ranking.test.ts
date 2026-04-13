@@ -106,7 +106,6 @@ function makeEvent(overrides: Partial<RawFeedEvent> = {}): RawFeedEvent {
     venueAddress: 'Temple Bar',
     category: 'Traditional',
     coverImageUrl: null,
-    isGigOpportunity: false,
     createdAt: new Date().toISOString(),
     creatorName: 'Test Artist',
     creatorId: 'user-1',

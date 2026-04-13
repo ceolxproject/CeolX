@@ -247,14 +247,29 @@ events
   lat, lng                          -- spatial index (GIST)
   venue_id (FK) | venue_address     -- registered venue or free-text fallback
   category
-  collaborators                     -- linked Artist profiles
+  collaborators                     -- confirmed platform Artist profiles (event_collaborators join table)
+  unregistered_collaborators        -- JSONB [{ name, email }] — outside-platform invite recipients
   ticket_link                       -- external URL
-  is_gig_opportunity                -- boolean; true = Venue recruitment post (Artists only)
+  is_gig_opportunity                -- DEPRECATED — nullable, no longer written; ignore in new code
   collection_id (optional)
   created_by                        -- Artist or Venue profile ID
   status                            -- enum: draft | pending_review | rejected | active | archived
   rejection_reason                  -- nullable; populated by admin on rejection
 ```
+
+### Event form field distinctions
+
+Two separate fields exist on the event creation/edit form (M4-T1):
+
+| Field             | Purpose             | Who can be added                                    | Confirmation                                             |
+| ----------------- | ------------------- | --------------------------------------------------- | -------------------------------------------------------- |
+| **Collaborator**  | Confirmed performer | Platform artists only (from `artist_profiles`)      | Auto-confirmed — no accept/reject                        |
+| **Invite Artist** | Pending invitation  | Platform artists OR outside-platform (name + email) | Platform: M5 booking flow; Outside: email invite (M7-T3) |
+
+### Mandatory fields by persona
+
+- **Venue creating event** — must add at least 1 Collaborator (confirmed platform artist)
+- **Artist creating event** — must specify a Venue (registered venue profile OR free-text address)
 
 ---
 
@@ -262,8 +277,8 @@ events
 
 Two directions:
 
-- **Venue-initiated**: Venue sends invitation to a specific Artist
-- **Artist-initiated**: Artist applies to a Venue's gig opportunity (`is_gig_opportunity: true`)
+- **Venue-initiated**: Venue sends invitation to a specific Artist via event form Invite Artist field
+- **Artist-initiated**: Artist requests to perform at **any** event (universal — not gated by `is_gig_opportunity`)
 
 State machine: `Pending → Accepted | Rejected` → `Cancelled` (either party, any time post-acceptance)
 
@@ -310,7 +325,9 @@ packages/
 - English only in V1
 - Location permission is mandatory for the app to function (fallback chain exists — see Map section)
 - **Artist ↔ Venue switching is not supported** — separate accounts required (MoM 3rd Apr 2026)
-- Gig opportunity events (`is_gig_opportunity: true`) are visible to Artists only, not Spectators
+- `is_gig_opportunity` is deprecated — no longer written; any event can receive artist performance requests (M5)
+- **Venue must add at least 1 confirmed collaborator** (platform artist) when creating an event
+- **Artist must specify a venue** (registered profile or free-text address) when creating an event
 - **Both Artist and Venue require paid subscriptions** — Artist pricing lower than Venue (MoM 3rd Apr 2026)
 - Artist profile is not visible until subscription is active
 - Venue profile is not visible until subscription is active

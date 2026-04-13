@@ -44,12 +44,12 @@ Tracks completed tasks per milestone. Each entry links to its PR.
 ## M2 — Authentication & Persona System
 
 - [x] M2-T1 · Email/Password Auth (PR #23)
-- [ ] M2-T2 · Google + Apple Sign-In
+- [x] M2-T2 · Google + Apple Sign-In
 - [x] M2-T3 · Forgot Password — PR #25
-- [ ] M2-T4 · Persona Onboarding & Role Switching
+- [x] M2-T4 · Persona Onboarding & Role Switching
 - [x] M2-T5 · RBAC Roles & Auth Middleware — PR #29
-- [ ] M2-T6 · Session Management
-- [ ] M2-T7 · Privacy & Terms Acceptance
+- [x] M2-T6 · Session Management
+- [x] M2-T7 · Privacy & Terms Acceptance
 
 ## M3 — Map & Discovery
 
@@ -60,8 +60,8 @@ Tracks completed tasks per milestone. Each entry links to its PR.
 
 ## M4 — Event System
 
-- [ ] M4-T1 · Create & Edit Event
-- [ ] M4-T2 · Event Detail Screen
+- [x] M4-T1 · Create & Edit Event
+- [x] M4-T2 · Event Detail Screen
 - [ ] M4-T3 · Event Moderation Flow
 - [x] M4-T4 · My Events & Collections
 

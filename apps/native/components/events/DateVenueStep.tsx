@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { useQuery } from '@tanstack/react-query';
 import * as Location from 'expo-location';
 import { cn } from 'heroui-native';
 import { useEffect, useRef, useState } from 'react';
@@ -15,6 +16,7 @@ import MapView, { Marker } from 'react-native-maps';
 
 import { CalendarPickerModal } from '@/components/events/CalendarPickerModal';
 import { TimePickerModal } from '@/components/events/TimePickerModal';
+import { trpc } from '@/utils/trpc';
 
 const IRELAND_CENTER = { latitude: 53.1424, longitude: -7.6921 };
 const IRELAND_DELTA = { latitudeDelta: 4, longitudeDelta: 4 };
@@ -31,6 +33,9 @@ type Props = {
   onLocationChange: (lat: number, lng: number) => void;
   venueAddress: string;
   onVenueAddressChange: (v: string) => void;
+  /** Called with the selected registered venue's ID (empty string to clear). */
+  onVenueIdChange: (id: string) => void;
+  /** When true, show map+search instead of the registered venue dropdown. */
   showManualAddress: boolean;
   onToggleManualAddress: () => void;
   errors: Record<string, string>;
@@ -74,6 +79,7 @@ export function DateVenueStep({
   onLocationChange,
   venueAddress,
   onVenueAddressChange,
+  onVenueIdChange,
   showManualAddress,
   onToggleManualAddress,
   errors,
@@ -94,6 +100,13 @@ export function DateVenueStep({
   const [venueSearch, setVenueSearch] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   const [isPreFilling, setIsPreFilling] = useState(false);
+
+  // Artist venue picker
+  const [showVenueDropdown, setShowVenueDropdown] = useState(false);
+  const [selectedVenueName, setSelectedVenueName] = useState('');
+  const { data: registeredVenues = [], isLoading: isLoadingVenues } = useQuery(
+    trpc.venues.list.queryOptions()
+  );
 
   const reverseGeocode = async (latitude: number, longitude: number): Promise<string | null> => {
     try {
@@ -259,60 +272,15 @@ export function DateVenueStep({
             <Text className="text-sm font-semibold text-gray-3 font-urbanist">Choose Venue</Text>
             <Pressable onPress={onToggleManualAddress}>
               <Text className="text-xs font-bold text-[#C8FF2F] font-urbanist tracking-wide">
-                {showManualAddress ? 'USE MAP' : 'ENTER MANUALLY'}
+                {showManualAddress ? 'SELECT VENUE' : 'ENTER MANUALLY'}
               </Text>
             </Pressable>
           </View>
 
-          {isVenue && myVenueAddress && venueAddress !== myVenueAddress && (
-            <Pressable
-              className="flex-row items-center gap-2 rounded-lg border border-[#6C63FF]/40 bg-[#6C63FF]/10 px-3 py-2.5"
-              onPress={handleUseMyVenue}
-              disabled={isPreFilling}
-            >
-              <Ionicons name="business-outline" size={16} color="#6C63FF" />
-              {isPreFilling ? (
-                <ActivityIndicator size="small" color="#6C63FF" />
-              ) : (
-                <Text className="flex-1 text-sm text-[#6C63FF] font-urbanist">
-                  Reset to my venue
-                </Text>
-              )}
-              <Text className="shrink text-xs text-gray-7 font-urbanist" numberOfLines={1}>
-                {myVenueAddress}
-              </Text>
-            </Pressable>
-          )}
-
           {showManualAddress ? (
-            <View className="gap-1">
-              <View
-                className={cn(
-                  'rounded-lg border px-4 py-3 bg-surface',
-                  errors.venueAddress ? 'border-error' : 'border-gray-8'
-                )}
-              >
-                <TextInput
-                  className="text-sm text-white font-urbanist"
-                  placeholder="Enter venue address"
-                  placeholderTextColor="#8d8d8d"
-                  value={venueAddress}
-                  onChangeText={onVenueAddressChange}
-                />
-              </View>
-              {errors.venueAddress && (
-                <Text className="text-xs text-error font-urbanist">{errors.venueAddress}</Text>
-              )}
-            </View>
-          ) : (
+            /* Map + search mode — user pins a custom location */
             <View className="gap-2">
-              {/* Search field */}
-              <View
-                className={cn(
-                  'flex-row items-center rounded-lg border bg-surface px-3 py-2.5 gap-2',
-                  'border-gray-8'
-                )}
-              >
+              <View className="flex-row items-center rounded-lg border bg-surface px-3 py-2.5 gap-2 border-gray-8">
                 <Ionicons name="search-outline" size={16} color="#8d8d8d" />
                 <TextInput
                   className="flex-1 text-sm text-white font-urbanist"
@@ -337,15 +305,14 @@ export function DateVenueStep({
                 ) : null}
               </View>
 
-              {/* Map */}
+              {/* MapView requires explicit style — className alone doesn't
+                  reliably reach the underlying native component. */}
               <View
                 className={cn(
                   'h-[220px] rounded-xl overflow-hidden border',
                   errors.lat ? 'border-error' : 'border-gray-8'
                 )}
               >
-                {/* MapView requires explicit style — className alone doesn't
-                    reliably reach the underlying native component. */}
                 <MapView
                   ref={mapRef}
                   className="flex-1"
@@ -374,6 +341,106 @@ export function DateVenueStep({
                   ? `📍 ${venueAddress || `${lat.toFixed(5)}, ${lng.toFixed(5)}`}`
                   : 'Tap the map or search above to set a venue location'}
               </Text>
+
+              {errors.lat && <Text className="text-xs text-error font-urbanist">{errors.lat}</Text>}
+            </View>
+          ) : (
+            /* Default mode — pick from registered venues (artists) or own venue (venues) */
+            <View className="gap-1.5">
+              {!isVenue && (
+                <View className="gap-1">
+                  <Pressable
+                    className="flex-row items-center justify-between rounded-lg border border-gray-8 bg-surface px-4 py-3"
+                    onPress={() => setShowVenueDropdown((v) => !v)}
+                  >
+                    {isLoadingVenues ? (
+                      <ActivityIndicator size="small" color="#8d8d8d" />
+                    ) : (
+                      <Text
+                        className={cn(
+                          'flex-1 text-sm font-urbanist',
+                          selectedVenueName ? 'text-white' : 'text-gray-7'
+                        )}
+                      >
+                        {selectedVenueName || 'Select a registered venue…'}
+                      </Text>
+                    )}
+                    <Ionicons
+                      name={showVenueDropdown ? 'chevron-up' : 'chevron-down'}
+                      size={16}
+                      color="#8d8d8d"
+                    />
+                  </Pressable>
+
+                  {showVenueDropdown && (
+                    <View className="rounded-lg border border-gray-8 bg-surface overflow-hidden">
+                      {registeredVenues.length === 0 ? (
+                        <View className="px-4 py-3">
+                          <Text className="text-sm text-gray-7 font-urbanist">
+                            No registered venues found
+                          </Text>
+                        </View>
+                      ) : (
+                        registeredVenues.map((v) => (
+                          <Pressable
+                            key={v.id}
+                            className="px-4 py-3 active:bg-white/5 border-b border-gray-8"
+                            onPress={async () => {
+                              setShowVenueDropdown(false);
+                              setSelectedVenueName(v.name);
+                              onVenueAddressChange(v.address);
+                              onVenueIdChange(v.id);
+                              // Geocode to populate lat/lng for the event's spatial index
+                              try {
+                                const results = await Location.geocodeAsync(
+                                  `${v.address}, Ireland`
+                                );
+                                if (results.length > 0) {
+                                  const { latitude, longitude } = results[0];
+                                  onLocationChange(latitude, longitude);
+                                }
+                              } catch {
+                                // Geocoding failed — address is still set
+                              }
+                            }}
+                          >
+                            <Text className="text-sm font-semibold text-white font-urbanist">
+                              {v.name}
+                            </Text>
+                            <Text className="text-xs text-gray-7 font-urbanist mt-0.5">
+                              {v.address}
+                            </Text>
+                          </Pressable>
+                        ))
+                      )}
+                    </View>
+                  )}
+                </View>
+              )}
+
+              {isVenue && myVenueAddress && venueAddress !== myVenueAddress && (
+                <Pressable
+                  className="flex-row items-center gap-2 rounded-lg border border-[#6C63FF]/40 bg-[#6C63FF]/10 px-3 py-2.5"
+                  onPress={handleUseMyVenue}
+                  disabled={isPreFilling}
+                >
+                  <Ionicons name="business-outline" size={16} color="#6C63FF" />
+                  {isPreFilling ? (
+                    <ActivityIndicator size="small" color="#6C63FF" />
+                  ) : (
+                    <Text className="flex-1 text-sm text-[#6C63FF] font-urbanist">
+                      Reset to my venue
+                    </Text>
+                  )}
+                  <Text className="shrink text-xs text-gray-7 font-urbanist" numberOfLines={1}>
+                    {myVenueAddress}
+                  </Text>
+                </Pressable>
+              )}
+
+              {venueAddress ? (
+                <Text className="text-xs text-gray-7 font-urbanist">📍 {venueAddress}</Text>
+              ) : null}
 
               {errors.lat && <Text className="text-xs text-error font-urbanist">{errors.lat}</Text>}
             </View>

@@ -95,7 +95,7 @@ export function EventDetailView({
     <View className="flex-1 bg-background" style={{ paddingTop: insets.top }}>
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 100 + insets.bottom }}
+        contentContainerStyle={{ paddingBottom: 16 }}
       >
         {/* Header */}
         <EventDetailHeader onBack={onBack} isSaved={isSaved} onToggleSave={handleToggleSave} />
@@ -224,32 +224,19 @@ export function EventDetailView({
         )}
       </ScrollView>
 
-      {/* Sticky bottom bar — pinned above safe area */}
-      <View
-        className="absolute bottom-0 left-0 right-0 bg-black"
-        style={{
-          paddingBottom: insets.bottom,
-          shadowColor: 'rgba(239,239,244,0.25)',
-          shadowOffset: { width: 0, height: -2 },
-          shadowOpacity: 1,
-          shadowRadius: 12,
-          elevation: 12,
-        }}
-      >
-        {isOwner ? (
-          <OwnerActionBar eventStatus={event.status} onEdit={onEdit} onArchive={onArchive} />
-        ) : (
-          <StickyBottomBar
-            ticketPrice={event.ticketPrice ?? undefined}
-            isArtist={isArtist}
-            isOwner={isOwner}
-            isVenueEvent={event.creator.type === 'venue'}
-            isSaved={isSaved}
-            onToggleSave={handleToggleSave}
-            onRequestToPerform={handleRequestToPerform}
-          />
-        )}
-      </View>
+      {/* Bottom action bar — sits flush above the tab bar via flex layout */}
+      {isOwner ? (
+        <OwnerActionBar eventStatus={event.status} onEdit={onEdit} onArchive={onArchive} />
+      ) : (
+        <StickyBottomBar
+          ticketPrice={event.ticketPrice}
+          ticketLink={event.ticketLink}
+          isArtist={isArtist}
+          isOwner={isOwner}
+          isVenueEvent={event.creator.type === 'venue'}
+          onRequestToPerform={handleRequestToPerform}
+        />
+      )}
     </View>
   );
 }
