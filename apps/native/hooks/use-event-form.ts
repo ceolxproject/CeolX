@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useState } from 'react';
+import { Alert } from 'react-native';
 
 import type { EventCategory } from '@CeolX/shared';
 import { createEventSchema } from '@CeolX/shared/validators';
@@ -273,8 +274,24 @@ export function useEventForm(options?: UseEventFormOptions) {
   // ---------------------------------------------------------------------------
 
   const handleSubmit = useCallback(async () => {
-    // Run all step validations
-    if (!validateStep1() || !validateStep2() || !validateStep3()) {
+    // Run all step validations upfront. Errors from earlier steps may not be
+    // visible on step 3's UI, so we navigate back to the first failing step
+    // and surface an alert so the user knows what to fix.
+    const step1Ok = validateStep1();
+    const step2Ok = validateStep2();
+    const step3Ok = validateStep3();
+
+    if (!step1Ok) {
+      setCurrentStep(1);
+      Alert.alert('Missing details', 'Please fix the errors on step 1 before submitting.');
+      return;
+    }
+    if (!step2Ok) {
+      setCurrentStep(2);
+      Alert.alert('Missing details', 'Please fix the errors on step 2 before submitting.');
+      return;
+    }
+    if (!step3Ok) {
       return;
     }
 
@@ -312,16 +329,29 @@ export function useEventForm(options?: UseEventFormOptions) {
         fieldErrors[issue.path.join('.')] = issue.message;
       }
       setErrors(fieldErrors);
+      // Navigate back to step 1 so the field errors are actually visible
+      setCurrentStep(1);
+      Alert.alert(
+        'Invalid event data',
+        parsed.error.issues[0]?.message ?? 'Please check all fields.'
+      );
       return;
     }
 
-    if (isEditing && options?.eventId) {
-      await updateMutation.mutateAsync({
-        id: options.eventId,
-        data: parsed.data,
-      });
-    } else {
-      await createMutation.mutateAsync(parsed.data);
+    try {
+      if (isEditing && options?.eventId) {
+        await updateMutation.mutateAsync({
+          id: options.eventId,
+          data: parsed.data,
+        });
+      } else {
+        await createMutation.mutateAsync(parsed.data);
+      }
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : 'Something went wrong. Please try again.';
+      Alert.alert('Failed to save event', message);
+      return;
     }
 
     // Invalidate cached event queries so detail/feed/map show updated data

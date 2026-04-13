@@ -26,7 +26,16 @@ export function OwnerActionBar({ eventStatus, onEdit, onArchive, className }: Ow
   };
 
   return (
-    <View className={cn('px-4 py-2.5', className)}>
+    <View
+      className={cn('px-4 py-2.5 bg-black', className)}
+      style={{
+        shadowColor: 'rgba(239,239,244,0.25)',
+        shadowOffset: { width: 0, height: -2 },
+        shadowOpacity: 1,
+        shadowRadius: 12,
+        elevation: 12,
+      }}
+    >
       <View className="flex-row items-center gap-2">
         {/* Edit / Resubmit */}
         <Pressable
