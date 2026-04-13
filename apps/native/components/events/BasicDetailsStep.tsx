@@ -6,7 +6,10 @@ import type { EventCategory } from '@CeolX/shared';
 import { CATEGORY_LABELS } from '@CeolX/shared';
 
 import { CollaboratorPicker } from './CollaboratorPicker';
+import { CollectionPicker } from './CollectionPicker';
 import { InviteArtistPicker } from './InviteArtistPicker';
+
+import type { CollaboratorArtist } from '@/hooks/use-event-form';
 
 type Props = {
   title: string;
@@ -22,6 +25,8 @@ type Props = {
   onCollectionIdChange: (v: string) => void;
   collaborators: string[];
   onCollaboratorsChange: (ids: string[]) => void;
+  collaboratorArtists: CollaboratorArtist[];
+  onCollaboratorArtistsChange: (artists: CollaboratorArtist[]) => void;
   platformInvites: string[];
   onPlatformInvitesChange: (ids: string[]) => void;
   unregisteredCollaborators: Array<{ name: string; email: string }>;
@@ -43,10 +48,12 @@ export function BasicDetailsStep({
   category,
   onCategoryChange: _onCategoryChange,
   onCategoryPress,
-  collectionId: _collectionId,
-  onCollectionIdChange: _onCollectionIdChange,
+  collectionId,
+  onCollectionIdChange,
   collaborators,
   onCollaboratorsChange,
+  collaboratorArtists,
+  onCollaboratorArtistsChange,
   platformInvites,
   onPlatformInvitesChange,
   unregisteredCollaborators,
@@ -167,41 +174,31 @@ export function BasicDetailsStep({
         )}
       </View>
 
-      {/* ── Collection (optional) — Venues only, coming M4-T4 ── */}
+      {/* ── Collection (optional) — Venues only ── */}
       {isVenue && (
-        <View className="gap-2">
-          <View className="flex-row items-center justify-between">
-            <Text className="text-sm font-semibold text-gray-3 font-urbanist">
-              Collection (optional)
-            </Text>
-            <View className="rounded-full bg-[#6C63FF]/20 px-2 py-0.5">
-              <Text className="text-[10px] font-bold text-[#6C63FF] font-urbanist tracking-wider">
-                M4-T4
-              </Text>
-            </View>
-          </View>
-          <View className="flex-row items-center justify-between rounded-lg border border-gray-8 bg-surface px-4 py-3 opacity-50">
-            <Text className="text-sm font-urbanist text-gray-7">Coming in M4-T4</Text>
-            <Ionicons name="chevron-down" size={18} color="#8d8d8d" />
-          </View>
-        </View>
+        <CollectionPicker collectionId={collectionId} onCollectionIdChange={onCollectionIdChange} />
       )}
 
-      {/* ── Collaborators ── */}
-      <CollaboratorPicker
-        collaborators={collaborators}
-        onCollaboratorsChange={onCollaboratorsChange}
-        isRequired={isVenue}
-        error={errors.collaborators}
-      />
+      {/* ── Collaborators + Invite Artists — Venues only ── */}
+      {isVenue && (
+        <>
+          <CollaboratorPicker
+            collaborators={collaborators}
+            onCollaboratorsChange={onCollaboratorsChange}
+            initialSelectedArtists={collaboratorArtists}
+            onCollaboratorObjectsChange={onCollaboratorArtistsChange}
+            isRequired
+            error={errors.collaborators}
+          />
 
-      {/* ── Invite Artists ── */}
-      <InviteArtistPicker
-        platformInvites={platformInvites}
-        onPlatformInvitesChange={onPlatformInvitesChange}
-        unregisteredInvites={unregisteredCollaborators}
-        onUnregisteredInvitesChange={onUnregisteredCollaboratorsChange}
-      />
+          <InviteArtistPicker
+            platformInvites={platformInvites}
+            onPlatformInvitesChange={onPlatformInvitesChange}
+            unregisteredInvites={unregisteredCollaborators}
+            onUnregisteredInvitesChange={onUnregisteredCollaboratorsChange}
+          />
+        </>
+      )}
 
       {/* ── Continue Button ── */}
       <Pressable

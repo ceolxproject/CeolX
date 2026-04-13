@@ -10,6 +10,15 @@ import { trpc } from '@/utils/trpc';
 // Types
 // ---------------------------------------------------------------------------
 
+/** Full artist object stored alongside collaborator IDs so the picker can
+ *  re-hydrate its chip display after the component remounts (step navigation). */
+export type CollaboratorArtist = {
+  id: string;
+  stageName: string;
+  genre: string | null;
+  image: string | null;
+};
+
 export interface EventFormData {
   // Step 1 — Basic Details
   title: string;
@@ -18,6 +27,7 @@ export interface EventFormData {
   category: EventCategory | '';
   collectionId: string;
   collaborators: string[];
+  collaboratorArtists: CollaboratorArtist[];
   platformInvites: string[];
   unregisteredCollaborators: Array<{ name: string; email: string }>;
 
@@ -64,6 +74,7 @@ function defaults(initial?: EventFormData): EventFormData {
     category: initial?.category ?? '',
     collectionId: initial?.collectionId ?? '',
     collaborators: initial?.collaborators ?? [],
+    collaboratorArtists: initial?.collaboratorArtists ?? [],
     platformInvites: initial?.platformInvites ?? [],
     unregisteredCollaborators: initial?.unregisteredCollaborators ?? [],
 
@@ -139,6 +150,9 @@ export function useEventForm(options?: UseEventFormOptions) {
   const [category, setCategory] = useState<EventCategory | ''>(init.category);
   const [collectionId, setCollectionId] = useState(init.collectionId);
   const [collaborators, setCollaborators] = useState<string[]>(init.collaborators);
+  const [collaboratorArtists, setCollaboratorArtists] = useState<CollaboratorArtist[]>(
+    init.collaboratorArtists
+  );
   const [platformInvites, setPlatformInvites] = useState<string[]>(init.platformInvites);
   const [unregisteredCollaborators, setUnregisteredCollaborators] = useState<
     Array<{ name: string; email: string }>
@@ -361,6 +375,8 @@ export function useEventForm(options?: UseEventFormOptions) {
     setCollectionId,
     collaborators,
     setCollaborators,
+    collaboratorArtists,
+    setCollaboratorArtists,
     platformInvites,
     setPlatformInvites,
     unregisteredCollaborators,

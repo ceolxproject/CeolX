@@ -14,6 +14,7 @@ import { DateVenueStep } from '@/components/events/DateVenueStep';
 import { StepIndicator } from '@/components/events/StepIndicator';
 import { TicketAdsStep } from '@/components/events/TicketAdsStep';
 import { useEventForm } from '@/hooks/use-event-form';
+import type { CollaboratorArtist } from '@/hooks/use-event-form';
 import { trpc } from '@/utils/trpc';
 
 export default function EditEventScreen() {
@@ -37,6 +38,14 @@ export default function EditEventScreen() {
           category: event.category as EventCategory,
           collectionId: event.collectionId ?? '',
           collaborators: event.collaborators.map((c) => c.id),
+          collaboratorArtists: event.collaborators.map(
+            (c): CollaboratorArtist => ({
+              id: c.id,
+              stageName: c.stageName,
+              genre: c.genre,
+              image: c.profileImageUrl ?? null,
+            })
+          ),
           platformInvites: [],
           unregisteredCollaborators: (event.unregisteredCollaborators ?? []) as Array<{
             name: string;
@@ -147,8 +156,10 @@ export default function EditEventScreen() {
             onCollectionIdChange={form.setCollectionId}
             collaborators={form.collaborators}
             onCollaboratorsChange={form.setCollaborators}
+            collaboratorArtists={form.collaboratorArtists}
+            onCollaboratorArtistsChange={form.setCollaboratorArtists}
             platformInvites={form.platformInvites}
-            onPlatformInvitesChange={form.setPlatformInvites as (ids: string[]) => void}
+            onPlatformInvitesChange={form.setPlatformInvites}
             unregisteredCollaborators={
               form.unregisteredCollaborators as Array<{ name: string; email: string }>
             }
