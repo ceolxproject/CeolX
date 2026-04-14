@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import { cn } from 'heroui-native';
 import { Image, Pressable, Text, View } from 'react-native';
 
@@ -43,9 +44,10 @@ export function RequestCard({
   const isAccepted = booking.status === 'accepted';
 
   return (
-    <View
+    <Pressable
+      onPress={() => router.push(`/(app)/(tabs)/bookings/${booking.id}`)}
       className={cn(
-        'rounded-2xl border border-[rgba(141,141,141,0.4)] bg-[rgba(141,141,141,0.1)] overflow-hidden',
+        'rounded-2xl border border-[rgba(141,141,141,0.4)] bg-[rgba(141,141,141,0.1)] overflow-hidden active:opacity-90',
         className
       )}
     >
@@ -70,9 +72,9 @@ export function RequestCard({
           </Text>
         </View>
 
-        {/* Top-right time-since pill */}
-        <View className="absolute top-3 right-3 bg-[#C8FF2F] rounded-full px-2.5 py-1">
-          <Text className="text-[11px] font-semibold text-black font-urbanist">{timeSince}</Text>
+        {/* Bottom-left time-since pill */}
+        <View className="absolute bottom-3 left-3 bg-white rounded-[15px] px-2 py-1">
+          <Text className="text-[10px] font-semibold text-black font-urbanist">{timeSince}</Text>
         </View>
       </View>
 
@@ -115,8 +117,8 @@ export function RequestCard({
             </Text>
             {isAccepted && (
               <Pressable>
-                <Text className="text-xs font-bold text-[#C8FF2F] font-urbanist tracking-wide">
-                  CONTACT ARTIST
+                <Text className="text-xs font-bold text-[#D4FC5A] font-urbanist tracking-wide">
+                  {userRole === 'artist' ? 'CONTACT VENUE' : 'CONTACT ARTIST'}
                 </Text>
               </Pressable>
             )}
@@ -143,7 +145,7 @@ export function RequestCard({
           />
         )}
       </View>
-    </View>
+    </Pressable>
   );
 }
 
