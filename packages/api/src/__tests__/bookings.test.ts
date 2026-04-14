@@ -471,6 +471,76 @@ describe('bookings.update', () => {
       'BAD_REQUEST'
     );
   });
+
+  // ─── artist_to_venue direction (direction-aware state machine) ───────────
+
+  const mockArtistToVenueBooking = {
+    ...mockBooking,
+    direction: 'artist_to_venue',
+  };
+
+  it('allows venue to accept an artist_to_venue booking', async () => {
+    const caller = createCaller(authedContext('venue', VENUE_USER_ID));
+    mockBookingsFindFirst.mockResolvedValueOnce(mockArtistToVenueBooking);
+    mockUpdateReturning.mockResolvedValueOnce([
+      { ...mockArtistToVenueBooking, status: 'accepted' },
+    ]);
+
+    const result = await caller.bookings.update({ id: BOOKING_ID, status: 'accepted' });
+    expect(result.status).toBe('accepted');
+  });
+
+  it('allows venue to reject an artist_to_venue booking', async () => {
+    const caller = createCaller(authedContext('venue', VENUE_USER_ID));
+    mockBookingsFindFirst.mockResolvedValueOnce(mockArtistToVenueBooking);
+    mockUpdateReturning.mockResolvedValueOnce([
+      { ...mockArtistToVenueBooking, status: 'rejected' },
+    ]);
+
+    const result = await caller.bookings.update({ id: BOOKING_ID, status: 'rejected' });
+    expect(result.status).toBe('rejected');
+  });
+
+  it('throws FORBIDDEN when artist tries to accept own artist_to_venue booking', async () => {
+    const caller = createCaller(authedContext('artist', ARTIST_USER_ID));
+    mockBookingsFindFirst.mockResolvedValueOnce(mockArtistToVenueBooking);
+
+    await expectTRPCError(
+      caller.bookings.update({ id: BOOKING_ID, status: 'accepted' }),
+      'FORBIDDEN'
+    );
+  });
+
+  it('allows artist to withdraw (cancel) own pending artist_to_venue booking', async () => {
+    const caller = createCaller(authedContext('artist', ARTIST_USER_ID));
+    mockBookingsFindFirst.mockResolvedValueOnce(mockArtistToVenueBooking);
+    mockUpdateReturning.mockResolvedValueOnce([
+      { ...mockArtistToVenueBooking, status: 'cancelled' },
+    ]);
+
+    const result = await caller.bookings.update({ id: BOOKING_ID, status: 'cancelled' });
+    expect(result.status).toBe('cancelled');
+  });
+
+  it('throws FORBIDDEN when venue tries to withdraw a pending artist_to_venue booking', async () => {
+    const caller = createCaller(authedContext('venue', VENUE_USER_ID));
+    mockBookingsFindFirst.mockResolvedValueOnce(mockArtistToVenueBooking);
+
+    await expectTRPCError(
+      caller.bookings.update({ id: BOOKING_ID, status: 'cancelled' }),
+      'FORBIDDEN'
+    );
+  });
+
+  it('allows either party to cancel an accepted artist_to_venue booking', async () => {
+    const acceptedA2V = { ...mockArtistToVenueBooking, status: 'accepted' };
+    const caller = createCaller(authedContext('venue', VENUE_USER_ID));
+    mockBookingsFindFirst.mockResolvedValueOnce(acceptedA2V);
+    mockUpdateReturning.mockResolvedValueOnce([{ ...acceptedA2V, status: 'cancelled' }]);
+
+    const result = await caller.bookings.update({ id: BOOKING_ID, status: 'cancelled' });
+    expect(result.status).toBe('cancelled');
+  });
 });
 
 // ─── bookings.list ───────────────────────────────────────────────────────────

@@ -186,20 +186,27 @@ export const bookingsRouter = router({
       });
     }
 
-    // Role-specific transition restrictions:
-    // - accept/reject: artist only
-    // - cancel from pending (withdraw): venue only
-    // - cancel from accepted: either party
-    if ((newStatus === 'accepted' || newStatus === 'rejected') && !isArtist) {
+    // Direction-aware transition restrictions:
+    // The RECIPIENT of the booking can accept/reject.
+    // The SENDER of the booking can withdraw from pending.
+    // Either party can cancel from accepted.
+    const isRecipient =
+      (booking.direction === 'venue_to_artist' && isArtist) ||
+      (booking.direction === 'artist_to_venue' && isVenue);
+    const isSender =
+      (booking.direction === 'venue_to_artist' && isVenue) ||
+      (booking.direction === 'artist_to_venue' && isArtist);
+
+    if ((newStatus === 'accepted' || newStatus === 'rejected') && !isRecipient) {
       throw new TRPCError({
         code: 'FORBIDDEN',
-        message: 'Only the artist can accept or reject a booking',
+        message: 'Only the recipient can accept or reject a booking',
       });
     }
-    if (newStatus === 'cancelled' && currentStatus === 'pending' && !isVenue) {
+    if (newStatus === 'cancelled' && currentStatus === 'pending' && !isSender) {
       throw new TRPCError({
         code: 'FORBIDDEN',
-        message: 'Only the venue can withdraw a pending booking',
+        message: 'Only the sender can withdraw a pending booking',
       });
     }
 
