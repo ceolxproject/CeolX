@@ -12,11 +12,18 @@ import {
   createBookingSchema,
   inviteExternalArtistSchema,
   listBookingsSchema,
+  requestToPerformSchema,
   searchArtistsSchema,
   updateBookingSchema,
 } from '@CeolX/shared/validators';
 
-import { creatorProcedure, protectedProcedure, router, venueProcedure } from '../index';
+import {
+  artistProcedure,
+  creatorProcedure,
+  protectedProcedure,
+  router,
+  venueProcedure,
+} from '../index';
 
 // ─── Valid state transitions (enforced at application layer) ──────────────────
 //   pending  → accepted  (artist only)
@@ -150,6 +157,149 @@ export const bookingsRouter = router({
       updatedAt: result.updatedAt.toISOString(),
     };
   }),
+
+  // ─── Artist requests to perform at a venue event ─────────────────────────────
+  requestToPerform: artistProcedure
+    .input(requestToPerformSchema)
+    .mutation(async ({ input, ctx }) => {
+      // 1. Look up artist profile
+      const artistProfile = await db.query.artistProfiles.findFirst({
+        where: eq(artistProfiles.userId, ctx.userId),
+      });
+      if (!artistProfile) {
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Artist profile not found' });
+      }
+
+      // 2. Fetch event
+      const event = await db.query.events.findFirst({
+        where: eq(events.id, input.eventId),
+      });
+      if (!event) {
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Event not found' });
+      }
+
+      // 3. Resolve venue — prefer event.venueId, fallback to creator's venue profile
+      let venueProfile = event.venueId
+        ? await db.query.venueProfiles.findFirst({
+            where: eq(venueProfiles.id, event.venueId),
+          })
+        : null;
+
+      if (!venueProfile) {
+        venueProfile = await db.query.venueProfiles.findFirst({
+          where: eq(venueProfiles.userId, event.createdBy),
+        });
+      }
+
+      if (!venueProfile) {
+        throw new TRPCError({
+          code: 'BAD_REQUEST',
+          message: 'This event is not associated with a venue',
+        });
+      }
+
+      // 4. Dedup: no active booking (pending/accepted) for same artist+event
+      const existingBooking = await db.query.bookings.findFirst({
+        where: and(
+          eq(bookings.artistId, artistProfile.id),
+          eq(bookings.eventId, input.eventId),
+          inArray(bookings.status, ['pending', 'accepted'])
+        ),
+      });
+      if (existingBooking) {
+        throw new TRPCError({
+          code: 'CONFLICT',
+          message: "You've already applied to this event",
+        });
+      }
+
+      // 5. Collaborator check: artist not already a collaborator
+      const existingCollab = await db.query.eventCollaborators.findFirst({
+        where: and(
+          eq(eventCollaborators.eventId, input.eventId),
+          eq(eventCollaborators.artistProfileId, ctx.userId)
+        ),
+      });
+      if (existingCollab) {
+        throw new TRPCError({
+          code: 'CONFLICT',
+          message: 'You are already a collaborator on this event',
+        });
+      }
+
+      // 6. Transaction: insert booking + eventCollaborator
+      const result = await db.transaction(async (tx) => {
+        const [booking] = await tx
+          .insert(bookings)
+          .values({
+            artistId: artistProfile.id,
+            venueId: venueProfile.id,
+            eventId: input.eventId,
+            status: 'pending',
+            direction: 'artist_to_venue',
+          })
+          .returning();
+
+        if (!booking)
+          throw new TRPCError({
+            code: 'INTERNAL_SERVER_ERROR',
+            message: 'Booking insert failed',
+          });
+
+        await tx.insert(eventCollaborators).values({
+          eventId: input.eventId,
+          artistProfileId: ctx.userId,
+          bookingId: booking.id,
+        });
+
+        return booking;
+      });
+
+      // 7. Notify venue
+      await db.insert(notifications).values({
+        userId: venueProfile.userId,
+        type: 'booking_request',
+        payload: {
+          title: 'New Performance Request',
+          body: `${artistProfile.stageName} requested to perform at "${event.title}"`,
+          persona: 'venue',
+          route: `/bookings/${result.id}`,
+        },
+      });
+
+      // 8. Return BookingSummary
+      const [artistUser, venueUser] = await Promise.all([
+        db.query.user.findFirst({
+          where: eq(user.id, artistProfile.userId),
+          columns: { image: true },
+        }),
+        db.query.user.findFirst({
+          where: eq(user.id, venueProfile.userId),
+          columns: { image: true },
+        }),
+      ]);
+
+      return {
+        id: result.id,
+        status: result.status,
+        direction: result.direction,
+        artistId: artistProfile.id,
+        artistName: artistProfile.stageName,
+        artistImage: artistUser?.image ?? undefined,
+        venueId: venueProfile.id,
+        venueName: venueProfile.venueName,
+        venueImage: venueUser?.image ?? undefined,
+        eventId: event.id,
+        eventTitle: event.title,
+        eventCoverImage: event.coverImage ?? undefined,
+        eventCategory: event.category,
+        eventDateStart: event.dateStart.toISOString(),
+        eventDateEnd: event.dateEnd?.toISOString() ?? undefined,
+        eventVenueAddress: event.venueAddress ?? undefined,
+        createdAt: result.createdAt.toISOString(),
+        updatedAt: result.updatedAt.toISOString(),
+      };
+    }),
 
   // ─── Update booking status (accept / reject / withdraw / cancel) ────────────
   update: protectedProcedure.input(updateBookingSchema).mutation(async ({ input, ctx }) => {
