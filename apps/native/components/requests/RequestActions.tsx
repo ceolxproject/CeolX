@@ -63,19 +63,19 @@ export function RequestActions({
     <View className="flex-row gap-3 mt-3">
       <Pressable
         onPress={onAccept}
-        className="flex-1 items-center py-2.5 rounded-full border border-[#C8FF2F] active:opacity-70"
+        className="flex-1 items-center py-2.5 rounded-full bg-[#662FFF] active:opacity-70"
         accessibilityRole="button"
         accessibilityLabel="Accept request"
       >
-        <Text className="text-sm font-bold text-[#C8FF2F] font-urbanist">ACCEPT</Text>
+        <Text className="text-sm font-bold text-white font-urbanist tracking-wider">ACCEPT</Text>
       </Pressable>
       <Pressable
         onPress={onReject}
-        className="flex-1 items-center py-2.5 rounded-full border border-white/30 active:opacity-70"
+        className="flex-1 items-center py-2.5 rounded-full border border-[#8D8D8D] active:opacity-70"
         accessibilityRole="button"
         accessibilityLabel="Reject request"
       >
-        <Text className="text-sm font-bold text-white font-urbanist">REJECT</Text>
+        <Text className="text-sm font-bold text-white font-urbanist tracking-wider">REJECT</Text>
       </Pressable>
     </View>
   );

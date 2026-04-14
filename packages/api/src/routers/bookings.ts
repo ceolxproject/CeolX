@@ -1,5 +1,5 @@
 import { TRPCError } from '@trpc/server';
-import { and, eq, inArray, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNull, or, sql } from 'drizzle-orm';
 
 import { db } from '@CeolX/db';
 import { user } from '@CeolX/db/schema/auth';
@@ -8,6 +8,7 @@ import { eventCollaborators, events } from '@CeolX/db/schema/events';
 import { notifications } from '@CeolX/db/schema/notifications';
 import { artistProfiles, venueProfiles } from '@CeolX/db/schema/users';
 import {
+  confirmedEventsSchema,
   createBookingSchema,
   inviteExternalArtistSchema,
   listBookingsSchema,
@@ -15,7 +16,7 @@ import {
   updateBookingSchema,
 } from '@CeolX/shared/validators';
 
-import { protectedProcedure, router, venueProcedure } from '../index';
+import { creatorProcedure, protectedProcedure, router, venueProcedure } from '../index';
 
 // ─── Valid state transitions (enforced at application layer) ──────────────────
 //   pending  → accepted  (artist only)
@@ -522,4 +523,115 @@ export const bookingsRouter = router({
         invitedEmail: collaborator.invitedEmail,
       };
     }),
+
+  // ─── Confirmed events (profile Bookings tab) ──────────────────────────────
+  confirmedEvents: creatorProcedure.input(confirmedEventsSchema).query(async ({ input, ctx }) => {
+    const role = ctx.currentRole;
+
+    if (role === 'artist') {
+      // Artist: events where I'm a collaborator with an accepted booking or direct add (no booking)
+      const whereClause = and(
+        eq(eventCollaborators.artistProfileId, ctx.userId),
+        or(
+          isNull(eventCollaborators.bookingId),
+          sql`EXISTS (
+              SELECT 1 FROM bookings b
+              WHERE b.id = ${eventCollaborators.bookingId}
+              AND b.status = 'accepted'
+            )`
+        )
+      );
+
+      const [countResult, rows] = await Promise.all([
+        db
+          .select({ count: sql<number>`count(*)::int` })
+          .from(eventCollaborators)
+          .where(whereClause)
+          .then((r) => r[0]?.count ?? 0),
+        db
+          .select({
+            id: events.id,
+            title: events.title,
+            coverImage: events.coverImage,
+            dateStart: events.dateStart,
+            dateEnd: events.dateEnd,
+            category: events.category,
+            venueAddress: events.venueAddress,
+            status: events.status,
+          })
+          .from(eventCollaborators)
+          .innerJoin(events, eq(events.id, eventCollaborators.eventId))
+          .where(whereClause)
+          .orderBy(desc(events.dateStart))
+          .limit(input.limit)
+          .offset(input.offset),
+      ]);
+
+      return {
+        events: rows.map((e) => ({
+          id: e.id,
+          title: e.title,
+          coverImage: e.coverImage ?? null,
+          dateStart: e.dateStart.toISOString(),
+          dateEnd: e.dateEnd?.toISOString() ?? null,
+          category: e.category,
+          venueAddress: e.venueAddress ?? null,
+          status: e.status,
+        })),
+        total: countResult,
+        hasNextPage: input.offset + input.limit < countResult,
+      };
+    }
+
+    // Venue: my events that have at least one confirmed collaborator
+    const whereClause = and(
+      eq(events.createdBy, ctx.userId),
+      sql`EXISTS (
+          SELECT 1 FROM event_collaborators ec
+          LEFT JOIN bookings b ON b.id = ec.booking_id
+          WHERE ec.event_id = ${events.id}
+          AND ec.artist_profile_id IS NOT NULL
+          AND (ec.booking_id IS NULL OR b.status = 'accepted')
+        )`
+    );
+
+    const [countResult, rows] = await Promise.all([
+      db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(events)
+        .where(whereClause)
+        .then((r) => r[0]?.count ?? 0),
+      db
+        .select({
+          id: events.id,
+          title: events.title,
+          coverImage: events.coverImage,
+          dateStart: events.dateStart,
+          dateEnd: events.dateEnd,
+          category: events.category,
+          venueAddress: events.venueAddress,
+          status: events.status,
+        })
+        .from(events)
+        .where(whereClause)
+        .orderBy(desc(events.dateStart))
+        .limit(input.limit)
+        .offset(input.offset),
+    ]);
+
+    return {
+      events: rows.map((e) => ({
+        id: e.id,
+        title: e.title,
+        coverImage: e.coverImage ?? null,
+        dateStart: e.dateStart.toISOString(),
+        dateEnd: e.dateEnd?.toISOString() ?? null,
+        category: e.category,
+        venueAddress: e.venueAddress ?? null,
+        status: e.status,
+      })),
+      total: countResult,
+      hasNextPage: input.offset + input.limit < countResult,
+    };
+  }),
 });
