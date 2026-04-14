@@ -204,7 +204,7 @@ export const byId = publicProcedure
   });
 
 export const create = creatorProcedure.input(createEventSchema).mutation(async ({ input, ctx }) => {
-  const { collaborators, unregisteredCollaborators, ...eventData } = input;
+  const { collaborators, platformInvites, unregisteredCollaborators, ...eventData } = input;
 
   const isVenue = ctx.session.user.currentRole === 'venue';
 
@@ -330,6 +330,108 @@ export const create = creatorProcedure.input(createEventSchema).mutation(async (
       );
     }
 
+    // Platform invites (venue only) — create pending bookings for invited artists
+    if (platformInvites && platformInvites.length > 0 && isVenue) {
+      const confirmedSet = new Set(collaborators ?? []);
+      const inviteUserIds = platformInvites.filter((id) => !confirmedSet.has(id));
+
+      if (inviteUserIds.length > 0) {
+        const venueProfile = await tx.query.venueProfiles.findFirst({
+          where: eq(venueProfiles.userId, ctx.userId),
+          columns: { id: true, venueName: true },
+        });
+
+        const inviteProfiles = await tx
+          .select({
+            id: artistProfiles.id,
+            userId: artistProfiles.userId,
+            stageName: artistProfiles.stageName,
+          })
+          .from(artistProfiles)
+          .where(inArray(artistProfiles.userId, inviteUserIds));
+
+        if (venueProfile) {
+          for (const ap of inviteProfiles) {
+            const [booking] = await tx
+              .insert(bookings)
+              .values({
+                artistId: ap.id,
+                venueId: venueProfile.id,
+                eventId: inserted.id,
+                status: 'pending',
+                direction: 'venue_to_artist',
+              })
+              .returning();
+
+            if (booking) {
+              await tx.insert(eventCollaborators).values({
+                eventId: inserted.id,
+                artistProfileId: ap.userId,
+                bookingId: booking.id,
+              });
+
+              await tx.insert(notifications).values({
+                userId: ap.userId,
+                type: 'booking_invitation',
+                payload: {
+                  title: 'New Booking Invitation',
+                  body: `${venueProfile.venueName} invited you to perform at "${inserted.title}"`,
+                  persona: 'artist',
+                  route: `/bookings/${booking.id}`,
+                },
+              });
+            }
+          }
+        }
+      }
+    }
+
+    // Artist creates event with a venue → auto-create confirmed booking
+    if (!isVenue && eventData.venueId) {
+      const venueProfile = await tx.query.venueProfiles.findFirst({
+        where: eq(venueProfiles.id, eventData.venueId),
+        columns: { id: true, userId: true, venueName: true },
+      });
+
+      const artistProfile = await tx.query.artistProfiles.findFirst({
+        where: eq(artistProfiles.userId, ctx.userId),
+        columns: { id: true, stageName: true },
+      });
+
+      if (venueProfile && artistProfile) {
+        const [booking] = await tx
+          .insert(bookings)
+          .values({
+            artistId: artistProfile.id,
+            venueId: venueProfile.id,
+            eventId: inserted.id,
+            status: 'accepted',
+            direction: 'artist_to_venue',
+          })
+          .returning();
+
+        if (booking) {
+          // Add artist as collaborator with booking link (for confirmedEvents query)
+          await tx.insert(eventCollaborators).values({
+            eventId: inserted.id,
+            artistProfileId: ctx.userId,
+            bookingId: booking.id,
+          });
+
+          await tx.insert(notifications).values({
+            userId: venueProfile.userId,
+            type: 'booking_confirmed',
+            payload: {
+              title: 'New Event Booking',
+              body: `${artistProfile.stageName} created an event at your venue: "${inserted.title}"`,
+              persona: 'venue',
+              route: `/bookings/${booking.id}`,
+            },
+          });
+        }
+      }
+    }
+
     return inserted;
   });
 
@@ -360,7 +462,7 @@ export const update = protectedProcedure
       throw new TRPCError({ code: 'FORBIDDEN', message: 'Cannot edit an archived event' });
     }
 
-    const { collaborators, unregisteredCollaborators, ...updateData } = input.data;
+    const { collaborators, platformInvites, unregisteredCollaborators, ...updateData } = input.data;
     const isVenue = ctx.session.user.currentRole === 'venue';
 
     // Ad fields are venue-only — strip them for non-venue creators
@@ -525,6 +627,69 @@ export const update = protectedProcedure
               invitedEmail: invite.email,
             }))
           );
+        }
+      }
+
+      // Platform invites (venue only) — create pending bookings for newly invited artists
+      if (platformInvites !== undefined && platformInvites.length > 0 && isVenue) {
+        const existingCollabs = await tx.query.eventCollaborators.findMany({
+          where: eq(eventCollaborators.eventId, input.id),
+          columns: { artistProfileId: true },
+        });
+        const existingArtistUserIds = new Set(
+          existingCollabs.map((c) => c.artistProfileId).filter((id): id is string => id !== null)
+        );
+
+        const newInviteUserIds = platformInvites.filter((id) => !existingArtistUserIds.has(id));
+
+        if (newInviteUserIds.length > 0) {
+          const venueProfile = await tx.query.venueProfiles.findFirst({
+            where: eq(venueProfiles.userId, ctx.userId),
+            columns: { id: true, venueName: true },
+          });
+
+          const inviteProfiles = await tx
+            .select({
+              id: artistProfiles.id,
+              userId: artistProfiles.userId,
+              stageName: artistProfiles.stageName,
+            })
+            .from(artistProfiles)
+            .where(inArray(artistProfiles.userId, newInviteUserIds));
+
+          if (venueProfile) {
+            for (const ap of inviteProfiles) {
+              const [booking] = await tx
+                .insert(bookings)
+                .values({
+                  artistId: ap.id,
+                  venueId: venueProfile.id,
+                  eventId: input.id,
+                  status: 'pending',
+                  direction: 'venue_to_artist',
+                })
+                .returning();
+
+              if (booking) {
+                await tx.insert(eventCollaborators).values({
+                  eventId: input.id,
+                  artistProfileId: ap.userId,
+                  bookingId: booking.id,
+                });
+
+                await tx.insert(notifications).values({
+                  userId: ap.userId,
+                  type: 'booking_invitation',
+                  payload: {
+                    title: 'New Booking Invitation',
+                    body: `${venueProfile.venueName} invited you to perform at "${result.title}"`,
+                    persona: 'artist',
+                    route: `/bookings/${booking.id}`,
+                  },
+                });
+              }
+            }
+          }
         }
       }
 
