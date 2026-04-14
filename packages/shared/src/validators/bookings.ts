@@ -50,3 +50,12 @@ export const inviteExternalArtistSchema = z.object({
 });
 
 export type InviteExternalArtistInput = z.infer<typeof inviteExternalArtistSchema>;
+
+// --- Confirmed events (profile Bookings tab) ---
+
+export const confirmedEventsSchema = z.object({
+  limit: z.number().int().min(1).max(50).default(20),
+  offset: z.number().int().min(0).default(0),
+});
+
+export type ConfirmedEventsInput = z.infer<typeof confirmedEventsSchema>;
