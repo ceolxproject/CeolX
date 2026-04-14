@@ -259,7 +259,7 @@ export const create = creatorProcedure.input(createEventSchema).mutation(async (
           columns: { id: true, venueName: true },
         });
 
-        // Look up artist profiles to get userId for collaborator + id for booking
+        // Look up artist profiles by userId (collaborators array contains user IDs from artists.search)
         const artistProfileRows = await tx
           .select({
             id: artistProfiles.id,
@@ -267,7 +267,7 @@ export const create = creatorProcedure.input(createEventSchema).mutation(async (
             stageName: artistProfiles.stageName,
           })
           .from(artistProfiles)
-          .where(inArray(artistProfiles.id, collaborators));
+          .where(inArray(artistProfiles.userId, collaborators));
 
         if (!venueProfile)
           throw new TRPCError({ code: 'NOT_FOUND', message: 'Venue profile not found' });
@@ -420,7 +420,7 @@ export const update = protectedProcedure
             existingCollabs.map((c) => c.artistProfileId).filter((id): id is string => id !== null)
           );
 
-          // Look up all requested artist profiles
+          // Look up all requested artist profiles by userId (collaborators array contains user IDs)
           const requestedProfiles =
             collaborators.length > 0
               ? await tx
@@ -430,7 +430,7 @@ export const update = protectedProcedure
                     stageName: artistProfiles.stageName,
                   })
                   .from(artistProfiles)
-                  .where(inArray(artistProfiles.id, collaborators))
+                  .where(inArray(artistProfiles.userId, collaborators))
               : [];
 
           // Only create bookings for truly new collaborators
