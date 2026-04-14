@@ -16,8 +16,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ProfileEventCard } from '@/components/ProfileEventCard';
 import { useAuth } from '@/contexts/auth-context';
+import { useConfirmedEvents } from '@/hooks/use-confirmed-events';
 import { useMyEvents } from '@/hooks/use-my-events';
-import { useSavedEvents } from '@/hooks/use-saved-events';
 import { trpc } from '@/utils/trpc';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -81,7 +81,7 @@ function ProfileHeader({
     <View className="items-center pt-2 pb-4">
       {/* Header bar with bookmark + bell for venues, just bell for artists */}
       <View className="w-full flex-row items-center justify-end px-5 mb-3 gap-4">
-        {currentRole === 'venue' && onBookmarkPress && (
+        {onBookmarkPress && (
           <Pressable onPress={onBookmarkPress}>
             <Ionicons name="bookmark-outline" size={23} color="#fff" />
           </Pressable>
@@ -208,33 +208,26 @@ function MyEventsTab() {
   );
 }
 
-// ─── Saved Events Section (for Artist Bookings tab) ───────────────────────────
+// ─── Bookings Tab (confirmed events for both artist & venue) ─────────────────
 
-function SavedEventsSection() {
-  const { upcomingEvents, pastEvents, isLoading } = useSavedEvents();
-  const [showPast, setShowPast] = useState(false);
+function BookingsTab() {
+  const { events, isLoading, loadMore, isFetchingNextPage } = useConfirmedEvents();
 
   if (isLoading) {
     return (
-      <View className="py-8 items-center">
+      <View className="py-12 items-center">
         <ActivityIndicator color="#C8FF2F" />
       </View>
     );
   }
 
-  if (upcomingEvents.length === 0 && pastEvents.length === 0) {
-    return (
-      <View className="py-8 items-center">
-        <Text className="text-sm text-white/60 text-center font-urbanist">
-          No saved events yet. Tap the heart icon on an event to save it.
-        </Text>
-      </View>
-    );
+  if (events.length === 0) {
+    return <EmptyState message="No confirmed bookings yet" />;
   }
 
   return (
-    <View className="gap-4">
-      {upcomingEvents.map((event) => (
+    <View className="px-5 gap-4 pb-4">
+      {events.map((event) => (
         <ProfileEventCard
           key={event.id}
           id={event.id}
@@ -244,66 +237,20 @@ function SavedEventsSection() {
           dateEnd={event.dateEnd}
           category={event.category}
           venueAddress={event.venueAddress}
+          status={event.status}
           onPress={() => router.push(`/(app)/(tabs)/discover/event/${event.id}`)}
         />
       ))}
-
-      {pastEvents.length > 0 && (
-        <>
-          <Pressable
-            className="flex-row items-center justify-between py-2"
-            onPress={() => setShowPast(!showPast)}
-          >
-            <Text className="text-sm font-semibold text-white/60 font-urbanist">
-              Past Saved Events ({pastEvents.length})
-            </Text>
-            <Ionicons
-              name={showPast ? 'chevron-up' : 'chevron-down'}
-              size={16}
-              color="rgba(255,255,255,0.6)"
-            />
-          </Pressable>
-          {showPast &&
-            pastEvents.map((event) => (
-              <ProfileEventCard
-                key={event.id}
-                id={event.id}
-                title={event.title}
-                coverImage={event.coverImage}
-                dateStart={event.dateStart}
-                dateEnd={event.dateEnd}
-                category={event.category}
-                venueAddress={event.venueAddress}
-                onPress={() => router.push(`/(app)/(tabs)/discover/event/${event.id}`)}
-              />
-            ))}
-        </>
-      )}
-    </View>
-  );
-}
-
-// ─── Bookings Tab (Artist only) ───────────────────────────────────────────────
-
-function BookingsTab() {
-  return (
-    <View className="px-5 gap-6 pb-4">
-      {/* My Bookings placeholder */}
-      <View>
-        <Text className="text-base font-bold text-white font-urbanist mb-3">My Bookings</Text>
-        <View className="rounded-2xl border border-[rgba(141,141,141,0.4)] bg-[rgba(141,141,141,0.1)] p-6 items-center">
-          <Ionicons name="calendar-outline" size={32} color="rgba(255,255,255,0.3)" />
-          <Text className="text-sm text-white/60 mt-2 text-center font-urbanist">
-            No bookings yet. Coming soon!
-          </Text>
+      {isFetchingNextPage && (
+        <View className="py-4 items-center">
+          <ActivityIndicator color="#C8FF2F" />
         </View>
-      </View>
-
-      {/* Saved Events */}
-      <View>
-        <Text className="text-base font-bold text-white font-urbanist mb-3">Saved Events</Text>
-        <SavedEventsSection />
-      </View>
+      )}
+      {events.length > 0 && !isFetchingNextPage && (
+        <Pressable onPress={loadMore} className="py-2 items-center">
+          <Text className="text-xs text-white/40">Load more</Text>
+        </Pressable>
+      )}
     </View>
   );
 }
@@ -394,8 +341,7 @@ function CreatorProfile({
   me: { name: string | null; image: string | null; venueAddress: string | null } | null | undefined;
   currentRole: string;
 }) {
-  const tabs: SegmentTab[] =
-    currentRole === 'artist' ? ['events', 'posts', 'bookings'] : ['events', 'posts'];
+  const tabs: SegmentTab[] = ['events', 'posts', 'bookings'];
   const [activeTab, setActiveTab] = useState<SegmentTab>('events');
 
   const myEvents = useMyEvents();
