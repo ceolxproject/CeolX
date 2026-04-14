@@ -1,4 +1,4 @@
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 import { Alert, FlatList, Linking, Platform, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -26,6 +26,7 @@ interface EventDetailViewProps {
   event: EventDetailData;
   isArtist: boolean;
   isOwner: boolean;
+  userId?: string;
   onBack: () => void;
   onNavigateToEvent: (eventId: string) => void;
   onEdit: () => void;
@@ -36,6 +37,7 @@ export function EventDetailView({
   event,
   isArtist,
   isOwner,
+  userId,
   onBack,
   onNavigateToEvent,
   onEdit,
@@ -43,15 +45,42 @@ export function EventDetailView({
 }: EventDetailViewProps) {
   const insets = useSafeAreaInsets();
   const [isSaved, setIsSaved] = useState(event.isSaved);
+  const [hasRequested, setHasRequested] = useState(false);
   const { initialRegion, locationSource } = useGpsRegion();
+  const queryClient = useQueryClient();
 
   const distanceKm = useMemo(() => {
     if (locationSource === 'pending') return undefined;
     return distanceBetween(initialRegion.latitude, initialRegion.longitude, event.lat, event.lng);
   }, [initialRegion.latitude, initialRegion.longitude, event.lat, event.lng, locationSource]);
 
+  const isCollaborator = useMemo(
+    () => !!userId && event.collaborators.some((c) => c.id === userId),
+    [userId, event.collaborators]
+  );
+
   const { mutate: save } = useMutation(trpc.events.save.mutationOptions());
   const { mutate: unsave } = useMutation(trpc.events.unsave.mutationOptions());
+
+  const { mutate: requestToPerform, isPending: isRequesting } = useMutation(
+    trpc.bookings.requestToPerform.mutationOptions({
+      onSuccess: () => {
+        setHasRequested(true);
+        Alert.alert('Request Sent!', 'The venue will review your request.');
+        void queryClient.invalidateQueries({ queryKey: [['bookings']] });
+      },
+      onError: (error) => {
+        if (error.message.includes('already applied')) {
+          setHasRequested(true);
+          Alert.alert('Already Applied', "You've already applied to this event.");
+        } else if (error.message.includes('already a collaborator')) {
+          Alert.alert('Already Booked', 'You are already a collaborator on this event.');
+        } else {
+          Alert.alert('Error', error.message || 'Failed to send request');
+        }
+      },
+    })
+  );
 
   const handleToggleSave = () => {
     setIsSaved((prev) => !prev); // optimistic update
@@ -63,8 +92,7 @@ export function EventDetailView({
   };
 
   const handleRequestToPerform = () => {
-    // TODO: Navigate to Booking flow (M5) when implemented
-    Alert.alert('Coming Soon', 'The booking flow is not yet available. Stay tuned!');
+    requestToPerform({ eventId: event.id });
   };
 
   const handleAddToCalendar = () => {
@@ -234,6 +262,9 @@ export function EventDetailView({
           isArtist={isArtist}
           isOwner={isOwner}
           isVenueEvent={event.creator.type === 'venue'}
+          isCollaborator={isCollaborator}
+          isRequesting={isRequesting}
+          hasExistingRequest={hasRequested}
           onRequestToPerform={handleRequestToPerform}
         />
       )}

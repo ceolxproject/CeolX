@@ -38,6 +38,7 @@ export default function EventDetailScreen() {
       event={event}
       isArtist={isArtist}
       isOwner={isOwner}
+      userId={me?.id}
       onBack={() => router.back()}
       onNavigateToEvent={(id) => router.push(`/(app)/(tabs)/discover/event/${id}`)}
       onEdit={() => router.push(`/(app)/events/edit/${event.id}`)}
