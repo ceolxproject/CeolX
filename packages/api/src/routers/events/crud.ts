@@ -273,13 +273,14 @@ export const create = creatorProcedure.input(createEventSchema).mutation(async (
           throw new TRPCError({ code: 'NOT_FOUND', message: 'Venue profile not found' });
 
         for (const ap of artistProfileRows) {
+          // Collaborators are confirmed performers — booking is auto-accepted
           const [booking] = await tx
             .insert(bookings)
             .values({
               artistId: ap.id,
               venueId: venueProfile.id,
               eventId: inserted.id,
-              status: 'pending',
+              status: 'accepted',
               direction: 'venue_to_artist',
             })
             .returning();
@@ -298,10 +299,10 @@ export const create = creatorProcedure.input(createEventSchema).mutation(async (
 
           await tx.insert(notifications).values({
             userId: ap.userId,
-            type: 'booking_invitation',
+            type: 'booking_confirmed',
             payload: {
-              title: 'New Booking Invitation',
-              body: `${venueProfile.venueName} invited you to perform at "${inserted.title}"`,
+              title: 'Booking Confirmed',
+              body: `${venueProfile.venueName} added you as a performer for "${inserted.title}"`,
               persona: 'artist',
               route: `/bookings/${booking.id}`,
             },
@@ -447,13 +448,14 @@ export const update = protectedProcedure
               throw new TRPCError({ code: 'NOT_FOUND', message: 'Venue profile not found' });
 
             for (const ap of newProfiles) {
+              // Collaborators are confirmed performers — booking is auto-accepted
               const [booking] = await tx
                 .insert(bookings)
                 .values({
                   artistId: ap.id,
                   venueId: venueProfile.id,
                   eventId: input.id,
-                  status: 'pending',
+                  status: 'accepted',
                   direction: 'venue_to_artist',
                 })
                 .returning();
@@ -472,10 +474,10 @@ export const update = protectedProcedure
 
               await tx.insert(notifications).values({
                 userId: ap.userId,
-                type: 'booking_invitation',
+                type: 'booking_confirmed',
                 payload: {
-                  title: 'New Booking Invitation',
-                  body: `${venueProfile.venueName} invited you to perform at "${result.title}"`,
+                  title: 'Booking Confirmed',
+                  body: `${venueProfile.venueName} added you as a performer for "${result.title}"`,
                   persona: 'artist',
                   route: `/bookings/${booking.id}`,
                 },
