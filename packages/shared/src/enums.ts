@@ -40,6 +40,13 @@ export type EventCategory = (typeof EVENT_CATEGORIES)[number];
 export const DATE_RANGE_OPTIONS = ['today', 'this_week', 'this_weekend', 'this_month'] as const;
 export type DateRangeOption = (typeof DATE_RANGE_OPTIONS)[number];
 
+export const DATE_RANGE_LABELS: Record<DateRangeOption, string> = {
+  today: 'Today',
+  this_week: 'This Week',
+  this_weekend: 'This Weekend',
+  this_month: 'This Month',
+};
+
 // 32 counties of Ireland (Republic + Northern Ireland)
 export const IRISH_COUNTIES = [
   'Antrim',

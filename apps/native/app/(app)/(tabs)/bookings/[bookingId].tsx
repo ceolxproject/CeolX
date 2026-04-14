@@ -10,6 +10,7 @@ import { CATEGORY_LABELS } from '@CeolX/shared';
 import { RequestActions } from '@/components/requests/RequestActions';
 import { useUpdateBooking } from '@/hooks/use-update-booking';
 import { authClient } from '@/lib/auth-client';
+import { formatEventDate } from '@/utils/format-event-date';
 import { trpc } from '@/utils/trpc';
 
 const STATUS_STYLES: Record<string, { bg: string; text: string; label: string }> = {
@@ -190,25 +191,6 @@ export default function BookingDetailScreen() {
       </ScrollView>
     </SafeAreaView>
   );
-}
-
-function formatEventDate(dateStart: string, dateEnd?: string): string {
-  const start = new Date(dateStart);
-  const month = start.toLocaleString('en-IE', { month: 'short' });
-  const day = start.getDate();
-  const time = start.toLocaleString('en-IE', { hour: 'numeric', minute: '2-digit', hour12: true });
-
-  if (dateEnd) {
-    const end = new Date(dateEnd);
-    const endTime = end.toLocaleString('en-IE', {
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true,
-    });
-    return `${month} ${day}, ${time}-${endTime}`;
-  }
-
-  return `${month} ${day}, ${time}`;
 }
 
 function formatAcceptedDate(dateStr: string): string {

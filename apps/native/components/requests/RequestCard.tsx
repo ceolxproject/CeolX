@@ -8,6 +8,8 @@ import { CATEGORY_LABELS } from '@CeolX/shared';
 
 import { RequestActions } from './RequestActions';
 
+import { formatEventDate } from '@/utils/format-event-date';
+
 interface RequestCardProps {
   booking: BookingSummary;
   userRole: 'artist' | 'venue';
@@ -147,25 +149,6 @@ export function RequestCard({
       </View>
     </Pressable>
   );
-}
-
-function formatEventDate(dateStart: string, dateEnd?: string): string {
-  const start = new Date(dateStart);
-  const month = start.toLocaleString('en-IE', { month: 'short' });
-  const day = start.getDate();
-  const time = start.toLocaleString('en-IE', { hour: 'numeric', minute: '2-digit', hour12: true });
-
-  if (dateEnd) {
-    const end = new Date(dateEnd);
-    const endTime = end.toLocaleString('en-IE', {
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true,
-    });
-    return `${month} ${day}, ${time}-${endTime}`;
-  }
-
-  return `${month} ${day}, ${time}`;
 }
 
 function getTimeSince(dateStr: string): string {

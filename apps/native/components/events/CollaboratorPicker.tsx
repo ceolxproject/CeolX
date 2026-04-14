@@ -1,12 +1,14 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
-import { useEffect, useRef, useState } from 'react';
-import { Image, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { useState } from 'react';
+import { Text, TextInput, View } from 'react-native';
 
-import type { CollaboratorArtist } from '@/hooks/use-event-form';
+import type { ArtistResult } from './ArtistSearchRow';
+import { ArtistSearchRow } from './ArtistSearchRow';
+import { SelectedChips } from './SelectedChips';
+
+import { useDebouncedValue } from '@/hooks/use-debounced-value';
 import { trpc } from '@/utils/trpc';
-
-type ArtistResult = CollaboratorArtist;
 
 type Props = {
   collaborators: string[];
@@ -28,21 +30,11 @@ export function CollaboratorPicker({
   error,
 }: Props) {
   const [query, setQuery] = useState('');
-  const [debouncedQuery, setDebouncedQuery] = useState('');
-  // Seeded from props on every (re)mount so chips survive step navigation.
+  const debouncedQuery = useDebouncedValue(query);
   const [selectedArtists, setSelectedArtists] = useState<ArtistResult[]>(
     initialSelectedArtists ?? []
   );
   const [showDropdown, setShowDropdown] = useState(false);
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => setDebouncedQuery(query), 400);
-    return () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-    };
-  }, [query]);
 
   const { data } = useQuery({
     ...trpc.artists.search.queryOptions({ q: debouncedQuery }),
@@ -57,7 +49,6 @@ export function CollaboratorPicker({
     onCollaboratorsChange(nextArtists.map((a) => a.id));
     onCollaboratorObjectsChange(nextArtists);
     setQuery('');
-    setDebouncedQuery('');
     setShowDropdown(false);
   }
 
@@ -99,50 +90,21 @@ export function CollaboratorPicker({
       {showDropdown && results.length > 0 && (
         <View className="rounded-lg border border-gray-8 bg-surface overflow-hidden">
           {results.map((artist) => (
-            <Pressable
+            <ArtistSearchRow
               key={artist.id}
+              artist={artist}
               onPress={() => addCollaborator(artist)}
-              className="flex-row items-center gap-3 px-4 py-3 border-b border-gray-8 last:border-b-0 active:bg-white/10"
-            >
-              {artist.image ? (
-                <Image source={{ uri: artist.image }} className="w-8 h-8 rounded-full" />
-              ) : (
-                <View className="w-8 h-8 rounded-full bg-[#6C63FF]/30 items-center justify-center">
-                  <Ionicons name="person" size={14} color="#6C63FF" />
-                </View>
-              )}
-              <View className="flex-1">
-                <Text className="text-sm text-white font-urbanist">{artist.stageName}</Text>
-                {artist.genre && (
-                  <Text className="text-xs text-gray-7 font-urbanist">{artist.genre}</Text>
-                )}
-              </View>
-              <Ionicons name="add-circle-outline" size={20} color="#6C63FF" />
-            </Pressable>
+            />
           ))}
         </View>
       )}
 
       {/* Selected collaborator chips */}
-      {selectedArtists.length > 0 && (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          <View className="flex-row gap-2">
-            {selectedArtists.map((artist) => (
-              <View
-                key={artist.id}
-                className="flex-row items-center gap-1.5 rounded-full bg-[#6C63FF]/20 px-3 py-1.5 border border-[#6C63FF]/40"
-              >
-                <Text className="text-xs text-[#6C63FF] font-semibold font-urbanist">
-                  {artist.stageName}
-                </Text>
-                <Pressable onPress={() => removeCollaborator(artist.id)} hitSlop={8}>
-                  <Ionicons name="close-circle" size={14} color="#6C63FF" />
-                </Pressable>
-              </View>
-            ))}
-          </View>
-        </ScrollView>
-      )}
+      <SelectedChips
+        items={selectedArtists.map((a) => ({ key: a.id, label: a.stageName }))}
+        onRemove={removeCollaborator}
+        variant="purple"
+      />
 
       {error && <Text className="text-xs text-error font-urbanist">{error}</Text>}
     </View>
