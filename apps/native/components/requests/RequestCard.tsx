@@ -39,8 +39,9 @@ export function RequestCard({
     (userRole === 'venue' && booking.direction === 'venue_to_artist') ||
     (userRole === 'artist' && booking.direction === 'artist_to_venue');
 
-  const otherPartyName = isSentByUser ? booking.artistName : booking.venueName;
-  const otherPartyImage = isSentByUser ? booking.artistImage : booking.venueImage;
+  // "Other party" is always the party that is NOT you, regardless of direction
+  const otherPartyName = userRole === 'venue' ? booking.artistName : booking.venueName;
+  const otherPartyImage = userRole === 'venue' ? booking.artistImage : booking.venueImage;
   const directionLabel = isSentByUser ? 'Sent Request to:' : 'Request Sent by:';
 
   const isAccepted = booking.status === 'accepted';
