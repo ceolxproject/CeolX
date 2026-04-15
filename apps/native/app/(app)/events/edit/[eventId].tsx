@@ -1,30 +1,31 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useQuery } from '@tanstack/react-query';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { EventCategory } from '@CeolX/shared';
+import { EventStatus, UserRole } from '@CeolX/shared/enums';
 
 import { AppTabBar, TAB_CONFIG } from '@/components/AppTabBar';
 import { BasicDetailsStep } from '@/components/events/BasicDetailsStep';
 import { DateVenueStep } from '@/components/events/DateVenueStep';
 import { StepIndicator } from '@/components/events/StepIndicator';
 import { TicketAdsStep } from '@/components/events/TicketAdsStep';
+import { useEventById } from '@/hooks/use-event-by-id';
 import { useEventForm } from '@/hooks/use-event-form';
 import type { CollaboratorArtist } from '@/hooks/use-event-form';
-import { trpc } from '@/utils/trpc';
+import { useMe } from '@/hooks/use-me';
 
 export default function EditEventScreen() {
   const { eventId } = useLocalSearchParams<{ eventId: string }>();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { data: me } = useQuery(trpc.users.me.queryOptions());
-  const isVenue = me?.currentRole === 'venue';
+  const { data: me } = useMe();
+  const isVenue = me?.currentRole === UserRole.VENUE;
   const [showManualAddress, setShowManualAddress] = useState(false);
 
-  const { data: event, isLoading } = useQuery(trpc.events.byId.queryOptions({ id: eventId }));
+  const { data: event, isLoading } = useEventById({ id: eventId });
 
   const form = useEventForm({
     eventId,
@@ -104,7 +105,7 @@ export default function EditEventScreen() {
     );
   }
 
-  if (event.status === 'archived') {
+  if (event.status === EventStatus.ARCHIVED) {
     return (
       <View className="flex-1 bg-background items-center justify-center px-5">
         <Text className="text-center text-lg text-white">Cannot edit an archived event.</Text>
@@ -122,7 +123,7 @@ export default function EditEventScreen() {
         <Text className="flex-1 text-2xl font-bold text-white">Edit Event</Text>
       </View>
 
-      {event.status === 'removed' && event.removalReason && (
+      {event.status === EventStatus.REMOVED && event.removalReason && (
         <View className="mx-5 mb-3 rounded-lg bg-red-900/30 px-4 py-3">
           <Text className="mb-1 text-sm font-semibold text-red-400">
             This event was removed by admin
@@ -220,7 +221,12 @@ export default function EditEventScreen() {
       </View>
 
       {/* Bottom tab bar */}
-      <AppTabBar state={tabBarState} descriptors={{}} navigation={tabBarNavigation} />
+      <AppTabBar
+        state={tabBarState as never}
+        descriptors={{} as never}
+        navigation={tabBarNavigation as never}
+        insets={{ top: 0, bottom: 0, left: 0, right: 0 }}
+      />
     </View>
   );
 }

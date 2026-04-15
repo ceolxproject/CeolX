@@ -471,6 +471,76 @@ describe('bookings.update', () => {
       'BAD_REQUEST'
     );
   });
+
+  // ─── artist_to_venue direction (direction-aware state machine) ───────────
+
+  const mockArtistToVenueBooking = {
+    ...mockBooking,
+    direction: 'artist_to_venue',
+  };
+
+  it('allows venue to accept an artist_to_venue booking', async () => {
+    const caller = createCaller(authedContext('venue', VENUE_USER_ID));
+    mockBookingsFindFirst.mockResolvedValueOnce(mockArtistToVenueBooking);
+    mockUpdateReturning.mockResolvedValueOnce([
+      { ...mockArtistToVenueBooking, status: 'accepted' },
+    ]);
+
+    const result = await caller.bookings.update({ id: BOOKING_ID, status: 'accepted' });
+    expect(result.status).toBe('accepted');
+  });
+
+  it('allows venue to reject an artist_to_venue booking', async () => {
+    const caller = createCaller(authedContext('venue', VENUE_USER_ID));
+    mockBookingsFindFirst.mockResolvedValueOnce(mockArtistToVenueBooking);
+    mockUpdateReturning.mockResolvedValueOnce([
+      { ...mockArtistToVenueBooking, status: 'rejected' },
+    ]);
+
+    const result = await caller.bookings.update({ id: BOOKING_ID, status: 'rejected' });
+    expect(result.status).toBe('rejected');
+  });
+
+  it('throws FORBIDDEN when artist tries to accept own artist_to_venue booking', async () => {
+    const caller = createCaller(authedContext('artist', ARTIST_USER_ID));
+    mockBookingsFindFirst.mockResolvedValueOnce(mockArtistToVenueBooking);
+
+    await expectTRPCError(
+      caller.bookings.update({ id: BOOKING_ID, status: 'accepted' }),
+      'FORBIDDEN'
+    );
+  });
+
+  it('allows artist to withdraw (cancel) own pending artist_to_venue booking', async () => {
+    const caller = createCaller(authedContext('artist', ARTIST_USER_ID));
+    mockBookingsFindFirst.mockResolvedValueOnce(mockArtistToVenueBooking);
+    mockUpdateReturning.mockResolvedValueOnce([
+      { ...mockArtistToVenueBooking, status: 'cancelled' },
+    ]);
+
+    const result = await caller.bookings.update({ id: BOOKING_ID, status: 'cancelled' });
+    expect(result.status).toBe('cancelled');
+  });
+
+  it('throws FORBIDDEN when venue tries to withdraw a pending artist_to_venue booking', async () => {
+    const caller = createCaller(authedContext('venue', VENUE_USER_ID));
+    mockBookingsFindFirst.mockResolvedValueOnce(mockArtistToVenueBooking);
+
+    await expectTRPCError(
+      caller.bookings.update({ id: BOOKING_ID, status: 'cancelled' }),
+      'FORBIDDEN'
+    );
+  });
+
+  it('allows either party to cancel an accepted artist_to_venue booking', async () => {
+    const acceptedA2V = { ...mockArtistToVenueBooking, status: 'accepted' };
+    const caller = createCaller(authedContext('venue', VENUE_USER_ID));
+    mockBookingsFindFirst.mockResolvedValueOnce(acceptedA2V);
+    mockUpdateReturning.mockResolvedValueOnce([{ ...acceptedA2V, status: 'cancelled' }]);
+
+    const result = await caller.bookings.update({ id: BOOKING_ID, status: 'cancelled' });
+    expect(result.status).toBe('cancelled');
+  });
 });
 
 // ─── bookings.list ───────────────────────────────────────────────────────────
@@ -574,6 +644,95 @@ describe('bookings.searchArtists', () => {
     const result = await caller.bookings.searchArtists({ q: 'celtic' });
     expect(result.artists).toHaveLength(1);
     expect(result.artists[0]).toMatchObject({ stageName: 'Celtic Thunder' });
+  });
+});
+
+// ─── bookings.requestToPerform ───────────────────────────────────────────────
+
+describe('bookings.requestToPerform', () => {
+  it('throws UNAUTHORIZED for unauthenticated request', async () => {
+    const caller = createCaller(anonContext());
+    await expectTRPCError(caller.bookings.requestToPerform({ eventId: EVENT_ID }), 'UNAUTHORIZED');
+  });
+
+  it('throws FORBIDDEN for non-artist role', async () => {
+    const caller = createCaller(authedContext('venue'));
+    await expectTRPCError(caller.bookings.requestToPerform({ eventId: EVENT_ID }), 'FORBIDDEN');
+  });
+
+  it('throws NOT_FOUND when artist profile does not exist', async () => {
+    const caller = createCaller(authedContext('artist', ARTIST_USER_ID));
+    mockArtistsFindFirst.mockResolvedValueOnce(null);
+
+    await expectTRPCError(caller.bookings.requestToPerform({ eventId: EVENT_ID }), 'NOT_FOUND');
+  });
+
+  it('throws NOT_FOUND when event does not exist', async () => {
+    const caller = createCaller(authedContext('artist', ARTIST_USER_ID));
+    mockArtistsFindFirst.mockResolvedValueOnce(mockArtistProfile);
+    mockEventsFindFirst.mockResolvedValueOnce(null);
+
+    await expectTRPCError(caller.bookings.requestToPerform({ eventId: EVENT_ID }), 'NOT_FOUND');
+  });
+
+  it('throws BAD_REQUEST when event has no resolvable venue', async () => {
+    const caller = createCaller(authedContext('artist', ARTIST_USER_ID));
+    mockArtistsFindFirst.mockResolvedValueOnce(mockArtistProfile);
+    // Event with no venueId
+    mockEventsFindFirst.mockResolvedValueOnce({ ...mockEvent, venueId: null });
+    // No venue profile for creator
+    mockVenuesFindFirst.mockResolvedValueOnce(null);
+
+    await expectTRPCError(caller.bookings.requestToPerform({ eventId: EVENT_ID }), 'BAD_REQUEST');
+  });
+
+  it('throws CONFLICT when active booking already exists', async () => {
+    const caller = createCaller(authedContext('artist', ARTIST_USER_ID));
+    mockArtistsFindFirst.mockResolvedValueOnce(mockArtistProfile);
+    mockEventsFindFirst.mockResolvedValueOnce(mockEvent);
+    mockVenuesFindFirst.mockResolvedValueOnce(mockVenueProfile);
+    mockBookingsFindFirst.mockResolvedValueOnce({ id: 'existing-booking' });
+
+    await expectTRPCError(caller.bookings.requestToPerform({ eventId: EVENT_ID }), 'CONFLICT');
+  });
+
+  it('throws CONFLICT when artist is already a collaborator', async () => {
+    const caller = createCaller(authedContext('artist', ARTIST_USER_ID));
+    mockArtistsFindFirst.mockResolvedValueOnce(mockArtistProfile);
+    mockEventsFindFirst.mockResolvedValueOnce(mockEvent);
+    mockVenuesFindFirst.mockResolvedValueOnce(mockVenueProfile);
+    mockBookingsFindFirst.mockResolvedValueOnce(null); // no dedup
+    mockCollabsFindFirst.mockResolvedValueOnce({ id: 'existing-collab' });
+
+    await expectTRPCError(caller.bookings.requestToPerform({ eventId: EVENT_ID }), 'CONFLICT');
+  });
+
+  it('creates booking + collaborator on success', async () => {
+    const caller = createCaller(authedContext('artist', ARTIST_USER_ID));
+    mockArtistsFindFirst.mockResolvedValueOnce(mockArtistProfile);
+    mockEventsFindFirst.mockResolvedValueOnce(mockEvent);
+    mockVenuesFindFirst.mockResolvedValueOnce(mockVenueProfile);
+    mockBookingsFindFirst.mockResolvedValueOnce(null); // no dedup
+    mockCollabsFindFirst.mockResolvedValueOnce(null); // not a collaborator
+
+    const newBooking = {
+      ...mockBooking,
+      direction: 'artist_to_venue',
+      status: 'pending',
+    };
+    mockInsertReturning.mockResolvedValueOnce([newBooking]);
+
+    // User image lookups
+    mockUserFindFirst.mockResolvedValueOnce({ image: 'artist-img.jpg' });
+    mockUserFindFirst.mockResolvedValueOnce({ image: 'venue-img.jpg' });
+
+    const result = await caller.bookings.requestToPerform({ eventId: EVENT_ID });
+    expect(result).toMatchObject({
+      id: BOOKING_ID,
+      status: 'pending',
+      direction: 'artist_to_venue',
+    });
+    expect(mockTransaction).toHaveBeenCalled();
   });
 });
 

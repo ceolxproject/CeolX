@@ -5,6 +5,7 @@ import { Image, Pressable, Text, View } from 'react-native';
 
 import type { BookingSummary } from '@CeolX/shared';
 import { CATEGORY_LABELS } from '@CeolX/shared';
+import { BookingDirection, BookingStatus, UserRole } from '@CeolX/shared/enums';
 
 import { RequestActions } from './RequestActions';
 
@@ -36,14 +37,15 @@ export function RequestCard({
   const timeSince = getTimeSince(booking.createdAt);
 
   const isSentByUser =
-    (userRole === 'venue' && booking.direction === 'venue_to_artist') ||
-    (userRole === 'artist' && booking.direction === 'artist_to_venue');
+    (userRole === UserRole.VENUE && booking.direction === BookingDirection.VENUE_TO_ARTIST) ||
+    (userRole === UserRole.ARTIST && booking.direction === BookingDirection.ARTIST_TO_VENUE);
 
-  const otherPartyName = isSentByUser ? booking.artistName : booking.venueName;
-  const otherPartyImage = isSentByUser ? booking.artistImage : booking.venueImage;
+  // "Other party" is always the party that is NOT you, regardless of direction
+  const otherPartyName = userRole === UserRole.VENUE ? booking.artistName : booking.venueName;
+  const otherPartyImage = userRole === UserRole.VENUE ? booking.artistImage : booking.venueImage;
   const directionLabel = isSentByUser ? 'Sent Request to:' : 'Request Sent by:';
 
-  const isAccepted = booking.status === 'accepted';
+  const isAccepted = booking.status === BookingStatus.ACCEPTED;
 
   return (
     <Pressable
@@ -120,7 +122,7 @@ export function RequestCard({
             {isAccepted && (
               <Pressable>
                 <Text className="text-xs font-bold text-[#D4FC5A] font-urbanist tracking-wide">
-                  {userRole === 'artist' ? 'CONTACT VENUE' : 'CONTACT ARTIST'}
+                  {userRole === UserRole.ARTIST ? 'CONTACT VENUE' : 'CONTACT ARTIST'}
                 </Text>
               </Pressable>
             )}

@@ -313,6 +313,7 @@ export function useEventForm(options?: UseEventFormOptions) {
       ticketQuantity: parseQuantity(ticketQuantity),
       collectionId: collectionId || undefined,
       collaborators: collaborators.length > 0 ? collaborators : undefined,
+      platformInvites: platformInvites.length > 0 ? platformInvites : undefined,
       unregisteredCollaborators:
         unregisteredCollaborators.length > 0 ? unregisteredCollaborators : undefined,
       adTitle: adTitle.trim() || undefined,

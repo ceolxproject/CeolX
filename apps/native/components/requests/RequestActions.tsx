@@ -1,6 +1,7 @@
 import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 
 import type { BookingSummary } from '@CeolX/shared';
+import { BookingDirection, BookingStatus, UserRole } from '@CeolX/shared/enums';
 
 interface RequestActionsProps {
   booking: BookingSummary;
@@ -21,11 +22,11 @@ export function RequestActions({
   onCancel: _onCancel,
   isUpdating,
 }: RequestActionsProps) {
-  if (booking.status !== 'pending') return null;
+  if (booking.status !== BookingStatus.PENDING) return null;
 
   const isSentByUser =
-    (userRole === 'venue' && booking.direction === 'venue_to_artist') ||
-    (userRole === 'artist' && booking.direction === 'artist_to_venue');
+    (userRole === UserRole.VENUE && booking.direction === BookingDirection.VENUE_TO_ARTIST) ||
+    (userRole === UserRole.ARTIST && booking.direction === BookingDirection.ARTIST_TO_VENUE);
 
   if (isUpdating) {
     return (

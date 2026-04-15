@@ -1,6 +1,8 @@
 import { cn } from 'heroui-native';
 import { Image, Pressable, Text, View, type PressableProps } from 'react-native';
 
+import { UserRole } from '@CeolX/shared/enums';
+
 interface Tag {
   label: string;
 }
@@ -39,7 +41,7 @@ export function PersonaCard({
         />
       ) : (
         <View className="h-14 w-14 rounded-full bg-blue-3 items-center justify-center">
-          <Text className="text-lg">{type === 'artist' ? '🎸' : '🏛️'}</Text>
+          <Text className="text-lg">{type === UserRole.ARTIST ? '🎸' : '🏛️'}</Text>
         </View>
       )}
       <View className="flex-1 gap-1">

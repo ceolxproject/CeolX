@@ -51,6 +51,14 @@ export const inviteExternalArtistSchema = z.object({
 
 export type InviteExternalArtistInput = z.infer<typeof inviteExternalArtistSchema>;
 
+// --- Artist requests to perform at a venue event ---
+
+export const requestToPerformSchema = z.object({
+  eventId: z.string().uuid(),
+});
+
+export type RequestToPerformInput = z.infer<typeof requestToPerformSchema>;
+
 // --- Confirmed events (profile Bookings tab) ---
 
 export const confirmedEventsSchema = z.object({

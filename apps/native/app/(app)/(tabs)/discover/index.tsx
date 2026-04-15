@@ -14,6 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import type { DateRangeOption, EventCategory } from '@CeolX/shared';
 import { DATE_RANGE_LABELS, DATE_RANGE_OPTIONS, EVENT_CATEGORIES } from '@CeolX/shared';
+import { UserRole } from '@CeolX/shared/enums';
 
 import { FeedEventCard } from '@/components/FeedEventCard';
 import { FeedHeader } from '@/components/FeedHeader';
@@ -38,7 +39,7 @@ export default function DiscoverScreen() {
   const [activeSegment, setActiveSegment] = useState(0);
   const [filterSheetVisible, setFilterSheetVisible] = useState(false);
 
-  const isArtist = session?.user?.currentRole === 'artist';
+  const isArtist = session?.user?.currentRole === UserRole.ARTIST;
 
   const {
     events,
