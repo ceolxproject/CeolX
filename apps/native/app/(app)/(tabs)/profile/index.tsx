@@ -13,6 +13,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { UserRole } from '@CeolX/shared/enums';
+
 import { ProfileEventCard } from '@/components/ProfileEventCard';
 import { useAuth } from '@/contexts/auth-context';
 import { useConfirmedEvents } from '@/hooks/use-confirmed-events';
@@ -114,7 +116,7 @@ function ProfileHeader({
       {/* Name + details */}
       <View className="items-center gap-1.5 mb-3">
         <Text className="text-xl font-bold text-white font-urbanist">{me.name ?? 'Your Name'}</Text>
-        {currentRole === 'venue' && me.venueAddress && (
+        {currentRole === UserRole.VENUE && me.venueAddress && (
           <View className="flex-row items-center gap-1">
             <Ionicons name="location-outline" size={12} color="rgba(255,255,255,0.6)" />
             <Text className="text-xs font-semibold text-white/60 font-urbanist">
@@ -122,7 +124,7 @@ function ProfileHeader({
             </Text>
           </View>
         )}
-        {currentRole === 'artist' && (
+        {currentRole === UserRole.ARTIST && (
           <Text className="text-xs font-semibold text-white/80 font-urbanist">
             Music | Concert | Singing
           </Text>
@@ -326,7 +328,7 @@ export default function ProfileScreen() {
   const currentRole = me?.currentRole ?? 'spectator';
 
   // Spectators get a simple profile — no segment control
-  if (currentRole === 'spectator') {
+  if (currentRole === UserRole.SPECTATOR) {
     return <SpectatorProfile />;
   }
 

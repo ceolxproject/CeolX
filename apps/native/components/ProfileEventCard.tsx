@@ -2,6 +2,7 @@ import { cn } from 'heroui-native';
 import { Text, View } from 'react-native';
 
 import { CATEGORY_LABELS } from '@CeolX/shared';
+import { EventStatus } from '@CeolX/shared/enums';
 
 import { BaseEventCard } from './BaseEventCard';
 
@@ -49,13 +50,13 @@ export function ProfileEventCard({
         </View>
       }
       topRightBadge={
-        status && status !== 'active' ? (
+        status && status !== EventStatus.ACTIVE ? (
           <View
             className={cn(
               'rounded-lg px-2 py-1',
-              status === 'archived' && 'bg-[rgba(141,141,141,0.8)]',
-              status === 'removed' && 'bg-red-600',
-              status === 'draft' && 'bg-[#6155F5]'
+              status === EventStatus.ARCHIVED && 'bg-[rgba(141,141,141,0.8)]',
+              status === EventStatus.REMOVED && 'bg-red-600',
+              status === EventStatus.DRAFT && 'bg-[#6155F5]'
             )}
           >
             <Text className="text-[10px] font-semibold text-white font-urbanist capitalize">

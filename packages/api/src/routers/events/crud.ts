@@ -8,6 +8,7 @@ import { bookings } from '@CeolX/db/schema/bookings';
 import { eventCollaborators, events, savedEvents } from '@CeolX/db/schema/events';
 import { notifications } from '@CeolX/db/schema/notifications';
 import { artistProfiles, venueProfiles } from '@CeolX/db/schema/users';
+import { BookingDirection, BookingStatus, EventStatus, UserRole } from '@CeolX/shared';
 import {
   createEventSchema,
   myEventsQuerySchema,
@@ -37,7 +38,7 @@ export const byId = publicProcedure
     }
 
     // Archived events only visible to the creator
-    if (event.status === 'archived' && event.createdBy !== ctx.session?.user?.id) {
+    if (event.status === EventStatus.ARCHIVED && event.createdBy !== ctx.session?.user?.id) {
       throw new TRPCError({ code: 'NOT_FOUND', message: 'Event not found' });
     }
 
@@ -102,7 +103,7 @@ export const byId = publicProcedure
         ? db.query.events.findMany({
             where: and(
               eq(events.collectionId, event.collectionId),
-              eq(events.status, 'active'),
+              eq(events.status, EventStatus.ACTIVE),
               ne(events.id, input.id)
             ),
             columns: {
@@ -160,7 +161,7 @@ export const byId = publicProcedure
           event.creator?.name ??
           'Unknown',
         imageUrl: event.creator?.image ?? null,
-        type: creatorArtistProfile ? ('artist' as const) : ('venue' as const),
+        type: creatorArtistProfile ? UserRole.ARTIST : UserRole.VENUE,
       },
       collaborators: event.collaborators.map((c) => {
         if (!c.artistProfileId) {
@@ -206,7 +207,7 @@ export const byId = publicProcedure
 export const create = creatorProcedure.input(createEventSchema).mutation(async ({ input, ctx }) => {
   const { collaborators, platformInvites, unregisteredCollaborators, ...eventData } = input;
 
-  const isVenue = ctx.session.user.currentRole === 'venue';
+  const isVenue = ctx.session.user.currentRole === UserRole.VENUE;
 
   // Venue events must have at least one confirmed platform collaborator
   if (isVenue && (!collaborators || collaborators.length === 0)) {
@@ -242,7 +243,7 @@ export const create = creatorProcedure.input(createEventSchema).mutation(async (
         adTitle: eventData.adTitle ?? null,
         adDescription: eventData.adDescription ?? null,
         createdBy: ctx.userId,
-        status: 'active',
+        status: EventStatus.ACTIVE,
       })
       .returning();
 
@@ -280,8 +281,8 @@ export const create = creatorProcedure.input(createEventSchema).mutation(async (
               artistId: ap.id,
               venueId: venueProfile.id,
               eventId: inserted.id,
-              status: 'accepted',
-              direction: 'venue_to_artist',
+              status: BookingStatus.ACCEPTED,
+              direction: BookingDirection.VENUE_TO_ARTIST,
             })
             .returning();
 
@@ -303,7 +304,7 @@ export const create = creatorProcedure.input(createEventSchema).mutation(async (
             payload: {
               title: 'Booking Confirmed',
               body: `${venueProfile.venueName} added you as a performer for "${inserted.title}"`,
-              persona: 'artist',
+              persona: UserRole.ARTIST,
               route: `/bookings/${booking.id}`,
             },
           });
@@ -358,8 +359,8 @@ export const create = creatorProcedure.input(createEventSchema).mutation(async (
                 artistId: ap.id,
                 venueId: venueProfile.id,
                 eventId: inserted.id,
-                status: 'pending',
-                direction: 'venue_to_artist',
+                status: BookingStatus.PENDING,
+                direction: BookingDirection.VENUE_TO_ARTIST,
               })
               .returning();
 
@@ -376,7 +377,7 @@ export const create = creatorProcedure.input(createEventSchema).mutation(async (
                 payload: {
                   title: 'New Booking Invitation',
                   body: `${venueProfile.venueName} invited you to perform at "${inserted.title}"`,
-                  persona: 'artist',
+                  persona: UserRole.ARTIST,
                   route: `/bookings/${booking.id}`,
                 },
               });
@@ -405,8 +406,8 @@ export const create = creatorProcedure.input(createEventSchema).mutation(async (
             artistId: artistProfile.id,
             venueId: venueProfile.id,
             eventId: inserted.id,
-            status: 'accepted',
-            direction: 'artist_to_venue',
+            status: BookingStatus.ACCEPTED,
+            direction: BookingDirection.ARTIST_TO_VENUE,
           })
           .returning();
 
@@ -424,7 +425,7 @@ export const create = creatorProcedure.input(createEventSchema).mutation(async (
             payload: {
               title: 'New Event Booking',
               body: `${artistProfile.stageName} created an event at your venue: "${inserted.title}"`,
-              persona: 'venue',
+              persona: UserRole.VENUE,
               route: `/bookings/${booking.id}`,
             },
           });
@@ -458,12 +459,12 @@ export const update = protectedProcedure
       throw new TRPCError({ code: 'FORBIDDEN', message: 'You can only edit your own events' });
     }
 
-    if (event.status === 'archived') {
+    if (event.status === EventStatus.ARCHIVED) {
       throw new TRPCError({ code: 'FORBIDDEN', message: 'Cannot edit an archived event' });
     }
 
     const { collaborators, platformInvites, unregisteredCollaborators, ...updateData } = input.data;
-    const isVenue = ctx.session.user.currentRole === 'venue';
+    const isVenue = ctx.session.user.currentRole === UserRole.VENUE;
 
     // Ad fields are venue-only — strip them for non-venue creators
     if (!isVenue) {
@@ -492,8 +493,8 @@ export const update = protectedProcedure
         setValues.adDescription = updateData.adDescription;
 
       // If event was removed by admin and creator is resubmitting, re-activate
-      if (event.status === 'removed') {
-        setValues.status = 'active';
+      if (event.status === EventStatus.REMOVED) {
+        setValues.status = EventStatus.ACTIVE;
         setValues.removalReason = null;
       }
 
@@ -557,8 +558,8 @@ export const update = protectedProcedure
                   artistId: ap.id,
                   venueId: venueProfile.id,
                   eventId: input.id,
-                  status: 'accepted',
-                  direction: 'venue_to_artist',
+                  status: BookingStatus.ACCEPTED,
+                  direction: BookingDirection.VENUE_TO_ARTIST,
                 })
                 .returning();
 
@@ -580,7 +581,7 @@ export const update = protectedProcedure
                 payload: {
                   title: 'Booking Confirmed',
                   body: `${venueProfile.venueName} added you as a performer for "${result.title}"`,
-                  persona: 'artist',
+                  persona: UserRole.ARTIST,
                   route: `/bookings/${booking.id}`,
                 },
               });
@@ -665,8 +666,8 @@ export const update = protectedProcedure
                   artistId: ap.id,
                   venueId: venueProfile.id,
                   eventId: input.id,
-                  status: 'pending',
-                  direction: 'venue_to_artist',
+                  status: BookingStatus.PENDING,
+                  direction: BookingDirection.VENUE_TO_ARTIST,
                 })
                 .returning();
 
@@ -683,7 +684,7 @@ export const update = protectedProcedure
                   payload: {
                     title: 'New Booking Invitation',
                     body: `${venueProfile.venueName} invited you to perform at "${result.title}"`,
-                    persona: 'artist',
+                    persona: UserRole.ARTIST,
                     route: `/bookings/${booking.id}`,
                   },
                 });
@@ -697,7 +698,7 @@ export const update = protectedProcedure
     });
 
     // Sync to Typesense if event is active
-    if (updated.status === 'active') {
+    if (updated.status === EventStatus.ACTIVE) {
       await syncEventToTypesense(updated).catch(() => {});
     } else {
       await removeEventFromTypesense(updated.id).catch(() => {});
@@ -721,7 +722,7 @@ export const archive = protectedProcedure
       throw new TRPCError({ code: 'FORBIDDEN', message: 'You can only archive your own events' });
     }
 
-    if (event.status !== 'active') {
+    if (event.status !== EventStatus.ACTIVE) {
       throw new TRPCError({
         code: 'BAD_REQUEST',
         message: 'Only active events can be archived',
@@ -730,7 +731,7 @@ export const archive = protectedProcedure
 
     const [updated] = await db
       .update(events)
-      .set({ status: 'archived', updatedAt: new Date() })
+      .set({ status: EventStatus.ARCHIVED, updatedAt: new Date() })
       .where(eq(events.id, input.id))
       .returning();
 

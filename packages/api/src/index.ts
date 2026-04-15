@@ -1,6 +1,6 @@
 import { initTRPC, TRPCError } from '@trpc/server';
 
-import type { UserRole } from '@CeolX/shared';
+import { type UserRole, UserRole as UserRoleEnum } from '@CeolX/shared';
 
 import type { Context } from './context';
 
@@ -25,7 +25,7 @@ export const protectedProcedure = t.procedure.use(async ({ ctx, next }) => {
       ...ctx,
       session: ctx.session,
       userId: ctx.session.user.id,
-      currentRole: (ctx.session.user.currentRole ?? 'spectator') as UserRole,
+      currentRole: (ctx.session.user.currentRole ?? UserRoleEnum.SPECTATOR) as UserRole,
     },
   });
 });
@@ -36,7 +36,7 @@ const requireRole = (...roles: UserRole[]) =>
   t.middleware(async ({ ctx, next }) => {
     const currentRole = (ctx as unknown as { currentRole: UserRole }).currentRole;
 
-    if (currentRole === 'admin') return next();
+    if (currentRole === UserRoleEnum.ADMIN) return next();
 
     if (!roles.includes(currentRole)) {
       throw new TRPCError({
@@ -51,13 +51,15 @@ const requireRole = (...roles: UserRole[]) =>
 // ─── Role-specific procedures ─────────────────────────────────────────────────
 
 /** Any authenticated user with the artist persona. Admin bypasses. */
-export const artistProcedure = protectedProcedure.use(requireRole('artist'));
+export const artistProcedure = protectedProcedure.use(requireRole(UserRoleEnum.ARTIST));
 
 /** Any authenticated user with the venue persona. Admin bypasses. */
-export const venueProcedure = protectedProcedure.use(requireRole('venue'));
+export const venueProcedure = protectedProcedure.use(requireRole(UserRoleEnum.VENUE));
 
 /** Artists or venues (event creators). Admin bypasses. */
-export const creatorProcedure = protectedProcedure.use(requireRole('artist', 'venue'));
+export const creatorProcedure = protectedProcedure.use(
+  requireRole(UserRoleEnum.ARTIST, UserRoleEnum.VENUE)
+);
 
 /** CeolX super-admin only. */
-export const adminProcedure = protectedProcedure.use(requireRole('admin'));
+export const adminProcedure = protectedProcedure.use(requireRole(UserRoleEnum.ADMIN));

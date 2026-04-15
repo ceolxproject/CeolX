@@ -4,6 +4,8 @@ import { useState } from 'react';
 import { Alert, Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { UserRole } from '@CeolX/shared/enums';
+
 import { AppTabBar, TAB_CONFIG } from '@/components/AppTabBar';
 import { BasicDetailsStep } from '@/components/events/BasicDetailsStep';
 import { DateVenueStep } from '@/components/events/DateVenueStep';
@@ -16,7 +18,7 @@ export default function CreateEventScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { data: me } = useMe();
-  const isVenue = me?.currentRole === 'venue';
+  const isVenue = me?.currentRole === UserRole.VENUE;
   const [showManualAddress, setShowManualAddress] = useState(false);
 
   const form = useEventForm({

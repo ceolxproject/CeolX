@@ -5,6 +5,8 @@ import type { ComponentProps } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { UserRole } from '@CeolX/shared/enums';
+
 import { useMe } from '@/hooks/use-me';
 
 type IoniconsName = ComponentProps<typeof Ionicons>['name'];
@@ -37,7 +39,7 @@ export function AppTabBar({ state, navigation, onFabPress }: AppTabBarProps) {
 
   const getTabLabel = (tab: TabConfig) => {
     if (tab.name === 'bookings') {
-      return currentRole === 'spectator' ? 'Bookings' : 'Requests';
+      return currentRole === UserRole.SPECTATOR ? 'Bookings' : 'Requests';
     }
     return tab.label;
   };

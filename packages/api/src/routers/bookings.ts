@@ -8,6 +8,12 @@ import { eventCollaborators, events } from '@CeolX/db/schema/events';
 import { notifications } from '@CeolX/db/schema/notifications';
 import { artistProfiles, venueProfiles } from '@CeolX/db/schema/users';
 import {
+  BookingDirection,
+  BookingStatus,
+  type BookingStatus as BookingStatusType,
+  UserRole,
+} from '@CeolX/shared';
+import {
   confirmedEventsSchema,
   createBookingSchema,
   inviteExternalArtistSchema,
@@ -32,13 +38,15 @@ import {
 //   accepted → cancelled (either party)
 // ──────────────────────────────────────────────────────────────────────────────
 
-type BookingStatus = 'pending' | 'accepted' | 'rejected' | 'cancelled';
-
-const VALID_TRANSITIONS: Record<BookingStatus, BookingStatus[]> = {
-  pending: ['accepted', 'rejected', 'cancelled'],
-  accepted: ['cancelled'],
-  rejected: [],
-  cancelled: [],
+const VALID_TRANSITIONS: Record<BookingStatusType, BookingStatusType[]> = {
+  [BookingStatus.PENDING]: [
+    BookingStatus.ACCEPTED,
+    BookingStatus.REJECTED,
+    BookingStatus.CANCELLED,
+  ],
+  [BookingStatus.ACCEPTED]: [BookingStatus.CANCELLED],
+  [BookingStatus.REJECTED]: [],
+  [BookingStatus.CANCELLED]: [],
 };
 
 export const bookingsRouter = router({
@@ -79,7 +87,7 @@ export const bookingsRouter = router({
       where: and(
         eq(bookings.artistId, input.artistId),
         eq(bookings.eventId, input.eventId),
-        inArray(bookings.status, ['pending', 'accepted'])
+        inArray(bookings.status, [BookingStatus.PENDING, BookingStatus.ACCEPTED])
       ),
     });
     if (existingBooking) {
@@ -97,8 +105,8 @@ export const bookingsRouter = router({
           artistId: input.artistId,
           venueId: venueProfile.id,
           eventId: input.eventId,
-          status: 'pending',
-          direction: 'venue_to_artist',
+          status: BookingStatus.PENDING,
+          direction: BookingDirection.VENUE_TO_ARTIST,
         })
         .returning();
 
@@ -121,7 +129,7 @@ export const bookingsRouter = router({
       payload: {
         title: 'New Booking Invitation',
         body: `${venueProfile.venueName} invited you to perform at "${event.title}"`,
-        persona: 'artist',
+        persona: UserRole.ARTIST,
         route: `/bookings/${result.id}`,
       },
     });
@@ -203,7 +211,7 @@ export const bookingsRouter = router({
         where: and(
           eq(bookings.artistId, artistProfile.id),
           eq(bookings.eventId, input.eventId),
-          inArray(bookings.status, ['pending', 'accepted'])
+          inArray(bookings.status, [BookingStatus.PENDING, BookingStatus.ACCEPTED])
         ),
       });
       if (existingBooking) {
@@ -235,8 +243,8 @@ export const bookingsRouter = router({
             artistId: artistProfile.id,
             venueId: venueProfile.id,
             eventId: input.eventId,
-            status: 'pending',
-            direction: 'artist_to_venue',
+            status: BookingStatus.PENDING,
+            direction: BookingDirection.ARTIST_TO_VENUE,
           })
           .returning();
 
@@ -262,7 +270,7 @@ export const bookingsRouter = router({
         payload: {
           title: 'New Performance Request',
           body: `${artistProfile.stageName} requested to perform at "${event.title}"`,
-          persona: 'venue',
+          persona: UserRole.VENUE,
           route: `/bookings/${result.id}`,
         },
       });
@@ -326,8 +334,8 @@ export const bookingsRouter = router({
     }
 
     // 3. State machine validation
-    const currentStatus = booking.status as BookingStatus;
-    const newStatus = input.status as BookingStatus;
+    const currentStatus = booking.status;
+    const newStatus = input.status as BookingStatusType;
 
     if (!VALID_TRANSITIONS[currentStatus]?.includes(newStatus)) {
       throw new TRPCError({
@@ -341,19 +349,26 @@ export const bookingsRouter = router({
     // The SENDER of the booking can withdraw from pending.
     // Either party can cancel from accepted.
     const isRecipient =
-      (booking.direction === 'venue_to_artist' && isArtist) ||
-      (booking.direction === 'artist_to_venue' && isVenue);
+      (booking.direction === BookingDirection.VENUE_TO_ARTIST && isArtist) ||
+      (booking.direction === BookingDirection.ARTIST_TO_VENUE && isVenue);
     const isSender =
-      (booking.direction === 'venue_to_artist' && isVenue) ||
-      (booking.direction === 'artist_to_venue' && isArtist);
+      (booking.direction === BookingDirection.VENUE_TO_ARTIST && isVenue) ||
+      (booking.direction === BookingDirection.ARTIST_TO_VENUE && isArtist);
 
-    if ((newStatus === 'accepted' || newStatus === 'rejected') && !isRecipient) {
+    if (
+      (newStatus === BookingStatus.ACCEPTED || newStatus === BookingStatus.REJECTED) &&
+      !isRecipient
+    ) {
       throw new TRPCError({
         code: 'FORBIDDEN',
         message: 'Only the recipient can accept or reject a booking',
       });
     }
-    if (newStatus === 'cancelled' && currentStatus === 'pending' && !isSender) {
+    if (
+      newStatus === BookingStatus.CANCELLED &&
+      currentStatus === BookingStatus.PENDING &&
+      !isSender
+    ) {
       throw new TRPCError({
         code: 'FORBIDDEN',
         message: 'Only the sender can withdraw a pending booking',
@@ -370,19 +385,19 @@ export const bookingsRouter = router({
     if (!updated) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Update failed' });
 
     // 5. Side effect: on rejected/cancelled → remove eventCollaborator row
-    if (newStatus === 'rejected' || newStatus === 'cancelled') {
+    if (newStatus === BookingStatus.REJECTED || newStatus === BookingStatus.CANCELLED) {
       await db.delete(eventCollaborators).where(eq(eventCollaborators.bookingId, input.id));
     }
 
     // 6. Create notification for other party
     const recipientUserId = isArtist ? booking.venue.userId : booking.artist.userId;
-    const recipientPersona = isArtist ? 'venue' : 'artist';
+    const recipientPersona = isArtist ? UserRole.VENUE : UserRole.ARTIST;
     const actionLabel =
-      newStatus === 'accepted'
+      newStatus === BookingStatus.ACCEPTED
         ? 'accepted'
-        : newStatus === 'rejected'
+        : newStatus === BookingStatus.REJECTED
           ? 'declined'
-          : currentStatus === 'pending'
+          : currentStatus === BookingStatus.PENDING
             ? 'withdrew'
             : 'cancelled';
 
@@ -408,22 +423,22 @@ export const bookingsRouter = router({
 
     // Look up the user's profile ID to match against bookings
     let profileId: string | null = null;
-    let profileType: 'artist' | 'venue' | null = null;
+    let profileType: typeof UserRole.ARTIST | typeof UserRole.VENUE | null = null;
 
-    if (role === 'venue') {
+    if (role === UserRole.VENUE) {
       const vp = await db.query.venueProfiles.findFirst({
         where: eq(venueProfiles.userId, ctx.userId),
         columns: { id: true },
       });
       profileId = vp?.id ?? null;
-      profileType = 'venue';
-    } else if (role === 'artist') {
+      profileType = UserRole.VENUE;
+    } else if (role === UserRole.ARTIST) {
       const ap = await db.query.artistProfiles.findFirst({
         where: eq(artistProfiles.userId, ctx.userId),
         columns: { id: true },
       });
       profileId = ap?.id ?? null;
-      profileType = 'artist';
+      profileType = UserRole.ARTIST;
     }
 
     if (!profileId || !profileType) {
@@ -435,26 +450,32 @@ export const bookingsRouter = router({
     const conditions = [];
 
     if (input.tab === 'sent') {
-      if (profileType === 'venue') {
+      if (profileType === UserRole.VENUE) {
         // Venue sent invitations to artists
-        conditions.push(eq(bookings.venueId, profileId), eq(bookings.direction, 'venue_to_artist'));
+        conditions.push(
+          eq(bookings.venueId, profileId),
+          eq(bookings.direction, BookingDirection.VENUE_TO_ARTIST)
+        );
       } else {
         // Artist sent applications to venues
         conditions.push(
           eq(bookings.artistId, profileId),
-          eq(bookings.direction, 'artist_to_venue')
+          eq(bookings.direction, BookingDirection.ARTIST_TO_VENUE)
         );
       }
     } else {
       // received
-      if (profileType === 'venue') {
+      if (profileType === UserRole.VENUE) {
         // Venue receives applications from artists
-        conditions.push(eq(bookings.venueId, profileId), eq(bookings.direction, 'artist_to_venue'));
+        conditions.push(
+          eq(bookings.venueId, profileId),
+          eq(bookings.direction, BookingDirection.ARTIST_TO_VENUE)
+        );
       } else {
         // Artist receives invitations from venues
         conditions.push(
           eq(bookings.artistId, profileId),
-          eq(bookings.direction, 'venue_to_artist')
+          eq(bookings.direction, BookingDirection.VENUE_TO_ARTIST)
         );
       }
     }
@@ -685,7 +706,7 @@ export const bookingsRouter = router({
   confirmedEvents: creatorProcedure.input(confirmedEventsSchema).query(async ({ input, ctx }) => {
     const role = ctx.currentRole;
 
-    if (role === 'artist') {
+    if (role === UserRole.ARTIST) {
       // Artist: events where I'm a collaborator with an accepted booking or direct add (no booking)
       const whereClause = and(
         eq(eventCollaborators.artistProfileId, ctx.userId),

@@ -3,6 +3,7 @@ import { ActivityIndicator, FlatList, Pressable, RefreshControl, Text, View } fr
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import type { BookingSummary } from '@CeolX/shared';
+import { BookingStatus } from '@CeolX/shared/enums';
 
 import { EmptyRequests } from '@/components/requests/EmptyRequests';
 import { RequestCard } from '@/components/requests/RequestCard';
@@ -49,10 +50,10 @@ export default function RequestsScreen() {
       <RequestCard
         booking={item}
         userRole={userRole}
-        onAccept={() => handleUpdate(item.id, 'accepted')}
-        onReject={() => handleUpdate(item.id, 'rejected')}
-        onWithdraw={() => handleUpdate(item.id, 'cancelled')}
-        onCancel={() => handleUpdate(item.id, 'cancelled')}
+        onAccept={() => handleUpdate(item.id, BookingStatus.ACCEPTED)}
+        onReject={() => handleUpdate(item.id, BookingStatus.REJECTED)}
+        onWithdraw={() => handleUpdate(item.id, BookingStatus.CANCELLED)}
+        onCancel={() => handleUpdate(item.id, BookingStatus.CANCELLED)}
         isUpdating={updatingId === item.id}
         className="mx-5 mb-4"
       />

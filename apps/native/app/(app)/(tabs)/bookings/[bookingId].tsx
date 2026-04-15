@@ -6,6 +6,7 @@ import { ActivityIndicator, Image, Pressable, ScrollView, Text, View } from 'rea
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { CATEGORY_LABELS } from '@CeolX/shared';
+import { BookingDirection, BookingStatus, UserRole } from '@CeolX/shared/enums';
 
 import { RequestActions } from '@/components/requests/RequestActions';
 import { useUpdateBooking } from '@/hooks/use-update-booking';
@@ -58,13 +59,13 @@ export default function BookingDetailScreen() {
   const statusStyle = STATUS_STYLES[booking.status] ?? STATUS_STYLES.pending;
 
   const isSentByUser =
-    (userRole === 'venue' && booking.direction === 'venue_to_artist') ||
-    (userRole === 'artist' && booking.direction === 'artist_to_venue');
+    (userRole === UserRole.VENUE && booking.direction === BookingDirection.VENUE_TO_ARTIST) ||
+    (userRole === UserRole.ARTIST && booking.direction === BookingDirection.ARTIST_TO_VENUE);
 
   const otherPartyName = isSentByUser ? booking.artistName : booking.venueName;
   const otherPartyImage = isSentByUser ? booking.artistImage : booking.venueImage;
   const directionLabel = isSentByUser ? 'Sent Request to:' : 'Request Sent by:';
-  const contactLabel = userRole === 'artist' ? 'CONTACT VENUE' : 'CONTACT ARTIST';
+  const contactLabel = userRole === UserRole.ARTIST ? 'CONTACT VENUE' : 'CONTACT ARTIST';
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#080808' }} edges={['top']}>
@@ -137,7 +138,7 @@ export default function BookingDetailScreen() {
             <Text className="text-base font-bold text-white font-urbanist flex-1">
               {otherPartyName}
             </Text>
-            {booking.status === 'accepted' && (
+            {booking.status === BookingStatus.ACCEPTED && (
               <Pressable>
                 <Text className="text-xs font-bold text-[#D4FC5A] font-urbanist tracking-wide">
                   {contactLabel}
@@ -147,7 +148,7 @@ export default function BookingDetailScreen() {
           </View>
 
           {/* Accepted confirmation */}
-          {booking.status === 'accepted' && (
+          {booking.status === BookingStatus.ACCEPTED && (
             <View className="flex-row items-center gap-2 mt-4 bg-green-900/10 rounded-xl px-3 py-2.5">
               <Ionicons name="checkmark-circle" size={18} color="#4ADE80" />
               <Text className="text-xs text-white/80 font-urbanist">
@@ -157,7 +158,7 @@ export default function BookingDetailScreen() {
           )}
 
           {/* Rejected / Cancelled info */}
-          {booking.status === 'rejected' && (
+          {booking.status === BookingStatus.REJECTED && (
             <View className="flex-row items-center gap-2 mt-4 bg-red-900/10 rounded-xl px-3 py-2.5">
               <Ionicons name="close-circle" size={18} color="#F87171" />
               <Text className="text-xs text-white/80 font-urbanist">
@@ -166,7 +167,7 @@ export default function BookingDetailScreen() {
             </View>
           )}
 
-          {booking.status === 'cancelled' && (
+          {booking.status === BookingStatus.CANCELLED && (
             <View className="flex-row items-center gap-2 mt-4 bg-gray-800/20 rounded-xl px-3 py-2.5">
               <Ionicons name="ban" size={18} color="#9CA3AF" />
               <Text className="text-xs text-white/80 font-urbanist">
@@ -176,14 +177,14 @@ export default function BookingDetailScreen() {
           )}
 
           {/* Action buttons for pending */}
-          {booking.status === 'pending' && (
+          {booking.status === BookingStatus.PENDING && (
             <RequestActions
               booking={booking}
               userRole={userRole}
-              onAccept={() => handleUpdate('accepted')}
-              onReject={() => handleUpdate('rejected')}
-              onWithdraw={() => handleUpdate('cancelled')}
-              onCancel={() => handleUpdate('cancelled')}
+              onAccept={() => handleUpdate(BookingStatus.ACCEPTED)}
+              onReject={() => handleUpdate(BookingStatus.REJECTED)}
+              onWithdraw={() => handleUpdate(BookingStatus.CANCELLED)}
+              onCancel={() => handleUpdate(BookingStatus.CANCELLED)}
               isUpdating={isUpdating}
             />
           )}

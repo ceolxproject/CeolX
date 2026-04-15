@@ -3,6 +3,7 @@ import { FlatList, Linking, Platform, ScrollView, Text, View } from 'react-nativ
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { distanceBetween } from '@CeolX/shared';
+import { EventStatus, UserRole } from '@CeolX/shared/enums';
 
 import { CategoryBadge } from './CategoryBadge';
 import { CollectionEventCard } from './CollectionEventCard';
@@ -112,7 +113,7 @@ export function EventDetailView({
         <CategoryBadge category={event.category} className="ml-4 -mt-6 z-10" />
 
         {/* Removal reason banner — visible to owner when admin removed */}
-        {isOwner && event.status === 'removed' && event.removalReason && (
+        {isOwner && event.status === EventStatus.REMOVED && event.removalReason && (
           <View className="mx-4 mt-3 rounded-lg bg-red-900/30 px-4 py-3">
             <Text className="mb-1 text-sm font-semibold text-red-400 font-urbanist">
               This event was removed by admin
@@ -235,7 +236,7 @@ export function EventDetailView({
           ticketLink={event.ticketLink}
           isArtist={isArtist}
           isOwner={isOwner}
-          isVenueEvent={event.creator.type === 'venue'}
+          isVenueEvent={event.creator.type === UserRole.VENUE}
           isCollaborator={isCollaborator}
           isRequesting={isRequesting}
           hasExistingRequest={hasRequested}

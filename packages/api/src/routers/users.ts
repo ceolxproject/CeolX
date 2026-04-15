@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { db } from '@CeolX/db';
 import { user } from '@CeolX/db/schema/auth';
 import { artistProfiles, venueProfiles } from '@CeolX/db/schema/users';
+import { UserRole } from '@CeolX/shared';
 
 import { protectedProcedure, router } from '../index';
 
@@ -39,14 +40,14 @@ export const usersRouter = router({
     let venueAddress: string | null = null;
     let venueProfileId: string | null = null;
 
-    if (row.currentRole === 'artist') {
+    if (row.currentRole === UserRole.ARTIST) {
       const [profile] = await db
         .select({ id: artistProfiles.id })
         .from(artistProfiles)
         .where(eq(artistProfiles.userId, userId))
         .limit(1);
       onboardingComplete = !!profile;
-    } else if (row.currentRole === 'venue') {
+    } else if (row.currentRole === UserRole.VENUE) {
       const [profile] = await db
         .select({ id: venueProfiles.id, address: venueProfiles.address })
         .from(venueProfiles)

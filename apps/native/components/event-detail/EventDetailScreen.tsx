@@ -1,5 +1,7 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 
+import { UserRole } from '@CeolX/shared/enums';
+
 import { EventDetailSkeleton } from './EventDetailSkeleton';
 import { EventDetailView } from './EventDetailView';
 
@@ -17,7 +19,7 @@ export function EventDetailScreen({ tabEventRoute }: EventDetailScreenProps) {
   const router = useRouter();
 
   const { data: me } = useMe();
-  const isArtist = me?.currentRole === 'artist';
+  const isArtist = me?.currentRole === UserRole.ARTIST;
 
   const { data: event, isLoading } = useEventById({ id: eventId ?? '' });
 

@@ -5,6 +5,7 @@ import { ActivityIndicator, Alert, Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { EventCategory } from '@CeolX/shared';
+import { EventStatus, UserRole } from '@CeolX/shared/enums';
 
 import { AppTabBar, TAB_CONFIG } from '@/components/AppTabBar';
 import { BasicDetailsStep } from '@/components/events/BasicDetailsStep';
@@ -21,7 +22,7 @@ export default function EditEventScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { data: me } = useMe();
-  const isVenue = me?.currentRole === 'venue';
+  const isVenue = me?.currentRole === UserRole.VENUE;
   const [showManualAddress, setShowManualAddress] = useState(false);
 
   const { data: event, isLoading } = useEventById({ id: eventId });
@@ -104,7 +105,7 @@ export default function EditEventScreen() {
     );
   }
 
-  if (event.status === 'archived') {
+  if (event.status === EventStatus.ARCHIVED) {
     return (
       <View className="flex-1 bg-background items-center justify-center px-5">
         <Text className="text-center text-lg text-white">Cannot edit an archived event.</Text>
@@ -122,7 +123,7 @@ export default function EditEventScreen() {
         <Text className="flex-1 text-2xl font-bold text-white">Edit Event</Text>
       </View>
 
-      {event.status === 'removed' && event.removalReason && (
+      {event.status === EventStatus.REMOVED && event.removalReason && (
         <View className="mx-5 mb-3 rounded-lg bg-red-900/30 px-4 py-3">
           <Text className="mb-1 text-sm font-semibold text-red-400">
             This event was removed by admin

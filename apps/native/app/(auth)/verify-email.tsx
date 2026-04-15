@@ -7,6 +7,8 @@ import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { UserRole } from '@CeolX/shared/enums';
+
 import { AppButton } from '@/components/AppButton';
 import { CeolxLogo } from '@/components/CeolxLogo';
 import { authClient } from '@/lib/auth-client';
@@ -98,7 +100,7 @@ export default function VerifyEmailScreen() {
         }
 
         // Route artists to onboarding form; spectators go straight to the app
-        if (currentRole === 'artist') {
+        if (currentRole === UserRole.ARTIST) {
           router.replace('/(auth)/artist-onboarding');
         } else {
           router.replace('/(app)/(tabs)/map');
