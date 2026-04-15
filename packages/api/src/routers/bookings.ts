@@ -761,9 +761,20 @@ export const bookingsRouter = router({
       };
     }
 
-    // Venue: my events that have at least one confirmed collaborator
+    // Venue Bookings tab: events where I'm the tagged venue but NOT the creator.
+    // Venue-created events belong in the Events tab instead.
+    const vp = await db.query.venueProfiles.findFirst({
+      where: eq(venueProfiles.userId, ctx.userId),
+      columns: { id: true },
+    });
+
+    if (!vp) {
+      return { events: [], total: 0, hasNextPage: false };
+    }
+
     const whereClause = and(
-      eq(events.createdBy, ctx.userId),
+      eq(events.venueId, vp.id),
+      sql`${events.createdBy} != ${ctx.userId}`,
       sql`EXISTS (
           SELECT 1 FROM event_collaborators ec
           LEFT JOIN bookings b ON b.id = ec.booking_id

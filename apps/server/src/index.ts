@@ -68,6 +68,7 @@ app.use(
         console.error('[tRPC Error]', {
           path,
           message: error.message,
+          cause: error.cause,
           stack: error.stack,
         });
       }
