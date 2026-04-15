@@ -3,10 +3,11 @@ import { ActivityIndicator, FlatList, Pressable, RefreshControl, Text, View } fr
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import type { BookingSummary } from '@CeolX/shared';
-import { BookingStatus } from '@CeolX/shared/enums';
+import { BookingStatus, UserRole } from '@CeolX/shared/enums';
 
 import { EmptyRequests } from '@/components/requests/EmptyRequests';
 import { RequestCard } from '@/components/requests/RequestCard';
+import { SavedEventsContent } from '@/components/saved-events/SavedEventsContent';
 import { SegmentToggle } from '@/components/SegmentToggle';
 import { useBookings } from '@/hooks/use-bookings';
 import { useUpdateBooking } from '@/hooks/use-update-booking';
@@ -14,9 +15,37 @@ import { authClient } from '@/lib/auth-client';
 
 const SEGMENTS = ['Sent', 'Received'];
 
-export default function RequestsScreen() {
+export default function BookingsTabScreen() {
   const { data: session } = authClient.useSession();
-  const userRole = (session?.user?.currentRole ?? 'spectator') as 'artist' | 'venue';
+  const currentRole = session?.user?.currentRole ?? 'spectator';
+
+  if (currentRole === UserRole.SPECTATOR) {
+    return <SpectatorBookingsView />;
+  }
+
+  return <RequestsView userRole={currentRole as 'artist' | 'venue'} />;
+}
+
+// ─── Spectator: Saved Events ──────────────────────────────────────────────────
+
+function SpectatorBookingsView() {
+  return (
+    <SafeAreaView
+      className="flex-1 bg-[#080808]"
+      style={{ flex: 1, backgroundColor: '#080808' }}
+      edges={['top']}
+    >
+      <View className="px-5 pt-2 pb-3">
+        <Text className="text-2xl font-bold text-white font-urbanist">Bookings</Text>
+      </View>
+      <SavedEventsContent />
+    </SafeAreaView>
+  );
+}
+
+// ─── Artist / Venue: Requests ─────────────────────────────────────────────────
+
+function RequestsView({ userRole }: { userRole: 'artist' | 'venue' }) {
   const [activeSegment, setActiveSegment] = useState(0);
   const tab = activeSegment === 0 ? 'sent' : 'received';
 

@@ -804,3 +804,41 @@ describe('bookings.inviteExternal', () => {
     expect(result.invitedEmail).toBe('john@example.com');
   });
 });
+
+// ─── bookings.byId — cancelledBy display ────────────────────────────────────
+
+describe('bookings.byId — cancelledBy', () => {
+  it('returns cancelledByName for cancelled booking', async () => {
+    const cancelledBooking = {
+      ...mockBooking,
+      status: 'cancelled',
+      cancelledBy: ARTIST_USER_ID,
+      cancelledByUser: { name: 'Celtic Thunder' },
+    };
+
+    const caller = createCaller(authedContext('venue', VENUE_USER_ID));
+    mockBookingsFindFirst.mockResolvedValueOnce(cancelledBooking);
+    mockUserFindFirst.mockResolvedValueOnce({ image: 'artist.jpg' });
+    mockUserFindFirst.mockResolvedValueOnce({ image: 'venue.jpg' });
+
+    const result = await caller.bookings.byId({ id: BOOKING_ID });
+    expect(result.cancelledByName).toBe('Celtic Thunder');
+  });
+
+  it('returns null cancelledByName for non-cancelled booking', async () => {
+    const pendingBooking = {
+      ...mockBooking,
+      status: 'pending',
+      cancelledBy: null,
+      cancelledByUser: null,
+    };
+
+    const caller = createCaller(authedContext('artist', ARTIST_USER_ID));
+    mockBookingsFindFirst.mockResolvedValueOnce(pendingBooking);
+    mockUserFindFirst.mockResolvedValueOnce({ image: 'artist.jpg' });
+    mockUserFindFirst.mockResolvedValueOnce({ image: 'venue.jpg' });
+
+    const result = await caller.bookings.byId({ id: BOOKING_ID });
+    expect(result.cancelledByName).toBeNull();
+  });
+});

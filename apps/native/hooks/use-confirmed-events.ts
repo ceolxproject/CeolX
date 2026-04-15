@@ -14,6 +14,7 @@ type ConfirmedEvent = {
   category: string;
   venueAddress: string | null;
   status: string;
+  bookingId: string | null;
 };
 
 export function useConfirmedEvents() {

@@ -17,7 +17,7 @@ import { trpc } from '@/utils/trpc';
 const STATUS_STYLES: Record<string, { bg: string; text: string; label: string }> = {
   pending: { bg: 'bg-yellow-900/30', text: 'text-yellow-400', label: 'Pending' },
   accepted: { bg: 'bg-green-900/30', text: 'text-green-400', label: 'Accepted' },
-  rejected: { bg: 'bg-red-900/30', text: 'text-red-400', label: 'Rejected' },
+  rejected: { bg: 'bg-red-900/30', text: 'text-red-400', label: 'Declined' },
   cancelled: { bg: 'bg-gray-800/30', text: 'text-gray-400', label: 'Cancelled' },
 };
 
@@ -171,7 +171,8 @@ export default function BookingDetailScreen() {
             <View className="flex-row items-center gap-2 mt-4 bg-gray-800/20 rounded-xl px-3 py-2.5">
               <Ionicons name="ban" size={18} color="#9CA3AF" />
               <Text className="text-xs text-white/80 font-urbanist">
-                Booking Cancelled on {formatAcceptedDate(booking.updatedAt)}
+                Cancelled{booking.cancelledByName ? ` by ${booking.cancelledByName}` : ''} on{' '}
+                {formatAcceptedDate(booking.updatedAt)}
               </Text>
             </View>
           )}

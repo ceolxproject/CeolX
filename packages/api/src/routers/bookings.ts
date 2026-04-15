@@ -375,10 +375,14 @@ export const bookingsRouter = router({
       });
     }
 
-    // 4. Update status
+    // 4. Update status (track who cancelled if cancelling)
     const [updated] = await db
       .update(bookings)
-      .set({ status: newStatus, updatedAt: new Date() })
+      .set({
+        status: newStatus,
+        updatedAt: new Date(),
+        ...(newStatus === BookingStatus.CANCELLED ? { cancelledBy: ctx.userId } : {}),
+      })
       .where(eq(bookings.id, input.id))
       .returning();
 
@@ -559,6 +563,7 @@ export const bookingsRouter = router({
           artist: true,
           venue: true,
           event: true,
+          cancelledByUser: { columns: { name: true } },
         },
       });
 
@@ -602,6 +607,7 @@ export const bookingsRouter = router({
         eventVenueAddress: booking.event?.venueAddress ?? undefined,
         createdAt: booking.createdAt.toISOString(),
         updatedAt: booking.updatedAt.toISOString(),
+        cancelledByName: booking.cancelledByUser?.name ?? null,
       };
     }),
 
@@ -736,6 +742,7 @@ export const bookingsRouter = router({
             category: events.category,
             venueAddress: events.venueAddress,
             status: events.status,
+            bookingId: eventCollaborators.bookingId,
           })
           .from(eventCollaborators)
           .innerJoin(events, eq(events.id, eventCollaborators.eventId))
@@ -755,14 +762,21 @@ export const bookingsRouter = router({
           category: e.category,
           venueAddress: e.venueAddress ?? null,
           status: e.status,
+          bookingId: e.bookingId ?? null,
         })),
         total: countResult,
         hasNextPage: input.offset + input.limit < countResult,
       };
     }
 
+<<<<<<< feature/m5-t3-bookings-tab-cancel-flow
+    // Venue Bookings tab: events where I'm listed as venue participant via
+    // event_collaborators.venueProfileId with an accepted booking.
+    // Same pattern as the artist query above — both paths use event_collaborators.
+=======
     // Venue Bookings tab: events where I'm the tagged venue but NOT the creator.
     // Venue-created events belong in the Events tab instead.
+>>>>>>> development
     const vp = await db.query.venueProfiles.findFirst({
       where: eq(venueProfiles.userId, ctx.userId),
       columns: { id: true },
@@ -773,6 +787,17 @@ export const bookingsRouter = router({
     }
 
     const whereClause = and(
+<<<<<<< feature/m5-t3-bookings-tab-cancel-flow
+      eq(eventCollaborators.venueProfileId, vp.id),
+      or(
+        isNull(eventCollaborators.bookingId),
+        sql`EXISTS (
+            SELECT 1 FROM bookings b
+            WHERE b.id = ${eventCollaborators.bookingId}
+            AND b.status = 'accepted'
+          )`
+      )
+=======
       eq(events.venueId, vp.id),
       sql`${events.createdBy} != ${ctx.userId}`,
       sql`EXISTS (
@@ -782,12 +807,13 @@ export const bookingsRouter = router({
           AND ec.artist_profile_id IS NOT NULL
           AND (ec.booking_id IS NULL OR b.status = 'accepted')
         )`
+>>>>>>> development
     );
 
     const [countResult, rows] = await Promise.all([
       db
         .select({ count: sql<number>`count(*)::int` })
-        .from(events)
+        .from(eventCollaborators)
         .where(whereClause)
         .then((r) => r[0]?.count ?? 0),
       db
@@ -800,8 +826,10 @@ export const bookingsRouter = router({
           category: events.category,
           venueAddress: events.venueAddress,
           status: events.status,
+          bookingId: eventCollaborators.bookingId,
         })
-        .from(events)
+        .from(eventCollaborators)
+        .innerJoin(events, eq(events.id, eventCollaborators.eventId))
         .where(whereClause)
         .orderBy(desc(events.dateStart))
         .limit(input.limit)
@@ -818,6 +846,7 @@ export const bookingsRouter = router({
         category: e.category,
         venueAddress: e.venueAddress ?? null,
         status: e.status,
+        bookingId: e.bookingId ?? null,
       })),
       total: countResult,
       hasNextPage: input.offset + input.limit < countResult,

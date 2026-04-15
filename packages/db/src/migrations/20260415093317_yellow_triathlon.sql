@@ -1,0 +1,3 @@
+ALTER TABLE "event_collaborators" ADD COLUMN "venue_profile_id" uuid;--> statement-breakpoint
+ALTER TABLE "event_collaborators" ADD CONSTRAINT "event_collaborators_venue_profile_id_venue_profiles_id_fk" FOREIGN KEY ("venue_profile_id") REFERENCES "public"."venue_profiles"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+CREATE INDEX "event_collaborators_venue_idx" ON "event_collaborators" USING btree ("venue_profile_id");

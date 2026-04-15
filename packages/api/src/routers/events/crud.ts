@@ -413,11 +413,18 @@ export const create = creatorProcedure.input(createEventSchema).mutation(async (
 
         if (booking) {
           // Add artist as collaborator with booking link (for confirmedEvents query)
-          await tx.insert(eventCollaborators).values({
-            eventId: inserted.id,
-            artistProfileId: ctx.userId,
-            bookingId: booking.id,
-          });
+          await tx.insert(eventCollaborators).values([
+            {
+              eventId: inserted.id,
+              artistProfileId: ctx.userId,
+              bookingId: booking.id,
+            },
+            {
+              eventId: inserted.id,
+              venueProfileId: venueProfile.id,
+              bookingId: booking.id,
+            },
+          ]);
 
           await tx.insert(notifications).values({
             userId: venueProfile.userId,

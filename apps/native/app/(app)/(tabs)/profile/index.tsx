@@ -15,11 +15,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { UserRole } from '@CeolX/shared/enums';
 
+import { ConfirmedBookingCard } from '@/components/bookings/ConfirmedBookingCard';
 import { ProfileEventCard } from '@/components/ProfileEventCard';
 import { useAuth } from '@/contexts/auth-context';
 import { useConfirmedEvents } from '@/hooks/use-confirmed-events';
 import { useMe } from '@/hooks/use-me';
 import { useMyEvents } from '@/hooks/use-my-events';
+import { useUpdateBooking } from '@/hooks/use-update-booking';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -212,7 +214,13 @@ function MyEventsTab() {
 // ─── Bookings Tab (confirmed events for both artist & venue) ─────────────────
 
 function BookingsTab() {
-  const { events, isLoading, loadMore, isFetchingNextPage } = useConfirmedEvents();
+  const { events, isLoading, loadMore, isFetchingNextPage, refresh } = useConfirmedEvents();
+  const updateBooking = useUpdateBooking();
+
+  const handleCancel = async (bookingId: string) => {
+    await updateBooking.mutateAsync({ id: bookingId, status: 'cancelled' });
+    await refresh();
+  };
 
   if (isLoading) {
     return (
@@ -229,16 +237,16 @@ function BookingsTab() {
   return (
     <View className="px-5 gap-4 pb-4">
       {events.map((event) => (
-        <ProfileEventCard
+        <ConfirmedBookingCard
           key={event.id}
-          id={event.id}
           title={event.title}
           coverImage={event.coverImage}
           dateStart={event.dateStart}
           dateEnd={event.dateEnd}
           category={event.category}
           venueAddress={event.venueAddress}
-          status={event.status}
+          bookingId={event.bookingId}
+          onCancel={handleCancel}
           onPress={() => router.push(`/(app)/(tabs)/discover/event/${event.id}`)}
         />
       ))}
