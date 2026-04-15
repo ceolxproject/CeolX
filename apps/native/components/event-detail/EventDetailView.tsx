@@ -1,6 +1,5 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
-import { Alert, FlatList, Linking, Platform, ScrollView, Text, View } from 'react-native';
+import { FlatList, Linking, Platform, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { distanceBetween } from '@CeolX/shared';
@@ -19,8 +18,9 @@ import { SectionDivider } from './SectionDivider';
 import { StickyBottomBar } from './StickyBottomBar';
 
 import { useGpsRegion } from '@/hooks/use-gps-region';
+import { useRequestToPerform } from '@/hooks/use-request-to-perform';
+import { useSaveEvent } from '@/hooks/use-save-event';
 import type { EventDetailData } from '@/types/event-detail';
-import { trpc } from '@/utils/trpc';
 
 interface EventDetailViewProps {
   event: EventDetailData;
@@ -45,9 +45,9 @@ export function EventDetailView({
 }: EventDetailViewProps) {
   const insets = useSafeAreaInsets();
   const [isSaved, setIsSaved] = useState(event.isSaved);
-  const [hasRequested, setHasRequested] = useState(false);
   const { initialRegion, locationSource } = useGpsRegion();
-  const queryClient = useQueryClient();
+  const { mutate: saveEvent } = useSaveEvent();
+  const { requestToPerform, isRequesting, hasRequested } = useRequestToPerform();
 
   const distanceKm = useMemo(() => {
     if (locationSource === 'pending') return undefined;
@@ -59,40 +59,14 @@ export function EventDetailView({
     [userId, event.collaborators]
   );
 
-  const { mutate: save } = useMutation(trpc.events.save.mutationOptions());
-  const { mutate: unsave } = useMutation(trpc.events.unsave.mutationOptions());
-
-  const { mutate: requestToPerform, isPending: isRequesting } = useMutation(
-    trpc.bookings.requestToPerform.mutationOptions({
-      onSuccess: () => {
-        setHasRequested(true);
-        Alert.alert('Request Sent!', 'The venue will review your request.');
-        void queryClient.invalidateQueries({ queryKey: [['bookings']] });
-      },
-      onError: (error) => {
-        if (error.message.includes('already applied')) {
-          setHasRequested(true);
-          Alert.alert('Already Applied', "You've already applied to this event.");
-        } else if (error.message.includes('already a collaborator')) {
-          Alert.alert('Already Booked', 'You are already a collaborator on this event.');
-        } else {
-          Alert.alert('Error', error.message || 'Failed to send request');
-        }
-      },
-    })
-  );
-
   const handleToggleSave = () => {
-    setIsSaved((prev) => !prev); // optimistic update
-    if (isSaved) {
-      unsave({ id: event.id }, { onError: () => setIsSaved(true) });
-    } else {
-      save({ id: event.id }, { onError: () => setIsSaved(false) });
-    }
+    const newSaved = !isSaved;
+    setIsSaved(newSaved); // optimistic update
+    saveEvent({ eventId: event.id, saved: newSaved }, { onError: () => setIsSaved(isSaved) });
   };
 
   const handleRequestToPerform = () => {
-    requestToPerform({ eventId: event.id });
+    requestToPerform(event.id);
   };
 
   const handleAddToCalendar = () => {

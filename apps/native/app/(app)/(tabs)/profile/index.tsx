@@ -1,5 +1,4 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useQuery } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import { cn } from 'heroui-native';
 import { useCallback, useState } from 'react';
@@ -17,8 +16,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ProfileEventCard } from '@/components/ProfileEventCard';
 import { useAuth } from '@/contexts/auth-context';
 import { useConfirmedEvents } from '@/hooks/use-confirmed-events';
+import { useMe } from '@/hooks/use-me';
 import { useMyEvents } from '@/hooks/use-my-events';
-import { trpc } from '@/utils/trpc';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -322,7 +321,7 @@ function SpectatorProfile() {
 // ─── Main Profile Screen ──────────────────────────────────────────────────────
 
 export default function ProfileScreen() {
-  const { data: me } = useQuery(trpc.users.me.queryOptions());
+  const { data: me } = useMe();
 
   const currentRole = me?.currentRole ?? 'spectator';
 

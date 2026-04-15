@@ -1,12 +1,13 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useQuery } from '@tanstack/react-query';
+import type { Tabs } from 'expo-router';
 import { cn } from 'heroui-native';
+import type { ComponentProps } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { trpc } from '@/utils/trpc';
+import { useMe } from '@/hooks/use-me';
 
-type IoniconsName = React.ComponentProps<typeof Ionicons>['name'];
+type IoniconsName = ComponentProps<typeof Ionicons>['name'];
 
 type TabConfig = {
   name: string;
@@ -22,21 +23,16 @@ export const TAB_CONFIG: TabConfig[] = [
   { name: 'profile', label: 'Profile', activeIcon: 'person', inactiveIcon: 'person-outline' },
 ];
 
-type AppTabBarProps = {
-  state: { index: number; routes: Array<{ key: string; name: string }> };
-  descriptors: Record<string, { options: Record<string, unknown> }>;
-  navigation: {
-    emit: (args: { type: string; target: string; canPreventDefault: boolean }) => {
-      defaultPrevented: boolean;
-    };
-    navigate: (name: string) => void;
-  };
+// Extract the tabBar callback parameter type directly from Expo Router's <Tabs> component
+type TabBarCallbackProps = Parameters<NonNullable<ComponentProps<typeof Tabs>['tabBar']>>[0];
+
+export type AppTabBarProps = TabBarCallbackProps & {
   onFabPress?: () => void;
 };
 
 export function AppTabBar({ state, navigation, onFabPress }: AppTabBarProps) {
   const insets = useSafeAreaInsets();
-  const { data: me } = useQuery(trpc.users.me.queryOptions());
+  const { data: me } = useMe();
   const currentRole = me?.currentRole ?? 'spectator';
 
   const getTabLabel = (tab: TabConfig) => {

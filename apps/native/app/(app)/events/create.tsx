@@ -1,5 +1,4 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Alert, Pressable, Text, View } from 'react-native';
@@ -11,12 +10,12 @@ import { DateVenueStep } from '@/components/events/DateVenueStep';
 import { StepIndicator } from '@/components/events/StepIndicator';
 import { TicketAdsStep } from '@/components/events/TicketAdsStep';
 import { useEventForm } from '@/hooks/use-event-form';
-import { trpc } from '@/utils/trpc';
+import { useMe } from '@/hooks/use-me';
 
 export default function CreateEventScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { data: me } = useQuery(trpc.users.me.queryOptions());
+  const { data: me } = useMe();
   const isVenue = me?.currentRole === 'venue';
   const [showManualAddress, setShowManualAddress] = useState(false);
 
@@ -138,7 +137,12 @@ export default function CreateEventScreen() {
       </View>
 
       {/* Bottom tab bar — lets users navigate away without losing the back-stack */}
-      <AppTabBar state={tabBarState} descriptors={{}} navigation={tabBarNavigation} />
+      <AppTabBar
+        state={tabBarState as never}
+        descriptors={{} as never}
+        navigation={tabBarNavigation as never}
+        insets={{ top: 0, bottom: 0, left: 0, right: 0 }}
+      />
     </View>
   );
 }

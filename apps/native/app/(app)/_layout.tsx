@@ -1,10 +1,9 @@
-import { useQuery } from '@tanstack/react-query';
 import { Redirect, Stack } from 'expo-router';
 import { useEffect } from 'react';
 
 import { appToast } from '@/components/AppToast';
 import { useAuth } from '@/contexts/auth-context';
-import { trpc } from '@/utils/trpc';
+import { useMe } from '@/hooks/use-me';
 
 export default function AppLayout() {
   const { user, isGuest, isLoading } = useAuth();
@@ -14,10 +13,7 @@ export default function AppLayout() {
     isLoading: meLoading,
     isError: meError,
     refetch: meRefetch,
-  } = useQuery({
-    ...trpc.users.me.queryOptions(),
-    enabled: !!user && !isGuest,
-  });
+  } = useMe({ enabled: !!user && !isGuest });
 
   // Show toast + auto-retry when users.me fails — prevents onboarding guard bypass
   useEffect(() => {
