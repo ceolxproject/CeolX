@@ -3,7 +3,7 @@
 | Field          | Value                                                       |
 | -------------- | ----------------------------------------------------------- |
 | **Milestone**  | M5 — Booking Flow                                           |
-| **Status**     | 🔲 To Do                                                    |
+| **Status**     | ✅ Complete — PR #42                                        |
 | **Depends on** | M5-T1, M5-T2 (both booking directions must exist)           |
 | **PRD Ref**    | Section 6.2 (Artist Bookings), Section 7.2 (Venue Bookings) |
 

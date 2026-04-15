@@ -69,7 +69,7 @@ Tracks completed tasks per milestone. Each entry links to its PR.
 
 - [x] M5-T1 · Venue-Initiated Booking — PR #40
 - [x] M5-T2 · Artist-Initiated Booking — PR #41
-- [ ] M5-T3 · Cancel Flow & State Machine
+- [x] M5-T3 · Cancel Flow & State Machine — PR #42
 
 ## M6 — Profiles & Social
 

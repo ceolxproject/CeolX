@@ -3,7 +3,7 @@
 | Field          | Value                                                               |
 | -------------- | ------------------------------------------------------------------- |
 | **Milestone**  | M5 — Booking Flow                                                   |
-| **Status**     | 🔲 To Do                                                            |
+| **Status**     | ✅ Complete — PR #42                                                |
 | **Depends on** | M5-T1 (Venue-initiated bookings), M5-T2 (Artist-initiated bookings) |
 | **PRD Ref**    | Section 9.4 (Booking Flow — full state machine)                     |
 
