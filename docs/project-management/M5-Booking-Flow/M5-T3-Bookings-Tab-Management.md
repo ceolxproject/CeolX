@@ -48,13 +48,13 @@ The Bookings tab is the central hub for managing all booking activity across bot
 
 ## Acceptance Criteria
 
-- [ ] Bookings tab hidden when user is in Spectator persona
-- [ ] Artist sees both incoming Venue invitations and their outgoing gig opportunity applications
-- [ ] Venue sees both outgoing Artist invitations and incoming Artist applications
-- [ ] Status grouping (Pending, Accepted, Rejected, Cancelled) correctly applied
-- [ ] Booking detail view shows all relevant information
-- [ ] Correct action buttons shown based on persona and booking direction
-- [ ] Badge count on Bookings tab icon reflects unread booking notifications
+- [x] Bookings tab hidden when user is in Spectator persona
+- [x] Artist sees both incoming Venue invitations and their outgoing gig opportunity applications
+- [x] Venue sees both outgoing Artist invitations and incoming Artist applications
+- [x] Status grouping (Pending, Accepted, Rejected, Cancelled) correctly applied
+- [x] Booking detail view shows all relevant information
+- [x] Correct action buttons shown based on persona and booking direction
+- [x] Badge count on Bookings tab icon reflects unread booking notifications
 
 ---
 

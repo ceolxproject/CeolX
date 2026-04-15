@@ -130,44 +130,44 @@ Each state transition triggers an FCM notification to the other party.
 
 ### Venue-Initiated Booking Path
 
-- [ ] Venue can view pending invitations sent to Artists
-- [ ] Artist taps Accept → status = accepted; Venue is notified
-- [ ] Artist taps Reject → status = rejected; Venue is notified; booking is terminal
-- [ ] Artist cannot cancel while pending; must Reject instead
-- [ ] After accepting, Artist can tap Cancel; Venue is notified; status = cancelled
-- [ ] After accepting, Venue can tap Cancel; Artist is notified
+- [x] Venue can view pending invitations sent to Artists
+- [x] Artist taps Accept → status = accepted; Venue is notified
+- [x] Artist taps Reject → status = rejected; Venue is notified; booking is terminal
+- [x] Artist cannot cancel while pending; must Reject instead
+- [x] After accepting, Artist can tap Cancel; Venue is notified; status = cancelled
+- [x] After accepting, Venue can tap Cancel; Artist is notified
 
 ### Artist-Initiated Booking Path
 
-- [ ] Artist can view pending applications they've submitted
-- [ ] Venue can view pending applications from Artists
-- [ ] Venue taps Accept → status = accepted; Artist is notified
-- [ ] Venue taps Reject → status = rejected; Artist is notified; booking is terminal
-- [ ] While pending, Artist can cancel their own application; Venue is notified
-- [ ] After accepting, Artist can cancel; Venue is notified
-- [ ] After accepting, Venue can cancel; Artist is notified
+- [x] Artist can view pending applications they've submitted
+- [x] Venue can view pending applications from Artists
+- [x] Venue taps Accept → status = accepted; Artist is notified
+- [x] Venue taps Reject → status = rejected; Artist is notified; booking is terminal
+- [x] While pending, Artist can cancel their own application; Venue is notified
+- [x] After accepting, Artist can cancel; Venue is notified
+- [x] After accepting, Venue can cancel; Artist is notified
 
 ### Terminal States
 
-- [ ] Rejected booking shows status "Declined" with read-only UI (no action buttons)
-- [ ] Cancelled booking shows status "Cancelled" with cancellation timestamp and which party cancelled it
-- [ ] Attempting to transition from rejected or cancelled returns 400 error
+- [x] Rejected booking shows status "Declined" with read-only UI (no action buttons)
+- [x] Cancelled booking shows status "Cancelled" with cancellation timestamp and which party cancelled it
+- [x] Attempting to transition from rejected or cancelled returns 400 error
 
 ### Authorization Checks
 
-- [ ] Non-Venue cannot accept a venue_to_artist pending booking
-- [ ] Non-Artist cannot reject a venue_to_artist pending booking
-- [ ] Non-Venue cannot accept an artist_to_venue pending booking
-- [ ] Non-Artist cannot reject an artist_to_venue pending booking
-- [ ] Only the Artist can cancel their own pending artist_to_venue application
-- [ ] Non-Artist, non-Venue trying to cancel an accepted booking fails with 401
+- [x] Non-Venue cannot accept a venue_to_artist pending booking
+- [x] Non-Artist cannot reject a venue_to_artist pending booking
+- [x] Non-Venue cannot accept an artist_to_venue pending booking
+- [x] Non-Artist cannot reject an artist_to_venue pending booking
+- [x] Only the Artist can cancel their own pending artist_to_venue application
+- [x] Non-Artist, non-Venue trying to cancel an accepted booking fails with 401
 
 ### Notification Flow
 
-- [ ] Accepting triggers FCM to other party with [Role] accepted your booking
-- [ ] Rejecting triggers FCM with [Role] declined your booking
-- [ ] Cancelling from accepted triggers FCM with [Role] cancelled the booking
-- [ ] Notifications include the Event Title and deep link to Bookings tab
+- [x] Accepting triggers FCM to other party with [Role] accepted your booking
+- [x] Rejecting triggers FCM with [Role] declined your booking
+- [x] Cancelling from accepted triggers FCM with [Role] cancelled the booking
+- [x] Notifications include the Event Title and deep link to Bookings tab
 
 ---
 
