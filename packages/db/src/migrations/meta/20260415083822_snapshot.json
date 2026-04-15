@@ -1,6 +1,6 @@
 {
-  "id": "e5512ad2-fed4-4dec-af82-af83d01092cf",
-  "prevId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "id": "575a00b1-9c03-4738-bda7-c4d673acc8d6",
+  "prevId": "e5512ad2-fed4-4dec-af82-af83d01092cf",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -425,6 +425,12 @@
           "primaryKey": false,
           "notNull": true
         },
+        "cancelled_by": {
+          "name": "cancelled_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp",
@@ -508,6 +514,15 @@
           "tableFrom": "bookings",
           "tableTo": "events",
           "columnsFrom": ["event_id"],
+          "columnsTo": ["id"],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "bookings_cancelled_by_user_id_fk": {
+          "name": "bookings_cancelled_by_user_id_fk",
+          "tableFrom": "bookings",
+          "tableTo": "user",
+          "columnsFrom": ["cancelled_by"],
           "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
@@ -703,7 +718,25 @@
           "name": "artist_profile_id",
           "type": "text",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
+        },
+        "invited_name": {
+          "name": "invited_name",
+          "type": "varchar(150)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "invited_email": {
+          "name": "invited_email",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "booking_id": {
+          "name": "booking_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
         },
         "created_at": {
           "name": "created_at",
@@ -749,6 +782,21 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
+        },
+        "event_collaborators_booking_idx": {
+          "name": "event_collaborators_booking_idx",
+          "columns": [
+            {
+              "expression": "booking_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
         }
       },
       "foreignKeys": {
@@ -768,6 +816,15 @@
           "columnsFrom": ["artist_profile_id"],
           "columnsTo": ["id"],
           "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "event_collaborators_booking_id_bookings_id_fk": {
+          "name": "event_collaborators_booking_id_bookings_id_fk",
+          "tableFrom": "event_collaborators",
+          "tableTo": "bookings",
+          "columnsFrom": ["booking_id"],
+          "columnsTo": ["id"],
+          "onDelete": "set null",
           "onUpdate": "no action"
         }
       },
