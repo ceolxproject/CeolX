@@ -375,10 +375,14 @@ export const bookingsRouter = router({
       });
     }
 
-    // 4. Update status
+    // 4. Update status (track who cancelled if cancelling)
     const [updated] = await db
       .update(bookings)
-      .set({ status: newStatus, updatedAt: new Date() })
+      .set({
+        status: newStatus,
+        updatedAt: new Date(),
+        ...(newStatus === BookingStatus.CANCELLED ? { cancelledBy: ctx.userId } : {}),
+      })
       .where(eq(bookings.id, input.id))
       .returning();
 
@@ -559,6 +563,7 @@ export const bookingsRouter = router({
           artist: true,
           venue: true,
           event: true,
+          cancelledByUser: { columns: { name: true } },
         },
       });
 
@@ -602,6 +607,7 @@ export const bookingsRouter = router({
         eventVenueAddress: booking.event?.venueAddress ?? undefined,
         createdAt: booking.createdAt.toISOString(),
         updatedAt: booking.updatedAt.toISOString(),
+        cancelledByName: booking.cancelledByUser?.name ?? null,
       };
     }),
 
@@ -736,6 +742,7 @@ export const bookingsRouter = router({
             category: events.category,
             venueAddress: events.venueAddress,
             status: events.status,
+            bookingId: eventCollaborators.bookingId,
           })
           .from(eventCollaborators)
           .innerJoin(events, eq(events.id, eventCollaborators.eventId))
@@ -755,21 +762,33 @@ export const bookingsRouter = router({
           category: e.category,
           venueAddress: e.venueAddress ?? null,
           status: e.status,
+          bookingId: e.bookingId ?? null,
         })),
         total: countResult,
         hasNextPage: input.offset + input.limit < countResult,
       };
     }
 
-    // Venue: my events that have at least one confirmed collaborator
+    // Venue Bookings tab: events where I'm the tagged venue but NOT the creator.
+    // Venue-created events belong in the Events tab instead.
+    const vp = await db.query.venueProfiles.findFirst({
+      where: eq(venueProfiles.userId, ctx.userId),
+      columns: { id: true },
+    });
+
+    if (!vp) {
+      return { events: [], total: 0, hasNextPage: false };
+    }
+
     const whereClause = and(
-      eq(events.createdBy, ctx.userId),
+      eq(events.venueId, vp.id),
+      sql`${events.createdBy} != ${ctx.userId}`,
       sql`EXISTS (
-          SELECT 1 FROM event_collaborators ec
-          LEFT JOIN bookings b ON b.id = ec.booking_id
-          WHERE ec.event_id = ${events.id}
-          AND ec.artist_profile_id IS NOT NULL
-          AND (ec.booking_id IS NULL OR b.status = 'accepted')
+          SELECT 1 FROM bookings b
+          WHERE b.event_id = ${events.id}
+          AND b.venue_id = ${vp.id}
+          AND b.direction = 'artist_to_venue'
+          AND b.status = 'accepted'
         )`
     );
 
@@ -789,6 +808,14 @@ export const bookingsRouter = router({
           category: events.category,
           venueAddress: events.venueAddress,
           status: events.status,
+          bookingId: sql<string | null>`(
+            SELECT b.id FROM bookings b
+            WHERE b.event_id = ${events.id}
+            AND b.venue_id = ${vp.id}
+            AND b.direction = 'artist_to_venue'
+            AND b.status = 'accepted'
+            LIMIT 1
+          )`,
         })
         .from(events)
         .where(whereClause)
@@ -807,6 +834,7 @@ export const bookingsRouter = router({
         category: e.category,
         venueAddress: e.venueAddress ?? null,
         status: e.status,
+        bookingId: e.bookingId ?? null,
       })),
       total: countResult,
       hasNextPage: input.offset + input.limit < countResult,
