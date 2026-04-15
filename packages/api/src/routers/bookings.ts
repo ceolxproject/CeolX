@@ -769,9 +769,14 @@ export const bookingsRouter = router({
       };
     }
 
+<<<<<<< feature/m5-t3-bookings-tab-cancel-flow
     // Venue Bookings tab: events where I'm listed as venue participant via
     // event_collaborators.venueProfileId with an accepted booking.
     // Same pattern as the artist query above — both paths use event_collaborators.
+=======
+    // Venue Bookings tab: events where I'm the tagged venue but NOT the creator.
+    // Venue-created events belong in the Events tab instead.
+>>>>>>> development
     const vp = await db.query.venueProfiles.findFirst({
       where: eq(venueProfiles.userId, ctx.userId),
       columns: { id: true },
@@ -782,6 +787,7 @@ export const bookingsRouter = router({
     }
 
     const whereClause = and(
+<<<<<<< feature/m5-t3-bookings-tab-cancel-flow
       eq(eventCollaborators.venueProfileId, vp.id),
       or(
         isNull(eventCollaborators.bookingId),
@@ -791,6 +797,17 @@ export const bookingsRouter = router({
             AND b.status = 'accepted'
           )`
       )
+=======
+      eq(events.venueId, vp.id),
+      sql`${events.createdBy} != ${ctx.userId}`,
+      sql`EXISTS (
+          SELECT 1 FROM event_collaborators ec
+          LEFT JOIN bookings b ON b.id = ec.booking_id
+          WHERE ec.event_id = ${events.id}
+          AND ec.artist_profile_id IS NOT NULL
+          AND (ec.booking_id IS NULL OR b.status = 'accepted')
+        )`
+>>>>>>> development
     );
 
     const [countResult, rows] = await Promise.all([
