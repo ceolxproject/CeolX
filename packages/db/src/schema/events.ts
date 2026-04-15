@@ -118,6 +118,8 @@ export const savedEvents = pgTable(
 // Platform artists have artistProfileId set + bookingId linking to the
 // booking state machine. Non-platform artists have invitedName/invitedEmail
 // set instead (artistProfileId is null, no booking until they sign up).
+// venueProfileId tracks when a venue is a participant (artist-created events
+// tagging a venue). This makes all event participants queryable from one table.
 // ---------------------------------------------------------------------------
 export const eventCollaborators = pgTable(
   'event_collaborators',
@@ -127,6 +129,9 @@ export const eventCollaborators = pgTable(
       .notNull()
       .references(() => events.id, { onDelete: 'cascade' }),
     artistProfileId: text('artist_profile_id').references(() => user.id, { onDelete: 'cascade' }),
+    venueProfileId: uuid('venue_profile_id').references(() => venueProfiles.id, {
+      onDelete: 'cascade',
+    }),
     invitedName: varchar('invited_name', { length: 150 }),
     invitedEmail: varchar('invited_email', { length: 255 }),
     bookingId: uuid('booking_id').references(() => bookings.id, { onDelete: 'set null' }),
@@ -136,6 +141,7 @@ export const eventCollaborators = pgTable(
     uniqueIndex('event_collaborators_event_artist_idx').on(t.eventId, t.artistProfileId),
     index('event_collaborators_event_idx').on(t.eventId),
     index('event_collaborators_booking_idx').on(t.bookingId),
+    index('event_collaborators_venue_idx').on(t.venueProfileId),
   ]
 );
 

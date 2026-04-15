@@ -769,8 +769,9 @@ export const bookingsRouter = router({
       };
     }
 
-    // Venue Bookings tab: events where I'm the tagged venue but NOT the creator.
-    // Venue-created events belong in the Events tab instead.
+    // Venue Bookings tab: events where I'm listed as venue participant via
+    // event_collaborators.venueProfileId with an accepted booking.
+    // Same pattern as the artist query above — both paths use event_collaborators.
     const vp = await db.query.venueProfiles.findFirst({
       where: eq(venueProfiles.userId, ctx.userId),
       columns: { id: true },
@@ -781,21 +782,21 @@ export const bookingsRouter = router({
     }
 
     const whereClause = and(
-      eq(events.venueId, vp.id),
-      sql`${events.createdBy} != ${ctx.userId}`,
-      sql`EXISTS (
-          SELECT 1 FROM bookings b
-          WHERE b.event_id = ${events.id}
-          AND b.venue_id = ${vp.id}
-          AND b.direction = 'artist_to_venue'
-          AND b.status = 'accepted'
-        )`
+      eq(eventCollaborators.venueProfileId, vp.id),
+      or(
+        isNull(eventCollaborators.bookingId),
+        sql`EXISTS (
+            SELECT 1 FROM bookings b
+            WHERE b.id = ${eventCollaborators.bookingId}
+            AND b.status = 'accepted'
+          )`
+      )
     );
 
     const [countResult, rows] = await Promise.all([
       db
         .select({ count: sql<number>`count(*)::int` })
-        .from(events)
+        .from(eventCollaborators)
         .where(whereClause)
         .then((r) => r[0]?.count ?? 0),
       db
@@ -808,16 +809,10 @@ export const bookingsRouter = router({
           category: events.category,
           venueAddress: events.venueAddress,
           status: events.status,
-          bookingId: sql<string | null>`(
-            SELECT b.id FROM bookings b
-            WHERE b.event_id = ${events.id}
-            AND b.venue_id = ${vp.id}
-            AND b.direction = 'artist_to_venue'
-            AND b.status = 'accepted'
-            LIMIT 1
-          )`,
+          bookingId: eventCollaborators.bookingId,
         })
-        .from(events)
+        .from(eventCollaborators)
+        .innerJoin(events, eq(events.id, eventCollaborators.eventId))
         .where(whereClause)
         .orderBy(desc(events.dateStart))
         .limit(input.limit)
