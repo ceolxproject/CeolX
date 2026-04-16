@@ -1,7 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
+import type { BottomSheetModal } from '@gorhom/bottom-sheet';
 import { router, useLocalSearchParams } from 'expo-router';
 import { cn } from 'heroui-native';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -16,6 +17,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ProfileEventCard } from '@/components/ProfileEventCard';
+import { SettingsBottomSheet } from '@/components/SettingsBottomSheet';
+import { useAuth } from '@/contexts/auth-context';
 import { useArtistProfile } from '@/hooks/use-artist-profile';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -74,6 +77,7 @@ function SegmentControl({
 
 function ArtistProfileHeader({
   profile,
+  onSettingsPress,
 }: {
   profile: {
     displayName: string;
@@ -86,6 +90,7 @@ function ArtistProfileHeader({
     isFollowing: boolean;
     socialLinks: Record<string, string>;
   };
+  onSettingsPress?: () => void;
 }) {
   return (
     <View className="items-center pt-2 pb-4">
@@ -134,10 +139,7 @@ function ArtistProfileHeader({
               Edit Profile
             </Text>
           </Pressable>
-          <Pressable
-            className="w-9 h-9 items-center justify-center"
-            onPress={() => router.push('/(app)/(tabs)/profile/switch-account')}
-          >
+          <Pressable className="w-9 h-9 items-center justify-center" onPress={onSettingsPress}>
             <Ionicons name="settings-outline" size={24} color="#fff" />
           </Pressable>
         </View>
@@ -283,6 +285,8 @@ export default function ArtistProfileScreen() {
   const { artistId } = useLocalSearchParams<{ artistId: string }>();
   const { data: profile, isLoading, error, refetch } = useArtistProfile(artistId);
   const [activeTab, setActiveTab] = useState<ProfileTab>('events');
+  const settingsRef = useRef<BottomSheetModal>(null);
+  const { logout } = useAuth();
 
   if (isLoading) {
     return (
@@ -356,7 +360,10 @@ export default function ArtistProfileScreen() {
               </View>
             </View>
 
-            <ArtistProfileHeader profile={profile} />
+            <ArtistProfileHeader
+              profile={profile}
+              onSettingsPress={profile.isOwner ? () => settingsRef.current?.present() : undefined}
+            />
           </>
         }
         refreshControl={
@@ -364,6 +371,20 @@ export default function ArtistProfileScreen() {
         }
         showsVerticalScrollIndicator={false}
       />
+
+      {profile.isOwner && (
+        <SettingsBottomSheet
+          ref={settingsRef}
+          onChangePassword={() => {
+            settingsRef.current?.dismiss();
+          }}
+          onSignOut={async () => {
+            settingsRef.current?.dismiss();
+            await logout();
+            router.replace('/(auth)/sign-in');
+          }}
+        />
+      )}
     </SafeAreaView>
   );
 }

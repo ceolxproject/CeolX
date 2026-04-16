@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { Pressable, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -39,6 +40,14 @@ export default function SwitchAccountScreen() {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#080808' }}>
       <View className="flex-1 p-4">
+        {/* Header with back button */}
+        <View className="flex-row items-center mb-4">
+          <Pressable onPress={() => router.back()} hitSlop={8} className="active:opacity-70 mr-3">
+            <Ionicons name="chevron-back" size={24} color="#fff" />
+          </Pressable>
+          <Text className="text-lg font-bold text-white font-urbanist">Settings</Text>
+        </View>
+
         <Text className="text-sm text-gray-10 mb-6 leading-5">
           Choose how you want to use CeolX. You can switch any time from Settings.
         </Text>

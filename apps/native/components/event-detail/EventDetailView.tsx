@@ -138,6 +138,14 @@ export function EventDetailView({
             creator={event.creator}
             collaborators={event.collaborators}
             onViewAll={event.collaborators.length > 3 ? () => {} : undefined}
+            onPressCreator={(creator) => {
+              if (creator.type === 'artist') {
+                router.push(`/(app)/(tabs)/map/artist/${creator.id}`);
+              }
+            }}
+            onPressArtist={(artistId) => {
+              router.push(`/(app)/(tabs)/map/artist/${artistId}`);
+            }}
           />
 
           {/* Ticket Price */}
