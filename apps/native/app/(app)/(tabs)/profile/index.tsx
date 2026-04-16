@@ -74,12 +74,29 @@ function SegmentControl({
 function ProfileHeader({
   me,
   currentRole,
+  artistProfile,
   onBookmarkPress,
 }: {
   me: { name: string | null; image: string | null; venueAddress: string | null };
   currentRole: string;
+  artistProfile?: {
+    stageName: string;
+    genres: string[];
+    profileImageUrl: string | null;
+    followerCount: number;
+    followingCount: number;
+  } | null;
   onBookmarkPress?: () => void;
 }) {
+  const followerCount = artistProfile?.followerCount ?? 0;
+  const followingCount = artistProfile?.followingCount ?? 0;
+  const avatarUrl = artistProfile?.profileImageUrl ?? me.image;
+  const displayName =
+    currentRole === UserRole.ARTIST
+      ? (artistProfile?.stageName ?? me.name ?? 'Your Name')
+      : (me.name ?? 'Your Name');
+  const genres = artistProfile?.genres ?? [];
+
   return (
     <View className="items-center pt-2 pb-4">
       {/* Header bar with bookmark + bell for venues, just bell for artists */}
@@ -97,12 +114,15 @@ function ProfileHeader({
       {/* Avatar + followers/following row */}
       <View className="flex-row items-center justify-center gap-6 mb-3">
         <View className="items-center w-[58px]">
-          <Text className="text-[17px] font-semibold text-white">837</Text>
+          <Text className="text-[17px] font-semibold text-white">{followerCount}</Text>
           <Text className="text-[13px] text-white">Followers</Text>
         </View>
 
-        {me.image ? (
-          <Image source={{ uri: me.image }} className="w-[86px] h-[86px] rounded-full bg-surface" />
+        {avatarUrl ? (
+          <Image
+            source={{ uri: avatarUrl }}
+            className="w-[86px] h-[86px] rounded-full bg-surface"
+          />
         ) : (
           <View className="w-[86px] h-[86px] rounded-full bg-surface items-center justify-center">
             <Ionicons name="person" size={36} color="#8D8D8D" />
@@ -110,14 +130,14 @@ function ProfileHeader({
         )}
 
         <View className="items-center w-[58px]">
-          <Text className="text-[17px] font-semibold text-white">92</Text>
+          <Text className="text-[17px] font-semibold text-white">{followingCount}</Text>
           <Text className="text-[13px] text-white">Following</Text>
         </View>
       </View>
 
       {/* Name + details */}
       <View className="items-center gap-1.5 mb-3">
-        <Text className="text-xl font-bold text-white font-urbanist">{me.name ?? 'Your Name'}</Text>
+        <Text className="text-xl font-bold text-white font-urbanist">{displayName}</Text>
         {currentRole === UserRole.VENUE && me.venueAddress && (
           <View className="flex-row items-center gap-1">
             <Ionicons name="location-outline" size={12} color="rgba(255,255,255,0.6)" />
@@ -126,9 +146,9 @@ function ProfileHeader({
             </Text>
           </View>
         )}
-        {currentRole === UserRole.ARTIST && (
+        {currentRole === UserRole.ARTIST && genres.length > 0 && (
           <Text className="text-xs font-semibold text-white/80 font-urbanist">
-            Music | Concert | Singing
+            {genres.join(' | ')}
           </Text>
         )}
       </View>
@@ -347,7 +367,21 @@ function CreatorProfile({
   me,
   currentRole,
 }: {
-  me: { name: string | null; image: string | null; venueAddress: string | null } | null | undefined;
+  me:
+    | {
+        name: string | null;
+        image: string | null;
+        venueAddress: string | null;
+        artistProfile?: {
+          stageName: string;
+          genres: string[];
+          profileImageUrl: string | null;
+          followerCount: number;
+          followingCount: number;
+        } | null;
+      }
+    | null
+    | undefined;
   currentRole: string;
 }) {
   const tabs: SegmentTab[] = ['events', 'posts', 'bookings'];
@@ -392,6 +426,7 @@ function CreatorProfile({
               venueAddress: me?.venueAddress ?? null,
             }}
             currentRole={currentRole}
+            artistProfile={me?.artistProfile}
             onBookmarkPress={() => router.push('/(app)/(tabs)/profile/saved-events')}
           />
         }
