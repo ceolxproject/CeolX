@@ -5,6 +5,7 @@ import { artistsRouter } from './artists';
 import { bookingsRouter } from './bookings';
 import { collectionsRouter } from './collections';
 import { eventsRouter } from './events';
+import { followsRouter } from './follows';
 import { onboardingRouter } from './onboarding';
 import { stripeRouter } from './stripe';
 import { usersRouter } from './users';
@@ -18,6 +19,7 @@ export const appRouter = router({
   venues: venuesRouter,
   bookings: bookingsRouter,
   collections: collectionsRouter,
+  follows: followsRouter,
   stripe: stripeRouter,
   admin: adminRouter,
 });
