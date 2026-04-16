@@ -1,9 +1,10 @@
-import { useMutation } from '@tanstack/react-query';
+import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { Alert, FlatList, Linking, Platform, ScrollView, Text, View } from 'react-native';
+import { FlatList, Linking, Platform, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { distanceBetween } from '@CeolX/shared';
+import { EventStatus, UserRole } from '@CeolX/shared/enums';
 
 import { CategoryBadge } from './CategoryBadge';
 import { CollectionEventCard } from './CollectionEventCard';
@@ -19,13 +20,15 @@ import { SectionDivider } from './SectionDivider';
 import { StickyBottomBar } from './StickyBottomBar';
 
 import { useGpsRegion } from '@/hooks/use-gps-region';
+import { useRequestToPerform } from '@/hooks/use-request-to-perform';
+import { useSaveEvent } from '@/hooks/use-save-event';
 import type { EventDetailData } from '@/types/event-detail';
-import { trpc } from '@/utils/trpc';
 
 interface EventDetailViewProps {
   event: EventDetailData;
   isArtist: boolean;
   isOwner: boolean;
+  userId?: string;
   onBack: () => void;
   onNavigateToEvent: (eventId: string) => void;
   onEdit: () => void;
@@ -36,6 +39,7 @@ export function EventDetailView({
   event,
   isArtist,
   isOwner,
+  userId,
   onBack,
   onNavigateToEvent,
   onEdit,
@@ -44,27 +48,27 @@ export function EventDetailView({
   const insets = useSafeAreaInsets();
   const [isSaved, setIsSaved] = useState(event.isSaved);
   const { initialRegion, locationSource } = useGpsRegion();
+  const { mutate: saveEvent } = useSaveEvent();
+  const { requestToPerform, isRequesting, hasRequested } = useRequestToPerform();
 
   const distanceKm = useMemo(() => {
     if (locationSource === 'pending') return undefined;
     return distanceBetween(initialRegion.latitude, initialRegion.longitude, event.lat, event.lng);
   }, [initialRegion.latitude, initialRegion.longitude, event.lat, event.lng, locationSource]);
 
-  const { mutate: save } = useMutation(trpc.events.save.mutationOptions());
-  const { mutate: unsave } = useMutation(trpc.events.unsave.mutationOptions());
+  const isCollaborator = useMemo(
+    () => !!userId && event.collaborators.some((c) => c.id === userId),
+    [userId, event.collaborators]
+  );
 
   const handleToggleSave = () => {
-    setIsSaved((prev) => !prev); // optimistic update
-    if (isSaved) {
-      unsave({ id: event.id }, { onError: () => setIsSaved(true) });
-    } else {
-      save({ id: event.id }, { onError: () => setIsSaved(false) });
-    }
+    const newSaved = !isSaved;
+    setIsSaved(newSaved); // optimistic update
+    saveEvent({ eventId: event.id, saved: newSaved }, { onError: () => setIsSaved(isSaved) });
   };
 
   const handleRequestToPerform = () => {
-    // TODO: Navigate to Booking flow (M5) when implemented
-    Alert.alert('Coming Soon', 'The booking flow is not yet available. Stay tuned!');
+    requestToPerform(event.id);
   };
 
   const handleAddToCalendar = () => {
@@ -110,7 +114,7 @@ export function EventDetailView({
         <CategoryBadge category={event.category} className="ml-4 -mt-6 z-10" />
 
         {/* Removal reason banner — visible to owner when admin removed */}
-        {isOwner && event.status === 'removed' && event.removalReason && (
+        {isOwner && event.status === EventStatus.REMOVED && event.removalReason && (
           <View className="mx-4 mt-3 rounded-lg bg-red-900/30 px-4 py-3">
             <Text className="mb-1 text-sm font-semibold text-red-400 font-urbanist">
               This event was removed by admin
@@ -134,6 +138,14 @@ export function EventDetailView({
             creator={event.creator}
             collaborators={event.collaborators}
             onViewAll={event.collaborators.length > 3 ? () => {} : undefined}
+            onPressCreator={(creator) => {
+              if (creator.type === 'artist') {
+                router.push(`/(app)/(tabs)/map/artist/${creator.id}`);
+              }
+            }}
+            onPressArtist={(artistId) => {
+              router.push(`/(app)/(tabs)/map/artist/${artistId}`);
+            }}
           />
 
           {/* Ticket Price */}
@@ -179,7 +191,12 @@ export function EventDetailView({
               horizontal
               data={event.collaborators}
               keyExtractor={(item) => item.id}
-              renderItem={({ item }) => <PerformingArtistCard artist={item} />}
+              renderItem={({ item }) => (
+                <PerformingArtistCard
+                  artist={item}
+                  onPress={() => router.push(`/(app)/(tabs)/map/artist/${item.id}`)}
+                />
+              )}
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={{ paddingHorizontal: 16, gap: 12 }}
               scrollEnabled={event.collaborators.length > 2}
@@ -233,7 +250,10 @@ export function EventDetailView({
           ticketLink={event.ticketLink}
           isArtist={isArtist}
           isOwner={isOwner}
-          isVenueEvent={event.creator.type === 'venue'}
+          isVenueEvent={event.creator.type === UserRole.VENUE}
+          isCollaborator={isCollaborator}
+          isRequesting={isRequesting}
+          hasExistingRequest={hasRequested}
           onRequestToPerform={handleRequestToPerform}
         />
       )}

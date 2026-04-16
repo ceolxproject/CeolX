@@ -8,6 +8,7 @@ import {
   Urbanist_700Bold,
   Urbanist_900Black,
 } from '@expo-google-fonts/urbanist';
+import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import * as Sentry from '@sentry/react-native';
 import { QueryClientProvider } from '@tanstack/react-query';
 import Constants from 'expo-constants';
@@ -81,8 +82,10 @@ function Layout() {
           <AppThemeProvider>
             <HeroUINativeProvider>
               <AuthProvider>
-                <RootStack />
-                <AppToastProvider />
+                <BottomSheetModalProvider>
+                  <RootStack />
+                  <AppToastProvider />
+                </BottomSheetModalProvider>
               </AuthProvider>
             </HeroUINativeProvider>
           </AppThemeProvider>

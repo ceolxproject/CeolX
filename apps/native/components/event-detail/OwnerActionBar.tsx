@@ -2,6 +2,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { cn } from 'heroui-native';
 import { Alert, Pressable, Text, View } from 'react-native';
 
+import { EventStatus } from '@CeolX/shared/enums';
+
 interface OwnerActionBarProps {
   eventStatus: string;
   onEdit: () => void;
@@ -10,9 +12,9 @@ interface OwnerActionBarProps {
 }
 
 export function OwnerActionBar({ eventStatus, onEdit, onArchive, className }: OwnerActionBarProps) {
-  if (eventStatus === 'archived') return null;
+  if (eventStatus === EventStatus.ARCHIVED) return null;
 
-  const isRemoved = eventStatus === 'removed';
+  const isRemoved = eventStatus === EventStatus.REMOVED;
 
   const handleArchive = () => {
     Alert.alert(

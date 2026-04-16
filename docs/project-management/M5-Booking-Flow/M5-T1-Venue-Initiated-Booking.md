@@ -3,7 +3,7 @@
 | Field          | Value                                                            |
 | -------------- | ---------------------------------------------------------------- |
 | **Milestone**  | M5 — Booking Flow                                                |
-| **Status**     | 🔲 To Do                                                         |
+| **Status**     | ✅ Complete                                                      |
 | **Depends on** | M6-T1 (Artist profiles), M4-T1 (events), M2-T4 (persona system)  |
 | **PRD Ref**    | Section 7.2 (Venue Booking Features), Section 9.4 (Booking Flow) |
 
@@ -116,38 +116,38 @@ Each role sees different booking views:
 
 ### Artist Response & Notifications
 
-- [ ] Venue can search for Artist by stage name and see their profile in a modal selection UI
-- [ ] Venue can select an Artist and an event, optionally add a message, and tap Send Invitation
-- [ ] POST /bookings creates the booking with status=pending, direction=venue_to_artist
-- [ ] Artist receives FCM push notification with Venue name and Event title
-- [ ] Artist can open the Bookings tab and see the incoming invitation
-- [ ] Artist can tap Accept, Reject, or dismiss the invitation
+- [x] Venue can search for Artist by stage name and see their profile in a modal selection UI
+- [x] Venue can select an Artist and an event, optionally add a message, and tap Send Invitation
+- [x] POST /bookings creates the booking with status=pending, direction=venue_to_artist
+- [x] Artist receives FCM push notification with Venue name and Event title
+- [x] Artist can open the Bookings tab and see the incoming invitation
+- [x] Artist can tap Accept, Reject, or dismiss the invitation
 
 ### Status Transitions
 
-- [ ] Accepting updates status to accepted; Venue receives push notification
-- [ ] Rejecting updates status to rejected; Venue receives notification
-- [ ] Cancelled booking transitions correctly from accepted state; other party notified
-- [ ] Rejected / Cancelled bookings remain visible in the booking history (read-only)
+- [x] Accepting updates status to accepted; Venue receives push notification
+- [x] Rejecting updates status to rejected; Venue receives notification
+- [x] Cancelled booking transitions correctly from accepted state; other party notified
+- [x] Rejected / Cancelled bookings remain visible in the booking history (read-only)
 
 ### Deduplication & Constraints
 
-- [ ] Creating a duplicate booking (same artist + event, pending/accepted) returns 409 error
-- [ ] Venue can only send invitations for events they own
-- [ ] Artist must have is_active=true profile to receive bookings
+- [x] Creating a duplicate booking (same artist + event, pending/accepted) returns 409 error
+- [x] Venue can only send invitations for events they own
+- [x] Artist must have is_active=true profile to receive bookings
 
 ### Bookings Tab Visualization
 
-- [ ] Venue Bookings tab shows outgoing invitations grouped by event and status
-- [ ] Artist Bookings tab shows incoming invitations grouped by Venue and status
-- [ ] Pending invitations show a time since sent (e.g., "2 days ago")
-- [ ] Each booking card shows Venue/Artist name, Event title, and action buttons (accept/reject for pending; cancel for accepted)
+- [x] Venue Bookings tab shows outgoing invitations grouped by event and status
+- [x] Artist Bookings tab shows incoming invitations grouped by Venue and status
+- [x] Pending invitations show a time since sent (e.g., "2 days ago")
+- [x] Each booking card shows Venue/Artist name, Event title, and action buttons (accept/reject for pending; cancel for accepted)
 
 ### State Transitions (Negative Cases)
 
-- [ ] Trying to accept a rejected or cancelled booking fails gracefully
-- [ ] Trying to cancel a pending booking fails (cancel only allowed from accepted)
-- [ ] Non-owner trying to cancel an accepted booking fails with 401
+- [x] Trying to accept a rejected or cancelled booking fails gracefully
+- [x] Trying to cancel a pending booking fails (cancel only allowed from accepted)
+- [x] Non-owner trying to cancel an accepted booking fails with 401
 
 ---
 

@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
+import { cn } from 'heroui-native';
 import { useEffect, useState } from 'react';
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Pressable, Text, View } from 'react-native';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -44,31 +44,44 @@ function buildGrid(year: number, month: number): (Date | null)[] {
   return cells;
 }
 
+function formatDisplayDate(date: Date): string {
+  return date.toLocaleDateString('en-IE', {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  });
+}
+
 // ─── Component ──────────────────────────────────────────────────────────────
 
 type Props = {
-  visible: boolean;
   value: Date | null;
+  onChange: (date: Date) => void;
   minimumDate?: Date;
-  onSelect: (date: Date) => void;
-  onClose: () => void;
+  error?: string;
 };
 
-export function CalendarPickerModal({ visible, value, minimumDate, onSelect, onClose }: Props) {
-  const insets = useSafeAreaInsets();
+/**
+ * Inline attached dropdown calendar for selecting a date.
+ * Renders as a trigger button + an expandable calendar grid below it,
+ * matching the CategoryPicker inline dropdown pattern.
+ */
+export function CalendarPicker({ value, onChange, minimumDate, error }: Props) {
+  const [open, setOpen] = useState(false);
   const today = new Date();
 
   const [viewYear, setViewYear] = useState(value?.getFullYear() ?? today.getFullYear());
   const [viewMonth, setViewMonth] = useState(value?.getMonth() ?? today.getMonth());
 
-  // Sync view to value whenever the modal opens
+  // Sync calendar view to selected value when dropdown opens
   useEffect(() => {
-    if (visible) {
+    if (open) {
       setViewYear(value?.getFullYear() ?? today.getFullYear());
       setViewMonth(value?.getMonth() ?? today.getMonth());
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [visible]);
+  }, [open]);
 
   const cells = buildGrid(viewYear, viewMonth);
 
@@ -76,16 +89,20 @@ export function CalendarPickerModal({ visible, value, minimumDate, onSelect, onC
     if (viewMonth === 0) {
       setViewYear((y) => y - 1);
       setViewMonth(11);
-    } else setViewMonth((m) => m - 1);
+    } else {
+      setViewMonth((m) => m - 1);
+    }
   };
+
   const nextMonth = () => {
     if (viewMonth === 11) {
       setViewYear((y) => y + 1);
       setViewMonth(0);
-    } else setViewMonth((m) => m + 1);
+    } else {
+      setViewMonth((m) => m + 1);
+    }
   };
 
-  // Disable "previous" when we're already at the minimum month
   const canGoPrev =
     !minimumDate ||
     viewYear > minimumDate.getFullYear() ||
@@ -102,70 +119,55 @@ export function CalendarPickerModal({ visible, value, minimumDate, onSelect, onC
   };
 
   return (
-    <Modal transparent visible={visible} animationType="slide" onRequestClose={onClose}>
-      {/* Sibling layout keeps backdrop Pressable separate from the sheet so it
-          never interferes with touch handling inside the sheet (e.g. day cells). */}
-      <View style={{ flex: 1, justifyContent: 'flex-end' }}>
-        <Pressable
-          style={[StyleSheet.absoluteFillObject, { backgroundColor: 'rgba(0,0,0,0.55)' }]}
-          onPress={onClose}
-        />
+    <View className="gap-1">
+      {/* ── Trigger ── */}
+      <Pressable
+        className={cn(
+          'flex-row items-center justify-between rounded-lg border bg-surface px-4 py-3',
+          error ? 'border-error' : open ? 'border-[#6C63FF]' : 'border-gray-8'
+        )}
+        onPress={() => setOpen((o) => !o)}
+        accessibilityRole="button"
+        accessibilityLabel="Select event date"
+      >
+        <Text className={cn('text-sm font-urbanist', value ? 'text-white' : 'text-gray-7')}>
+          {value ? formatDisplayDate(value) : 'Select Date'}
+        </Text>
+        <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={18} color="#8d8d8d" />
+      </Pressable>
 
-        <View
-          style={{
-            backgroundColor: '#16162a',
-            borderTopLeftRadius: 20,
-            borderTopRightRadius: 20,
-            paddingHorizontal: 16,
-            paddingBottom: Math.max(insets.bottom, 20),
-          }}
-        >
-          {/* Drag handle */}
-          <View style={{ alignItems: 'center', paddingTop: 12, paddingBottom: 4 }}>
-            <View
-              style={{
-                width: 40,
-                height: 4,
-                borderRadius: 2,
-                backgroundColor: 'rgba(255,255,255,0.15)',
-              }}
-            />
-          </View>
-
+      {/* ── Inline calendar grid ── */}
+      {open && (
+        <View className="rounded-lg border border-gray-8 bg-surface overflow-hidden px-3 pb-3">
           {/* Month / year navigation */}
-          <View
-            style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              paddingVertical: 14,
-            }}
-          >
+          <View className="flex-row items-center justify-between py-3">
             <Pressable onPress={prevMonth} hitSlop={12} disabled={!canGoPrev}>
-              <Ionicons name="chevron-back" size={22} color={canGoPrev ? '#ffffff' : '#444'} />
+              <Ionicons name="chevron-back" size={20} color={canGoPrev ? '#ffffff' : '#3a3a5c'} />
             </Pressable>
-            <Text style={{ color: '#ffffff', fontSize: 16, fontWeight: '600', letterSpacing: 0.2 }}>
+            <Text className="text-base font-semibold text-white tracking-wide">
               {MONTH_NAMES[viewMonth]} {viewYear}
             </Text>
             <Pressable onPress={nextMonth} hitSlop={12}>
-              <Ionicons name="chevron-forward" size={22} color="#ffffff" />
+              <Ionicons name="chevron-forward" size={20} color="#ffffff" />
             </Pressable>
           </View>
 
           {/* Day-of-week headers */}
-          <View style={{ flexDirection: 'row', marginBottom: 6 }}>
+          <View className="flex-row mb-1.5">
             {DAY_LABELS.map((label) => (
-              <View key={label} style={{ flex: 1, alignItems: 'center' }}>
-                <Text style={{ color: '#6b6b8a', fontSize: 12, fontWeight: '500' }}>{label}</Text>
+              <View key={label} className="flex-1 items-center">
+                <Text className="text-xs font-medium text-gray-7">{label}</Text>
               </View>
             ))}
           </View>
 
-          {/* Calendar grid */}
+          {/* Calendar rows */}
           {Array.from({ length: cells.length / 7 }).map((_, rowIdx) => (
-            <View key={rowIdx} style={{ flexDirection: 'row', marginBottom: 2 }}>
+            <View key={rowIdx} className="flex-row mb-0.5">
               {cells.slice(rowIdx * 7, rowIdx * 7 + 7).map((day, colIdx) => {
-                if (!day) return <View key={colIdx} style={{ flex: 1, height: 40 }} />;
+                if (!day) {
+                  return <View key={colIdx} className="flex-1 h-10" />;
+                }
 
                 const selected = value ? isSameDay(day, value) : false;
                 const isToday = isSameDay(day, today);
@@ -174,29 +176,30 @@ export function CalendarPickerModal({ visible, value, minimumDate, onSelect, onC
                 return (
                   <Pressable
                     key={colIdx}
-                    style={{ flex: 1, alignItems: 'center', justifyContent: 'center', height: 40 }}
-                    onPress={() => !disabled && onSelect(day)}
+                    className="flex-1 items-center justify-center h-10"
+                    onPress={() => {
+                      if (!disabled) {
+                        onChange(day);
+                        setOpen(false);
+                      }
+                    }}
                     disabled={disabled}
                   >
                     <View
-                      style={{
-                        width: 36,
-                        height: 36,
-                        borderRadius: 18,
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        backgroundColor: selected ? '#C8FF2F' : 'transparent',
-                        // Today ring (only when not selected)
-                        borderWidth: isToday && !selected ? 1.5 : 0,
-                        borderColor: '#6C63FF',
-                      }}
+                      className={cn(
+                        'w-9 h-9 rounded-full items-center justify-center',
+                        selected && 'bg-[#C8FF2F]',
+                        isToday && !selected && 'border-[1.5px] border-[#6C63FF]'
+                      )}
                     >
                       <Text
-                        style={{
-                          fontSize: 14,
-                          fontWeight: selected || isToday ? '600' : '400',
-                          color: selected ? '#080808' : disabled ? '#3a3a5c' : '#ffffff',
-                        }}
+                        className={cn(
+                          'text-sm',
+                          selected ? 'font-semibold text-[#080808]' : '',
+                          isToday && !selected ? 'font-semibold text-white' : '',
+                          !selected && !isToday && !disabled ? 'text-white' : '',
+                          disabled && 'text-[#3a3a5c]'
+                        )}
                       >
                         {day.getDate()}
                       </Text>
@@ -208,9 +211,9 @@ export function CalendarPickerModal({ visible, value, minimumDate, onSelect, onC
           ))}
 
           {/* Selected date label */}
-          <View style={{ paddingTop: 12, alignItems: 'center', minHeight: 28 }}>
+          <View className="pt-2 items-center min-h-[24px]">
             {value ? (
-              <Text style={{ color: '#C8FF2F', fontSize: 13, fontWeight: '500' }}>
+              <Text className="text-[13px] font-medium text-[#C8FF2F]">
                 {value.toLocaleDateString('en-IE', {
                   weekday: 'long',
                   day: 'numeric',
@@ -219,11 +222,13 @@ export function CalendarPickerModal({ visible, value, minimumDate, onSelect, onC
                 })}
               </Text>
             ) : (
-              <Text style={{ color: '#6b6b8a', fontSize: 13 }}>No date selected</Text>
+              <Text className="text-[13px] text-gray-7">No date selected</Text>
             )}
           </View>
         </View>
-      </View>
-    </Modal>
+      )}
+
+      {error && <Text className="text-xs text-error font-urbanist">{error}</Text>}
+    </View>
   );
 }

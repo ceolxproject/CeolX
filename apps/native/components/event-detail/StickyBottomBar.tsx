@@ -1,5 +1,5 @@
 import { cn } from 'heroui-native';
-import { Linking, Pressable, Text, View } from 'react-native';
+import { ActivityIndicator, Linking, Pressable, Text, View } from 'react-native';
 
 interface StickyBottomBarProps {
   ticketPrice?: number | null;
@@ -7,6 +7,9 @@ interface StickyBottomBarProps {
   isArtist: boolean;
   isOwner: boolean;
   isVenueEvent: boolean;
+  isCollaborator?: boolean;
+  isRequesting?: boolean;
+  hasExistingRequest?: boolean;
   onRequestToPerform: () => void;
   className?: string;
 }
@@ -17,10 +20,14 @@ export function StickyBottomBar({
   isArtist,
   isOwner,
   isVenueEvent,
+  isCollaborator,
+  isRequesting,
+  hasExistingRequest,
   onRequestToPerform,
   className,
 }: StickyBottomBarProps) {
-  const showRequestToPerform = isArtist && isVenueEvent && !isOwner;
+  const showRequestToPerform =
+    isArtist && isVenueEvent && !isOwner && !isCollaborator && !hasExistingRequest;
 
   const ticketLabel =
     ticketPrice !== null && ticketPrice !== undefined && ticketPrice > 0
@@ -60,15 +67,35 @@ export function StickyBottomBar({
         {showRequestToPerform && (
           <Pressable
             onPress={onRequestToPerform}
-            className="flex-1 items-center justify-center rounded-full py-3 border border-white active:opacity-80"
+            disabled={isRequesting}
+            className={cn(
+              'flex-1 items-center justify-center rounded-full py-3 border border-white active:opacity-80',
+              isRequesting && 'opacity-50'
+            )}
           >
+            {isRequesting ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <Text
+                className="text-xs font-bold text-white font-urbanist tracking-widest uppercase"
+                numberOfLines={1}
+              >
+                Request to Perform
+              </Text>
+            )}
+          </Pressable>
+        )}
+
+        {/* Request already sent — disabled state */}
+        {isArtist && isVenueEvent && !isOwner && !isCollaborator && hasExistingRequest && (
+          <View className="flex-1 items-center justify-center rounded-full py-3 border border-white/30">
             <Text
-              className="text-xs font-bold text-white font-urbanist tracking-widest uppercase"
+              className="text-xs font-bold text-white/50 font-urbanist tracking-widest uppercase"
               numberOfLines={1}
             >
-              Request to Perform
+              Request Sent
             </Text>
-          </Pressable>
+          </View>
         )}
       </View>
     </View>

@@ -2,10 +2,10 @@ import { Stack } from 'expo-router';
 
 export default function MapStack() {
   return (
-    <Stack>
-      <Stack.Screen name="index" options={{ headerShown: false }} />
-      <Stack.Screen name="event/[eventId]" options={{ headerShown: false }} />
-      <Stack.Screen name="artist/[artistId]" options={{ title: 'Artist Profile' }} />
+    <Stack screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="index" />
+      <Stack.Screen name="event/[eventId]" />
+      <Stack.Screen name="artist/[artistId]" />
     </Stack>
   );
 }

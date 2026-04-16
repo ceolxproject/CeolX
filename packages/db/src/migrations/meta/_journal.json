@@ -54,8 +54,36 @@
     {
       "idx": 7,
       "version": "7",
+      "when": 1776192034000,
+      "tag": "20260413000034_extend_event_collaborators",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
       "when": 1776077519939,
       "tag": "20260413105159_white_aaron_stack",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1776242302522,
+      "tag": "20260415083822_crazy_deadpool",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1776245597207,
+      "tag": "20260415093317_yellow_triathlon",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1776317723925,
+      "tag": "20260416053523_eager_quasimodo",
       "breakpoints": true
     }
   ]

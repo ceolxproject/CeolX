@@ -1,6 +1,6 @@
 {
   "id": "e5512ad2-fed4-4dec-af82-af83d01092cf",
-  "prevId": "dd527821-9c96-4dd0-bfcc-842ce151186f",
+  "prevId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -865,13 +865,6 @@
           "type": "boolean",
           "primaryKey": false,
           "notNull": false
-        },
-        "unregistered_collaborators": {
-          "name": "unregistered_collaborators",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false,
-          "default": "'[]'::jsonb"
         },
         "collection_id": {
           "name": "collection_id",

@@ -27,7 +27,11 @@ export const artistProfiles = pgTable('artist_profiles', {
   stageName: varchar('stage_name', { length: 255 }).notNull(),
   bio: text('bio'),
   contactEmail: varchar('contact_email', { length: 255 }), // public booking email, may differ from account email
-  genre: varchar('genre', { length: 100 }), // nullable — not collected during initial onboarding
+  genre: varchar('genre', { length: 100 }), // DEPRECATED: use `genres` (text[]) instead — kept for backward compat
+  genres: text('genres').array().default([]),
+  location: varchar('location', { length: 255 }),
+  profileImageUrl: text('profile_image_url'), // CDN URL — populated via presigned S3 upload (M10-T1)
+  coverImageUrl: text('cover_image_url'), // CDN URL — populated via presigned S3 upload (M10-T1)
   isActive: boolean('is_active').default(true), // false when persona switched away
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),

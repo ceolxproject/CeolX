@@ -1,3 +1,5 @@
+import { EventStatus } from '@CeolX/shared/enums';
+
 import type { EventDetailData } from '@/types/event-detail';
 
 export const MOCK_EVENT_DETAIL: EventDetailData = {
@@ -15,7 +17,7 @@ export const MOCK_EVENT_DETAIL: EventDetailData = {
   ticketLink: 'https://example.com/tickets/bodhran-buzz',
   ticketPrice: 99900,
   unregisteredCollaborators: [],
-  status: 'active',
+  status: EventStatus.ACTIVE,
   creator: {
     id: 'creator-1',
     name: 'Create Future',

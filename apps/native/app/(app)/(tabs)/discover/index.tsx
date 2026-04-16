@@ -12,16 +12,25 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import type { DateRangeOption, EventCategory } from '@CeolX/shared';
+import { DATE_RANGE_LABELS, DATE_RANGE_OPTIONS, EVENT_CATEGORIES } from '@CeolX/shared';
+import { UserRole } from '@CeolX/shared/enums';
+
 import { FeedEventCard } from '@/components/FeedEventCard';
-import { FeedFilterSheet } from '@/components/FeedFilterSheet';
-import type { FeedFilters } from '@/components/FeedFilterSheet';
 import { FeedHeader } from '@/components/FeedHeader';
+import { FilterSheet } from '@/components/FilterSheet';
+import type { FilterSection } from '@/components/FilterSheet';
 import { SegmentToggle } from '@/components/SegmentToggle';
 import { useFeedEvents } from '@/hooks/use-feed-events';
 import { useGpsRegion } from '@/hooks/use-gps-region';
 import { authClient } from '@/lib/auth-client';
 
 const SEGMENTS = ['Events', 'Posts'];
+
+const FEED_FILTER_SECTIONS: FilterSection[] = [
+  { key: 'dateRange', label: 'When', options: DATE_RANGE_OPTIONS, labels: DATE_RANGE_LABELS },
+  { key: 'category', label: 'Category', options: EVENT_CATEGORIES },
+];
 
 export default function DiscoverScreen() {
   const router = useRouter();
@@ -30,7 +39,7 @@ export default function DiscoverScreen() {
   const [activeSegment, setActiveSegment] = useState(0);
   const [filterSheetVisible, setFilterSheetVisible] = useState(false);
 
-  const isArtist = session?.user?.currentRole === 'artist';
+  const isArtist = session?.user?.currentRole === UserRole.ARTIST;
 
   const {
     events,
@@ -67,14 +76,14 @@ export default function DiscoverScreen() {
   );
 
   const handleFiltersApply = useCallback(
-    (filters: FeedFilters) => {
-      setCategory(filters.category);
-      setDateRange(filters.dateRange);
+    (filters: Record<string, string | undefined>) => {
+      setCategory(filters.category as EventCategory | undefined);
+      setDateRange(filters.dateRange as DateRangeOption | undefined);
     },
     [setCategory, setDateRange]
   );
 
-  const currentFilters: FeedFilters = { category, dateRange };
+  const currentFilters: Record<string, string | undefined> = { category, dateRange };
   const hasActiveFilters = !!(category || dateRange);
 
   const locationText =
@@ -248,9 +257,11 @@ export default function DiscoverScreen() {
         </View>
       )}
 
-      <FeedFilterSheet
+      <FilterSheet
         visible={filterSheetVisible}
         filters={currentFilters}
+        sections={FEED_FILTER_SECTIONS}
+        variant="dark"
         onApply={handleFiltersApply}
         onClose={() => setFilterSheetVisible(false)}
       />

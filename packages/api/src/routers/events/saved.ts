@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { db } from '@CeolX/db';
 import { user } from '@CeolX/db/schema/auth';
 import { events, savedEvents } from '@CeolX/db/schema/events';
+import { EventStatus } from '@CeolX/shared';
 import { savedEventsQuerySchema } from '@CeolX/shared/validators';
 
 import { protectedProcedure } from '../../index';
@@ -37,7 +38,7 @@ export const getSavedEvents = protectedProcedure
 
     const conditions = [eq(savedEvents.userId, ctx.userId)];
     if (!includeArchived) {
-      conditions.push(eq(events.status, 'active'));
+      conditions.push(eq(events.status, EventStatus.ACTIVE));
     }
 
     const [rows, countResult] = await Promise.all([

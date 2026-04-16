@@ -1,9 +1,11 @@
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { z } from 'zod';
 
 import { db } from '@CeolX/db';
 import { user } from '@CeolX/db/schema/auth';
-import { artistProfiles, venueProfiles } from '@CeolX/db/schema/users';
+import { follows } from '@CeolX/db/schema/social';
+import { artistProfiles, profileSocialLinks, venueProfiles } from '@CeolX/db/schema/users';
+import { UserRole } from '@CeolX/shared';
 
 import { protectedProcedure, router } from '../index';
 
@@ -39,14 +41,70 @@ export const usersRouter = router({
     let venueAddress: string | null = null;
     let venueProfileId: string | null = null;
 
-    if (row.currentRole === 'artist') {
+    // Artist profile data — for the self-profile screen (M6-T1)
+    let artistProfile: {
+      id: string;
+      stageName: string;
+      bio: string | null;
+      genres: string[] | null;
+      genre: string | null;
+      location: string | null;
+      profileImageUrl: string | null;
+      coverImageUrl: string | null;
+      contactEmail: string | null;
+      followerCount: number;
+      followingCount: number;
+      socialLinks: Record<string, string>;
+    } | null = null;
+
+    if (row.currentRole === UserRole.ARTIST) {
       const [profile] = await db
-        .select({ id: artistProfiles.id })
+        .select({
+          id: artistProfiles.id,
+          stageName: artistProfiles.stageName,
+          bio: artistProfiles.bio,
+          genres: artistProfiles.genres,
+          genre: artistProfiles.genre,
+          location: artistProfiles.location,
+          profileImageUrl: artistProfiles.profileImageUrl,
+          coverImageUrl: artistProfiles.coverImageUrl,
+          contactEmail: artistProfiles.contactEmail,
+        })
         .from(artistProfiles)
         .where(eq(artistProfiles.userId, userId))
         .limit(1);
       onboardingComplete = !!profile;
-    } else if (row.currentRole === 'venue') {
+
+      if (profile) {
+        const [followerResult] = await db
+          .select({ count: sql<number>`count(*)::int` })
+          .from(follows)
+          .where(eq(follows.followeeId, userId));
+
+        const [followingResult] = await db
+          .select({ count: sql<number>`count(*)::int` })
+          .from(follows)
+          .where(eq(follows.followerId, userId));
+
+        const links = await db
+          .select({ platform: profileSocialLinks.platform, url: profileSocialLinks.url })
+          .from(profileSocialLinks)
+          .where(eq(profileSocialLinks.userId, userId));
+
+        const socialLinksRecord: Record<string, string> = {};
+        for (const link of links) {
+          socialLinksRecord[link.platform] = link.url;
+        }
+
+        artistProfile = {
+          ...profile,
+          genres: profile.genres ?? (profile.genre ? [profile.genre] : []),
+          followerCount: followerResult?.count ?? 0,
+          followingCount: followingResult?.count ?? 0,
+          socialLinks: socialLinksRecord,
+        };
+      }
+    } else if (row.currentRole === UserRole.VENUE) {
       const [profile] = await db
         .select({ id: venueProfiles.id, address: venueProfiles.address })
         .from(venueProfiles)
@@ -57,7 +115,7 @@ export const usersRouter = router({
       venueProfileId = profile?.id ?? null;
     }
 
-    return { ...row, onboardingComplete, venueAddress, venueProfileId };
+    return { ...row, onboardingComplete, venueAddress, venueProfileId, artistProfile };
   }),
 
   /**
