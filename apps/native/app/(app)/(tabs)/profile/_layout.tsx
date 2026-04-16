@@ -9,6 +9,7 @@ export default function ProfileStack() {
       <Stack.Screen name="saved-events" />
       <Stack.Screen name="collections" />
       <Stack.Screen name="collection/[id]" />
+      <Stack.Screen name="following" />
     </Stack>
   );
 }
