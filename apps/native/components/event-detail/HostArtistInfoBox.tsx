@@ -7,6 +7,8 @@ interface HostArtistInfoBoxProps {
   creator: EventDetailCreator;
   collaborators: EventDetailArtist[];
   onViewAll?: () => void;
+  onPressCreator?: (creator: EventDetailCreator) => void;
+  onPressArtist?: (artistId: string) => void;
   className?: string;
 }
 
@@ -14,6 +16,8 @@ export function HostArtistInfoBox({
   creator,
   collaborators,
   onViewAll,
+  onPressCreator,
+  onPressArtist,
   className,
 }: HostArtistInfoBoxProps) {
   const displayedCollaborators = collaborators.slice(0, 3);
@@ -26,7 +30,11 @@ export function HostArtistInfoBox({
       {/* Host row */}
       <View className="flex-row items-center">
         <Text className="text-sm font-bold text-white font-sans w-[52px]">Host</Text>
-        <View className="flex-row items-center gap-1 flex-1">
+        <Pressable
+          className="flex-row items-center gap-1 flex-1 active:opacity-70"
+          onPress={() => onPressCreator?.(creator)}
+          hitSlop={4}
+        >
           {creator.imageUrl ? (
             <Image source={{ uri: creator.imageUrl }} className="w-4 h-4 rounded-full" />
           ) : (
@@ -37,7 +45,7 @@ export function HostArtistInfoBox({
           <Text className="text-xs font-semibold text-white font-sans" numberOfLines={1}>
             By {creator.name}
           </Text>
-        </View>
+        </Pressable>
       </View>
 
       {/* Divider line (horizontal, inside box at midpoint) */}
@@ -47,7 +55,13 @@ export function HostArtistInfoBox({
       {collaborators.length > 0 && (
         <View className="flex-row items-center">
           <Text className="text-sm font-bold text-white font-sans w-[52px]">Artist</Text>
-          <View className="flex-row items-center gap-1 flex-1">
+          <Pressable
+            className="flex-row items-center gap-1 flex-1 active:opacity-70"
+            onPress={() =>
+              displayedCollaborators[0] && onPressArtist?.(displayedCollaborators[0].id)
+            }
+            hitSlop={4}
+          >
             {/* Stacked avatars */}
             <View className="flex-row items-center mr-1">
               {displayedCollaborators.map((artist, index) => (
@@ -69,7 +83,7 @@ export function HostArtistInfoBox({
               {displayedCollaborators[0]?.stageName}
               {remainingCount > 0 ? ` & ${remainingCount} others` : ''}
             </Text>
-          </View>
+          </Pressable>
 
           {onViewAll && (
             <Pressable onPress={onViewAll} hitSlop={8} className="active:opacity-70">

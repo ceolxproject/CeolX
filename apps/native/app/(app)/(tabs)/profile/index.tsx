@@ -1,13 +1,14 @@
 import { Ionicons } from '@expo/vector-icons';
+import type { BottomSheetModal } from '@gorhom/bottom-sheet';
 import { router } from 'expo-router';
 import { cn } from 'heroui-native';
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  FlatList,
   Image,
   Pressable,
   RefreshControl,
+  ScrollView,
   Text,
   View,
 } from 'react-native';
@@ -17,6 +18,7 @@ import { UserRole } from '@CeolX/shared/enums';
 
 import { ConfirmedBookingCard } from '@/components/bookings/ConfirmedBookingCard';
 import { ProfileEventCard } from '@/components/ProfileEventCard';
+import { SettingsBottomSheet } from '@/components/SettingsBottomSheet';
 import { useAuth } from '@/contexts/auth-context';
 import { useConfirmedEvents } from '@/hooks/use-confirmed-events';
 import { useMe } from '@/hooks/use-me';
@@ -74,14 +76,33 @@ function SegmentControl({
 function ProfileHeader({
   me,
   currentRole,
+  artistProfile,
   onBookmarkPress,
+  onSettingsPress,
 }: {
   me: { name: string | null; image: string | null; venueAddress: string | null };
   currentRole: string;
+  artistProfile?: {
+    stageName: string;
+    genres: string[];
+    profileImageUrl: string | null;
+    followerCount: number;
+    followingCount: number;
+  } | null;
   onBookmarkPress?: () => void;
+  onSettingsPress: () => void;
 }) {
+  const followerCount = artistProfile?.followerCount ?? 0;
+  const followingCount = artistProfile?.followingCount ?? 0;
+  const avatarUrl = artistProfile?.profileImageUrl ?? me.image;
+  const displayName =
+    currentRole === UserRole.ARTIST
+      ? (artistProfile?.stageName ?? me.name ?? 'Your Name')
+      : (me.name ?? 'Your Name');
+  const genres = artistProfile?.genres ?? [];
+
   return (
-    <View className="items-center pt-2 pb-4">
+    <View className="items-center pt-2 pb-4 bg-background">
       {/* Header bar with bookmark + bell for venues, just bell for artists */}
       <View className="w-full flex-row items-center justify-end px-5 mb-3 gap-4">
         {onBookmarkPress && (
@@ -97,12 +118,15 @@ function ProfileHeader({
       {/* Avatar + followers/following row */}
       <View className="flex-row items-center justify-center gap-6 mb-3">
         <View className="items-center w-[58px]">
-          <Text className="text-[17px] font-semibold text-white">837</Text>
+          <Text className="text-[17px] font-semibold text-white">{followerCount}</Text>
           <Text className="text-[13px] text-white">Followers</Text>
         </View>
 
-        {me.image ? (
-          <Image source={{ uri: me.image }} className="w-[86px] h-[86px] rounded-full bg-surface" />
+        {avatarUrl ? (
+          <Image
+            source={{ uri: avatarUrl }}
+            className="w-[86px] h-[86px] rounded-full bg-surface"
+          />
         ) : (
           <View className="w-[86px] h-[86px] rounded-full bg-surface items-center justify-center">
             <Ionicons name="person" size={36} color="#8D8D8D" />
@@ -110,14 +134,14 @@ function ProfileHeader({
         )}
 
         <View className="items-center w-[58px]">
-          <Text className="text-[17px] font-semibold text-white">92</Text>
+          <Text className="text-[17px] font-semibold text-white">{followingCount}</Text>
           <Text className="text-[13px] text-white">Following</Text>
         </View>
       </View>
 
       {/* Name + details */}
       <View className="items-center gap-1.5 mb-3">
-        <Text className="text-xl font-bold text-white font-urbanist">{me.name ?? 'Your Name'}</Text>
+        <Text className="text-xl font-bold text-white font-urbanist">{displayName}</Text>
         {currentRole === UserRole.VENUE && me.venueAddress && (
           <View className="flex-row items-center gap-1">
             <Ionicons name="location-outline" size={12} color="rgba(255,255,255,0.6)" />
@@ -126,9 +150,9 @@ function ProfileHeader({
             </Text>
           </View>
         )}
-        {currentRole === UserRole.ARTIST && (
+        {currentRole === UserRole.ARTIST && genres.length > 0 && (
           <Text className="text-xs font-semibold text-white/80 font-urbanist">
-            Music | Concert | Singing
+            {genres.join(' | ')}
           </Text>
         )}
       </View>
@@ -143,10 +167,7 @@ function ProfileHeader({
             Edit Profile
           </Text>
         </Pressable>
-        <Pressable
-          className="w-9 h-9 items-center justify-center"
-          onPress={() => router.push('/(app)/(tabs)/profile/switch-account')}
-        >
+        <Pressable className="w-9 h-9 items-center justify-center" onPress={onSettingsPress}>
           <Ionicons name="settings-outline" size={24} color="#fff" />
         </Pressable>
       </View>
@@ -274,16 +295,21 @@ function PostsTab() {
 
 function SpectatorProfile() {
   const { user, logout } = useAuth();
+  const settingsRef = useRef<BottomSheetModal>(null);
 
   const handleLogout = async () => {
+    settingsRef.current?.dismiss();
     await logout();
     router.replace('/(auth)/sign-in');
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#080808' }}>
-      <View className="p-4 border-b border-gray-10">
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#080808' }} edges={['top']}>
+      <View className="p-4 border-b border-gray-10 flex-row items-center justify-between">
         <Text className="text-2xl font-bold text-white">Profile</Text>
+        <Pressable onPress={() => settingsRef.current?.present()}>
+          <Ionicons name="settings-outline" size={24} color="#fff" />
+        </Pressable>
       </View>
 
       <View className="items-center py-8">
@@ -304,26 +330,15 @@ function SpectatorProfile() {
           <Text className="text-[15px] text-white">Edit Profile</Text>
           <Text className="text-lg text-gray-10">›</Text>
         </Pressable>
-
-        <View className="h-px bg-gray-10" />
-
-        <Pressable
-          className="flex-row justify-between items-center px-4 py-3.5"
-          onPress={() => router.push('/(app)/(tabs)/profile/switch-account')}
-        >
-          <Text className="text-[15px] text-white">Switch Account Type</Text>
-          <Text className="text-lg text-gray-10">›</Text>
-        </Pressable>
-
-        <View className="h-px bg-gray-10" />
-
-        <Pressable
-          className="flex-row justify-between items-center px-4 py-3.5"
-          onPress={handleLogout}
-        >
-          <Text className="text-[15px] text-red-500">Logout</Text>
-        </Pressable>
       </View>
+
+      <SettingsBottomSheet
+        ref={settingsRef}
+        onChangePassword={() => {
+          settingsRef.current?.dismiss();
+        }}
+        onSignOut={handleLogout}
+      />
     </SafeAreaView>
   );
 }
@@ -347,17 +362,39 @@ function CreatorProfile({
   me,
   currentRole,
 }: {
-  me: { name: string | null; image: string | null; venueAddress: string | null } | null | undefined;
+  me:
+    | {
+        name: string | null;
+        image: string | null;
+        venueAddress: string | null;
+        artistProfile?: {
+          stageName: string;
+          genres: string[];
+          profileImageUrl: string | null;
+          followerCount: number;
+          followingCount: number;
+        } | null;
+      }
+    | null
+    | undefined;
   currentRole: string;
 }) {
+  const { logout } = useAuth();
   const tabs: SegmentTab[] = ['events', 'posts', 'bookings'];
   const [activeTab, setActiveTab] = useState<SegmentTab>('events');
+  const settingsRef = useRef<BottomSheetModal>(null);
 
   const myEvents = useMyEvents();
 
   const handleRefresh = useCallback(async () => {
     await myEvents.refresh();
   }, [myEvents]);
+
+  const handleSignOut = useCallback(async () => {
+    settingsRef.current?.dismiss();
+    await logout();
+    router.replace('/(auth)/sign-in');
+  }, [logout]);
 
   const renderTabContent = () => {
     switch (activeTab) {
@@ -371,34 +408,38 @@ function CreatorProfile({
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#080808' }}>
-      <FlatList
-        data={[1]} // Single item — content rendered in renderItem
-        keyExtractor={() => 'profile-content'}
-        renderItem={() => (
-          <View>
-            {/* Rounded background behind segment + content */}
-            <View className="bg-[rgba(141,141,141,0.3)] rounded-t-[20px] mt-2 pt-4 min-h-[300px]">
-              <SegmentControl tabs={tabs} activeTab={activeTab} onTabChange={setActiveTab} />
-              <View className="mt-4">{renderTabContent()}</View>
-            </View>
-          </View>
-        )}
-        ListHeaderComponent={
-          <ProfileHeader
-            me={{
-              name: me?.name ?? null,
-              image: me?.image ?? null,
-              venueAddress: me?.venueAddress ?? null,
-            }}
-            currentRole={currentRole}
-            onBookmarkPress={() => router.push('/(app)/(tabs)/profile/saved-events')}
-          />
-        }
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#080808' }} edges={['top']}>
+      <ScrollView
+        contentContainerStyle={{ flexGrow: 1 }}
         refreshControl={
           <RefreshControl refreshing={false} onRefresh={handleRefresh} tintColor="#C8FF2F" />
         }
         showsVerticalScrollIndicator={false}
+      >
+        <ProfileHeader
+          me={{
+            name: me?.name ?? null,
+            image: me?.image ?? null,
+            venueAddress: me?.venueAddress ?? null,
+          }}
+          currentRole={currentRole}
+          artistProfile={me?.artistProfile}
+          onBookmarkPress={() => router.push('/(app)/(tabs)/profile/saved-events')}
+          onSettingsPress={() => settingsRef.current?.present()}
+        />
+        {/* Rounded background behind segment + content */}
+        <View className="bg-[rgba(141,141,141,0.3)] rounded-t-[20px] mt-2 pt-4 flex-1">
+          <SegmentControl tabs={tabs} activeTab={activeTab} onTabChange={setActiveTab} />
+          <View className="mt-4">{renderTabContent()}</View>
+        </View>
+      </ScrollView>
+
+      <SettingsBottomSheet
+        ref={settingsRef}
+        onChangePassword={() => {
+          settingsRef.current?.dismiss();
+        }}
+        onSignOut={handleSignOut}
       />
     </SafeAreaView>
   );

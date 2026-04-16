@@ -54,36 +54,39 @@ export function ConfirmedBookingCard({
   };
 
   return (
-    <View className={className}>
-      <BaseEventCard
-        title={title}
-        coverImageUrl={coverImage}
-        dateStart={dateStart}
-        dateEnd={dateEnd ?? undefined}
-        category={category}
-        venueAddress={venueAddress}
-        onPress={onPress}
-        topLeftBadge={
-          <View className="bg-[#080808] rounded-xl px-2 py-1.5">
-            <Text className="text-[12px] text-[#C8FF2F] font-semibold tracking-wide uppercase">
-              {categoryLabel}
-            </Text>
-          </View>
-        }
-      />
-      {bookingId && (
-        <Pressable
-          className="mt-2 border border-red-500/40 rounded-xl py-2.5 items-center active:opacity-70"
-          onPress={handleCancel}
-          disabled={isCancelling}
-        >
-          {isCancelling ? (
-            <ActivityIndicator size="small" color="#ef4444" />
-          ) : (
-            <Text className="text-sm font-semibold text-red-500 font-urbanist">Cancel Booking</Text>
-          )}
-        </Pressable>
-      )}
-    </View>
+    <BaseEventCard
+      title={title}
+      coverImageUrl={coverImage}
+      dateStart={dateStart}
+      dateEnd={dateEnd ?? undefined}
+      category={category}
+      venueAddress={venueAddress}
+      onPress={onPress}
+      className={className}
+      topLeftBadge={
+        <View className="bg-[#080808] rounded-xl px-2 py-1.5">
+          <Text className="text-[12px] text-[#C8FF2F] font-semibold tracking-wide uppercase">
+            {categoryLabel}
+          </Text>
+        </View>
+      }
+      bottomSlot={
+        bookingId ? (
+          <Pressable
+            className="mx-3 mb-3 border border-red-500/40 rounded-xl py-2.5 items-center active:opacity-70"
+            onPress={handleCancel}
+            disabled={isCancelling}
+          >
+            {isCancelling ? (
+              <ActivityIndicator size="small" color="#ef4444" />
+            ) : (
+              <Text className="text-sm font-semibold text-red-500 font-urbanist">
+                Cancel Booking
+              </Text>
+            )}
+          </Pressable>
+        ) : undefined
+      }
+    />
   );
 }

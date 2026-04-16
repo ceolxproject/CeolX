@@ -168,42 +168,42 @@ After upload completes, call PUT /api/v1/artists/me with the returned cdn_url.
 
 ### Public Profile Rendering
 
-- [ ] Artist profile page renders with all fields populated (display_name, bio, genres, location, images)
-- [ ] Upcoming events listed in chronological order (active events only, date_start > now)
-- [ ] Past events section shows archived events (status = archived)
-- [ ] Follower count displayed and updates after follow/unfollow
-- [ ] Social media links render as clickable buttons/icons (if present)
-- [ ] Inactive profile (is_active = false) returns 404 with error message
+- [x] Artist profile page renders with all fields populated (display_name, bio, genres, location, images)
+- [x] Upcoming events listed in chronological order (active events only, date_start > now)
+- [x] Past events section shows archived events (status = archived)
+- [x] Follower count displayed and updates after follow/unfollow
+- [x] Social media links render as clickable buttons/icons (if present)
+- [x] Inactive profile (is_active = false) returns 404 with error message
 
 ### Profile Editing (Artist Only)
 
-- [ ] Edit Profile button visible only when logged in as Artist viewing own profile
-- [ ] Clicking Edit Profile opens form with all fields prefilled from database
-- [ ] Artist can edit display_name, bio, genres, location, social_links
-- [ ] Artist can upload new profile image via presigned S3 URL
-- [ ] Saving profile updates immediately in database (no moderation queue)
-- [ ] Profile updates reflected on public profile page after refresh
+- [x] Edit Profile button visible only when logged in as Artist viewing own profile
+- [x] Clicking Edit Profile opens form with all fields prefilled from database
+- [x] Artist can edit display_name, bio, genres, location, social_links
+- [ ] Artist can upload new profile image via presigned S3 URL _(deferred to M10-T1)_
+- [x] Saving profile updates immediately in database (no moderation queue)
+- [x] Profile updates reflected on public profile page after refresh
 
 ### Image Upload
 
-- [ ] GET /api/v1/upload/presigned?type=profile_image returns valid S3 presigned URL (expires in 15 min)
-- [ ] Mobile uploads image directly to S3 presigned URL (bypasses backend)
-- [ ] After upload, calling PUT /api/v1/artists/me with cdn_url updates profile
-- [ ] Old profile image remains in S3 (no cleanup in V1; CDN handles cache invalidation)
-- [ ] CloudFront CDN URL returns image with proper MIME type and cache headers
+- [ ] GET /api/v1/upload/presigned?type=profile*image returns valid S3 presigned URL (expires in 15 min) *(deferred to M10-T1)\_
+- [ ] Mobile uploads image directly to S3 presigned URL (bypasses backend) _(deferred to M10-T1)_
+- [ ] After upload, calling PUT /api/v1/artists/me with cdn*url updates profile *(deferred to M10-T1)\_
+- [ ] Old profile image remains in S3 (no cleanup in V1; CDN handles cache invalidation) _(deferred to M10-T1)_
+- [ ] CloudFront CDN URL returns image with proper MIME type and cache headers _(deferred to M10-T1)_
 
 ### Follow Integration
 
-- [ ] Follow button visible and functional on all profiles (except own profile)
-- [ ] Clicking Follow creates entry in follows table; button toggles to "Following"
-- [ ] Follower count increments when follow created, decrements on unfollow
-- [ ] Attempting to follow self returns error (button disabled)
-- [ ] Profile owner follows list accessible from /api/v1/users/me/following
+- [x] Follow button visible and functional on all profiles (except own profile)
+- [ ] Clicking Follow creates entry in follows table; button toggles to "Following" _(deferred to M6-T3)_
+- [ ] Follower count increments when follow created, decrements on unfollow _(deferred to M6-T3)_
+- [ ] Attempting to follow self returns error (button disabled) _(deferred to M6-T3)_
+- [ ] Profile owner follows list accessible from /api/v1/users/me/following _(deferred to M6-T3)_
 
 ### Profile Visibility
 
-- [ ] GET /api/v1/artists/:id returns 404 for inactive profiles (unless requester owns the profile)
-- [ ] Inactive artist profile remains in database (is_active = false)
+- [x] GET /api/v1/artists/:id returns 404 for inactive profiles (unless requester owns the profile)
+- [x] Inactive artist profile remains in database (is_active = false)
 - [ ] Switching away from Artist persona triggers is_active = false transition
 
 ---

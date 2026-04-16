@@ -22,6 +22,8 @@ interface BaseEventCardProps {
   topRightBadge?: ReactNode;
   /** Element rendered at bottom-right of the cover overlay (e.g. joined count) */
   bottomRightOverlay?: ReactNode;
+  /** Content rendered below the info area but inside the card border (e.g. cancel button) */
+  bottomSlot?: ReactNode;
 }
 
 export function BaseEventCard({
@@ -36,6 +38,7 @@ export function BaseEventCard({
   topLeftBadge,
   topRightBadge,
   bottomRightOverlay,
+  bottomSlot,
 }: BaseEventCardProps) {
   const categoryLabel = CATEGORY_LABELS[category] ?? category;
   const categoryIcon = CATEGORY_ICONS[category] ?? '🎵';
@@ -103,6 +106,9 @@ export function BaseEventCard({
           </View>
         </View>
       </View>
+
+      {/* Optional bottom slot (e.g. cancel button) */}
+      {bottomSlot}
     </Pressable>
   );
 }
