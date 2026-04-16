@@ -1,3 +1,4 @@
+import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { FlatList, Linking, Platform, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -182,7 +183,12 @@ export function EventDetailView({
               horizontal
               data={event.collaborators}
               keyExtractor={(item) => item.id}
-              renderItem={({ item }) => <PerformingArtistCard artist={item} />}
+              renderItem={({ item }) => (
+                <PerformingArtistCard
+                  artist={item}
+                  onPress={() => router.push(`/(app)/(tabs)/map/artist/${item.id}`)}
+                />
+              )}
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={{ paddingHorizontal: 16, gap: 12 }}
               scrollEnabled={event.collaborators.length > 2}
