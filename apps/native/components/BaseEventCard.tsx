@@ -6,6 +6,7 @@ import { Image, Pressable, Text, View } from 'react-native';
 import { CATEGORY_ICONS, CATEGORY_LABELS } from '@CeolX/shared';
 
 import { formatEventDate } from '@/utils/format-event-date';
+import { getMockEventImage } from '@/utils/mock-images';
 
 interface BaseEventCardProps {
   title: string;
@@ -61,9 +62,11 @@ export function BaseEventCard({
             resizeMode="cover"
           />
         ) : (
-          <View className="absolute inset-0 w-full h-full bg-white/5 items-center justify-center">
-            <Text className="text-4xl">🎵</Text>
-          </View>
+          <Image
+            source={getMockEventImage(title)}
+            className="absolute inset-0 w-full h-full"
+            resizeMode="cover"
+          />
         )}
 
         {/* Top-left badge slot */}

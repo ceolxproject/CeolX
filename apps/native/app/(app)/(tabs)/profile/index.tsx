@@ -24,6 +24,7 @@ import { useConfirmedEvents } from '@/hooks/use-confirmed-events';
 import { useMe } from '@/hooks/use-me';
 import { useMyEvents } from '@/hooks/use-my-events';
 import { useUpdateBooking } from '@/hooks/use-update-booking';
+import { MOCK_PROFILE_IMAGE } from '@/utils/mock-images';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -122,16 +123,10 @@ function ProfileHeader({
           <Text className="text-[13px] text-white">Followers</Text>
         </View>
 
-        {avatarUrl ? (
-          <Image
-            source={{ uri: avatarUrl }}
-            className="w-[86px] h-[86px] rounded-full bg-surface"
-          />
-        ) : (
-          <View className="w-[86px] h-[86px] rounded-full bg-surface items-center justify-center">
-            <Ionicons name="person" size={36} color="#8D8D8D" />
-          </View>
-        )}
+        <Image
+          source={avatarUrl ? { uri: avatarUrl } : MOCK_PROFILE_IMAGE}
+          className="w-[86px] h-[86px] rounded-full bg-surface"
+        />
 
         <View className="items-center w-[58px]">
           <Text className="text-[17px] font-semibold text-white">{followingCount}</Text>
@@ -313,9 +308,7 @@ function SpectatorProfile() {
       </View>
 
       <View className="items-center py-8">
-        <View className="w-20 h-20 rounded-full bg-surface mb-3 items-center justify-center">
-          <Ionicons name="person" size={32} color="#8D8D8D" />
-        </View>
+        <Image source={MOCK_PROFILE_IMAGE} className="w-20 h-20 rounded-full bg-surface mb-3" />
         <Text className="text-lg font-semibold text-white mb-2">{user?.email ?? '—'}</Text>
         <View className="rounded-full bg-surface px-3 py-1">
           <Text className="text-xs font-medium text-white capitalize">spectator</Text>

@@ -20,6 +20,7 @@ import { ProfileEventCard } from '@/components/ProfileEventCard';
 import { SettingsBottomSheet } from '@/components/SettingsBottomSheet';
 import { useAuth } from '@/contexts/auth-context';
 import { useArtistProfile } from '@/hooks/use-artist-profile';
+import { MOCK_PROFILE_IMAGE } from '@/utils/mock-images';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -101,16 +102,10 @@ function ArtistProfileHeader({
           <Text className="text-[13px] text-white">Followers</Text>
         </View>
 
-        {profile.profileImageUrl ? (
-          <Image
-            source={{ uri: profile.profileImageUrl }}
-            className="w-[86px] h-[86px] rounded-full bg-surface"
-          />
-        ) : (
-          <View className="w-[86px] h-[86px] rounded-full bg-surface items-center justify-center">
-            <Ionicons name="person" size={36} color="#8D8D8D" />
-          </View>
-        )}
+        <Image
+          source={profile.profileImageUrl ? { uri: profile.profileImageUrl } : MOCK_PROFILE_IMAGE}
+          className="w-[86px] h-[86px] rounded-full bg-surface"
+        />
 
         <View className="items-center w-[58px]">
           <Text className="text-[17px] font-semibold text-white">{profile.followingCount}</Text>

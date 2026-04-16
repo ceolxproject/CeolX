@@ -80,31 +80,40 @@ export function AppTabBar({ state, navigation, onFabPress }: AppTabBarProps) {
     );
   };
 
+  const showFab = currentRole !== UserRole.SPECTATOR;
+
   return (
     <View
       className="flex-row items-start bg-[#6155F5] pt-2"
       style={{ paddingBottom: insets.bottom, height: 60 + insets.bottom }}
     >
-      {/* Left two tabs */}
-      <View className="flex-1 flex-row justify-around">
-        {TAB_CONFIG.slice(0, 2).map((tab, i) => renderTab(tab, i))}
-      </View>
+      {showFab ? (
+        <>
+          {/* Left two tabs */}
+          <View className="flex-1 flex-row justify-around">
+            {TAB_CONFIG.slice(0, 2).map((tab, i) => renderTab(tab, i))}
+          </View>
 
-      {/* Center FAB */}
-      <View className="w-[72px] items-center">
-        <Pressable
-          className="absolute -top-6 w-12 h-12 rounded-full bg-[#8d8d8d] items-center justify-center"
-          style={{ boxShadow: '0 2px 4px rgba(0,0,0,0.2)' }}
-          onPress={onFabPress}
-        >
-          <Ionicons name="add" size={28} color="#ffffff" />
-        </Pressable>
-      </View>
+          {/* Center FAB */}
+          <View className="w-[72px] items-center">
+            <Pressable
+              className="absolute -top-6 w-12 h-12 rounded-full bg-[#8d8d8d] items-center justify-center"
+              style={{ boxShadow: '0 2px 4px rgba(0,0,0,0.2)' }}
+              onPress={onFabPress}
+            >
+              <Ionicons name="add" size={28} color="#ffffff" />
+            </Pressable>
+          </View>
 
-      {/* Right two tabs */}
-      <View className="flex-1 flex-row justify-around">
-        {TAB_CONFIG.slice(2, 4).map((tab, i) => renderTab(tab, i + 2))}
-      </View>
+          {/* Right two tabs */}
+          <View className="flex-1 flex-row justify-around">
+            {TAB_CONFIG.slice(2, 4).map((tab, i) => renderTab(tab, i + 2))}
+          </View>
+        </>
+      ) : (
+        /* Spectator: evenly spaced tabs, no FAB gap */
+        TAB_CONFIG.map((tab, i) => renderTab(tab, i))
+      )}
     </View>
   );
 }

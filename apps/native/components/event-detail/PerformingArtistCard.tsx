@@ -3,6 +3,7 @@ import { cn } from 'heroui-native';
 import { Image, Pressable, Text, View } from 'react-native';
 
 import type { EventDetailArtist } from '@/types/event-detail';
+import { MOCK_PROFILE_IMAGE } from '@/utils/mock-images';
 
 interface PerformingArtistCardProps {
   artist: EventDetailArtist;
@@ -21,15 +22,10 @@ export function PerformingArtistCard({ artist, onPress, className }: PerformingA
     >
       {/* Avatar */}
       <View className="mt-4">
-        {artist.profileImageUrl ? (
-          <Image source={{ uri: artist.profileImageUrl }} className="w-16 h-16 rounded-full" />
-        ) : (
-          <View className="w-16 h-16 rounded-full bg-gray-10/50 items-center justify-center">
-            <Text className="text-2xl text-white font-sans">
-              {artist.stageName.charAt(0).toUpperCase()}
-            </Text>
-          </View>
-        )}
+        <Image
+          source={artist.profileImageUrl ? { uri: artist.profileImageUrl } : MOCK_PROFILE_IMAGE}
+          className="w-16 h-16 rounded-full"
+        />
       </View>
 
       {/* Name */}

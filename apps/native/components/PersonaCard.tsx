@@ -1,7 +1,7 @@
 import { cn } from 'heroui-native';
 import { Image, Pressable, Text, View, type PressableProps } from 'react-native';
 
-import { UserRole } from '@CeolX/shared/enums';
+import { MOCK_PROFILE_IMAGE } from '@/utils/mock-images';
 
 interface Tag {
   label: string;
@@ -21,7 +21,7 @@ export function PersonaCard({
   bio,
   imageUri,
   tags = [],
-  type,
+  type: _type,
   className,
   ...props
 }: PersonaCardProps) {
@@ -33,17 +33,11 @@ export function PersonaCard({
       )}
       {...props}
     >
-      {imageUri ? (
-        <Image
-          source={{ uri: imageUri }}
-          className="h-14 w-14 rounded-full bg-muted"
-          resizeMode="cover"
-        />
-      ) : (
-        <View className="h-14 w-14 rounded-full bg-blue-3 items-center justify-center">
-          <Text className="text-lg">{type === UserRole.ARTIST ? '🎸' : '🏛️'}</Text>
-        </View>
-      )}
+      <Image
+        source={imageUri ? { uri: imageUri } : MOCK_PROFILE_IMAGE}
+        className="h-14 w-14 rounded-full bg-muted"
+        resizeMode="cover"
+      />
       <View className="flex-1 gap-1">
         <Text className="font-semibold text-white text-sm" numberOfLines={1}>
           {name}

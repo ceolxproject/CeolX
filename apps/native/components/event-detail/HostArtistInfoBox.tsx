@@ -2,6 +2,7 @@ import { cn } from 'heroui-native';
 import { Image, Pressable, Text, View } from 'react-native';
 
 import type { EventDetailArtist, EventDetailCreator } from '@/types/event-detail';
+import { MOCK_PROFILE_IMAGE } from '@/utils/mock-images';
 
 interface HostArtistInfoBoxProps {
   creator: EventDetailCreator;
@@ -35,13 +36,10 @@ export function HostArtistInfoBox({
           onPress={() => onPressCreator?.(creator)}
           hitSlop={4}
         >
-          {creator.imageUrl ? (
-            <Image source={{ uri: creator.imageUrl }} className="w-4 h-4 rounded-full" />
-          ) : (
-            <View className="w-4 h-4 rounded-full bg-gray-10 items-center justify-center">
-              <Text className="text-[8px] text-white">{creator.name.charAt(0).toUpperCase()}</Text>
-            </View>
-          )}
+          <Image
+            source={creator.imageUrl ? { uri: creator.imageUrl } : MOCK_PROFILE_IMAGE}
+            className="w-4 h-4 rounded-full"
+          />
           <Text className="text-xs font-semibold text-white font-sans" numberOfLines={1}>
             By {creator.name}
           </Text>
@@ -70,12 +68,12 @@ export function HostArtistInfoBox({
                   className="w-4 h-4 rounded-full bg-gray-10 border border-surface-dark"
                   style={{ marginLeft: index > 0 ? -4 : 0 }}
                 >
-                  {artist.profileImageUrl ? (
-                    <Image
-                      source={{ uri: artist.profileImageUrl }}
-                      className="w-full h-full rounded-full"
-                    />
-                  ) : null}
+                  <Image
+                    source={
+                      artist.profileImageUrl ? { uri: artist.profileImageUrl } : MOCK_PROFILE_IMAGE
+                    }
+                    className="w-full h-full rounded-full"
+                  />
                 </View>
               ))}
             </View>

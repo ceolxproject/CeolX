@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -16,6 +17,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useMe } from '@/hooks/use-me';
 import { useUpdateArtistProfile } from '@/hooks/use-update-artist-profile';
+import { MOCK_PROFILE_IMAGE } from '@/utils/mock-images';
 
 export default function EditProfileScreen() {
   const { data: me } = useMe();
@@ -102,9 +104,10 @@ export default function EditProfileScreen() {
         <ScrollView className="flex-1 px-4" showsVerticalScrollIndicator={false}>
           {/* Profile Image (disabled until M10-T1) */}
           <View className="items-center mb-6">
-            <View className="w-[86px] h-[86px] rounded-full bg-surface items-center justify-center">
-              <Ionicons name="person" size={36} color="#8D8D8D" />
-            </View>
+            <Image
+              source={MOCK_PROFILE_IMAGE}
+              className="w-[86px] h-[86px] rounded-full bg-surface"
+            />
             <Pressable
               className="mt-2"
               onPress={() =>
