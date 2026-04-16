@@ -1,7 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import type { BottomSheetModal } from '@gorhom/bottom-sheet';
 import { router } from 'expo-router';
-import { cn } from 'heroui-native';
 import { useCallback, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -18,6 +17,7 @@ import { UserRole } from '@CeolX/shared/enums';
 
 import { ConfirmedBookingCard } from '@/components/bookings/ConfirmedBookingCard';
 import { ProfileEventCard } from '@/components/ProfileEventCard';
+import { SegmentControl } from '@/components/profiles';
 import { SettingsBottomSheet } from '@/components/SettingsBottomSheet';
 import { useAuth } from '@/contexts/auth-context';
 import { useConfirmedEvents } from '@/hooks/use-confirmed-events';
@@ -30,47 +30,11 @@ import { MOCK_PROFILE_IMAGE } from '@/utils/mock-images';
 
 type SegmentTab = 'events' | 'posts' | 'bookings';
 
-// ─── Segment Control ──────────────────────────────────────────────────────────
-
-function SegmentControl({
-  tabs,
-  activeTab,
-  onTabChange,
-}: {
-  tabs: SegmentTab[];
-  activeTab: SegmentTab;
-  onTabChange: (tab: SegmentTab) => void;
-}) {
-  const labels: Record<SegmentTab, string> = {
-    events: 'Events',
-    posts: 'Posts',
-    bookings: 'Bookings',
-  };
-
-  return (
-    <View className="mx-5 flex-row rounded-[31px] overflow-hidden bg-white">
-      {tabs.map((tab, index) => {
-        const isActive = tab === activeTab;
-        const isFirst = index === 0;
-        const isLast = index === tabs.length - 1;
-        return (
-          <Pressable
-            key={tab}
-            onPress={() => onTabChange(tab)}
-            className={cn(
-              'flex-1 h-[46px] items-center justify-center',
-              isActive && 'bg-[#C8FF2F]',
-              isFirst && 'rounded-l-[31px]',
-              isLast && 'rounded-r-[31px]'
-            )}
-          >
-            <Text className="text-sm font-bold text-black font-urbanist">{labels[tab]}</Text>
-          </Pressable>
-        );
-      })}
-    </View>
-  );
-}
+const SEGMENT_LABELS: Record<SegmentTab, string> = {
+  events: 'Events',
+  posts: 'Posts',
+  bookings: 'Bookings',
+};
 
 // ─── Profile Header ───────────────────────────────────────────────────────────
 
@@ -78,6 +42,7 @@ function ProfileHeader({
   me,
   currentRole,
   artistProfile,
+  venueProfile,
   onBookmarkPress,
   onSettingsPress,
 }: {
@@ -90,16 +55,26 @@ function ProfileHeader({
     followerCount: number;
     followingCount: number;
   } | null;
+  venueProfile?: {
+    venueName: string;
+    bio: string | null;
+    address: string;
+    profileImageUrl: string | null;
+    followerCount: number;
+    followingCount: number;
+  } | null;
   onBookmarkPress?: () => void;
   onSettingsPress: () => void;
 }) {
-  const followerCount = artistProfile?.followerCount ?? 0;
-  const followingCount = artistProfile?.followingCount ?? 0;
-  const avatarUrl = artistProfile?.profileImageUrl ?? me.image;
-  const displayName =
-    currentRole === UserRole.ARTIST
-      ? (artistProfile?.stageName ?? me.name ?? 'Your Name')
-      : (me.name ?? 'Your Name');
+  const isVenue = currentRole === UserRole.VENUE;
+  const followerCount = (isVenue ? venueProfile?.followerCount : artistProfile?.followerCount) ?? 0;
+  const followingCount =
+    (isVenue ? venueProfile?.followingCount : artistProfile?.followingCount) ?? 0;
+  const avatarUrl =
+    (isVenue ? venueProfile?.profileImageUrl : artistProfile?.profileImageUrl) ?? me.image;
+  const displayName = isVenue
+    ? (venueProfile?.venueName ?? me.name ?? 'Your Name')
+    : (artistProfile?.stageName ?? me.name ?? 'Your Name');
   const genres = artistProfile?.genres ?? [];
 
   return (
@@ -137,11 +112,11 @@ function ProfileHeader({
       {/* Name + details */}
       <View className="items-center gap-1.5 mb-3">
         <Text className="text-xl font-bold text-white font-urbanist">{displayName}</Text>
-        {currentRole === UserRole.VENUE && me.venueAddress && (
+        {isVenue && (venueProfile?.address ?? me.venueAddress) && (
           <View className="flex-row items-center gap-1">
             <Ionicons name="location-outline" size={12} color="rgba(255,255,255,0.6)" />
             <Text className="text-xs font-semibold text-white/60 font-urbanist">
-              {me.venueAddress}
+              {venueProfile?.address ?? me.venueAddress}
             </Text>
           </View>
         )}
@@ -367,6 +342,14 @@ function CreatorProfile({
           followerCount: number;
           followingCount: number;
         } | null;
+        venueProfile?: {
+          venueName: string;
+          bio: string | null;
+          address: string;
+          profileImageUrl: string | null;
+          followerCount: number;
+          followingCount: number;
+        } | null;
       }
     | null
     | undefined;
@@ -417,12 +400,18 @@ function CreatorProfile({
           }}
           currentRole={currentRole}
           artistProfile={me?.artistProfile}
+          venueProfile={me?.venueProfile}
           onBookmarkPress={() => router.push('/(app)/(tabs)/profile/saved-events')}
           onSettingsPress={() => settingsRef.current?.present()}
         />
         {/* Rounded background behind segment + content */}
         <View className="bg-[rgba(141,141,141,0.3)] rounded-t-[20px] mt-2 pt-4 flex-1">
-          <SegmentControl tabs={tabs} activeTab={activeTab} onTabChange={setActiveTab} />
+          <SegmentControl
+            tabs={tabs}
+            labels={SEGMENT_LABELS}
+            activeTab={activeTab}
+            onTabChange={setActiveTab}
+          />
           <View className="mt-4">{renderTabContent()}</View>
         </View>
       </ScrollView>
