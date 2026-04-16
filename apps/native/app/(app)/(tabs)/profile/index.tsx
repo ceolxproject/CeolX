@@ -50,7 +50,7 @@ function ProfileHeader({
   currentRole: string;
   artistProfile?: {
     stageName: string;
-    genres: string[];
+    genres: string[] | null;
     profileImageUrl: string | null;
     followerCount: number;
     followingCount: number;
@@ -337,7 +337,7 @@ function CreatorProfile({
         venueAddress: string | null;
         artistProfile?: {
           stageName: string;
-          genres: string[];
+          genres: string[] | null;
           profileImageUrl: string | null;
           followerCount: number;
           followingCount: number;

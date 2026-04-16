@@ -7,8 +7,8 @@ type ProfileEvent = {
   id: string;
   title: string;
   coverImage: string | null;
-  dateStart: Date;
-  dateEnd: Date | null;
+  dateStart: Date | string;
+  dateEnd: Date | string | null;
   category: string;
   venueAddress: string | null;
 };
