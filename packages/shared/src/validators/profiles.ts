@@ -54,13 +54,24 @@ export const createArtistOnboardingSchema = z.object({
 export type CreateArtistOnboardingInput = z.infer<typeof createArtistOnboardingSchema>;
 export type SocialLinks = z.infer<typeof socialLinksSchema>;
 
-// ── Artist / Venue profile schemas (future profile editing) ──────────────────
+// ── Artist / Venue profile schemas (profile editing — M6-T1) ───────────────
 
 export const artistProfileSchema = z.object({
   stageName: z.string().min(1, 'Stage name is required').max(100).trim(),
   bio: z.string().max(1000).trim().optional(),
   genre: z.string().min(1, 'Genre is required').max(50),
   profileImageUrl: z.string().url().optional(),
+});
+
+/** Input schema for artists.updateMe — all fields optional (partial update). */
+export const updateArtistProfileSchema = z.object({
+  displayName: z.string().min(1).max(100).trim().optional(),
+  bio: z.string().max(2000).trim().optional(),
+  genres: z.array(z.string().max(50)).max(10).optional(),
+  location: z.string().max(255).trim().optional(),
+  profileImageUrl: z.string().url().optional(),
+  coverImageUrl: z.string().url().optional(),
+  socialLinks: socialLinksSchema.optional(),
 });
 
 export const venueProfileSchema = z.object({
@@ -71,4 +82,5 @@ export const venueProfileSchema = z.object({
 });
 
 export type ArtistProfileInput = z.infer<typeof artistProfileSchema>;
+export type UpdateArtistProfileInput = z.infer<typeof updateArtistProfileSchema>;
 export type VenueProfileInput = z.infer<typeof venueProfileSchema>;
