@@ -5,7 +5,6 @@ import { cn } from 'heroui-native';
 import { useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   FlatList,
   Image,
   Linking,
@@ -20,6 +19,7 @@ import { ProfileEventCard } from '@/components/ProfileEventCard';
 import { SettingsBottomSheet } from '@/components/SettingsBottomSheet';
 import { useAuth } from '@/contexts/auth-context';
 import { useArtistProfile } from '@/hooks/use-artist-profile';
+import { useFollow } from '@/hooks/use-follow';
 import { MOCK_PROFILE_IMAGE } from '@/utils/mock-images';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -79,6 +79,7 @@ function SegmentControl({
 function ArtistProfileHeader({
   profile,
   onSettingsPress,
+  onFollowPress,
 }: {
   profile: {
     displayName: string;
@@ -92,6 +93,7 @@ function ArtistProfileHeader({
     socialLinks: Record<string, string>;
   };
   onSettingsPress?: () => void;
+  onFollowPress?: () => void;
 }) {
   return (
     <View className="items-center pt-2 pb-4">
@@ -145,9 +147,7 @@ function ArtistProfileHeader({
               'flex-1 h-9 rounded-[20px] items-center justify-center',
               profile.isFollowing ? 'bg-[#333335]' : 'bg-[#662FFF]'
             )}
-            onPress={() =>
-              Alert.alert('Coming Soon', 'Follow feature is coming in a future update.')
-            }
+            onPress={onFollowPress}
           >
             <Text className="text-xs font-bold text-white uppercase tracking-wider font-urbanist">
               {profile.isFollowing ? 'Following' : 'Follow'}
@@ -282,6 +282,23 @@ export default function ArtistProfileScreen() {
   const [activeTab, setActiveTab] = useState<ProfileTab>('events');
   const settingsRef = useRef<BottomSheetModal>(null);
   const { logout } = useAuth();
+  const followMutation = useFollow();
+  const [optimisticFollowing, setOptimisticFollowing] = useState<boolean | null>(null);
+
+  const isFollowing = optimisticFollowing ?? profile?.isFollowing ?? false;
+
+  const handleFollowPress = () => {
+    if (!profile) return;
+    const newState = !isFollowing;
+    setOptimisticFollowing(newState);
+    followMutation.mutate(
+      { followeeId: profile.userId, isFollowing },
+      {
+        onError: () => setOptimisticFollowing(null),
+        onSuccess: () => setOptimisticFollowing(null),
+      }
+    );
+  };
 
   if (isLoading) {
     return (
@@ -356,8 +373,9 @@ export default function ArtistProfileScreen() {
             </View>
 
             <ArtistProfileHeader
-              profile={profile}
+              profile={{ ...profile, isFollowing }}
               onSettingsPress={profile.isOwner ? () => settingsRef.current?.present() : undefined}
+              onFollowPress={handleFollowPress}
             />
           </>
         }
