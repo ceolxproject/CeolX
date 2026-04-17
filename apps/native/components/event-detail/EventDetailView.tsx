@@ -176,6 +176,11 @@ export function EventDetailView({
               subtitle={event.venueAddress ?? `${event.lat.toFixed(4)}, ${event.lng.toFixed(4)}`}
               actionLabel="View map"
               onAction={handleViewMap}
+              onTitlePress={
+                event.venueId
+                  ? () => router.push(`/(app)/(tabs)/map/venue/${event.venueId}`)
+                  : undefined
+              }
             />
           </View>
         </View>
