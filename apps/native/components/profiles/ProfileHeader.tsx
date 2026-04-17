@@ -27,8 +27,35 @@ type ProfileHeaderProps = {
   onEditPress?: () => void;
   onSettingsPress?: () => void;
   onFollowPress?: () => void;
+  onFollowersPress?: () => void;
+  onFollowingPress?: () => void;
   secondaryCta?: { label: string; onPress: () => void };
 };
+
+function CountBlock({
+  value,
+  label,
+  onPress,
+}: {
+  value: number;
+  label: string;
+  onPress?: () => void;
+}) {
+  const content = (
+    <>
+      <Text className="text-[17px] font-semibold text-white">{value}</Text>
+      <Text className="text-[13px] text-white">{label}</Text>
+    </>
+  );
+  if (onPress) {
+    return (
+      <Pressable className="items-center w-[58px]" onPress={onPress}>
+        {content}
+      </Pressable>
+    );
+  }
+  return <View className="items-center w-[58px]">{content}</View>;
+}
 
 export function ProfileHeader({
   displayName,
@@ -44,26 +71,22 @@ export function ProfileHeader({
   onEditPress,
   onSettingsPress,
   onFollowPress,
+  onFollowersPress,
+  onFollowingPress,
   secondaryCta,
 }: ProfileHeaderProps) {
   return (
     <View className="items-center pt-2 pb-4">
       {/* Avatar + followers/following row */}
       <View className="flex-row items-center justify-center gap-6 mb-3">
-        <View className="items-center w-[58px]">
-          <Text className="text-[17px] font-semibold text-white">{followerCount}</Text>
-          <Text className="text-[13px] text-white">Followers</Text>
-        </View>
+        <CountBlock value={followerCount} label="Followers" onPress={onFollowersPress} />
 
         <Image
           source={profileImageUrl ? { uri: profileImageUrl } : MOCK_PROFILE_IMAGE}
           className="w-[86px] h-[86px] rounded-full bg-surface"
         />
 
-        <View className="items-center w-[58px]">
-          <Text className="text-[17px] font-semibold text-white">{followingCount}</Text>
-          <Text className="text-[13px] text-white">Following</Text>
-        </View>
+        <CountBlock value={followingCount} label="Following" onPress={onFollowingPress} />
       </View>
 
       {/* Name + subtitle */}
