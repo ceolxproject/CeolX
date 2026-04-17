@@ -1,15 +1,17 @@
 import { TRPCError } from '@trpc/server';
-import { and, eq, ilike, inArray, sql } from 'drizzle-orm';
+import { and, eq, ilike, inArray } from 'drizzle-orm';
 import { z } from 'zod';
 
 import { db } from '@CeolX/db';
 import { user } from '@CeolX/db/schema/auth';
 import { eventCollaborators, events } from '@CeolX/db/schema/events';
 import { follows } from '@CeolX/db/schema/social';
-import { artistProfiles, profileSocialLinks } from '@CeolX/db/schema/users';
+import { artistProfiles } from '@CeolX/db/schema/users';
 import { updateArtistProfileSchema } from '@CeolX/shared/validators';
 
 import { artistProcedure, protectedProcedure, publicProcedure, router } from '../index';
+
+import { getFollowerCounts, getSocialLinksRecord, upsertSocialLinks } from './_profile-helpers';
 
 export const artistsRouter = router({
   // Search active artist profiles by stage name — used by CollaboratorPicker / InviteArtistPicker
@@ -67,22 +69,8 @@ export const artistsRouter = router({
       throw new TRPCError({ code: 'NOT_FOUND', message: 'Artist not found' });
     }
 
-    // Follower/following counts
-    const [followerResult] = await db
-      .select({ count: sql<number>`count(*)::int` })
-      .from(follows)
-      .where(eq(follows.followeeId, profile.userId));
-
-    const [followingResult] = await db
-      .select({ count: sql<number>`count(*)::int` })
-      .from(follows)
-      .where(eq(follows.followerId, profile.userId));
-
-    // Social links
-    const socialLinks = await db
-      .select({ platform: profileSocialLinks.platform, url: profileSocialLinks.url })
-      .from(profileSocialLinks)
-      .where(eq(profileSocialLinks.userId, profile.userId));
+    const { followerCount, followingCount } = await getFollowerCounts(profile.userId);
+    const socialLinksRecord = await getSocialLinksRecord(profile.userId);
 
     // Check if the authenticated user follows this artist
     let isFollowing = false;
@@ -153,12 +141,6 @@ export const artistsRouter = router({
       .filter((e) => e.status === 'archived' || new Date(e.dateStart) <= now)
       .sort((a, b) => new Date(b.dateStart).getTime() - new Date(a.dateStart).getTime());
 
-    // Build socialLinks as Record<platform, url>
-    const socialLinksRecord: Record<string, string> = {};
-    for (const link of socialLinks) {
-      socialLinksRecord[link.platform] = link.url;
-    }
-
     return {
       id: profile.id,
       userId: profile.userId,
@@ -173,8 +155,8 @@ export const artistsRouter = router({
       isActive: profile.isActive,
       isOwner,
       isFollowing,
-      followerCount: followerResult?.count ?? 0,
-      followingCount: followingResult?.count ?? 0,
+      followerCount,
+      followingCount,
       upcomingEvents,
       pastEvents,
       createdAt: profile.createdAt,
@@ -214,22 +196,7 @@ export const artistsRouter = router({
         .set(updateFields)
         .where(eq(artistProfiles.userId, ctx.userId));
 
-      // Upsert social links: delete all existing, insert new ones
-      if (socialLinks) {
-        await tx.delete(profileSocialLinks).where(eq(profileSocialLinks.userId, ctx.userId));
-
-        const linkRows = Object.entries(socialLinks)
-          .filter((entry): entry is [string, string] => !!entry[1] && entry[1] !== '')
-          .map(([platform, url]) => ({
-            userId: ctx.userId,
-            platform: platform as 'INSTAGRAM' | 'FACEBOOK' | 'TIKTOK' | 'YOUTUBE',
-            url,
-          }));
-
-        if (linkRows.length > 0) {
-          await tx.insert(profileSocialLinks).values(linkRows);
-        }
-      }
+      await upsertSocialLinks(tx, ctx.userId, socialLinks);
     });
 
     return { ok: true };
@@ -257,34 +224,15 @@ export const artistsRouter = router({
 
     if (!profile) return null;
 
-    // Follower/following counts
-    const [followerResult] = await db
-      .select({ count: sql<number>`count(*)::int` })
-      .from(follows)
-      .where(eq(follows.followeeId, ctx.userId));
-
-    const [followingResult] = await db
-      .select({ count: sql<number>`count(*)::int` })
-      .from(follows)
-      .where(eq(follows.followerId, ctx.userId));
-
-    // Social links
-    const socialLinks = await db
-      .select({ platform: profileSocialLinks.platform, url: profileSocialLinks.url })
-      .from(profileSocialLinks)
-      .where(eq(profileSocialLinks.userId, ctx.userId));
-
-    const socialLinksRecord: Record<string, string> = {};
-    for (const link of socialLinks) {
-      socialLinksRecord[link.platform] = link.url;
-    }
+    const { followerCount, followingCount } = await getFollowerCounts(ctx.userId);
+    const socialLinksRecord = await getSocialLinksRecord(ctx.userId);
 
     return {
       ...profile,
       genres: profile.genres ?? (profile.genre ? [profile.genre] : []),
       socialLinks: socialLinksRecord,
-      followerCount: followerResult?.count ?? 0,
-      followingCount: followingResult?.count ?? 0,
+      followerCount,
+      followingCount,
     };
   }),
 });

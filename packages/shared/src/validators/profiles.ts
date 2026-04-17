@@ -81,6 +81,22 @@ export const venueProfileSchema = z.object({
   profileImageUrl: z.string().url().optional(),
 });
 
+/** Input schema for venues.updateMe — all fields optional (partial update). */
+export const updateVenueProfileSchema = z.object({
+  displayName: z.string().min(1).max(150).trim().optional(), // maps to venueName in DB
+  bio: z.string().max(2000).trim().optional(),
+  address: z.string().max(255).trim().optional(),
+  county: z.string().max(100).trim().optional(),
+  lat: z.number().min(-90).max(90).optional(),
+  lng: z.number().min(-180).max(180).optional(),
+  profileImageUrl: z.string().url().optional(),
+  coverImageUrl: z.string().url().optional(),
+  websiteUrl: z.string().url().optional(),
+  phone: z.string().max(30).trim().optional(),
+  socialLinks: venueLinksSchema.optional(),
+});
+
 export type ArtistProfileInput = z.infer<typeof artistProfileSchema>;
 export type UpdateArtistProfileInput = z.infer<typeof updateArtistProfileSchema>;
 export type VenueProfileInput = z.infer<typeof venueProfileSchema>;
+export type UpdateVenueProfileInput = z.infer<typeof updateVenueProfileSchema>;
