@@ -16,6 +16,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { UserRole } from '@CeolX/shared/enums';
 
 import { ConfirmedBookingCard } from '@/components/bookings/ConfirmedBookingCard';
+import { PostsList } from '@/components/posts/PostsList';
 import { ProfileEventCard } from '@/components/ProfileEventCard';
 import { SegmentControl } from '@/components/profiles';
 import { SettingsBottomSheet } from '@/components/SettingsBottomSheet';
@@ -23,6 +24,7 @@ import { useAuth } from '@/contexts/auth-context';
 import { useConfirmedEvents } from '@/hooks/use-confirmed-events';
 import { useMe } from '@/hooks/use-me';
 import { useMyEvents } from '@/hooks/use-my-events';
+import { useMyPosts } from '@/hooks/use-my-posts';
 import { useUpdateBooking } from '@/hooks/use-update-booking';
 import { MOCK_PROFILE_IMAGE } from '@/utils/mock-images';
 
@@ -261,10 +263,22 @@ function BookingsTab() {
   );
 }
 
-// ─── Posts Tab (placeholder) ──────────────────────────────────────────────────
+// ─── Posts Tab ────────────────────────────────────────────────────────────────
 
 function PostsTab() {
-  return <EmptyState message="Posts coming soon" />;
+  const { posts, isLoading, isFetchingNextPage, hasNextPage, loadMore } = useMyPosts();
+  const { data: me } = useMe();
+  return (
+    <PostsList
+      posts={posts}
+      isLoading={isLoading}
+      isFetchingNextPage={isFetchingNextPage}
+      hasNextPage={hasNextPage}
+      currentUserId={me?.id ?? null}
+      onLoadMore={loadMore}
+      emptyMessage="You haven't posted anything yet."
+    />
+  );
 }
 
 // ─── Spectator Profile ────────────────────────────────────────────────────────

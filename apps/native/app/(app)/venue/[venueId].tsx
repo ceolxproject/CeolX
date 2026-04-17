@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { PostsList } from '@/components/posts/PostsList';
 import {
   EventsTab,
   ProfileHeader,
@@ -21,7 +22,9 @@ import {
 } from '@/components/profiles';
 import { SettingsBottomSheet } from '@/components/SettingsBottomSheet';
 import { useAuth } from '@/contexts/auth-context';
+import { useMe } from '@/hooks/use-me';
 import { useProfileFollowHandler } from '@/hooks/use-profile-follow-handler';
+import { useUserPosts } from '@/hooks/use-user-posts';
 import { useVenueProfile } from '@/hooks/use-venue-profile';
 
 type ProfileTab = 'events' | 'posts';
@@ -29,11 +32,20 @@ type ProfileTab = 'events' | 'posts';
 const TAB_LABELS: Record<ProfileTab, string> = { events: 'Events', posts: 'Posts' };
 const TABS: ProfileTab[] = ['events', 'posts'];
 
-function PostsTab() {
+function PostsTab({ userId }: { userId: string }) {
+  const { posts, isLoading, isFetchingNextPage, hasNextPage, loadMore } = useUserPosts(userId);
+  const { data: me } = useMe();
   return (
-    <View className="py-16 items-center">
-      <Text className="text-base text-white/60 text-center font-urbanist">Posts coming soon</Text>
-    </View>
+    <PostsList
+      posts={posts}
+      isLoading={isLoading}
+      isFetchingNextPage={isFetchingNextPage}
+      hasNextPage={hasNextPage}
+      currentUserId={me?.id ?? null}
+      onLoadMore={loadMore}
+      hideAuthorHeader
+      emptyMessage="No posts yet."
+    />
   );
 }
 
@@ -90,7 +102,7 @@ export default function VenueProfileScreen() {
           <EventsTab upcomingEvents={profile.upcomingEvents} pastEvents={profile.pastEvents} />
         );
       case 'posts':
-        return <PostsTab />;
+        return <PostsTab userId={profile.userId} />;
     }
   };
 
