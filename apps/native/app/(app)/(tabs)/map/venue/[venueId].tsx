@@ -21,6 +21,7 @@ import {
 } from '@/components/profiles';
 import { SettingsBottomSheet } from '@/components/SettingsBottomSheet';
 import { useAuth } from '@/contexts/auth-context';
+import { useProfileFollowHandler } from '@/hooks/use-profile-follow-handler';
 import { useVenueProfile } from '@/hooks/use-venue-profile';
 
 type ProfileTab = 'events' | 'posts';
@@ -63,6 +64,7 @@ export default function VenueProfileScreen() {
   const [activeTab, setActiveTab] = useState<ProfileTab>('events');
   const settingsRef = useRef<BottomSheetModal>(null);
   const { logout } = useAuth();
+  const { isFollowing, onFollowPress } = useProfileFollowHandler(profile);
 
   if (isLoading) {
     return (
@@ -146,10 +148,13 @@ export default function VenueProfileScreen() {
               followerCount={profile.followerCount}
               followingCount={profile.followingCount}
               isOwner={profile.isOwner}
-              isFollowing={profile.isFollowing}
+              isFollowing={isFollowing}
               socialLinks={profile.socialLinks}
               onEditPress={() => router.push('/(app)/(tabs)/profile/edit')}
               onSettingsPress={profile.isOwner ? () => settingsRef.current?.present() : undefined}
+              onFollowPress={!profile.isOwner ? onFollowPress : undefined}
+              onFollowersPress={() => router.push('/(app)/(tabs)/profile/following')}
+              onFollowingPress={() => router.push('/(app)/(tabs)/profile/following')}
               secondaryCta={
                 !profile.isOwner
                   ? {
