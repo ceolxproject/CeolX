@@ -22,6 +22,7 @@ import {
 import { SettingsBottomSheet } from '@/components/SettingsBottomSheet';
 import { useAuth } from '@/contexts/auth-context';
 import { useArtistProfile } from '@/hooks/use-artist-profile';
+import { useProfileFollowHandler } from '@/hooks/use-profile-follow-handler';
 
 type ProfileTab = 'events' | 'posts';
 
@@ -42,6 +43,7 @@ export default function ArtistProfileScreen() {
   const [activeTab, setActiveTab] = useState<ProfileTab>('events');
   const settingsRef = useRef<BottomSheetModal>(null);
   const { logout } = useAuth();
+  const { isFollowing, onFollowPress } = useProfileFollowHandler(profile);
 
   if (isLoading) {
     return (
@@ -110,10 +112,13 @@ export default function ArtistProfileScreen() {
               followerCount={profile.followerCount}
               followingCount={profile.followingCount}
               isOwner={profile.isOwner}
-              isFollowing={profile.isFollowing}
+              isFollowing={isFollowing}
               socialLinks={profile.socialLinks}
               onEditPress={() => router.push('/(app)/(tabs)/profile/edit')}
               onSettingsPress={profile.isOwner ? () => settingsRef.current?.present() : undefined}
+              onFollowPress={!profile.isOwner ? onFollowPress : undefined}
+              onFollowersPress={() => router.push('/(app)/(tabs)/profile/following')}
+              onFollowingPress={() => router.push('/(app)/(tabs)/profile/following')}
               secondaryCta={
                 !profile.isOwner
                   ? {
