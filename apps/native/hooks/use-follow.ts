@@ -43,6 +43,8 @@ export function useFollow() {
     onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: [['artists', 'byId']] });
       void queryClient.invalidateQueries({ queryKey: [['artists', 'me']] });
+      void queryClient.invalidateQueries({ queryKey: [['venues', 'byId']] });
+      void queryClient.invalidateQueries({ queryKey: [['venues', 'me']] });
       void queryClient.invalidateQueries({ queryKey: [['users', 'me']] });
       void queryClient.invalidateQueries({ queryKey: [['follows']] });
     },
