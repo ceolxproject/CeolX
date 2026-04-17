@@ -139,8 +139,10 @@ export function EventDetailView({
             collaborators={event.collaborators}
             onViewAll={event.collaborators.length > 3 ? () => {} : undefined}
             onPressCreator={(creator) => {
-              if (creator.type === 'artist') {
+              if (creator.type === UserRole.ARTIST) {
                 router.push(`/(app)/(tabs)/map/artist/${creator.id}`);
+              } else if (creator.type === UserRole.VENUE) {
+                router.push(`/(app)/(tabs)/map/venue/${creator.id}`);
               }
             }}
             onPressArtist={(artistId) => {
@@ -177,8 +179,8 @@ export function EventDetailView({
               actionLabel="View map"
               onAction={handleViewMap}
               onTitlePress={
-                event.venueId
-                  ? () => router.push(`/(app)/(tabs)/map/venue/${event.venueId}`)
+                event.venueUserId
+                  ? () => router.push(`/(app)/(tabs)/map/venue/${event.venueUserId}`)
                   : undefined
               }
             />
