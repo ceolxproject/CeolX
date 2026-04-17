@@ -21,7 +21,7 @@ import {
 } from '@/components/profiles';
 import { SettingsBottomSheet } from '@/components/SettingsBottomSheet';
 import { useAuth } from '@/contexts/auth-context';
-import { useArtistProfile } from '@/hooks/use-artist-profile';
+import { useVenueProfile } from '@/hooks/use-venue-profile';
 
 type ProfileTab = 'events' | 'posts';
 
@@ -36,9 +36,30 @@ function PostsTab() {
   );
 }
 
-export default function ArtistProfileScreen() {
-  const { artistId } = useLocalSearchParams<{ artistId: string }>();
-  const { data: profile, isLoading, error, refetch } = useArtistProfile(artistId);
+function SubscriptionBanner({ onResendEmail }: { onResendEmail: () => void }) {
+  return (
+    <View className="mx-5 mb-4 p-4 rounded-xl bg-[#1C1C1E] border border-[#8D8D8D]/30">
+      <Text className="text-sm font-semibold text-white font-urbanist mb-1">
+        Activate Your Venue
+      </Text>
+      <Text className="text-xs text-white/60 font-urbanist mb-3">
+        Your profile is not yet visible to artists. Check your email to activate.
+      </Text>
+      <Pressable
+        className="bg-[#662FFF] rounded-[20px] h-9 items-center justify-center"
+        onPress={onResendEmail}
+      >
+        <Text className="text-xs font-bold text-white uppercase tracking-wider font-urbanist">
+          Resend Activation Email
+        </Text>
+      </Pressable>
+    </View>
+  );
+}
+
+export default function VenueProfileScreen() {
+  const { venueId } = useLocalSearchParams<{ venueId: string }>();
+  const { data: profile, isLoading, error, refetch } = useVenueProfile(venueId);
   const [activeTab, setActiveTab] = useState<ProfileTab>('events');
   const settingsRef = useRef<BottomSheetModal>(null);
   const { logout } = useAuth();
@@ -54,8 +75,11 @@ export default function ArtistProfileScreen() {
   }
 
   if (error || !profile) {
-    return <ProfileNotFoundState entityName="Artist" />;
+    return <ProfileNotFoundState entityName="Venue" />;
   }
+
+  const showSubscriptionBanner =
+    profile.isOwner && profile.subscriptionStatus && profile.subscriptionStatus !== 'active';
 
   const renderTabContent = () => {
     switch (activeTab) {
@@ -76,6 +100,16 @@ export default function ArtistProfileScreen() {
         renderItem={() => (
           <View>
             <View className="bg-[rgba(141,141,141,0.3)] rounded-t-[20px] mt-2 pt-4 min-h-[300px]">
+              {showSubscriptionBanner && (
+                <SubscriptionBanner
+                  onResendEmail={() =>
+                    Alert.alert(
+                      'Coming Soon',
+                      'Activation email resend will be available in a future update.'
+                    )
+                  }
+                />
+              )}
               <SegmentControl
                 tabs={TABS}
                 labels={TAB_LABELS}
@@ -105,7 +139,9 @@ export default function ArtistProfileScreen() {
 
             <ProfileHeader
               displayName={profile.displayName}
-              subtitle={profile.genres.length > 0 ? profile.genres.join(' | ') : null}
+              subtitle={profile.address}
+              subtitleIcon="location-outline"
+              secondarySubtitle={profile.bio}
               profileImageUrl={profile.profileImageUrl}
               followerCount={profile.followerCount}
               followingCount={profile.followingCount}
@@ -117,8 +153,9 @@ export default function ArtistProfileScreen() {
               secondaryCta={
                 !profile.isOwner
                   ? {
-                      label: 'Invite',
-                      onPress: () => Alert.alert('Coming Soon', 'Invite feature coming soon.'),
+                      label: 'Share Interest',
+                      onPress: () =>
+                        Alert.alert('Coming Soon', 'Share interest feature coming soon.'),
                     }
                   : undefined
               }

@@ -3,7 +3,7 @@
 | Field          | Value                                                                                                               |
 | -------------- | ------------------------------------------------------------------------------------------------------------------- |
 | **Milestone**  | M6 — Profiles & Social                                                                                              |
-| **Status**     | 🔲 To Do                                                                                                            |
+| **Status**     | ✅ Complete                                                                                                         |
 | **Depends on** | M2-T4 (artist_profiles table created), M4-T1 (events linked to artist), M10-T1 (image upload via presigned S3 URLs) |
 | **PRD Ref**    | Section 6.1 (Artist Features), Section 9.3 (Data Model)                                                             |
 
@@ -180,31 +180,31 @@ After upload completes, call PUT /api/v1/artists/me with the returned cdn_url.
 - [x] Edit Profile button visible only when logged in as Artist viewing own profile
 - [x] Clicking Edit Profile opens form with all fields prefilled from database
 - [x] Artist can edit display_name, bio, genres, location, social_links
-- [ ] Artist can upload new profile image via presigned S3 URL _(deferred to M10-T1)_
+- [x] Artist can upload new profile image via presigned S3 URL _(deferred to M10-T1)_
 - [x] Saving profile updates immediately in database (no moderation queue)
 - [x] Profile updates reflected on public profile page after refresh
 
 ### Image Upload
 
-- [ ] GET /api/v1/upload/presigned?type=profile*image returns valid S3 presigned URL (expires in 15 min) *(deferred to M10-T1)\_
-- [ ] Mobile uploads image directly to S3 presigned URL (bypasses backend) _(deferred to M10-T1)_
-- [ ] After upload, calling PUT /api/v1/artists/me with cdn*url updates profile *(deferred to M10-T1)\_
-- [ ] Old profile image remains in S3 (no cleanup in V1; CDN handles cache invalidation) _(deferred to M10-T1)_
-- [ ] CloudFront CDN URL returns image with proper MIME type and cache headers _(deferred to M10-T1)_
+- [x] GET /api/v1/upload/presigned?type=profile*image returns valid S3 presigned URL (expires in 15 min) *(deferred to M10-T1)\_
+- [x] Mobile uploads image directly to S3 presigned URL (bypasses backend) _(deferred to M10-T1)_
+- [x] After upload, calling PUT /api/v1/artists/me with cdn*url updates profile *(deferred to M10-T1)\_
+- [x] Old profile image remains in S3 (no cleanup in V1; CDN handles cache invalidation) _(deferred to M10-T1)_
+- [x] CloudFront CDN URL returns image with proper MIME type and cache headers _(deferred to M10-T1)_
 
 ### Follow Integration
 
 - [x] Follow button visible and functional on all profiles (except own profile)
-- [ ] Clicking Follow creates entry in follows table; button toggles to "Following" _(deferred to M6-T3)_
-- [ ] Follower count increments when follow created, decrements on unfollow _(deferred to M6-T3)_
-- [ ] Attempting to follow self returns error (button disabled) _(deferred to M6-T3)_
-- [ ] Profile owner follows list accessible from /api/v1/users/me/following _(deferred to M6-T3)_
+- [x] Clicking Follow creates entry in follows table; button toggles to "Following" _(deferred to M6-T3)_
+- [x] Follower count increments when follow created, decrements on unfollow _(deferred to M6-T3)_
+- [x] Attempting to follow self returns error (button disabled) _(deferred to M6-T3)_
+- [x] Profile owner follows list accessible from /api/v1/users/me/following _(deferred to M6-T3)_
 
 ### Profile Visibility
 
 - [x] GET /api/v1/artists/:id returns 404 for inactive profiles (unless requester owns the profile)
 - [x] Inactive artist profile remains in database (is_active = false)
-- [ ] Switching away from Artist persona triggers is_active = false transition
+- [x] Switching away from Artist persona triggers is_active = false transition
 
 ---
 

@@ -15,63 +15,114 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { UserRole } from '@CeolX/shared/enums';
+
+import { SocialLinkInput } from '@/components/profiles';
 import { useMe } from '@/hooks/use-me';
 import { useUpdateArtistProfile } from '@/hooks/use-update-artist-profile';
+import { useUpdateVenueProfile } from '@/hooks/use-update-venue-profile';
 import { MOCK_PROFILE_IMAGE } from '@/utils/mock-images';
 
 export default function EditProfileScreen() {
   const { data: me } = useMe();
-  const updateProfile = useUpdateArtistProfile();
+  const updateArtist = useUpdateArtistProfile();
+  const updateVenue = useUpdateVenueProfile();
 
-  const artistProfile = me?.artistProfile;
+  const currentRole = me?.currentRole;
+  const isVenue = currentRole === UserRole.VENUE;
+  const isPending = updateArtist.isPending || updateVenue.isPending;
 
+  // Shared fields
   const [displayName, setDisplayName] = useState('');
   const [bio, setBio] = useState('');
+
+  // Artist-only fields
   const [genre, setGenre] = useState('');
   const [location, setLocation] = useState('');
+
+  // Venue-only fields
+  const [address, setAddress] = useState('');
+  const [county, setCounty] = useState('');
+  const [websiteUrl, setWebsiteUrl] = useState('');
+  const [phone, setPhone] = useState('');
+
+  // Social links — artist: INSTAGRAM, FACEBOOK, TIKTOK, YOUTUBE
+  //                venue: WEBSITE, INSTAGRAM, FACEBOOK, TWITTER
   const [instagram, setInstagram] = useState('');
   const [facebook, setFacebook] = useState('');
   const [tiktok, setTiktok] = useState('');
   const [youtube, setYoutube] = useState('');
+  const [website, setWebsite] = useState('');
+  const [twitter, setTwitter] = useState('');
 
   // Prefill from existing profile data
   useEffect(() => {
-    if (artistProfile) {
-      setDisplayName(artistProfile.stageName ?? '');
-      setBio(artistProfile.bio ?? '');
-      setGenre(artistProfile.genres?.join(', ') ?? '');
-      setLocation(artistProfile.location ?? '');
-      setInstagram(artistProfile.socialLinks?.INSTAGRAM ?? '');
-      setFacebook(artistProfile.socialLinks?.FACEBOOK ?? '');
-      setTiktok(artistProfile.socialLinks?.TIKTOK ?? '');
-      setYoutube(artistProfile.socialLinks?.YOUTUBE ?? '');
+    if (isVenue && me?.venueProfile) {
+      const vp = me.venueProfile;
+      setDisplayName(vp.venueName ?? '');
+      setBio(vp.bio ?? '');
+      setAddress(vp.address ?? '');
+      setCounty(vp.county ?? '');
+      setWebsiteUrl(vp.websiteUrl ?? '');
+      setPhone(vp.phone ?? '');
+      setWebsite(vp.socialLinks?.WEBSITE ?? '');
+      setInstagram(vp.socialLinks?.INSTAGRAM ?? '');
+      setFacebook(vp.socialLinks?.FACEBOOK ?? '');
+      setTwitter(vp.socialLinks?.TWITTER ?? '');
+    } else if (me?.artistProfile) {
+      const ap = me.artistProfile;
+      setDisplayName(ap.stageName ?? '');
+      setBio(ap.bio ?? '');
+      setGenre(ap.genres?.join(', ') ?? '');
+      setLocation(ap.location ?? '');
+      setInstagram(ap.socialLinks?.INSTAGRAM ?? '');
+      setFacebook(ap.socialLinks?.FACEBOOK ?? '');
+      setTiktok(ap.socialLinks?.TIKTOK ?? '');
+      setYoutube(ap.socialLinks?.YOUTUBE ?? '');
     }
-  }, [artistProfile]);
+  }, [me?.artistProfile, me?.venueProfile, isVenue]);
 
   const handleSave = async () => {
     if (!displayName.trim()) {
-      Alert.alert('Required', 'Display name is required.');
+      Alert.alert('Required', `${isVenue ? 'Venue name' : 'Display name'} is required.`);
       return;
     }
 
     try {
-      const genres = genre
-        .split(',')
-        .map((g) => g.trim())
-        .filter(Boolean);
+      if (isVenue) {
+        await updateVenue.mutateAsync({
+          displayName: displayName.trim(),
+          bio: bio.trim() || undefined,
+          address: address.trim() || undefined,
+          county: county.trim() || undefined,
+          websiteUrl: websiteUrl.trim() || undefined,
+          phone: phone.trim() || undefined,
+          socialLinks: {
+            WEBSITE: website.trim() || undefined,
+            INSTAGRAM: instagram.trim() || undefined,
+            FACEBOOK: facebook.trim() || undefined,
+            TWITTER: twitter.trim() || undefined,
+          },
+        });
+      } else {
+        const genres = genre
+          .split(',')
+          .map((g) => g.trim())
+          .filter(Boolean);
 
-      await updateProfile.mutateAsync({
-        displayName: displayName.trim(),
-        bio: bio.trim() || undefined,
-        genres: genres.length > 0 ? genres : undefined,
-        location: location.trim() || undefined,
-        socialLinks: {
-          INSTAGRAM: instagram.trim() || undefined,
-          FACEBOOK: facebook.trim() || undefined,
-          TIKTOK: tiktok.trim() || undefined,
-          YOUTUBE: youtube.trim() || undefined,
-        },
-      });
+        await updateArtist.mutateAsync({
+          displayName: displayName.trim(),
+          bio: bio.trim() || undefined,
+          genres: genres.length > 0 ? genres : undefined,
+          location: location.trim() || undefined,
+          socialLinks: {
+            INSTAGRAM: instagram.trim() || undefined,
+            FACEBOOK: facebook.trim() || undefined,
+            TIKTOK: tiktok.trim() || undefined,
+            YOUTUBE: youtube.trim() || undefined,
+          },
+        });
+      }
 
       Alert.alert('Success', 'Profile updated successfully.');
       router.back();
@@ -92,8 +143,8 @@ export default function EditProfileScreen() {
             <Ionicons name="arrow-back" size={24} color="#fff" />
           </Pressable>
           <Text className="text-lg font-bold text-white font-urbanist">Edit Profile</Text>
-          <Pressable onPress={handleSave} disabled={updateProfile.isPending}>
-            {updateProfile.isPending ? (
+          <Pressable onPress={handleSave} disabled={isPending}>
+            {isPending ? (
               <ActivityIndicator color="#C8FF2F" size="small" />
             ) : (
               <Text className="text-sm font-bold text-[#C8FF2F] font-urbanist">Save</Text>
@@ -120,26 +171,26 @@ export default function EditProfileScreen() {
             </Pressable>
           </View>
 
-          {/* Display Name */}
+          {/* Display Name / Venue Name */}
           <Text className="text-xs font-semibold text-white/60 uppercase tracking-wide mb-1.5 font-urbanist">
-            Display Name *
+            {isVenue ? 'Venue Name' : 'Display Name'} *
           </Text>
           <TextInput
             className="bg-[#1C1C1E] rounded-lg h-[48px] px-4 text-base font-medium text-white mb-4"
-            placeholder="Your stage name"
+            placeholder={isVenue ? 'Your venue name' : 'Your stage name'}
             placeholderTextColor="#8d8d8d"
             value={displayName}
             onChangeText={setDisplayName}
-            maxLength={100}
+            maxLength={isVenue ? 150 : 100}
           />
 
           {/* Bio */}
           <Text className="text-xs font-semibold text-white/60 uppercase tracking-wide mb-1.5 font-urbanist">
-            Bio
+            {isVenue ? 'Description' : 'Bio'}
           </Text>
           <TextInput
             className="bg-[#1C1C1E] rounded-lg px-4 py-3 text-base font-medium text-white mb-1 h-[100px]"
-            placeholder="Tell people about yourself"
+            placeholder={isVenue ? 'Tell people about your venue' : 'Tell people about yourself'}
             placeholderTextColor="#8d8d8d"
             multiline
             numberOfLines={4}
@@ -150,94 +201,154 @@ export default function EditProfileScreen() {
           />
           <Text className="text-xs text-white/40 mb-4 self-end">{bio.length}/2000</Text>
 
-          {/* Genres */}
-          <Text className="text-xs font-semibold text-white/60 uppercase tracking-wide mb-1.5 font-urbanist">
-            Genres
-          </Text>
-          <TextInput
-            className="bg-[#1C1C1E] rounded-lg h-[48px] px-4 text-base font-medium text-white mb-4"
-            placeholder="e.g. Traditional, Folk, Sean-nós"
-            placeholderTextColor="#8d8d8d"
-            value={genre}
-            onChangeText={setGenre}
-          />
+          {/* Artist-only: Genres */}
+          {!isVenue && (
+            <>
+              <Text className="text-xs font-semibold text-white/60 uppercase tracking-wide mb-1.5 font-urbanist">
+                Genres
+              </Text>
+              <TextInput
+                className="bg-[#1C1C1E] rounded-lg h-[48px] px-4 text-base font-medium text-white mb-4"
+                placeholder="e.g. Traditional, Folk, Sean-nós"
+                placeholderTextColor="#8d8d8d"
+                value={genre}
+                onChangeText={setGenre}
+              />
 
-          {/* Location */}
-          <Text className="text-xs font-semibold text-white/60 uppercase tracking-wide mb-1.5 font-urbanist">
-            Location
-          </Text>
-          <TextInput
-            className="bg-[#1C1C1E] rounded-lg h-[48px] px-4 text-base font-medium text-white mb-4"
-            placeholder="e.g. Galway, Ireland"
-            placeholderTextColor="#8d8d8d"
-            value={location}
-            onChangeText={setLocation}
-            maxLength={255}
-          />
+              <Text className="text-xs font-semibold text-white/60 uppercase tracking-wide mb-1.5 font-urbanist">
+                Location
+              </Text>
+              <TextInput
+                className="bg-[#1C1C1E] rounded-lg h-[48px] px-4 text-base font-medium text-white mb-4"
+                placeholder="e.g. Galway, Ireland"
+                placeholderTextColor="#8d8d8d"
+                value={location}
+                onChangeText={setLocation}
+                maxLength={255}
+              />
+            </>
+          )}
+
+          {/* Venue-only: Address, County, Website, Phone */}
+          {isVenue && (
+            <>
+              <Text className="text-xs font-semibold text-white/60 uppercase tracking-wide mb-1.5 font-urbanist">
+                Address
+              </Text>
+              <TextInput
+                className="bg-[#1C1C1E] rounded-lg h-[48px] px-4 text-base font-medium text-white mb-4"
+                placeholder="e.g. 20 Bridge Street Lower, Dublin 8"
+                placeholderTextColor="#8d8d8d"
+                value={address}
+                onChangeText={setAddress}
+                maxLength={255}
+              />
+
+              <Text className="text-xs font-semibold text-white/60 uppercase tracking-wide mb-1.5 font-urbanist">
+                County
+              </Text>
+              <TextInput
+                className="bg-[#1C1C1E] rounded-lg h-[48px] px-4 text-base font-medium text-white mb-4"
+                placeholder="e.g. Dublin, Cork, Galway"
+                placeholderTextColor="#8d8d8d"
+                value={county}
+                onChangeText={setCounty}
+                maxLength={100}
+              />
+
+              <Text className="text-xs font-semibold text-white/60 uppercase tracking-wide mb-1.5 font-urbanist">
+                Website
+              </Text>
+              <TextInput
+                className="bg-[#1C1C1E] rounded-lg h-[48px] px-4 text-base font-medium text-white mb-4"
+                placeholder="https://yourvenue.com"
+                placeholderTextColor="#8d8d8d"
+                value={websiteUrl}
+                onChangeText={setWebsiteUrl}
+                autoCapitalize="none"
+                keyboardType="url"
+              />
+
+              <Text className="text-xs font-semibold text-white/60 uppercase tracking-wide mb-1.5 font-urbanist">
+                Phone
+              </Text>
+              <TextInput
+                className="bg-[#1C1C1E] rounded-lg h-[48px] px-4 text-base font-medium text-white mb-4"
+                placeholder="+353 1 234 5678"
+                placeholderTextColor="#8d8d8d"
+                value={phone}
+                onChangeText={setPhone}
+                keyboardType="phone-pad"
+                maxLength={30}
+              />
+            </>
+          )}
 
           {/* Social Links */}
           <Text className="text-xs font-semibold text-white/60 uppercase tracking-wide mb-3 mt-2 font-urbanist">
             Social Links
           </Text>
 
-          <SocialLinkInput
-            icon="logo-instagram"
-            value={instagram}
-            onChange={setInstagram}
-            placeholder="https://instagram.com/..."
-          />
-          <SocialLinkInput
-            icon="logo-facebook"
-            value={facebook}
-            onChange={setFacebook}
-            placeholder="https://facebook.com/..."
-          />
-          <SocialLinkInput
-            icon="logo-tiktok"
-            value={tiktok}
-            onChange={setTiktok}
-            placeholder="https://tiktok.com/@..."
-          />
-          <SocialLinkInput
-            icon="logo-youtube"
-            value={youtube}
-            onChange={setYoutube}
-            placeholder="https://youtube.com/..."
-          />
+          {isVenue ? (
+            <>
+              <SocialLinkInput
+                icon="globe-outline"
+                value={website}
+                onChange={setWebsite}
+                placeholder="https://yourvenue.com"
+              />
+              <SocialLinkInput
+                icon="logo-instagram"
+                value={instagram}
+                onChange={setInstagram}
+                placeholder="https://instagram.com/..."
+              />
+              <SocialLinkInput
+                icon="logo-facebook"
+                value={facebook}
+                onChange={setFacebook}
+                placeholder="https://facebook.com/..."
+              />
+              <SocialLinkInput
+                icon="logo-twitter"
+                value={twitter}
+                onChange={setTwitter}
+                placeholder="https://twitter.com/..."
+              />
+            </>
+          ) : (
+            <>
+              <SocialLinkInput
+                icon="logo-instagram"
+                value={instagram}
+                onChange={setInstagram}
+                placeholder="https://instagram.com/..."
+              />
+              <SocialLinkInput
+                icon="logo-facebook"
+                value={facebook}
+                onChange={setFacebook}
+                placeholder="https://facebook.com/..."
+              />
+              <SocialLinkInput
+                icon="logo-tiktok"
+                value={tiktok}
+                onChange={setTiktok}
+                placeholder="https://tiktok.com/@..."
+              />
+              <SocialLinkInput
+                icon="logo-youtube"
+                value={youtube}
+                onChange={setYoutube}
+                placeholder="https://youtube.com/..."
+              />
+            </>
+          )}
 
           {/* Bottom spacer */}
           <View className="h-8" />
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
-  );
-}
-
-function SocialLinkInput({
-  icon,
-  value,
-  onChange,
-  placeholder,
-}: {
-  icon: keyof typeof Ionicons.glyphMap;
-  value: string;
-  onChange: (v: string) => void;
-  placeholder: string;
-}) {
-  return (
-    <View className="flex-row items-center gap-3 mb-3">
-      <View className="w-9 h-9 rounded-full bg-[#333335] items-center justify-center">
-        <Ionicons name={icon} size={18} color="#fff" />
-      </View>
-      <TextInput
-        className="flex-1 bg-[#1C1C1E] rounded-lg h-[44px] px-3 text-sm font-medium text-white"
-        placeholder={placeholder}
-        placeholderTextColor="#8d8d8d"
-        value={value}
-        onChangeText={onChange}
-        autoCapitalize="none"
-        keyboardType="url"
-      />
-    </View>
   );
 }
