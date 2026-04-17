@@ -93,20 +93,26 @@ function ProfileHeader({
 
       {/* Avatar + followers/following row */}
       <View className="flex-row items-center justify-center gap-6 mb-3">
-        <View className="items-center w-[58px]">
+        <Pressable
+          className="items-center w-[58px]"
+          onPress={() => router.push('/(app)/(tabs)/profile/following')}
+        >
           <Text className="text-[17px] font-semibold text-white">{followerCount}</Text>
           <Text className="text-[13px] text-white">Followers</Text>
-        </View>
+        </Pressable>
 
         <Image
           source={avatarUrl ? { uri: avatarUrl } : MOCK_PROFILE_IMAGE}
           className="w-[86px] h-[86px] rounded-full bg-surface"
         />
 
-        <View className="items-center w-[58px]">
+        <Pressable
+          className="items-center w-[58px]"
+          onPress={() => router.push('/(app)/(tabs)/profile/following')}
+        >
           <Text className="text-[17px] font-semibold text-white">{followingCount}</Text>
           <Text className="text-[13px] text-white">Following</Text>
-        </View>
+        </Pressable>
       </View>
 
       {/* Name + details */}

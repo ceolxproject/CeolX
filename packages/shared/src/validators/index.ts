@@ -4,3 +4,4 @@ export * from './profiles.js';
 export * from './events.js';
 export * from './bookings.js';
 export * from './collections.js';
+export * from './follows.js';

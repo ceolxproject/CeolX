@@ -75,7 +75,7 @@ Tracks completed tasks per milestone. Each entry links to its PR.
 
 - [x] M6-T1 · Artist Profile — PR #43
 - [x] M6-T2 · Venue Profile — PR #44
-- [ ] M6-T3 · Follow System
+- [x] M6-T3 · Follow System — PR #45
 - [ ] M6-T4 · Posts & Promotional Content
 
 ## M7 — Push Notifications & Emails

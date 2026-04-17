@@ -150,6 +150,7 @@ export const byId = publicProcedure
       adTitle: event.adTitle ?? null,
       adDescription: event.adDescription ?? null,
       venueId: event.venueId ?? null,
+      venueUserId: event.venue?.userId ?? null,
       collectionId: event.collectionId ?? null,
       status: event.status,
       removalReason: event.removalReason ?? null,

@@ -27,8 +27,35 @@ type ProfileHeaderProps = {
   onEditPress?: () => void;
   onSettingsPress?: () => void;
   onFollowPress?: () => void;
+  onFollowersPress?: () => void;
+  onFollowingPress?: () => void;
   secondaryCta?: { label: string; onPress: () => void };
 };
+
+function CountBlock({
+  value,
+  label,
+  onPress,
+}: {
+  value: number;
+  label: string;
+  onPress?: () => void;
+}) {
+  const content = (
+    <>
+      <Text className="text-[17px] font-semibold text-white">{value}</Text>
+      <Text className="text-[13px] text-white">{label}</Text>
+    </>
+  );
+  if (onPress) {
+    return (
+      <Pressable className="items-center w-[58px]" onPress={onPress}>
+        {content}
+      </Pressable>
+    );
+  }
+  return <View className="items-center w-[58px]">{content}</View>;
+}
 
 export function ProfileHeader({
   displayName,
@@ -44,26 +71,22 @@ export function ProfileHeader({
   onEditPress,
   onSettingsPress,
   onFollowPress,
+  onFollowersPress,
+  onFollowingPress,
   secondaryCta,
 }: ProfileHeaderProps) {
   return (
     <View className="items-center pt-2 pb-4">
       {/* Avatar + followers/following row */}
       <View className="flex-row items-center justify-center gap-6 mb-3">
-        <View className="items-center w-[58px]">
-          <Text className="text-[17px] font-semibold text-white">{followerCount}</Text>
-          <Text className="text-[13px] text-white">Followers</Text>
-        </View>
+        <CountBlock value={followerCount} label="Followers" onPress={onFollowersPress} />
 
         <Image
           source={profileImageUrl ? { uri: profileImageUrl } : MOCK_PROFILE_IMAGE}
           className="w-[86px] h-[86px] rounded-full bg-surface"
         />
 
-        <View className="items-center w-[58px]">
-          <Text className="text-[17px] font-semibold text-white">{followingCount}</Text>
-          <Text className="text-[13px] text-white">Following</Text>
-        </View>
+        <CountBlock value={followingCount} label="Following" onPress={onFollowingPress} />
       </View>
 
       {/* Name + subtitle */}
@@ -105,17 +128,19 @@ export function ProfileHeader({
         <View className="flex-row items-center gap-2">
           <Pressable
             className={cn(
-              'h-9 rounded-[20px] items-center justify-center px-4',
+              'h-9 rounded-[20px] items-center justify-center',
               isFollowing ? 'bg-[#333335]' : 'bg-[#662FFF]',
-              !secondaryCta && 'flex-1 mx-5'
+              secondaryCta ? 'w-[109px]' : 'flex-1 mx-5'
             )}
-            style={secondaryCta ? { width: 109 } : undefined}
             onPress={
               onFollowPress ??
               (() => Alert.alert('Coming Soon', 'Follow feature is coming in a future update.'))
             }
           >
-            <Text className="text-xs font-bold text-white uppercase tracking-wider font-urbanist">
+            <Text
+              numberOfLines={1}
+              className="text-xs font-bold text-white uppercase tracking-wider font-urbanist"
+            >
               {isFollowing ? 'Following' : 'Follow'}
             </Text>
           </Pressable>
