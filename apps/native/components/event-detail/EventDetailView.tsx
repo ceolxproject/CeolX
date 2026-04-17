@@ -140,13 +140,13 @@ export function EventDetailView({
             onViewAll={event.collaborators.length > 3 ? () => {} : undefined}
             onPressCreator={(creator) => {
               if (creator.type === UserRole.ARTIST) {
-                router.push(`/(app)/(tabs)/map/artist/${creator.id}`);
+                router.push(`/(app)/artist/${creator.id}`);
               } else if (creator.type === UserRole.VENUE) {
-                router.push(`/(app)/(tabs)/map/venue/${creator.id}`);
+                router.push(`/(app)/venue/${creator.id}`);
               }
             }}
             onPressArtist={(artistId) => {
-              router.push(`/(app)/(tabs)/map/artist/${artistId}`);
+              router.push(`/(app)/artist/${artistId}`);
             }}
           />
 
@@ -180,7 +180,7 @@ export function EventDetailView({
               onAction={handleViewMap}
               onTitlePress={
                 event.venueUserId
-                  ? () => router.push(`/(app)/(tabs)/map/venue/${event.venueUserId}`)
+                  ? () => router.push(`/(app)/venue/${event.venueUserId}`)
                   : undefined
               }
             />
@@ -201,7 +201,7 @@ export function EventDetailView({
               renderItem={({ item }) => (
                 <PerformingArtistCard
                   artist={item}
-                  onPress={() => router.push(`/(app)/(tabs)/map/artist/${item.id}`)}
+                  onPress={() => router.push(`/(app)/artist/${item.id}`)}
                 />
               )}
               showsHorizontalScrollIndicator={false}

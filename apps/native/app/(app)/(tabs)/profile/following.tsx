@@ -82,9 +82,9 @@ function FollowingRow({
       className="flex-row items-center px-5 py-3 gap-3"
       onPress={() => {
         if (item.profileType === 'artist') {
-          router.push(`/(app)/(tabs)/map/artist/${item.followeeId}`);
+          router.push(`/(app)/artist/${item.followeeId}`);
         } else if (item.profileType === 'venue') {
-          router.push(`/(app)/(tabs)/map/venue/${item.followeeId}`);
+          router.push(`/(app)/venue/${item.followeeId}`);
         }
       }}
     >

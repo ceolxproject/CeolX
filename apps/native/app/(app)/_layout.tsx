@@ -50,6 +50,8 @@ export default function AppLayout() {
       <Stack.Screen name="(tabs)" />
       <Stack.Screen name="events/create" />
       <Stack.Screen name="events/edit/[eventId]" />
+      <Stack.Screen name="artist/[artistId]" />
+      <Stack.Screen name="venue/[venueId]" />
     </Stack>
   );
 }
