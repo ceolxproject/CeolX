@@ -128,17 +128,19 @@ export function ProfileHeader({
         <View className="flex-row items-center gap-2">
           <Pressable
             className={cn(
-              'h-9 rounded-[20px] items-center justify-center px-4',
+              'h-9 rounded-[20px] items-center justify-center',
               isFollowing ? 'bg-[#333335]' : 'bg-[#662FFF]',
-              !secondaryCta && 'flex-1 mx-5'
+              secondaryCta ? 'w-[109px]' : 'flex-1 mx-5'
             )}
-            style={secondaryCta ? { width: 109 } : undefined}
             onPress={
               onFollowPress ??
               (() => Alert.alert('Coming Soon', 'Follow feature is coming in a future update.'))
             }
           >
-            <Text className="text-xs font-bold text-white uppercase tracking-wider font-urbanist">
+            <Text
+              numberOfLines={1}
+              className="text-xs font-bold text-white uppercase tracking-wider font-urbanist"
+            >
               {isFollowing ? 'Following' : 'Follow'}
             </Text>
           </Pressable>
