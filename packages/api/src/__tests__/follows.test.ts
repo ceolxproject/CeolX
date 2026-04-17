@@ -34,13 +34,16 @@ const {
 });
 
 vi.mock('@CeolX/db', () => {
+  // The chain is thenable: all methods keep returning chain; awaiting it pulls the next
+  // mockSelectChain value. This lets a query terminate on any method (.limit, .offset, .where).
   const chain = {
     from: vi.fn(() => chain),
     where: vi.fn(() => chain),
     orderBy: vi.fn(() => chain),
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
-    limit: vi.fn(() => mockSelectChain()),
+    limit: vi.fn(() => chain),
     offset: vi.fn(() => chain),
+    then: (resolve: (v: unknown) => unknown, reject?: (e: unknown) => unknown) =>
+      (mockSelectChain() as Promise<unknown>).then(resolve, reject),
   };
 
   return {
@@ -88,6 +91,7 @@ vi.mock('@CeolX/db/schema/users', () => ({
     id: 'id',
     userId: 'user_id',
     venueName: 'venue_name',
+    profileImageUrl: 'profile_image_url',
     isActive: 'is_active',
   },
 }));
@@ -209,6 +213,36 @@ describe('follows router', () => {
       const caller = authedCaller('user-1');
       const result = await caller.isFollowing({ userId: 'user-2' });
       expect(result).toEqual({ isFollowing: false });
+    });
+  });
+
+  describe('getFollowing', () => {
+    // Mock sequence for a single followed user, in code order:
+    //   1) followRows  query   (terminates at .offset)
+    //   2) count       query   (terminates at .where via thenable)
+    //   3) artist lookup for row0   (terminates at .limit)
+    //   4) venue  lookup for row0   (terminates at .limit)
+    it('returns venue profileImageUrl for a followed venue', async () => {
+      const followRow = { id: 'f-1', followeeId: 'user-v', createdAt: new Date() };
+      mockSelectChain.mockResolvedValueOnce([followRow]);
+      mockSelectChain.mockResolvedValueOnce([{ count: 1 }]);
+      mockSelectChain.mockResolvedValueOnce([]); // no artist profile
+      mockSelectChain.mockResolvedValueOnce([
+        {
+          id: 'vp-1',
+          userId: 'user-v',
+          displayName: 'Kilkee Hall',
+          profileImageUrl: 'https://cdn/venues/kilkee.jpg',
+          isActive: true,
+        },
+      ]);
+
+      const caller = authedCaller('user-1');
+      const result = await caller.getFollowing({ limit: 50, offset: 0 });
+
+      expect(result.following).toHaveLength(1);
+      expect(result.following[0]?.profileType).toBe('venue');
+      expect(result.following[0]?.profile?.profileImageUrl).toBe('https://cdn/venues/kilkee.jpg');
     });
   });
 });

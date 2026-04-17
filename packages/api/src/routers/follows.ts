@@ -145,6 +145,7 @@ export const followsRouter = router({
             id: venueProfiles.id,
             userId: venueProfiles.userId,
             displayName: venueProfiles.venueName,
+            profileImageUrl: venueProfiles.profileImageUrl,
             isActive: venueProfiles.isActive,
           })
           .from(venueProfiles)
@@ -164,7 +165,7 @@ export const followsRouter = router({
                 id: profile.id,
                 userId: profile.userId,
                 displayName: profile.displayName,
-                profileImageUrl: artist?.profileImageUrl ?? null,
+                profileImageUrl: artist?.profileImageUrl ?? venue?.profileImageUrl ?? null,
                 genres: artist?.genres ?? null,
               }
             : null,
