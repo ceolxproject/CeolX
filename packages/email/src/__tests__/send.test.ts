@@ -51,10 +51,19 @@ describe('sendEmail', () => {
     expect(call.from).toContain('hello@ceolx.ie');
   });
 
-  it('re-throws transport errors', async () => {
-    const err = new Error('SMTP connection refused');
-    mockSend.mockRejectedValue(err);
-    await expect(sendEmail(baseOptions)).rejects.toThrow('SMTP connection refused');
+  it('re-throws transport errors after the R8.6 retry also fails', async () => {
+    vi.useFakeTimers();
+    try {
+      const err = new Error('SMTP connection refused');
+      mockSend.mockRejectedValue(err);
+      const assertion = expect(sendEmail(baseOptions)).rejects.toThrow('SMTP connection refused');
+      await vi.runAllTimersAsync();
+      await assertion;
+      // first attempt + one retry = 2
+      expect(mockSend).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('does not log subject or html on success', async () => {
