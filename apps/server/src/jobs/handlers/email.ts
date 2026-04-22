@@ -1,33 +1,62 @@
-import { sendEmail } from '@CeolX/email';
+import {
+  type EmailTemplate,
+  sendEventApprovedEmail,
+  sendEventRejectedEmail,
+  sendPasswordResetEmail,
+  sendPaymentConfirmationEmail,
+  sendVenueActivationEmail,
+  sendVerificationEmail,
+} from '@CeolX/email';
 
 import type { JobPayload } from '../types.ts';
 
-// Subject lines for each job template.
-// TODO M7-T1: replace with React Email template rendering once the email
-// template system is built. sendEmail will then receive rendered html/text
-// and the subject will come from the template itself.
-const SUBJECT_MAP: Record<string, string> = {
-  'email-verification': 'Verify your CeolX email',
-  'password-reset': 'Reset your CeolX password',
-  'venue-activation': 'Activate your CeolX venue profile',
-  'payment-confirmation': 'Payment confirmed — CeolX',
-  'event-approved': 'Your event is live on CeolX',
-  'event-rejected': 'Update required for your CeolX event',
-  'booking-invitation': 'New booking invitation on CeolX',
-  'booking-accepted': 'Booking accepted on CeolX',
-  'booking-rejected': 'Booking update on CeolX',
-  'data-export-ready': 'Your CeolX data export is ready',
+/**
+ * Route each `email.send` job payload to the typed sender in `@CeolX/email`.
+ * The job schema's `data` field is a flat `Record<string, string>`, so each
+ * entry extracts the fields its sender needs. Missing fields fall back to
+ * empty strings — the template renderer applies its own "Hi there" fallback.
+ */
+type Dispatch = (to: string, data: Record<string, string>) => Promise<void>;
+
+const dispatchers: Record<EmailTemplate, Dispatch> = {
+  verification: (to, d) => sendVerificationEmail(to, d.verificationUrl ?? '', d.userName),
+  'password-reset': (to, d) => sendPasswordResetEmail(to, d.resetUrl ?? '', d.userName),
+  'venue-activation': (to, d) =>
+    sendVenueActivationEmail({
+      to,
+      venueName: d.venueName ?? '',
+      activationUrl: d.activationUrl ?? '',
+      userName: d.userName,
+    }),
+  'payment-confirmation': (to, d) =>
+    sendPaymentConfirmationEmail({
+      to,
+      amount: d.amount ?? '',
+      planName: d.planName ?? '',
+      nextBillingDate: d.nextBillingDate ?? '',
+      manageUrl: d.manageUrl ?? '',
+      userName: d.userName,
+      invoiceUrl: d.invoiceUrl,
+    }),
+  'event-approved': (to, d) =>
+    sendEventApprovedEmail({
+      to,
+      eventTitle: d.eventTitle ?? '',
+      eventUrl: d.eventUrl ?? '',
+      userName: d.userName,
+      eventDate: d.eventDate,
+    }),
+  'event-rejected': (to, d) =>
+    sendEventRejectedEmail({
+      to,
+      eventTitle: d.eventTitle ?? '',
+      reason: d.reason ?? '',
+      editUrl: d.editUrl ?? '',
+      userName: d.userName,
+    }),
 };
 
-type StubSendOptions = { to: string; subject: string; tag: string };
-
 export async function handleEmailSend(payload: JobPayload<'email.send'>): Promise<void> {
-  const { to, template } = payload;
-  const subject = SUBJECT_MAP[template] ?? 'CeolX notification';
-  // TODO M7-T1: switch to typed sendEmail<template>(data) once templates exist.
-  await (sendEmail as unknown as (opts: StubSendOptions) => Promise<void>)({
-    to,
-    subject,
-    tag: template,
-  });
+  const { to, template, data = {} } = payload;
+  await dispatchers[template](to, data);
 }
