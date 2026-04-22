@@ -1,0 +1,125 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+import { sendEmail } from '../send.js';
+import { sendEventApprovedEmail } from '../senders/event-approved.js';
+import { sendEventRejectedEmail } from '../senders/event-rejected.js';
+import { sendPasswordResetEmail } from '../senders/password-reset.js';
+import { sendPaymentConfirmationEmail } from '../senders/payment-confirmation.js';
+import { sendVenueActivationEmail } from '../senders/venue-activation.js';
+import { sendVerificationEmail } from '../senders/verification.js';
+
+vi.mock('../send.js', () => ({ sendEmail: vi.fn() }));
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  vi.mocked(sendEmail).mockResolvedValue(undefined);
+});
+
+describe('sendVerificationEmail', () => {
+  it('dispatches the verification template with userName + URL', async () => {
+    await sendVerificationEmail('u@example.com', 'ceolx://verify?token=1', 'Aoife');
+    expect(sendEmail).toHaveBeenCalledWith({
+      to: 'u@example.com',
+      template: 'verification',
+      data: { userName: 'Aoife', verificationUrl: 'ceolx://verify?token=1' },
+    });
+  });
+
+  it('defaults userName to empty string', async () => {
+    await sendVerificationEmail('u@example.com', 'ceolx://verify?token=1');
+    expect(vi.mocked(sendEmail).mock.calls[0]?.[0].data).toMatchObject({ userName: '' });
+  });
+});
+
+describe('sendPasswordResetEmail', () => {
+  it('dispatches the password-reset template', async () => {
+    await sendPasswordResetEmail('u@example.com', 'ceolx://reset?token=1', 'Aoife');
+    expect(sendEmail).toHaveBeenCalledWith({
+      to: 'u@example.com',
+      template: 'password-reset',
+      data: { userName: 'Aoife', resetUrl: 'ceolx://reset?token=1' },
+    });
+  });
+});
+
+describe('sendVenueActivationEmail', () => {
+  it('dispatches the venue-activation template with venue name + URL', async () => {
+    await sendVenueActivationEmail({
+      to: 'v@example.com',
+      venueName: 'The Hut',
+      activationUrl: 'https://ceolx.ie/subscribe',
+      userName: 'Sean',
+    });
+    expect(sendEmail).toHaveBeenCalledWith({
+      to: 'v@example.com',
+      template: 'venue-activation',
+      data: {
+        userName: 'Sean',
+        venueName: 'The Hut',
+        activationUrl: 'https://ceolx.ie/subscribe',
+      },
+    });
+  });
+});
+
+describe('sendPaymentConfirmationEmail', () => {
+  it('dispatches with required fields and omits invoiceUrl when absent', async () => {
+    await sendPaymentConfirmationEmail({
+      to: 'v@example.com',
+      amount: '€20.00',
+      planName: 'CeolX Venue',
+      nextBillingDate: '2026-05-22',
+      manageUrl: 'https://ceolx.ie/account',
+    });
+    const call = vi.mocked(sendEmail).mock.calls[0]?.[0];
+    expect(call?.template).toBe('payment-confirmation');
+    expect(call?.data).not.toHaveProperty('invoiceUrl');
+  });
+
+  it('passes invoiceUrl through when provided', async () => {
+    await sendPaymentConfirmationEmail({
+      to: 'v@example.com',
+      amount: '€20.00',
+      planName: 'CeolX Venue',
+      nextBillingDate: '2026-05-22',
+      manageUrl: 'https://ceolx.ie/account',
+      invoiceUrl: 'https://pay.stripe.com/invoice/abc',
+    });
+    const call = vi.mocked(sendEmail).mock.calls[0]?.[0];
+    expect(call?.data).toMatchObject({ invoiceUrl: 'https://pay.stripe.com/invoice/abc' });
+  });
+});
+
+describe('sendEventApprovedEmail', () => {
+  it('dispatches with event title + URL', async () => {
+    await sendEventApprovedEmail({
+      to: 'a@example.com',
+      eventTitle: 'Trad Night',
+      eventUrl: 'ceolx://events/123',
+    });
+    const call = vi.mocked(sendEmail).mock.calls[0]?.[0];
+    expect(call?.template).toBe('event-approved');
+    expect(call?.data).toMatchObject({
+      eventTitle: 'Trad Night',
+      eventUrl: 'ceolx://events/123',
+    });
+  });
+});
+
+describe('sendEventRejectedEmail', () => {
+  it('dispatches with reason (mandatory per R7.2)', async () => {
+    await sendEventRejectedEmail({
+      to: 'a@example.com',
+      eventTitle: 'Trad Night',
+      reason: 'Event date is in the past',
+      editUrl: 'ceolx://events/123/edit',
+    });
+    const call = vi.mocked(sendEmail).mock.calls[0]?.[0];
+    expect(call?.template).toBe('event-rejected');
+    expect(call?.data).toMatchObject({
+      eventTitle: 'Trad Night',
+      reason: 'Event date is in the past',
+      editUrl: 'ceolx://events/123/edit',
+    });
+  });
+});
