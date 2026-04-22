@@ -4,12 +4,17 @@ import { eq } from 'drizzle-orm';
 import { db } from '@CeolX/db';
 import { user } from '@CeolX/db/schema/auth';
 import { artistProfiles, profileSocialLinks, venueProfiles } from '@CeolX/db/schema/users';
+import { sendVenueActivationEmail } from '@CeolX/email';
 import {
   createArtistOnboardingSchema,
   createVenueOnboardingSchema,
 } from '@CeolX/shared/validators';
 
 import { protectedProcedure, router } from '../index';
+
+// Always points to the admin app's Stripe checkout page (R4.3 — the URL
+// lives in email only, never inside the mobile app, per Apple Rule 3.1.1).
+const VENUE_ACTIVATION_URL = 'https://ceolx.ie/subscribe';
 
 function isUniqueConstraintError(err: unknown): boolean {
   return (
@@ -165,6 +170,19 @@ export const onboardingRouter = router({
           message: 'Failed to create venue profile',
           cause: err,
         });
+      }
+
+      // R4.* + R8.5 — dispatch venue activation email. Failure must NOT
+      // roll back profile creation, so we log and continue.
+      try {
+        await sendVenueActivationEmail({
+          to: ctx.session.user.email,
+          userName: ctx.session.user.name ?? '',
+          venueName: input.venueName,
+          activationUrl: VENUE_ACTIVATION_URL,
+        });
+      } catch (emailErr) {
+        console.error('[onboarding.createVenueProfile] venue activation email failed', emailErr);
       }
 
       return { ok: true };

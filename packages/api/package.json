@@ -16,6 +16,7 @@
   "dependencies": {
     "@CeolX/auth": "workspace:*",
     "@CeolX/db": "workspace:*",
+    "@CeolX/email": "workspace:*",
     "@CeolX/env": "workspace:*",
     "@CeolX/shared": "workspace:*",
     "@trpc/client": "catalog:",
