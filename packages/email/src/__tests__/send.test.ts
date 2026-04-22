@@ -47,7 +47,8 @@ describe('sendEmail', () => {
       text: 'Verify your account',
     });
     expect(call.from).toContain('CeolX');
-    expect(call.from).toContain('noreply@ceolx.ie');
+    // R1.3 + AC-10: branded sender hello@ceolx.ie (not noreply — users may reply).
+    expect(call.from).toContain('hello@ceolx.ie');
   });
 
   it('re-throws transport errors', async () => {
