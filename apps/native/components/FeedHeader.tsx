@@ -3,6 +3,7 @@ import { cn } from 'heroui-native';
 import { Pressable, Text, View } from 'react-native';
 
 import { CeolxLogo } from './CeolxLogo';
+import { BellWithBadge } from './notifications/BellWithBadge';
 
 interface FeedHeaderProps {
   locationText?: string;
@@ -33,9 +34,7 @@ export function FeedHeader({
           <Pressable onPress={onBookmarkPress} hitSlop={8}>
             <Ionicons name="bookmark-outline" size={22} color="#FFFFFF" />
           </Pressable>
-          <Pressable onPress={onNotificationPress} hitSlop={8}>
-            <Ionicons name="notifications-outline" size={22} color="#FFFFFF" />
-          </Pressable>
+          {onNotificationPress && <BellWithBadge onPress={onNotificationPress} />}
         </View>
       </View>
 

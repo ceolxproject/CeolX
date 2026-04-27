@@ -123,6 +123,7 @@ export default function DiscoverScreen() {
         locationText={locationText}
         onCalendarPress={() => setFilterSheetVisible(true)}
         onFilterPress={() => setFilterSheetVisible(true)}
+        onNotificationPress={() => router.push('/notifications')}
       />
 
       {/* Search bar */}
