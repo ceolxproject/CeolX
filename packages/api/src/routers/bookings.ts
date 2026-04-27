@@ -5,7 +5,6 @@ import { db } from '@CeolX/db';
 import { user } from '@CeolX/db/schema/auth';
 import { bookings } from '@CeolX/db/schema/bookings';
 import { eventCollaborators, events } from '@CeolX/db/schema/events';
-import { notifications } from '@CeolX/db/schema/notifications';
 import { artistProfiles, venueProfiles } from '@CeolX/db/schema/users';
 import {
   BookingDirection,
@@ -48,6 +47,103 @@ const VALID_TRANSITIONS: Record<BookingStatusType, BookingStatusType[]> = {
   [BookingStatus.REJECTED]: [],
   [BookingStatus.CANCELLED]: [],
 };
+
+// ─── Notification copy helpers (M7-T0 matrix anchored) ───────────────────────
+// Date format mirrors the matrix's `{{date}}` placeholder. We anchor on
+// Europe/Dublin so the date a fan reads in their notification matches the
+// event's local date — and so test output is timezone-independent.
+
+function formatBookingDate(date: Date): string {
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+    timeZone: 'Europe/Dublin',
+  }).formatToParts(date);
+  const get = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((p) => p.type === type)?.value ?? '';
+  return `${get('weekday')} ${get('day')} ${get('month')}`;
+}
+
+interface BookingUpdateCopyArgs {
+  isArtist: boolean;
+  currentStatus: BookingStatusType;
+  newStatus: BookingStatusType;
+  artistName: string;
+  venueName: string;
+  eventTitle: string;
+  eventDate: Date;
+}
+
+function resolveBookingUpdateCopy(args: BookingUpdateCopyArgs): {
+  type: string;
+  title: string;
+  body: string;
+} {
+  const date = formatBookingDate(args.eventDate);
+  const event = args.eventTitle;
+  const isArtistActing = args.isArtist;
+
+  // V-10 / A-10
+  if (args.newStatus === BookingStatus.ACCEPTED) {
+    return isArtistActing
+      ? {
+          type: 'booking_accepted',
+          title: 'Booking Accepted ✓',
+          body: `${args.artistName} accepted your invite for "${event}" on ${date}.`,
+        }
+      : {
+          type: 'booking_accepted',
+          title: 'Booking Accepted ✓',
+          body: `${args.venueName} accepted your application for "${event}" on ${date}.`,
+        };
+  }
+  // V-11 / A-11
+  if (args.newStatus === BookingStatus.REJECTED) {
+    return isArtistActing
+      ? {
+          type: 'booking_rejected',
+          title: 'Invitation Declined',
+          body: `${args.artistName} can't make "${event}" on ${date}.`,
+        }
+      : {
+          type: 'booking_rejected',
+          title: 'Booking Not Accepted',
+          body: `${args.venueName} has passed on your application for "${event}".`,
+        };
+  }
+  // CANCELLED branch — depends on whether currentStatus was PENDING (withdraw)
+  // or ACCEPTED (post-acceptance cancel).
+  const isWithdraw = args.currentStatus === BookingStatus.PENDING;
+  if (isWithdraw) {
+    // V-13 (artist withdraws application). The inverse — venue withdrawing
+    // a pending invitation — has no matrix row; mirror the V-13 phrasing
+    // and flag for Pratiksha's audit.
+    return isArtistActing
+      ? {
+          type: 'booking_withdrawn',
+          title: 'Application Withdrawn',
+          body: `${args.artistName} withdrew their application for "${event}".`,
+        }
+      : {
+          type: 'booking_withdrawn',
+          title: 'Invitation Withdrawn',
+          body: `${args.venueName} withdrew the invitation for "${event}".`,
+        };
+  }
+  // V-12 / A-12 — accepted booking cancelled by counter-party
+  return isArtistActing
+    ? {
+        type: 'booking_cancelled',
+        title: 'Booking Cancelled',
+        body: `${args.artistName} cancelled "${event}" on ${date}.`,
+      }
+    : {
+        type: 'booking_cancelled',
+        title: 'Booking Cancelled',
+        body: `${args.venueName} cancelled "${event}" on ${date}.`,
+      };
+}
 
 export const bookingsRouter = router({
   // ─── Create booking (venue adds collaborator → booking auto-created) ────────
@@ -122,12 +218,12 @@ export const bookingsRouter = router({
       return booking;
     });
 
-    // 6. Create in-app notification for the artist
-    await db.insert(notifications).values({
+    // 6. Notify the artist (matrix A-09 — booking invitation received)
+    await ctx.dispatchNotification({
       userId: artistProfile.userId,
       type: 'booking_invitation',
-      title: 'New Booking Invitation',
-      body: `${venueProfile.venueName} invited you to perform at "${event.title}"`,
+      title: 'New booking invite',
+      body: `${venueProfile.venueName} invited you to play "${event.title}" on ${formatBookingDate(event.dateStart)}.`,
       persona: UserRole.ARTIST,
       route: `/bookings/${result.id}`,
     });
@@ -261,12 +357,12 @@ export const bookingsRouter = router({
         return booking;
       });
 
-      // 7. Notify venue
-      await db.insert(notifications).values({
+      // 7. Notify venue (matrix V-09 — booking request received)
+      await ctx.dispatchNotification({
         userId: venueProfile.userId,
         type: 'booking_request',
-        title: 'New Performance Request',
-        body: `${artistProfile.stageName} requested to perform at "${event.title}"`,
+        title: 'New booking request',
+        body: `${artistProfile.stageName} applied for "${event.title}" on ${formatBookingDate(event.dateStart)}.`,
         persona: UserRole.VENUE,
         route: `/bookings/${result.id}`,
       });
@@ -389,25 +485,26 @@ export const bookingsRouter = router({
       await db.delete(eventCollaborators).where(eq(eventCollaborators.bookingId, input.id));
     }
 
-    // 6. Create notification for other party
+    // 6. Notify the counter-party. Matrix rows: A-10/V-10 (accepted),
+    //    A-11/V-11 (rejected), V-13 (withdraw), A-12/V-12 (cancelled).
     const recipientUserId = isArtist ? booking.venue.userId : booking.artist.userId;
     const recipientPersona = isArtist ? UserRole.VENUE : UserRole.ARTIST;
-    const actionLabel =
-      newStatus === BookingStatus.ACCEPTED
-        ? 'accepted'
-        : newStatus === BookingStatus.REJECTED
-          ? 'declined'
-          : currentStatus === BookingStatus.PENDING
-            ? 'withdrew'
-            : 'cancelled';
 
-    const actorName = isArtist ? booking.artist.stageName : booking.venue.venueName;
+    const copy = resolveBookingUpdateCopy({
+      isArtist,
+      currentStatus,
+      newStatus,
+      artistName: booking.artist.stageName,
+      venueName: booking.venue.venueName,
+      eventTitle: booking.event?.title ?? 'event',
+      eventDate: booking.event?.dateStart ?? new Date(),
+    });
 
-    await db.insert(notifications).values({
+    await ctx.dispatchNotification({
       userId: recipientUserId,
-      type: 'booking_update',
-      title: 'Booking Update',
-      body: `${actorName} ${actionLabel} the booking for "${booking.event?.title ?? 'event'}"`,
+      type: copy.type,
+      title: copy.title,
+      body: copy.body,
       persona: recipientPersona,
       route: `/bookings/${booking.id}`,
     });
