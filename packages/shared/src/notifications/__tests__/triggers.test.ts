@@ -155,11 +155,33 @@ describe('buildNotification — email surface', () => {
 // ─── Interpolation guards ────────────────────────────────────────────────────
 
 describe('buildNotification — placeholder safety', () => {
-  it('every booking trigger has a {bookingId}-bearing route', () => {
-    for (const trigger of Object.values(NotificationTrigger)) {
+  const BOOKING_FLOW_TRIGGERS = [
+    NotificationTrigger.BOOKING_INVITE_TO_ARTIST,
+    NotificationTrigger.BOOKING_REQUEST_TO_VENUE,
+    NotificationTrigger.BOOKING_ACCEPTED_TO_ARTIST,
+    NotificationTrigger.BOOKING_ACCEPTED_TO_VENUE,
+    NotificationTrigger.BOOKING_REJECTED_TO_ARTIST,
+    NotificationTrigger.BOOKING_REJECTED_TO_VENUE,
+    NotificationTrigger.BOOKING_WITHDRAWN_TO_VENUE,
+    NotificationTrigger.BOOKING_WITHDRAWN_TO_ARTIST,
+    NotificationTrigger.BOOKING_CANCELLED_TO_ARTIST,
+    NotificationTrigger.BOOKING_CANCELLED_TO_VENUE,
+  ];
+
+  it('every booking-flow trigger has a {bookingId}-bearing route', () => {
+    for (const trigger of BOOKING_FLOW_TRIGGERS) {
       const def = NOTIFICATION_TRIGGERS[trigger];
       expect(def.routeTemplate).toContain('{bookingId}');
     }
+  });
+
+  it('event-scoped triggers (collaborator add, hosted-at-venue) route to /events/:id', () => {
+    expect(
+      NOTIFICATION_TRIGGERS[NotificationTrigger.ADDED_AS_COLLABORATOR_TO_ARTIST].routeTemplate
+    ).toBe('/events/{eventId}');
+    expect(
+      NOTIFICATION_TRIGGERS[NotificationTrigger.EVENT_HOSTED_AT_VENUE_TO_VENUE].routeTemplate
+    ).toBe('/events/{eventId}');
   });
 
   it('throws with the missing key name when vars are incomplete', () => {

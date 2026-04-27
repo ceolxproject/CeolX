@@ -38,6 +38,8 @@ export const NotificationTrigger = {
   BOOKING_WITHDRAWN_TO_ARTIST: 'booking_withdrawn_to_artist',
   BOOKING_CANCELLED_TO_ARTIST: 'booking_cancelled_to_artist',
   BOOKING_CANCELLED_TO_VENUE: 'booking_cancelled_to_venue',
+  ADDED_AS_COLLABORATOR_TO_ARTIST: 'added_as_collaborator_to_artist',
+  EVENT_HOSTED_AT_VENUE_TO_VENUE: 'event_hosted_at_venue_to_venue',
 } as const;
 
 export type NotificationTrigger = (typeof NotificationTrigger)[keyof typeof NotificationTrigger];
@@ -219,6 +221,41 @@ export const NOTIFICATION_TRIGGERS: Record<NotificationTrigger, TriggerDefinitio
     inApp: {
       title: 'Booking Cancelled',
       body: '{artistName} cancelled the confirmed booking for "{eventTitle}" on {date}.',
+    },
+    email: null,
+  },
+  // A-13 — Artist auto-added as a confirmed collaborator on a Venue event
+  // (no accept/reject step). Routes to the event itself.
+  [NotificationTrigger.ADDED_AS_COLLABORATOR_TO_ARTIST]: {
+    matrixRef: 'A-13',
+    type: 'collaborator_added',
+    persona: 'artist',
+    routeTemplate: '/events/{eventId}',
+    push: {
+      title: 'Added as collaborator',
+      body: '{venueName} added you as a collaborator on "{eventTitle}".',
+    },
+    inApp: {
+      title: 'Added as collaborator',
+      body: 'You\'re listed as a collaborator on "{eventTitle}" at {venueName} on {date}.',
+    },
+    email: null,
+  },
+  // No matrix row — fires when an Artist creates an event at a registered
+  // Venue's space (auto-confirms the venue side). Mirrors V-10 phrasing.
+  // Flag for Pratiksha's matrix audit.
+  [NotificationTrigger.EVENT_HOSTED_AT_VENUE_TO_VENUE]: {
+    matrixRef: 'off-matrix-event-hosted',
+    type: 'event_hosted_at_venue',
+    persona: 'venue',
+    routeTemplate: '/events/{eventId}',
+    push: {
+      title: 'New event at your venue',
+      body: '{artistName} created "{eventTitle}" at your venue on {date}.',
+    },
+    inApp: {
+      title: 'New event at your venue',
+      body: '{artistName} scheduled "{eventTitle}" at your venue on {date}.',
     },
     email: null,
   },
