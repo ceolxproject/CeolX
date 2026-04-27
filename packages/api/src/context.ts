@@ -1,22 +1,20 @@
 import type { Context as HonoContext } from 'hono';
 
 import { auth } from '@CeolX/auth';
-import type { NotificationPersona } from '@CeolX/shared';
+import type { NotificationTrigger } from '@CeolX/shared';
 
 // ─── Notification dispatcher (M7-T1) ─────────────────────────────────────────
-// The dispatcher is injected via context so packages/api routers can fan out
-// FCM pushes without importing from apps/server (which owns Firebase + QStash).
-// Real impl: apps/server/src/services/notifications-dispatcher.ts
+// Routers fan out push + inbox writes through `ctx.dispatchNotification`.
+// The trigger registry in @CeolX/shared/notifications resolves the right
+// title/body/persona/route per surface. Real impl lives in
+// apps/server/src/services/notifications-dispatcher.ts; tests inject vi.fn().
 // ─────────────────────────────────────────────────────────────────────────────
 
 export type DispatchNotificationInput = {
-  userId: string;
-  type: string;
-  title: string;
-  body: string;
-  route: string;
-  persona: NotificationPersona;
-  data?: Record<string, string>;
+  trigger: NotificationTrigger;
+  recipientUserId: string;
+  /** Template vars consumed by the trigger's copy + route (e.g. bookingId, eventTitle, date). */
+  vars: Record<string, string>;
 };
 
 export type DispatchNotificationFn = (input: DispatchNotificationInput) => Promise<void>;

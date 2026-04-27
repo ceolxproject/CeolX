@@ -1,48 +1,67 @@
 // Hoisted mocks — must be defined before imports that depend on them.
-const { mockInsertValues, mockSelectFromWhere, mockDb } = vi.hoisted(() => {
-  const mockInsertValues = vi.fn().mockResolvedValue(undefined);
+const {
+  mockNotificationsReturning,
+  mockNotificationUsersValues,
+  mockSelectFromWhere,
+  mockDb,
+  insertCalls,
+} = vi.hoisted(() => {
+  const mockNotificationsReturning = vi.fn().mockResolvedValue([{ id: 'n-1' }]);
+  const mockNotificationUsersValues = vi.fn().mockResolvedValue(undefined);
   const mockSelectFromWhere = vi.fn();
 
+  // Track which schema table each insert() targets so tests can route
+  // assertions properly. The dispatcher inserts twice (notifications, then
+  // notification_users); the schema mock below hands back a discriminator
+  // each call site can compare against.
+  const insertCalls: Array<'notifications' | 'notification_users'> = [];
+
   const mockDb = {
-    insert: vi.fn(() => ({ values: mockInsertValues })),
+    insert: vi.fn((schema: { __table: 'notifications' | 'notification_users' }) => {
+      insertCalls.push(schema.__table);
+      if (schema.__table === 'notifications') {
+        return {
+          values: vi.fn(() => ({ returning: mockNotificationsReturning })),
+        };
+      }
+      return { values: mockNotificationUsersValues };
+    }),
     select: vi.fn(() => ({
       from: vi.fn(() => ({ where: mockSelectFromWhere })),
     })),
   };
 
-  return { mockInsertValues, mockSelectFromWhere, mockDb };
+  return {
+    mockNotificationsReturning,
+    mockNotificationUsersValues,
+    mockSelectFromWhere,
+    mockDb,
+    insertCalls,
+  };
 });
 
 vi.mock('@CeolX/db', () => ({ db: mockDb }));
 
 vi.mock('@CeolX/db/schema/notifications', () => ({
-  notifications: {
-    id: 'id',
-    userId: 'user_id',
-    type: 'type',
-    title: 'title',
-    body: 'body',
-    route: 'route',
-    persona: 'persona',
-    isRead: 'is_read',
-    createdAt: 'created_at',
-  },
-  deviceTokens: {
-    id: 'id',
-    userId: 'user_id',
-    fcmToken: 'fcm_token',
-    platform: 'platform',
-  },
+  notifications: { __table: 'notifications', id: 'id' },
+  notificationUsers: { __table: 'notification_users', id: 'id' },
+  deviceTokens: { __table: 'device_tokens', fcmToken: 'fcm_token', userId: 'user_id' },
 }));
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import type { db as RealDb } from '@CeolX/db';
+import { NotificationTrigger } from '@CeolX/shared';
+
 import { makeDispatchNotification } from '../../services/notifications-dispatcher.js';
 
+const dbMock = mockDb as unknown as typeof RealDb;
 const mockPublishJob = vi.fn().mockResolvedValue(undefined);
 
 beforeEach(() => {
   vi.clearAllMocks();
+  insertCalls.length = 0;
+  mockNotificationsReturning.mockResolvedValue([{ id: 'n-1' }]);
 });
 
 afterEach(() => {
@@ -50,110 +69,125 @@ afterEach(() => {
 });
 
 const baseInput = {
-  userId: 'user-123',
-  type: 'booking_invitation',
-  title: 'New booking invite',
-  body: 'The Temple Bar invited you to play "Trad Night" on Sat 28 Mar.',
-  route: '/bookings/abc',
-  persona: 'artist' as const,
+  trigger: NotificationTrigger.BOOKING_INVITE_TO_ARTIST,
+  recipientUserId: 'user-123',
+  vars: {
+    bookingId: 'b-abc',
+    venueName: 'The Temple Bar',
+    artistName: 'Celtic Thunder',
+    eventTitle: 'Trad Night',
+    date: 'Fri 1 May',
+  },
 };
 
-describe('dispatchNotification — inbox row', () => {
-  it('always inserts an inbox row for the recipient with the matrix copy', async () => {
+// ─── Two-table writes (split schema) ─────────────────────────────────────────
+
+describe('dispatchNotification — split schema', () => {
+  it('writes the content row to notifications and the per-user row to notification_users', async () => {
     mockSelectFromWhere.mockResolvedValueOnce([]); // no device tokens
 
-    const dispatch = makeDispatchNotification({ db: mockDb, publishJob: mockPublishJob });
+    const dispatch = makeDispatchNotification({ db: dbMock, publishJob: mockPublishJob });
     await dispatch(baseInput);
 
-    expect(mockDb.insert).toHaveBeenCalledTimes(1);
-    expect(mockInsertValues).toHaveBeenCalledWith({
+    // notifications first (returns id), then notification_users
+    expect(insertCalls).toEqual(['notifications', 'notification_users']);
+
+    // The notification_users insert links the per-user row to the content id
+    // and the recipient — no copy fields here.
+    expect(mockNotificationUsersValues).toHaveBeenCalledWith({
+      notificationId: 'n-1',
       userId: 'user-123',
-      type: 'booking_invitation',
-      title: 'New booking invite',
-      body: 'The Temple Bar invited you to play "Trad Night" on Sat 28 Mar.',
-      route: '/bookings/abc',
-      persona: 'artist',
     });
   });
+
+  it('throws if the notifications insert returns no id (would orphan the join row)', async () => {
+    mockNotificationsReturning.mockResolvedValueOnce([]);
+
+    const dispatch = makeDispatchNotification({ db: dbMock, publishJob: mockPublishJob });
+
+    await expect(dispatch(baseInput)).rejects.toThrow(/no id/);
+    expect(mockNotificationUsersValues).not.toHaveBeenCalled();
+  });
 });
+
+// ─── Push fan-out (uses push variant copy) ──────────────────────────────────
 
 describe('dispatchNotification — push fan-out', () => {
   it('skips publishJob when the user has no device tokens', async () => {
     mockSelectFromWhere.mockResolvedValueOnce([]);
 
-    const dispatch = makeDispatchNotification({ db: mockDb, publishJob: mockPublishJob });
+    const dispatch = makeDispatchNotification({ db: dbMock, publishJob: mockPublishJob });
     await dispatch(baseInput);
 
     expect(mockPublishJob).not.toHaveBeenCalled();
   });
 
-  it('publishes one notification.push job per device token', async () => {
+  it('publishes one push job per token with the push body (shorter than in-app)', async () => {
     mockSelectFromWhere.mockResolvedValueOnce([
       { fcmToken: 'token-ios-1' },
       { fcmToken: 'token-android-1' },
-      { fcmToken: 'token-ios-2' },
     ]);
 
-    const dispatch = makeDispatchNotification({ db: mockDb, publishJob: mockPublishJob });
+    const dispatch = makeDispatchNotification({ db: dbMock, publishJob: mockPublishJob });
     await dispatch(baseInput);
 
-    expect(mockPublishJob).toHaveBeenCalledTimes(3);
-    for (const token of ['token-ios-1', 'token-android-1', 'token-ios-2']) {
+    expect(mockPublishJob).toHaveBeenCalledTimes(2);
+    for (const token of ['token-ios-1', 'token-android-1']) {
       expect(mockPublishJob).toHaveBeenCalledWith('notification.push', {
         deviceToken: token,
-        title: baseInput.title,
-        body: baseInput.body,
-        persona: baseInput.persona,
-        route: baseInput.route,
+        title: 'New booking invite',
+        // push variant — no "Respond before it expires."
+        body: 'The Temple Bar invited you to play "Trad Night" on Fri 1 May.',
+        persona: 'artist',
+        route: '/bookings/b-abc',
       });
     }
   });
 
-  it('forwards optional data payload to every push job', async () => {
+  it('different triggers resolve to different copy', async () => {
     mockSelectFromWhere.mockResolvedValueOnce([{ fcmToken: 'token-1' }]);
 
-    const dispatch = makeDispatchNotification({ db: mockDb, publishJob: mockPublishJob });
-    await dispatch({ ...baseInput, data: { bookingId: 'abc', actorId: 'venue-9' } });
-
-    expect(mockPublishJob).toHaveBeenCalledWith('notification.push', {
-      deviceToken: 'token-1',
-      title: baseInput.title,
-      body: baseInput.body,
-      persona: baseInput.persona,
-      route: baseInput.route,
-      data: { bookingId: 'abc', actorId: 'venue-9' },
+    const dispatch = makeDispatchNotification({ db: dbMock, publishJob: mockPublishJob });
+    await dispatch({
+      trigger: NotificationTrigger.BOOKING_REQUEST_TO_VENUE,
+      recipientUserId: 'venue-user-1',
+      vars: baseInput.vars,
     });
-  });
-
-  it('passes persona through unchanged (artist / venue / spectator)', async () => {
-    mockSelectFromWhere.mockResolvedValueOnce([{ fcmToken: 'token-1' }]);
-
-    const dispatch = makeDispatchNotification({ db: mockDb, publishJob: mockPublishJob });
-    await dispatch({ ...baseInput, persona: 'venue' });
 
     expect(mockPublishJob).toHaveBeenCalledWith(
       'notification.push',
-      expect.objectContaining({ persona: 'venue' })
+      expect.objectContaining({
+        title: 'New booking request',
+        body: 'Celtic Thunder applied for "Trad Night" on Fri 1 May.',
+        persona: 'venue',
+      })
     );
   });
 });
 
+// ─── Error propagation ───────────────────────────────────────────────────────
+
 describe('dispatchNotification — error propagation', () => {
-  it('rejects if the inbox insert fails (so callers can rollback)', async () => {
-    mockInsertValues.mockRejectedValueOnce(new Error('db down'));
-
-    const dispatch = makeDispatchNotification({ db: mockDb, publishJob: mockPublishJob });
-
-    await expect(dispatch(baseInput)).rejects.toThrow('db down');
-    expect(mockPublishJob).not.toHaveBeenCalled();
-  });
-
-  it('rejects if any publishJob fails (QStash will retry the job, not the caller)', async () => {
+  it('rejects if any publishJob fails (QStash retries the job, not the caller)', async () => {
     mockSelectFromWhere.mockResolvedValueOnce([{ fcmToken: 'token-1' }]);
     mockPublishJob.mockRejectedValueOnce(new Error('qstash 500'));
 
-    const dispatch = makeDispatchNotification({ db: mockDb, publishJob: mockPublishJob });
+    const dispatch = makeDispatchNotification({ db: dbMock, publishJob: mockPublishJob });
 
     await expect(dispatch(baseInput)).rejects.toThrow('qstash 500');
+  });
+
+  it('throws when vars are missing — surfaces matrix mismatches early', async () => {
+    mockSelectFromWhere.mockResolvedValueOnce([]);
+
+    const dispatch = makeDispatchNotification({ db: dbMock, publishJob: mockPublishJob });
+
+    await expect(
+      dispatch({
+        trigger: NotificationTrigger.BOOKING_INVITE_TO_ARTIST,
+        recipientUserId: 'user-123',
+        vars: { bookingId: 'b-1' }, // missing venueName/eventTitle/date
+      })
+    ).rejects.toThrow(/venueName/);
   });
 });
