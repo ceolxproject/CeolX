@@ -526,7 +526,8 @@ export const update = protectedProcedure
         setValues.adDescription = updateData.adDescription;
 
       // If event was removed by admin and creator is resubmitting, re-activate
-      if (event.status === EventStatus.REMOVED) {
+      const isResubmit = event.status === EventStatus.REMOVED;
+      if (isResubmit) {
         setValues.status = EventStatus.ACTIVE;
         setValues.removalReason = null;
       }
@@ -539,6 +540,21 @@ export const update = protectedProcedure
 
       const result = rows[0];
       if (!result) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Update failed' });
+
+      if (isResubmit) {
+        // Matrix A-16 / V-15 — confirm resubmission to the creator. Queued
+        // here, fired post-commit alongside any collaborator dispatches.
+        pendingDispatches.push({
+          trigger: isVenue
+            ? NotificationTrigger.EVENT_RESUBMITTED_TO_VENUE
+            : NotificationTrigger.EVENT_RESUBMITTED_TO_ARTIST,
+          recipientUserId: ctx.userId,
+          vars: {
+            eventId: result.id,
+            eventTitle: result.title,
+          },
+        });
+      }
 
       // Update collaborators if provided — for venues, create bookings for new additions
       // Removal is handled through the booking flow (reject/withdraw/cancel), not event edit
