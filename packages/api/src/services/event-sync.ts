@@ -4,6 +4,7 @@ import { db } from '@CeolX/db';
 import { events, savedEvents } from '@CeolX/db/schema/events';
 import type { Event } from '@CeolX/db/schema/events';
 import { artistProfiles, venueProfiles } from '@CeolX/db/schema/users';
+import { EventStatus } from '@CeolX/shared';
 
 import { typesenseClient } from '../lib/typesense';
 
@@ -96,7 +97,7 @@ export async function bulkSyncEventsToTypesense(): Promise<{ synced: number }> {
     .from(events)
     .leftJoin(artistProfiles, eq(artistProfiles.userId, events.createdBy))
     .leftJoin(venueProfiles, eq(venueProfiles.userId, events.createdBy))
-    .where(and(eq(events.status, 'active'), gte(events.dateStart, new Date())));
+    .where(and(eq(events.status, EventStatus.ACTIVE), gte(events.dateStart, new Date())));
 
   if (rows.length === 0) {
     return { synced: 0 };

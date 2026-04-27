@@ -5,6 +5,7 @@ import { db } from '@CeolX/db';
 import { user } from '@CeolX/db/schema/auth';
 import { artistProfiles, profileSocialLinks, venueProfiles } from '@CeolX/db/schema/users';
 import { sendVenueActivationEmail } from '@CeolX/email';
+import { SubscriptionStatus, UserRole } from '@CeolX/shared';
 import {
   createArtistOnboardingSchema,
   createVenueOnboardingSchema,
@@ -38,7 +39,7 @@ export const onboardingRouter = router({
 
       const [userRow] = await db.select().from(user).where(eq(user.id, userId)).limit(1);
 
-      if (!userRow || userRow.currentRole !== 'artist') {
+      if (!userRow || userRow.currentRole !== UserRole.ARTIST) {
         throw new TRPCError({
           code: 'FORBIDDEN',
           message: 'Only users with the artist role can create an artist profile',
@@ -113,7 +114,7 @@ export const onboardingRouter = router({
 
       const [userRow] = await db.select().from(user).where(eq(user.id, userId)).limit(1);
 
-      if (!userRow || userRow.currentRole !== 'venue') {
+      if (!userRow || userRow.currentRole !== UserRole.VENUE) {
         throw new TRPCError({
           code: 'FORBIDDEN',
           message: 'Only users with the venue role can create a venue profile',
@@ -141,7 +142,7 @@ export const onboardingRouter = router({
             address: input.address,
             bio: input.bio ?? null,
             contactEmail: input.contactEmail ?? null,
-            subscriptionStatus: 'inactive',
+            subscriptionStatus: SubscriptionStatus.INACTIVE,
             isActive: false,
           });
 

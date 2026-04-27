@@ -1,3 +1,4 @@
+import { EventStatus } from '../enums.js';
 import type { ArtistSummary, VenueSummary, EventSummary } from '../types.js';
 
 export function isArtistProfile(profile: unknown): profile is ArtistSummary {
@@ -19,5 +20,5 @@ export function isVenueProfile(profile: unknown): profile is VenueSummary {
 }
 
 export function isEventActive(event: EventSummary): boolean {
-  return event.status === 'active' && new Date(event.dateStart) > new Date();
+  return event.status === EventStatus.ACTIVE && new Date(event.dateStart) > new Date();
 }

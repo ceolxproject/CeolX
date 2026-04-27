@@ -17,6 +17,11 @@ const config = {
     supportsTablet: false,
     bundleIdentifier: 'ie.ceolx.app',
     usesAppleSignIn: true,
+    // Universal Links target. Activation requires `apple-app-site-association`
+    // hosted at https://ceolx.ie/.well-known/apple-app-site-association — tracked
+    // with the M10-T1 / admin-redirect work; until then, in-app `ceolx://post/...`
+    // still routes correctly.
+    associatedDomains: ['applinks:ceolx.ie'],
     infoPlist: {
       NSLocationWhenInUseUsageDescription:
         'CeolX uses your location to show nearby Irish music events',
@@ -45,6 +50,17 @@ const config = {
       'android.permission.CAMERA',
       'android.permission.READ_EXTERNAL_STORAGE',
       'android.permission.RECORD_AUDIO',
+    ],
+    // App Links for shared post URLs. Full verification requires
+    // assetlinks.json hosted at https://ceolx.ie/.well-known/assetlinks.json
+    // (pending admin-app work).
+    intentFilters: [
+      {
+        action: 'VIEW',
+        autoVerify: true,
+        data: [{ scheme: 'https', host: 'ceolx.ie', pathPrefix: '/post' }],
+        category: ['BROWSABLE', 'DEFAULT'],
+      },
     ],
   },
   web: {

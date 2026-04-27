@@ -6,22 +6,35 @@ import {
   FlatList,
   Pressable,
   RefreshControl,
+  ScrollView,
   Text,
   TextInput,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import type { DateRangeOption, EventCategory } from '@CeolX/shared';
+import { DATE_RANGE_LABELS, DATE_RANGE_OPTIONS, EVENT_CATEGORIES } from '@CeolX/shared';
+import { UserRole } from '@CeolX/shared/enums';
+
 import { FeedEventCard } from '@/components/FeedEventCard';
-import { FeedFilterSheet } from '@/components/FeedFilterSheet';
-import type { FeedFilters } from '@/components/FeedFilterSheet';
 import { FeedHeader } from '@/components/FeedHeader';
+import { FilterSheet } from '@/components/FilterSheet';
+import type { FilterSection } from '@/components/FilterSheet';
+import { PostsList } from '@/components/posts/PostsList';
 import { SegmentToggle } from '@/components/SegmentToggle';
 import { useFeedEvents } from '@/hooks/use-feed-events';
+import { useFeedPosts } from '@/hooks/use-feed-posts';
 import { useGpsRegion } from '@/hooks/use-gps-region';
+import { useMe } from '@/hooks/use-me';
 import { authClient } from '@/lib/auth-client';
 
 const SEGMENTS = ['Events', 'Posts'];
+
+const FEED_FILTER_SECTIONS: FilterSection[] = [
+  { key: 'dateRange', label: 'When', options: DATE_RANGE_OPTIONS, labels: DATE_RANGE_LABELS },
+  { key: 'category', label: 'Category', options: EVENT_CATEGORIES },
+];
 
 export default function DiscoverScreen() {
   const router = useRouter();
@@ -30,7 +43,11 @@ export default function DiscoverScreen() {
   const [activeSegment, setActiveSegment] = useState(0);
   const [filterSheetVisible, setFilterSheetVisible] = useState(false);
 
-  const isArtist = session?.user?.currentRole === 'artist';
+  const isArtist = session?.user?.currentRole === UserRole.ARTIST;
+
+  const { data: me } = useMe();
+
+  const feedPosts = useFeedPosts({ enabled: activeSegment === 1 });
 
   const {
     events,
@@ -67,14 +84,14 @@ export default function DiscoverScreen() {
   );
 
   const handleFiltersApply = useCallback(
-    (filters: FeedFilters) => {
-      setCategory(filters.category);
-      setDateRange(filters.dateRange);
+    (filters: Record<string, string | undefined>) => {
+      setCategory(filters.category as EventCategory | undefined);
+      setDateRange(filters.dateRange as DateRangeOption | undefined);
     },
     [setCategory, setDateRange]
   );
 
-  const currentFilters: FeedFilters = { category, dateRange };
+  const currentFilters: Record<string, string | undefined> = { category, dateRange };
   const hasActiveFilters = !!(category || dateRange);
 
   const locationText =
@@ -231,26 +248,37 @@ export default function DiscoverScreen() {
         </>
       )}
 
-      {/* Posts tab content (placeholder) */}
+      {/* Posts tab content */}
       {activeSegment === 1 && (
-        <View
-          style={{
-            flex: 1,
-            alignItems: 'center',
-            justifyContent: 'center',
-            backgroundColor: '#080808',
-          }}
+        <ScrollView
+          style={{ flex: 1, backgroundColor: '#080808' }}
+          contentContainerStyle={{ paddingTop: 16, paddingBottom: 32, flexGrow: 1 }}
+          refreshControl={
+            <RefreshControl
+              refreshing={feedPosts.isFetchingNextPage}
+              onRefresh={feedPosts.refresh}
+              tintColor="#C8FF2F"
+            />
+          }
+          showsVerticalScrollIndicator={false}
         >
-          <Ionicons name="chatbubbles-outline" size={48} color="rgba(255,255,255,0.2)" />
-          <Text className="text-white/40 text-center text-sm font-urbanist mt-4">
-            Posts coming soon
-          </Text>
-        </View>
+          <PostsList
+            posts={feedPosts.posts}
+            isLoading={feedPosts.isLoading}
+            isFetchingNextPage={feedPosts.isFetchingNextPage}
+            hasNextPage={feedPosts.hasNextPage}
+            currentUserId={me?.id ?? null}
+            onLoadMore={feedPosts.loadMore}
+            emptyMessage="No posts yet. Follow artists and venues to see their updates here."
+          />
+        </ScrollView>
       )}
 
-      <FeedFilterSheet
+      <FilterSheet
         visible={filterSheetVisible}
         filters={currentFilters}
+        sections={FEED_FILTER_SECTIONS}
+        variant="dark"
         onApply={handleFiltersApply}
         onClose={() => setFilterSheetVisible(false)}
       />

@@ -2,6 +2,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { Image, Pressable, Text, View } from 'react-native';
 
+import { getMockEventImage } from '@/utils/mock-images';
+
 interface EventPreviewCardProps {
   event: {
     id: string;
@@ -27,16 +29,10 @@ export function EventPreviewCard({ event, onDismiss }: EventPreviewCardProps) {
         className="flex-row items-center gap-3"
         onPress={() => router.push(`/(app)/(tabs)/map/event/${event.id}`)}
       >
-        {event.coverImageUrl ? (
-          <Image
-            source={{ uri: event.coverImageUrl }}
-            className="w-12 h-12 rounded-[10px] bg-[#E8E8E8]"
-          />
-        ) : (
-          <View className="w-12 h-12 rounded-[10px] bg-blue-2 items-center justify-center">
-            <Text className="text-xl">🎵</Text>
-          </View>
-        )}
+        <Image
+          source={event.coverImageUrl ? { uri: event.coverImageUrl } : getMockEventImage(event.id)}
+          className="w-12 h-12 rounded-[10px] bg-[#E8E8E8]"
+        />
         <View className="flex-1 gap-0.5">
           <Text className="text-[15px] font-semibold text-[#1A1A1A]" numberOfLines={1}>
             {event.title}

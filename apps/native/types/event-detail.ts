@@ -38,6 +38,7 @@ export interface EventDetailData {
   lng: number;
   venueAddress?: string | null;
   venueId?: string | null;
+  venueUserId?: string | null;
   category: string;
   coverImage?: string | null;
   coverImageUrl?: string | null;

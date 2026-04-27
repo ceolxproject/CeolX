@@ -1,17 +1,20 @@
 import { Ionicons } from '@expo/vector-icons';
 import { cn } from 'heroui-native';
-import { Image, Text, View } from 'react-native';
+import { Image, Pressable, Text, View } from 'react-native';
 
 import type { EventDetailArtist } from '@/types/event-detail';
+import { MOCK_PROFILE_IMAGE } from '@/utils/mock-images';
 
 interface PerformingArtistCardProps {
   artist: EventDetailArtist;
+  onPress?: () => void;
   className?: string;
 }
 
-export function PerformingArtistCard({ artist, className }: PerformingArtistCardProps) {
+export function PerformingArtistCard({ artist, onPress, className }: PerformingArtistCardProps) {
   return (
-    <View
+    <Pressable
+      onPress={onPress}
       className={cn(
         'w-[138px] h-[177px] rounded-lg border border-[#3a3a3a] bg-[rgba(141,141,141,0.3)] overflow-hidden items-center',
         className
@@ -19,15 +22,10 @@ export function PerformingArtistCard({ artist, className }: PerformingArtistCard
     >
       {/* Avatar */}
       <View className="mt-4">
-        {artist.profileImageUrl ? (
-          <Image source={{ uri: artist.profileImageUrl }} className="w-16 h-16 rounded-full" />
-        ) : (
-          <View className="w-16 h-16 rounded-full bg-gray-10/50 items-center justify-center">
-            <Text className="text-2xl text-white font-sans">
-              {artist.stageName.charAt(0).toUpperCase()}
-            </Text>
-          </View>
-        )}
+        <Image
+          source={artist.profileImageUrl ? { uri: artist.profileImageUrl } : MOCK_PROFILE_IMAGE}
+          className="w-16 h-16 rounded-full"
+        />
       </View>
 
       {/* Name */}
@@ -53,6 +51,6 @@ export function PerformingArtistCard({ artist, className }: PerformingArtistCard
         <Ionicons name="ticket-outline" size={12} color="#CED1D8" />
         <Text className="text-[13px] text-[#CED1D8] font-sans">{artist.eventCount} events</Text>
       </View>
-    </View>
+    </Pressable>
   );
 }

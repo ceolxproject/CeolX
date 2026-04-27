@@ -1,5 +1,6 @@
-import { cn } from 'heroui-native';
 import { Image, Text, View } from 'react-native';
+
+import { getMockEventImage } from '@/utils/mock-images';
 
 type SinglePinProps = {
   type: 'single';
@@ -33,13 +34,11 @@ export function MapEventPin(props: MapEventPinProps) {
 
   const PinContent = () => (
     <View className="border-2 border-white overflow-hidden" style={pinStyle}>
-      {coverImageUrl ? (
-        <Image source={{ uri: coverImageUrl }} style={pinStyle} resizeMode="cover" />
-      ) : (
-        <View className={cn('bg-[#C8FF2F] items-center justify-center')} style={pinStyle}>
-          <Text className="text-[18px]">{categoryIcon ?? '🎵'}</Text>
-        </View>
-      )}
+      <Image
+        source={coverImageUrl ? { uri: coverImageUrl } : getMockEventImage(category ?? 'pin')}
+        style={pinStyle}
+        resizeMode="cover"
+      />
     </View>
   );
 

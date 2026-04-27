@@ -67,16 +67,16 @@ Tracks completed tasks per milestone. Each entry links to its PR.
 
 ## M5 — Booking Flow (Artist ↔ Venue)
 
-- [ ] M5-T1 · Venue-Initiated Booking
-- [ ] M5-T2 · Artist-Initiated Booking
-- [ ] M5-T3 · Cancel Flow & State Machine
+- [x] M5-T1 · Venue-Initiated Booking — PR #40
+- [x] M5-T2 · Artist-Initiated Booking — PR #41
+- [x] M5-T3 · Cancel Flow & State Machine — PR #42
 
 ## M6 — Profiles & Social
 
-- [ ] M6-T1 · Artist Profile
-- [ ] M6-T2 · Venue Profile
-- [ ] M6-T3 · Follow System
-- [ ] M6-T4 · Posts & Promotional Content
+- [x] M6-T1 · Artist Profile — PR #43
+- [x] M6-T2 · Venue Profile — PR #44
+- [x] M6-T3 · Follow System — PR #45
+- [x] M6-T4 · Posts & Promotional Content — PR #46
 
 ## M7 — Push Notifications & Emails
 
