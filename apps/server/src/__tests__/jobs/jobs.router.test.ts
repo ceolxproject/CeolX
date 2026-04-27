@@ -31,7 +31,7 @@ afterEach(() => {
 
 describe('routeJob', () => {
   it('dispatches email.send to handleEmailSend', async () => {
-    const payload = { to: 'a@b.com', template: 'email-verification' };
+    const payload = { to: 'a@b.com', template: 'verification' };
     await routeJob(JSON.stringify({ type: 'email.send', payload }));
     expect(mockHandleEmailSend).toHaveBeenCalledOnce();
   });
@@ -51,7 +51,7 @@ describe('routeJob', () => {
       routeJob(
         JSON.stringify({
           type: 'email.send',
-          payload: { to: 'bad', template: 'email-verification' },
+          payload: { to: 'bad', template: 'verification' },
         })
       )
     ).rejects.toThrow();

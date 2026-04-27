@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 
 import { routeJob } from '../jobs/handlers/index.js';
 import { verifyQStashSignature } from '../jobs/verify.js';
+import { logPostmarkEvent, parsePostmarkEvent } from '../lib/postmark-webhook.js';
 
 const webhooksRoutes = new Hono<{ Variables: { rawBody: string } }>();
 
@@ -10,10 +11,37 @@ webhooksRoutes.post('/stripe', (c) =>
   c.json({ message: 'not implemented', route: 'POST /api/webhooks/stripe' })
 );
 
-// TODO M7: wire Postmark bounce and spam complaint handler
-webhooksRoutes.post('/postmark', (c) =>
-  c.json({ message: 'not implemented', route: 'POST /api/webhooks/postmark' })
-);
+/**
+ * Postmark inbound webhook for bounce + spam-complaint events.
+ *
+ * Auth: HTTP Basic with username `postmark` and password = POSTMARK_WEBHOOK_SECRET.
+ * Configure the matching credentials in Postmark dashboard → Servers →
+ * Webhooks → Authentication.
+ *
+ * Postmark's own suppression list handles future-send blocking automatically;
+ * this handler exists so we have an observable record of bounces and
+ * complaints, and a future hook point to flag the user in-app (deferred).
+ */
+webhooksRoutes.post('/postmark', async (c) => {
+  const secret = process.env.POSTMARK_WEBHOOK_SECRET;
+  if (!secret) {
+    return c.json({ error: 'webhook not configured' }, 503);
+  }
+
+  const expected = `Basic ${Buffer.from(`postmark:${secret}`).toString('base64')}`;
+  if (c.req.header('authorization') !== expected) {
+    return c.json({ error: 'unauthorized' }, 401);
+  }
+
+  const body = (await c.req.json().catch(() => null)) as Record<string, unknown> | null;
+  if (!body) {
+    return c.json({ error: 'invalid json' }, 400);
+  }
+
+  const event = parsePostmarkEvent(body);
+  logPostmarkEvent(event);
+  return c.json({ received: true, kind: event.kind }, 200);
+});
 
 webhooksRoutes.post('/qstash', verifyQStashSignature, async (c) => {
   const rawBody = c.get('rawBody');
