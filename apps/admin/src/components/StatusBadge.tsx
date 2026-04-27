@@ -7,6 +7,7 @@ const STATUS_LABEL: Record<EventStatus, string> = {
   rejected: 'Rejected',
   active: 'Live',
   archived: 'Archived',
+  removed: 'Removed',
 };
 
 const STATUS_CLASS: Record<EventStatus, string> = {
@@ -15,6 +16,7 @@ const STATUS_CLASS: Record<EventStatus, string> = {
   rejected: 'bg-destructive/20 text-destructive border-destructive/40',
   active: 'bg-success/20 text-success border-success/40',
   archived: 'bg-muted text-muted-foreground',
+  removed: 'bg-destructive/20 text-destructive border-destructive/40',
 };
 
 interface StatusBadgeProps {
