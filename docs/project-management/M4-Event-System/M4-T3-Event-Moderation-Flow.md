@@ -174,6 +174,69 @@ Restore a removed event back to active (optional admin action).
 - Verify auth token and role on every endpoint call
 - Log all remove/restore actions (admin_id, event_id, action, timestamp, reason)
 
+### Notification dispatch (deferred from M7-T1)
+
+The FCM dispatcher already exists as `ctx.dispatchNotification` (shipped
+in M7-T1, see `apps/server/src/services/notifications-dispatcher.ts`). It
+inserts the in-app inbox row and fans out push to every device token in a
+single call. **M4-T3 does NOT need to add Firebase code, register tokens,
+or talk to QStash directly** — just call the helper from the right
+mutations.
+
+This task owns wiring the following **M7-T0 matrix push rows**:
+
+| Row             | Trigger                                            | Recipient                       | Where to call                                                                                                |
+| --------------- | -------------------------------------------------- | ------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| **A-15 / V-14** | Admin removes event (with reason)                  | Event creator (artist or venue) | the `removeEvent` admin mutation, after the `status → removed` update                                        |
+| **A-16 / V-15** | Creator resubmits removed event (REMOVED → ACTIVE) | Event creator                   | `packages/api/src/routers/events/crud.ts:498` — inside the `update` branch that re-activates a removed event |
+| **U-03**        | Cascade: every user who saved this event           | All saving users                | inside the `removeEvent` mutation, after the row update — **depends on M4-T5 `saved_events` table**          |
+
+Canonical copy for each row lives in
+`docs/project-management/M7-Notifications-Emails/M7-T0-Notifications-Matrix.xlsx`
+(Artist sheet rows A-15 / A-16, Venue sheet rows V-14 / V-15, Universal U-03).
+
+#### Call pattern
+
+```ts
+// Inside the removeEvent mutation, after `status → removed`
+const creatorPersona =
+  creator.currentRole === UserRole.ARTIST
+    ? UserRole.ARTIST // matrix A-15
+    : UserRole.VENUE; // matrix V-14
+
+await ctx.dispatchNotification({
+  userId: event.createdBy,
+  type: 'event_removed',
+  title: 'Your event needs revision',
+  body: `Moderation removed "${event.title}". Reason: ${reason}.`,
+  persona: creatorPersona,
+  route: `/events/${event.id}`,
+});
+
+// U-03 cascade — once M4-T5 ships the saved_events table:
+const savers = await db
+  .select({ userId: savedEvents.userId })
+  .from(savedEvents)
+  .where(eq(savedEvents.eventId, event.id));
+
+await Promise.all(
+  savers.map((s) =>
+    ctx.dispatchNotification({
+      userId: s.userId,
+      type: 'saved_event_removed',
+      title: 'Event removed',
+      body: `"${event.title}" has been removed.`,
+      persona: 'spectator', // U-03 is universal — see matrix Section 5
+      route: `/events/${event.id}`,
+    })
+  )
+);
+```
+
+The dispatcher silently no-ops if the recipient has no registered device
+tokens (sign-in pending, push permission denied, etc.) — no defensive
+`if (token)` check needed at the call site.
+
 ---
 
 ## Acceptance Criteria
@@ -277,19 +340,17 @@ app.post('/admin/events/:id/remove', zValidator('json', RemoveSchema), async (c)
     .where(eq(events.id, eventId))
     .returning();
 
-  // Notify creator via FCM
-  const creatorUser = await db.query.users.findFirst({
-    where: eq(users.id, event.created_by),
+  // Notify creator via FCM dispatcher (M7-T1 — see "Notification dispatch"
+  // section above for the full row mapping). The dispatcher writes the inbox
+  // row AND fans out push to all of the recipient's device tokens.
+  await ctx.dispatchNotification({
+    userId: event.created_by,
+    type: 'event_removed',
+    title: 'Your event needs revision',
+    body: `Moderation removed "${event.title}". Reason: ${reason}.`,
+    persona: event.creator_type, // 'artist' (A-15) or 'venue' (V-14)
+    route: `/events/${event.id}`,
   });
-
-  if (creatorUser?.device_token) {
-    await sendFCMNotification({
-      token: creatorUser.device_token,
-      title: 'Event Removed',
-      body: `Your event "${event.title}" was removed: ${reason}`,
-      data: { persona: event.creator_type, route: `/events/${event.id}` },
-    });
-  }
 
   console.log(`[ADMIN] Event ${eventId} removed by ${session.user.id}: ${reason}`);
   return c.json({
