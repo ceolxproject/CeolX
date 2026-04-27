@@ -100,11 +100,12 @@ function authedContext(role: UserRole = 'spectator', userId = USER_ID): Context 
         userAgent: null,
       },
     },
+    dispatchNotification: vi.fn(async () => {}),
   };
 }
 
 function anonContext(): Context {
-  return { session: null };
+  return { session: null, dispatchNotification: vi.fn(async () => {}) };
 }
 
 async function expectTRPCError(promise: Promise<unknown>, code: TRPCError['code']): Promise<void> {

@@ -17,6 +17,7 @@ import { isAllowedOrigin } from './config/cors';
 import { errorHandler } from './middleware/errorHandler';
 import locationRoutes from './routes/location';
 import webhooksRoutes from './routes/webhooks';
+import { dispatchNotification } from './services/notifications-dispatcher';
 
 const app = new Hono();
 
@@ -59,7 +60,7 @@ app.use(
   '/trpc/*',
   trpcServer({
     router: appRouter,
-    createContext: (_opts, context) => createContext({ context }),
+    createContext: (_opts, context) => createContext({ context, dispatchNotification }),
     onError: ({ error, path }) => {
       if (error.code === 'INTERNAL_SERVER_ERROR') {
         Sentry.captureException(error, {
