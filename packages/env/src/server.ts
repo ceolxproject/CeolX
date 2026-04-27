@@ -33,6 +33,16 @@ export const env = createEnv({
     TYPESENSE_API_KEY: z.string().min(1),
     TYPESENSE_PORT: z.coerce.number().default(443),
     TYPESENSE_PROTOCOL: z.enum(['http', 'https']).default('https'),
+    AWS_REGION: z.string().optional(),
+    AWS_ACCESS_KEY_ID: z.string().optional(),
+    AWS_SECRET_ACCESS_KEY: z.string().optional(),
+    S3_BUCKET_NAME: z.string().optional(),
+    CLOUDFRONT_DOMAIN: z.string().optional(),
+    // Firebase Cloud Messaging — used by apps/server/src/lib/firebase-admin
+    // and the notification.push QStash handler. Optional so the server boots
+    // in dev/test without push set up; getMessaging() throws on first use.
+    FIREBASE_PROJECT_ID: z.string().optional(),
+    FIREBASE_SERVICE_ACCOUNT_KEY: z.string().optional(),
   },
   runtimeEnv: process.env,
   emptyStringAsUndefined: true,

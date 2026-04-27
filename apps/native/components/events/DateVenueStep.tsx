@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
 
-import { CalendarPickerModal } from '@/components/events/CalendarPickerModal';
+import { CalendarPicker } from '@/components/events/CalendarPicker';
 import { TimePickerModal } from '@/components/events/TimePickerModal';
 import { trpc } from '@/utils/trpc';
 
@@ -47,15 +47,6 @@ type Props = {
   /** When true, skip auto-pre-fill (user is editing an existing event with its own location) */
   isEditing?: boolean;
 };
-
-function formatDate(date: Date): string {
-  return date.toLocaleDateString('en-IE', {
-    weekday: 'short',
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  });
-}
 
 function formatTime(date: Date): string {
   return date.toLocaleTimeString('en-IE', {
@@ -92,7 +83,6 @@ export function DateVenueStep({
   const mapRef = useRef<MapView>(null);
 
   // Picker visibility state
-  const [showDatePicker, setShowDatePicker] = useState(false);
   const [showStartTimePicker, setShowStartTimePicker] = useState(false);
   const [showEndTimePicker, setShowEndTimePicker] = useState(false);
 
@@ -201,21 +191,12 @@ export function DateVenueStep({
         {/* ── Date ── */}
         <View className="gap-1.5">
           <Text className="text-sm font-semibold text-gray-3 font-urbanist">Date</Text>
-          <Pressable
-            className={cn(
-              'flex-row items-center justify-between rounded-lg border px-4 py-3 bg-surface',
-              errors.dateStart ? 'border-error' : 'border-gray-8'
-            )}
-            onPress={() => setShowDatePicker(true)}
-          >
-            <Text className={cn('text-sm font-urbanist', dateStart ? 'text-white' : 'text-gray-7')}>
-              {dateStart ? formatDate(dateStart) : 'Select Date'}
-            </Text>
-            <Ionicons name="chevron-forward" size={16} color="#8d8d8d" />
-          </Pressable>
-          {errors.dateStart && (
-            <Text className="text-xs text-error font-urbanist">{errors.dateStart}</Text>
-          )}
+          <CalendarPicker
+            value={dateStart}
+            onChange={onDateStartChange}
+            minimumDate={new Date()}
+            error={errors.dateStart}
+          />
         </View>
 
         {/* ── Time ── */}
@@ -464,18 +445,6 @@ export function DateVenueStep({
           </Pressable>
         </View>
       </ScrollView>
-
-      {/* Date picker — custom calendar bottom sheet */}
-      <CalendarPickerModal
-        visible={showDatePicker}
-        value={dateStart}
-        minimumDate={new Date()}
-        onSelect={(date) => {
-          onDateStartChange(date);
-          setShowDatePicker(false);
-        }}
-        onClose={() => setShowDatePicker(false)}
-      />
 
       {/* Start time picker */}
       <TimePickerModal

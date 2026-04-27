@@ -19,7 +19,7 @@ describe('jobPayloadSchemas', () => {
     it('defaults locale to en when omitted', () => {
       const result = jobPayloadSchemas['email.send'].parse({
         to: 'user@example.com',
-        template: 'email-verification',
+        template: 'verification',
       });
       expect(result.locale).toBe('en');
     });
@@ -37,7 +37,7 @@ describe('jobPayloadSchemas', () => {
     it('rejects an invalid email address', () => {
       const result = jobPayloadSchemas['email.send'].safeParse({
         to: 'not-an-email',
-        template: 'email-verification',
+        template: 'verification',
       });
       expect(result.success).toBe(false);
     });

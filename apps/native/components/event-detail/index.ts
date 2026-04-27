@@ -11,4 +11,5 @@ export { OwnerActionBar } from './OwnerActionBar';
 export { PerformingArtistCard } from './PerformingArtistCard';
 export { SectionDivider } from './SectionDivider';
 export { StickyBottomBar } from './StickyBottomBar';
+export { EventDetailScreen } from './EventDetailScreen';
 export { EventDetailView } from './EventDetailView';

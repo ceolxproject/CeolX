@@ -4,7 +4,7 @@ import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 
 import { db } from '@CeolX/db';
 import * as schema from '@CeolX/db/schema/auth';
-import { sendEmail, sendPasswordResetEmail } from '@CeolX/email';
+import { sendPasswordResetEmail, sendVerificationEmail } from '@CeolX/email';
 import { env } from '@CeolX/env/server';
 
 import { generateAppleClientSecret } from './apple-secret.js';
@@ -44,15 +44,7 @@ export const auth = betterAuth({
     expiresIn: 60 * 60 * 24, // 24 hours
     sendVerificationEmail: async ({ user, url }) => {
       const deepLink = buildVerificationDeepLink(url);
-
-      await sendEmail({
-        to: user.email,
-        template: 'verification',
-        data: {
-          userName: user.name ?? '',
-          verificationUrl: deepLink,
-        },
-      });
+      await sendVerificationEmail(user.email, deepLink, user.name ?? '');
     },
   },
   rateLimit: {

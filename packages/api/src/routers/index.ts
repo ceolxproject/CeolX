@@ -4,8 +4,12 @@ import { adminRouter } from './admin';
 import { artistsRouter } from './artists';
 import { bookingsRouter } from './bookings';
 import { collectionsRouter } from './collections';
+import { deviceTokensRouter } from './device-tokens';
 import { eventsRouter } from './events';
+import { followsRouter } from './follows';
+import { notificationsRouter } from './notifications';
 import { onboardingRouter } from './onboarding';
+import { postsRouter } from './posts';
 import { stripeRouter } from './stripe';
 import { usersRouter } from './users';
 import { venuesRouter } from './venues';
@@ -18,6 +22,10 @@ export const appRouter = router({
   venues: venuesRouter,
   bookings: bookingsRouter,
   collections: collectionsRouter,
+  follows: followsRouter,
+  notifications: notificationsRouter,
+  deviceTokens: deviceTokensRouter,
+  posts: postsRouter,
   stripe: stripeRouter,
   admin: adminRouter,
 });

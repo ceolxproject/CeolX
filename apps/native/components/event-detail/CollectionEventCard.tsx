@@ -5,6 +5,7 @@ import { Image, Pressable, Text, View } from 'react-native';
 import { CATEGORY_ICONS, CATEGORY_LABELS } from '@CeolX/shared';
 
 import type { RelatedEvent } from '@/types/event-detail';
+import { getMockEventImage } from '@/utils/mock-images';
 
 interface CollectionEventCardProps {
   event: RelatedEvent;
@@ -27,17 +28,11 @@ export function CollectionEventCard({ event, onPress, className }: CollectionEve
     >
       {/* Cover image */}
       <View className="h-[208px] relative rounded-t-2xl overflow-hidden">
-        {event.coverImageUrl ? (
-          <Image
-            source={{ uri: event.coverImageUrl }}
-            className="absolute inset-0 w-full h-full"
-            resizeMode="cover"
-          />
-        ) : (
-          <View className="absolute inset-0 w-full h-full bg-white/5 items-center justify-center">
-            <Text className="text-4xl">🎵</Text>
-          </View>
-        )}
+        <Image
+          source={event.coverImageUrl ? { uri: event.coverImageUrl } : getMockEventImage(event.id)}
+          className="absolute inset-0 w-full h-full"
+          resizeMode="cover"
+        />
 
         {/* Category badge */}
         <View className="absolute top-3 left-3 bg-[#080808] rounded-xl px-2 py-1.5">

@@ -2,6 +2,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { cn } from 'heroui-native';
 import { Image, Text, View } from 'react-native';
 
+import { getMockEventImage } from '@/utils/mock-images';
+
 interface EventHeroImageProps {
   coverImageUrl?: string;
   attendeeCount: number;
@@ -18,9 +20,11 @@ export function EventHeroImage({ coverImageUrl, attendeeCount, className }: Even
           resizeMode="cover"
         />
       ) : (
-        <View className="absolute inset-0 w-full h-full bg-surface items-center justify-center">
-          <Ionicons name="musical-notes" size={48} color="#3a3a3a" />
-        </View>
+        <Image
+          source={getMockEventImage('hero')}
+          className="absolute inset-0 w-full h-full"
+          resizeMode="cover"
+        />
       )}
 
       {attendeeCount > 0 && (

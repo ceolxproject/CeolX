@@ -3,7 +3,7 @@
 | Field          | Value                                                                                  |
 | -------------- | -------------------------------------------------------------------------------------- |
 | **Milestone**  | M5 — Booking Flow                                                                      |
-| **Status**     | 🔲 To Do                                                                               |
+| **Status**     | ✅ Complete                                                                            |
 | **Depends on** | M5-T1 (booking infrastructure), M4-T1 (gig opportunity events), M2-T4 (persona system) |
 | **PRD Ref**    | Section 6.2 (Artist Booking Features), Section 9.4 (Booking Flow)                      |
 
@@ -119,41 +119,41 @@ If the Artist is already listed as a collaborator on the event (in the events.co
 
 ### Apply Button & Event Detail
 
-- [ ] Gig opportunity events marked `is_gig_opportunity: true` show Apply button (Artist persona only)
-- [ ] Regular events (gig_opportunity=false) do not show Apply button
-- [ ] Spectator persona does not see gig opportunity events on map/feed
-- [ ] Artist already a collaborator on the event → Apply button hidden
+- [x] Gig opportunity events marked `is_gig_opportunity: true` show Apply button (Artist persona only)
+- [x] Regular events (gig_opportunity=false) do not show Apply button
+- [x] Spectator persona does not see gig opportunity events on map/feed
+- [x] Artist already a collaborator on the event → Apply button hidden
 
 ### Application Submission
 
-- [ ] Tapping Apply creates a booking with direction=artist_to_venue, status=pending
-- [ ] Artist sees confirmation toast: "Application sent!"
-- [ ] POST /bookings validates event is a gig opportunity
-- [ ] Duplicate application attempt returns 409 error
+- [x] Tapping Apply creates a booking with direction=artist_to_venue, status=pending
+- [x] Artist sees confirmation toast: "Application sent!"
+- [x] POST /bookings validates event is a gig opportunity
+- [x] Duplicate application attempt returns 409 error
 
 ### Venue Receives Application
 
-- [ ] Venue receives FCM push with Artist name and Event title
-- [ ] Notification deep links to Bookings tab
-- [ ] Venue Bookings tab shows incoming applications (filter by direction=artist_to_venue)
+- [x] Venue receives FCM push with Artist name and Event title
+- [x] Notification deep links to Bookings tab
+- [x] Venue Bookings tab shows incoming applications (filter by direction=artist_to_venue)
 
 ### Venue Response UI
 
-- [ ] Each application card shows Artist stage name, profile photo, and genre
-- [ ] Accept and Reject buttons visible on pending applications
-- [ ] Accepting transitions status to accepted; Artist notified
-- [ ] Rejecting transitions status to rejected; Artist notified
+- [x] Each application card shows Artist stage name, profile photo, and genre
+- [x] Accept and Reject buttons visible on pending applications
+- [x] Accepting transitions status to accepted; Artist notified
+- [x] Rejecting transitions status to rejected; Artist notified
 
 ### Artist Can Cancel Pending
 
-- [ ] Artist taps Cancel on their own pending application → status=cancelled
-- [ ] Venue is notified of cancellation
-- [ ] Artist cannot cancel after Venue accepts or rejects
+- [x] Artist taps Cancel on their own pending application → status=cancelled
+- [x] Venue is notified of cancellation
+- [x] Artist cannot cancel after Venue accepts or rejects
 
 ### Bookings List Filtering
 
-- [ ] GET /bookings?direction=artist_to_venue returns only artist-initiated applications
-- [ ] Venue can filter their incoming applications separately from outgoing invitations
+- [x] GET /bookings?direction=artist_to_venue returns only artist-initiated applications
+- [x] Venue can filter their incoming applications separately from outgoing invitations
 
 ---
 

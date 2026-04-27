@@ -7,16 +7,25 @@ import type RNMapView from 'react-native-maps';
 import type { Region } from 'react-native-maps';
 import { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 
-import { CATEGORY_ICONS, CATEGORY_LABELS, filterValidMapEvents } from '@CeolX/shared';
+import {
+  CATEGORY_ICONS,
+  CATEGORY_LABELS,
+  DATE_RANGE_LABELS,
+  DATE_RANGE_OPTIONS,
+  EVENT_CATEGORIES,
+  IRISH_COUNTIES,
+  filterValidMapEvents,
+} from '@CeolX/shared';
 
 import { CountySuggestionsDropdown } from '@/components/CountySuggestionsDropdown';
 import { EventPreviewCard } from '@/components/EventPreviewCard';
+import { FilterSheet } from '@/components/FilterSheet';
+import type { FilterSection } from '@/components/FilterSheet';
 import { LocationBanner } from '@/components/LocationBanner';
 import { LocationPermissionScreen } from '@/components/LocationPermissionScreen';
 import { MapEmptyStateCard } from '@/components/MapEmptyStateCard';
 import { MapErrorBoundary } from '@/components/MapErrorBoundary';
 import { MapEventPin } from '@/components/MapEventPin';
-import { MapFilterSheet } from '@/components/MapFilterSheet';
 import { MapHeader } from '@/components/MapHeader';
 import { MapSearchBar } from '@/components/MapSearchBar';
 import type { CountyResult } from '@/hooks/use-county-search';
@@ -25,6 +34,12 @@ import { useGpsRegion } from '@/hooks/use-gps-region';
 import { useLocationPermissionPrompt } from '@/hooks/use-location-permission-prompt';
 import { useMapEvents } from '@/hooks/use-map-events';
 import { usePanelAnimation } from '@/hooks/use-panel-animation';
+
+const MAP_FILTER_SECTIONS: FilterSection[] = [
+  { key: 'dateRange', label: 'When', options: DATE_RANGE_OPTIONS, labels: DATE_RANGE_LABELS },
+  { key: 'category', label: 'Category', options: EVENT_CATEGORIES },
+  { key: 'county', label: 'County', options: IRISH_COUNTIES },
+];
 
 type MapEvent = {
   id: string;
@@ -271,10 +286,12 @@ export default function MapScreen() {
         </Animated.View>
       )}
 
-      <MapFilterSheet
+      <FilterSheet
         visible={filterSheetVisible}
         filters={filters}
-        onApply={setFilters}
+        sections={MAP_FILTER_SECTIONS}
+        variant="light"
+        onApply={(f) => setFilters(f as typeof filters)}
         onClose={() => setFilterSheetVisible(false)}
       />
     </View>

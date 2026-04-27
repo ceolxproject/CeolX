@@ -14,8 +14,11 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.716.0",
+    "@aws-sdk/s3-request-presigner": "^3.716.0",
     "@CeolX/auth": "workspace:*",
     "@CeolX/db": "workspace:*",
+    "@CeolX/email": "workspace:*",
     "@CeolX/env": "workspace:*",
     "@CeolX/shared": "workspace:*",
     "@trpc/client": "catalog:",

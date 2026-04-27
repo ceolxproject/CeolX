@@ -2,6 +2,7 @@ import { relations } from 'drizzle-orm';
 import {
   boolean,
   index,
+  numeric,
   pgTable,
   text,
   timestamp,
@@ -27,7 +28,11 @@ export const artistProfiles = pgTable('artist_profiles', {
   stageName: varchar('stage_name', { length: 255 }).notNull(),
   bio: text('bio'),
   contactEmail: varchar('contact_email', { length: 255 }), // public booking email, may differ from account email
-  genre: varchar('genre', { length: 100 }), // nullable — not collected during initial onboarding
+  genre: varchar('genre', { length: 100 }), // DEPRECATED: use `genres` (text[]) instead — kept for backward compat
+  genres: text('genres').array().default([]),
+  location: varchar('location', { length: 255 }),
+  profileImageUrl: text('profile_image_url'), // CDN URL — populated via presigned S3 upload (M10-T1)
+  coverImageUrl: text('cover_image_url'), // CDN URL — populated via presigned S3 upload (M10-T1)
   isActive: boolean('is_active').default(true), // false when persona switched away
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
@@ -46,8 +51,15 @@ export const venueProfiles = pgTable('venue_profiles', {
     .references(() => user.id, { onDelete: 'cascade' }),
   venueName: varchar('venue_name', { length: 255 }).notNull(),
   address: varchar('address', { length: 255 }).notNull(),
+  county: varchar('county', { length: 100 }),
   bio: text('bio'),
   contactEmail: varchar('contact_email', { length: 255 }), // public booking email for artists to contact venue
+  lat: numeric('lat', { precision: 10, scale: 7 }), // same precision as events table
+  lng: numeric('lng', { precision: 10, scale: 7 }),
+  profileImageUrl: text('profile_image_url'), // CDN URL — populated via presigned S3 upload (M10-T1)
+  coverImageUrl: text('cover_image_url'), // CDN URL — populated via presigned S3 upload (M10-T1)
+  websiteUrl: text('website_url'),
+  phone: varchar('phone', { length: 30 }),
   subscriptionStatus: subscriptionStatusEnum('subscription_status').notNull().default('inactive'),
   stripeCustomerId: varchar('stripe_customer_id', { length: 255 }), // set when Stripe customer is created
   isActive: boolean('is_active').default(false), // true only when subscription is active

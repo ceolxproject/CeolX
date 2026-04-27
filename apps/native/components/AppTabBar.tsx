@@ -1,12 +1,15 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useQuery } from '@tanstack/react-query';
+import type { Tabs } from 'expo-router';
 import { cn } from 'heroui-native';
+import type { ComponentProps } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { trpc } from '@/utils/trpc';
+import { UserRole } from '@CeolX/shared/enums';
 
-type IoniconsName = React.ComponentProps<typeof Ionicons>['name'];
+import { useMe } from '@/hooks/use-me';
+
+type IoniconsName = ComponentProps<typeof Ionicons>['name'];
 
 type TabConfig = {
   name: string;
@@ -22,26 +25,21 @@ export const TAB_CONFIG: TabConfig[] = [
   { name: 'profile', label: 'Profile', activeIcon: 'person', inactiveIcon: 'person-outline' },
 ];
 
-type AppTabBarProps = {
-  state: { index: number; routes: Array<{ key: string; name: string }> };
-  descriptors: Record<string, { options: Record<string, unknown> }>;
-  navigation: {
-    emit: (args: { type: string; target: string; canPreventDefault: boolean }) => {
-      defaultPrevented: boolean;
-    };
-    navigate: (name: string) => void;
-  };
+// Extract the tabBar callback parameter type directly from Expo Router's <Tabs> component
+type TabBarCallbackProps = Parameters<NonNullable<ComponentProps<typeof Tabs>['tabBar']>>[0];
+
+export type AppTabBarProps = TabBarCallbackProps & {
   onFabPress?: () => void;
 };
 
 export function AppTabBar({ state, navigation, onFabPress }: AppTabBarProps) {
   const insets = useSafeAreaInsets();
-  const { data: me } = useQuery(trpc.users.me.queryOptions());
+  const { data: me } = useMe();
   const currentRole = me?.currentRole ?? 'spectator';
 
   const getTabLabel = (tab: TabConfig) => {
     if (tab.name === 'bookings') {
-      return currentRole === 'spectator' ? 'Bookings' : 'Requests';
+      return currentRole === UserRole.SPECTATOR ? 'Bookings' : 'Requests';
     }
     return tab.label;
   };
@@ -82,31 +80,40 @@ export function AppTabBar({ state, navigation, onFabPress }: AppTabBarProps) {
     );
   };
 
+  const showFab = currentRole !== UserRole.SPECTATOR;
+
   return (
     <View
       className="flex-row items-start bg-[#6155F5] pt-2"
       style={{ paddingBottom: insets.bottom, height: 60 + insets.bottom }}
     >
-      {/* Left two tabs */}
-      <View className="flex-1 flex-row justify-around">
-        {TAB_CONFIG.slice(0, 2).map((tab, i) => renderTab(tab, i))}
-      </View>
+      {showFab ? (
+        <>
+          {/* Left two tabs */}
+          <View className="flex-1 flex-row justify-around">
+            {TAB_CONFIG.slice(0, 2).map((tab, i) => renderTab(tab, i))}
+          </View>
 
-      {/* Center FAB */}
-      <View className="w-[72px] items-center">
-        <Pressable
-          className="absolute -top-6 w-12 h-12 rounded-full bg-[#8d8d8d] items-center justify-center"
-          style={{ boxShadow: '0 2px 4px rgba(0,0,0,0.2)' }}
-          onPress={onFabPress}
-        >
-          <Ionicons name="add" size={28} color="#ffffff" />
-        </Pressable>
-      </View>
+          {/* Center FAB */}
+          <View className="w-[72px] items-center">
+            <Pressable
+              className="absolute -top-6 w-12 h-12 rounded-full bg-[#8d8d8d] items-center justify-center"
+              style={{ boxShadow: '0 2px 4px rgba(0,0,0,0.2)' }}
+              onPress={onFabPress}
+            >
+              <Ionicons name="add" size={28} color="#ffffff" />
+            </Pressable>
+          </View>
 
-      {/* Right two tabs */}
-      <View className="flex-1 flex-row justify-around">
-        {TAB_CONFIG.slice(2, 4).map((tab, i) => renderTab(tab, i + 2))}
-      </View>
+          {/* Right two tabs */}
+          <View className="flex-1 flex-row justify-around">
+            {TAB_CONFIG.slice(2, 4).map((tab, i) => renderTab(tab, i + 2))}
+          </View>
+        </>
+      ) : (
+        /* Spectator: evenly spaced tabs, no FAB gap */
+        TAB_CONFIG.map((tab, i) => renderTab(tab, i))
+      )}
     </View>
   );
 }

@@ -1,6 +1,7 @@
 import { relations } from 'drizzle-orm';
-import { index, pgTable, timestamp, uuid, varchar } from 'drizzle-orm/pg-core';
+import { index, pgTable, text, timestamp, uuid, varchar } from 'drizzle-orm/pg-core';
 
+import { user } from './auth';
 import { bookingDirectionEnum, bookingStatusEnum, subscriptionStatusEnum } from './enums';
 import { events } from './events';
 import { artistProfiles, venueProfiles } from './users';
@@ -15,8 +16,9 @@ import { artistProfiles, venueProfiles } from './users';
 // it to a specific event.
 //
 // State machine (enforced at application layer, not DB):
-//   pending → accepted | rejected
+//   pending → accepted | rejected | cancelled
 //   accepted → cancelled (either party)
+//   cancelled_by tracks the user who initiated cancellation
 // ---------------------------------------------------------------------------
 export const bookings = pgTable(
   'bookings',
@@ -31,6 +33,7 @@ export const bookings = pgTable(
     eventId: uuid('event_id').references(() => events.id, { onDelete: 'set null' }),
     status: bookingStatusEnum('status').notNull().default('pending'),
     direction: bookingDirectionEnum('direction').notNull(),
+    cancelledBy: text('cancelled_by').references(() => user.id, { onDelete: 'set null' }),
     createdAt: timestamp('created_at').notNull().defaultNow(),
     updatedAt: timestamp('updated_at').notNull().defaultNow(),
   },
@@ -80,6 +83,10 @@ export const bookingsRelations = relations(bookings, ({ one }) => ({
   event: one(events, {
     fields: [bookings.eventId],
     references: [events.id],
+  }),
+  cancelledByUser: one(user, {
+    fields: [bookings.cancelledBy],
+    references: [user.id],
   }),
 }));
 

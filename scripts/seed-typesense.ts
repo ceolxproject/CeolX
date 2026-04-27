@@ -2,9 +2,8 @@
  * One-shot script: recreate the Typesense events collection with the current
  * schema and bulk-import all active upcoming events from Postgres.
  *
- * Usage:
- *   cd /Users/priyayadav/Documents/Raftlabs/CeolX
- *   dotenv -e apps/server/.env -- npx tsx scripts/seed-typesense.ts
+ * Usage (from repo root):
+ *   node --env-file=apps/server/.env node_modules/.pnpm/tsx@4.21.0/node_modules/tsx/dist/cli.mjs scripts/seed-typesense.ts
  */
 
 import { typesenseClient } from '../packages/api/src/lib/typesense';

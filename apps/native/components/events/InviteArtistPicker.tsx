@@ -1,16 +1,15 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
-import { useEffect, useRef, useState } from 'react';
-import { Image, Modal, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { useMemo, useState } from 'react';
+import { Modal, Pressable, Text, TextInput, View } from 'react-native';
 
+import type { ArtistResult } from './ArtistSearchRow';
+import { ArtistSearchRow } from './ArtistSearchRow';
+import type { ChipItem } from './SelectedChips';
+import { SelectedChips } from './SelectedChips';
+
+import { useDebouncedValue } from '@/hooks/use-debounced-value';
 import { trpc } from '@/utils/trpc';
-
-type ArtistResult = {
-  id: string;
-  stageName: string;
-  genre: string | null;
-  image: string | null;
-};
 
 type UnregisteredInvite = {
   name: string;
@@ -31,22 +30,13 @@ export function InviteArtistPicker({
   onUnregisteredInvitesChange,
 }: Props) {
   const [query, setQuery] = useState('');
-  const [debouncedQuery, setDebouncedQuery] = useState('');
+  const debouncedQuery = useDebouncedValue(query);
   const [selectedPlatformArtists, setSelectedPlatformArtists] = useState<ArtistResult[]>([]);
   const [showDropdown, setShowDropdown] = useState(false);
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [inviteName, setInviteName] = useState('');
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteErrors, setInviteErrors] = useState<{ name?: string; email?: string }>({});
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => setDebouncedQuery(query), 400);
-    return () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-    };
-  }, [query]);
 
   const { data } = useQuery({
     ...trpc.artists.search.queryOptions({ q: debouncedQuery }),
@@ -59,7 +49,6 @@ export function InviteArtistPicker({
     setSelectedPlatformArtists((prev) => [...prev, artist]);
     onPlatformInvitesChange([...platformInvites, artist.id]);
     setQuery('');
-    setDebouncedQuery('');
     setShowDropdown(false);
   }
 
@@ -97,7 +86,27 @@ export function InviteArtistPicker({
     setShowInviteModal(false);
   }
 
-  const hasInvites = selectedPlatformArtists.length > 0 || unregisteredInvites.length > 0;
+  const inviteChips = useMemo<ChipItem[]>(() => {
+    const platform = selectedPlatformArtists.map((a) => ({
+      key: `platform:${a.id}`,
+      label: a.stageName,
+      icon: 'paper-plane-outline' as const,
+    }));
+    const unregistered = unregisteredInvites.map((i) => ({
+      key: `unreg:${i.email}`,
+      label: i.name,
+      icon: 'mail-outline' as const,
+    }));
+    return [...platform, ...unregistered];
+  }, [selectedPlatformArtists, unregisteredInvites]);
+
+  function handleChipRemove(key: string) {
+    if (key.startsWith('platform:')) {
+      removePlatformInvite(key.replace('platform:', ''));
+    } else if (key.startsWith('unreg:')) {
+      removeUnregisteredInvite(key.replace('unreg:', ''));
+    }
+  }
 
   return (
     <View className="gap-2">
@@ -128,26 +137,13 @@ export function InviteArtistPicker({
       {showDropdown && (results.length > 0 || query.length > 0) && (
         <View className="rounded-lg border border-gray-8 bg-surface overflow-hidden">
           {results.map((artist) => (
-            <Pressable
+            <ArtistSearchRow
               key={artist.id}
+              artist={artist}
               onPress={() => addPlatformInvite(artist)}
-              className="flex-row items-center gap-3 px-4 py-3 border-b border-gray-8 active:bg-white/10"
-            >
-              {artist.image ? (
-                <Image source={{ uri: artist.image }} className="w-8 h-8 rounded-full" />
-              ) : (
-                <View className="w-8 h-8 rounded-full bg-gray-8 items-center justify-center">
-                  <Ionicons name="person" size={14} color="#8d8d8d" />
-                </View>
-              )}
-              <View className="flex-1">
-                <Text className="text-sm text-white font-urbanist">{artist.stageName}</Text>
-                {artist.genre && (
-                  <Text className="text-xs text-gray-7 font-urbanist">{artist.genre}</Text>
-                )}
-              </View>
-              <Ionicons name="paper-plane-outline" size={18} color="#8d8d8d" />
-            </Pressable>
+              actionIcon="paper-plane-outline"
+              actionIconColor="#8d8d8d"
+            />
           ))}
 
           {/* Invite outside-platform artist */}
@@ -170,40 +166,7 @@ export function InviteArtistPicker({
       )}
 
       {/* Invite chips */}
-      {hasInvites && (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          <View className="flex-row gap-2">
-            {selectedPlatformArtists.map((artist) => (
-              <View
-                key={artist.id}
-                className="flex-row items-center gap-1.5 rounded-full bg-white/10 px-3 py-1.5 border border-gray-8"
-              >
-                <Ionicons name="paper-plane-outline" size={12} color="#8d8d8d" />
-                <Text className="text-xs text-gray-3 font-semibold font-urbanist">
-                  {artist.stageName}
-                </Text>
-                <Pressable onPress={() => removePlatformInvite(artist.id)} hitSlop={8}>
-                  <Ionicons name="close-circle" size={14} color="#8d8d8d" />
-                </Pressable>
-              </View>
-            ))}
-            {unregisteredInvites.map((invite) => (
-              <View
-                key={invite.email}
-                className="flex-row items-center gap-1.5 rounded-full bg-white/10 px-3 py-1.5 border border-gray-8"
-              >
-                <Ionicons name="mail-outline" size={12} color="#8d8d8d" />
-                <Text className="text-xs text-gray-3 font-semibold font-urbanist">
-                  {invite.name}
-                </Text>
-                <Pressable onPress={() => removeUnregisteredInvite(invite.email)} hitSlop={8}>
-                  <Ionicons name="close-circle" size={14} color="#8d8d8d" />
-                </Pressable>
-              </View>
-            ))}
-          </View>
-        </ScrollView>
-      )}
+      <SelectedChips items={inviteChips} onRemove={handleChipRemove} variant="neutral" />
 
       {/* Invite outside-platform modal */}
       <Modal

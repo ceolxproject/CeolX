@@ -3,7 +3,7 @@
 | Field          | Value                                                                                                              |
 | -------------- | ------------------------------------------------------------------------------------------------------------------ |
 | **Milestone**  | M6 — Profiles & Social                                                                                             |
-| **Status**     | 🔲 To Do                                                                                                           |
+| **Status**     | ✅ Done                                                                                                            |
 | **Depends on** | M6-T1 (artist_profiles), M6-T2 (venue_profiles), M7-T1 (FCM push notifications)                                    |
 | **PRD Ref**    | Section 5.1 (End User Features), Section 6.3 (Artist Social), Section 7.3 (Venue Social), Section 9.3 (Data Model) |
 

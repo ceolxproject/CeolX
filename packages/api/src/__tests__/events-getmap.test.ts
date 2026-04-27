@@ -77,7 +77,7 @@ const testRouter = router({ events: eventsRouter });
 const createCaller = t.createCallerFactory(testRouter);
 
 function anonCaller() {
-  return createCaller({ session: null });
+  return createCaller({ session: null, dispatchNotification: vi.fn(async () => {}) });
 }
 
 function artistCaller() {
@@ -103,6 +103,7 @@ function artistCaller() {
         updatedAt: new Date(),
       },
     },
+    dispatchNotification: vi.fn(async () => {}),
   });
 }
 
@@ -129,6 +130,7 @@ function spectatorCaller() {
         updatedAt: new Date(),
       },
     },
+    dispatchNotification: vi.fn(async () => {}),
   });
 }
 
