@@ -81,7 +81,7 @@ Tracks completed tasks per milestone. Each entry links to its PR.
 ## M7 — Push Notifications & Emails
 
 - [ ] M7-T1 · Push Notifications (FCM)
-- [ ] M7-T2 · In-App Notification Inbox
+- [x] M7-T2 · In-App Notification Inbox — PR #49
 - [x] M7-T3 · Transactional Emails (Postmark) — PR #48
 
 ## M8 — Venue Subscription & Payments
