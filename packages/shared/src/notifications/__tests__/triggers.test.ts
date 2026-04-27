@@ -113,6 +113,31 @@ describe('buildNotification — push surface (matrix copy)', () => {
 // ─── In-app copy is its own variant per matrix ───────────────────────────────
 
 describe('buildNotification — inApp surface diverges from push', () => {
+  it('A-15 push body includes the removal reason', () => {
+    expect(
+      buildNotification(
+        NotificationTrigger.EVENT_REMOVED_BY_ADMIN_TO_ARTIST,
+        NotificationSurface.PUSH,
+        { eventId: 'e-1', eventTitle: 'Friday Night Trad', reason: 'duplicate listing' }
+      ).body
+    ).toBe('Moderation removed "Friday Night Trad". Reason: duplicate listing.');
+  });
+
+  it('A-16 / V-15 resubmit confirmation uses the trailing ✓ glyph', () => {
+    expect(
+      buildNotification(NotificationTrigger.EVENT_RESUBMITTED_TO_ARTIST, NotificationSurface.PUSH, {
+        eventId: 'e-1',
+        eventTitle: 'Friday Night Trad',
+      }).title
+    ).toBe('Event Resubmitted ✓');
+    expect(
+      buildNotification(NotificationTrigger.EVENT_RESUBMITTED_TO_VENUE, NotificationSurface.PUSH, {
+        eventId: 'e-1',
+        eventTitle: 'Friday Night Trad',
+      }).title
+    ).toBe('Event Resubmitted ✓');
+  });
+
   it('A-09 inApp adds "Respond before it expires"', () => {
     expect(
       buildNotification(
@@ -175,12 +200,18 @@ describe('buildNotification — placeholder safety', () => {
     }
   });
 
-  it('event-scoped triggers (collaborator add, hosted-at-venue) route to /events/:id', () => {
+  it('event-scoped triggers (collaborator add, hosted-at-venue, moderation) route to /events/:id', () => {
     expect(
       NOTIFICATION_TRIGGERS[NotificationTrigger.ADDED_AS_COLLABORATOR_TO_ARTIST].routeTemplate
     ).toBe('/events/{eventId}');
     expect(
       NOTIFICATION_TRIGGERS[NotificationTrigger.EVENT_HOSTED_AT_VENUE_TO_VENUE].routeTemplate
+    ).toBe('/events/{eventId}');
+    expect(
+      NOTIFICATION_TRIGGERS[NotificationTrigger.EVENT_REMOVED_BY_ADMIN_TO_ARTIST].routeTemplate
+    ).toBe('/events/{eventId}');
+    expect(
+      NOTIFICATION_TRIGGERS[NotificationTrigger.EVENT_RESUBMITTED_TO_VENUE].routeTemplate
     ).toBe('/events/{eventId}');
   });
 

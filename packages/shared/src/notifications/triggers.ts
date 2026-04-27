@@ -40,6 +40,10 @@ export const NotificationTrigger = {
   BOOKING_CANCELLED_TO_VENUE: 'booking_cancelled_to_venue',
   ADDED_AS_COLLABORATOR_TO_ARTIST: 'added_as_collaborator_to_artist',
   EVENT_HOSTED_AT_VENUE_TO_VENUE: 'event_hosted_at_venue_to_venue',
+  EVENT_REMOVED_BY_ADMIN_TO_ARTIST: 'event_removed_by_admin_to_artist',
+  EVENT_REMOVED_BY_ADMIN_TO_VENUE: 'event_removed_by_admin_to_venue',
+  EVENT_RESUBMITTED_TO_ARTIST: 'event_resubmitted_to_artist',
+  EVENT_RESUBMITTED_TO_VENUE: 'event_resubmitted_to_venue',
 } as const;
 
 export type NotificationTrigger = (typeof NotificationTrigger)[keyof typeof NotificationTrigger];
@@ -256,6 +260,72 @@ export const NOTIFICATION_TRIGGERS: Record<NotificationTrigger, TriggerDefinitio
     inApp: {
       title: 'New event at your venue',
       body: '{artistName} scheduled "{eventTitle}" at your venue on {date}.',
+    },
+    email: null,
+  },
+  // A-15 — Admin removed an Artist creator's event with a reason.
+  // No caller today — admin moderation is M9-T2 (admin.ts is a stub).
+  [NotificationTrigger.EVENT_REMOVED_BY_ADMIN_TO_ARTIST]: {
+    matrixRef: 'A-15',
+    type: 'event_removed',
+    persona: 'artist',
+    routeTemplate: '/events/{eventId}',
+    push: {
+      title: 'Your event needs revision',
+      body: 'Moderation removed "{eventTitle}". Reason: {reason}.',
+    },
+    inApp: {
+      title: 'Your event needs revision',
+      body: 'We\'ve removed "{eventTitle}" pending edits. Reason: {reason}. Update and resubmit.',
+    },
+    email: null,
+  },
+  // V-14 — Admin removed a Venue creator's event with a reason.
+  // No caller today — admin moderation is M9-T2 (admin.ts is a stub).
+  [NotificationTrigger.EVENT_REMOVED_BY_ADMIN_TO_VENUE]: {
+    matrixRef: 'V-14',
+    type: 'event_removed',
+    persona: 'venue',
+    routeTemplate: '/events/{eventId}',
+    push: {
+      title: 'Your event needs revision',
+      body: 'Moderation removed "{eventTitle}". Reason: {reason}.',
+    },
+    inApp: {
+      title: 'Your event needs revision',
+      body: 'We\'ve removed "{eventTitle}" pending edits. Reason: {reason}.',
+    },
+    email: null,
+  },
+  // A-16 — Confirmation back to the Artist that their resubmitted event is live.
+  [NotificationTrigger.EVENT_RESUBMITTED_TO_ARTIST]: {
+    matrixRef: 'A-16',
+    type: 'event_resubmitted',
+    persona: 'artist',
+    routeTemplate: '/events/{eventId}',
+    push: {
+      title: 'Event Resubmitted ✓',
+      body: '"{eventTitle}" is back live after your edits.',
+    },
+    inApp: {
+      title: 'Event Resubmitted ✓',
+      body: 'Your updated event "{eventTitle}" is back live on CeolX.',
+    },
+    email: null,
+  },
+  // V-15 — Same confirmation for Venue creators.
+  [NotificationTrigger.EVENT_RESUBMITTED_TO_VENUE]: {
+    matrixRef: 'V-15',
+    type: 'event_resubmitted',
+    persona: 'venue',
+    routeTemplate: '/events/{eventId}',
+    push: {
+      title: 'Event Resubmitted ✓',
+      body: '"{eventTitle}" is back live after your edits.',
+    },
+    inApp: {
+      title: 'Event Resubmitted ✓',
+      body: 'Your updated event "{eventTitle}" is back live on CeolX.',
     },
     email: null,
   },
