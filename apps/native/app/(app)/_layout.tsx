@@ -5,10 +5,15 @@ import { UserRole } from '@CeolX/shared/enums';
 
 import { appToast } from '@/components/AppToast';
 import { useAuth } from '@/contexts/auth-context';
+import { useFcmRegistration } from '@/hooks/use-fcm-registration';
 import { useMe } from '@/hooks/use-me';
 
 export default function AppLayout() {
   const { user, isGuest, isLoading } = useAuth();
+
+  // Register the device with FCM and wire foreground/background/cold-start
+  // listeners (M7-T1). The hook is a no-op until the user is authenticated.
+  useFcmRegistration();
 
   const {
     data: meData,
