@@ -197,23 +197,34 @@ Canonical copy for each row lives in
 
 #### Call pattern
 
-```ts
-// Inside the removeEvent mutation, after `status → removed`
-const creatorPersona =
-  creator.currentRole === UserRole.ARTIST
-    ? UserRole.ARTIST // matrix A-15
-    : UserRole.VENUE; // matrix V-14
+The dispatcher takes a `NotificationTrigger` ID (from
+`@CeolX/shared/notifications`) plus the vars its template needs. M4-T3
+must add three new triggers to that registry, mirroring the matrix
+copy (push + in-app variants per row):
 
+```ts
+// packages/shared/src/notifications/triggers.ts
+EVENT_REMOVED_TO_CREATOR: 'event_removed_to_creator', // matrix A-15 / V-14
+EVENT_RESUBMITTED_TO_CREATOR: 'event_resubmitted_to_creator', // A-16 / V-15
+SAVED_EVENT_REMOVED_TO_SAVERS: 'saved_event_removed_to_savers', // U-03
+```
+
+Then the call sites — content row + per-user state row + push fan-out
+all happen in one call:
+
+```ts
+// Inside the removeEvent admin mutation, after `status → removed`
 await ctx.dispatchNotification({
-  userId: event.createdBy,
-  type: 'event_removed',
-  title: 'Your event needs revision',
-  body: `Moderation removed "${event.title}". Reason: ${reason}.`,
-  persona: creatorPersona,
-  route: `/events/${event.id}`,
+  trigger: NotificationTrigger.EVENT_REMOVED_TO_CREATOR,
+  recipientUserId: event.createdBy,
+  vars: { eventId: event.id, eventTitle: event.title, reason },
 });
 
-// U-03 cascade — once M4-T5 ships the saved_events table:
+// U-03 cascade — once M4-T5 ships the saved_events table.
+// One dispatch per saver: each writes a notification_users row keyed
+// to the same notifications content row would be ideal; the current
+// dispatcher writes a fresh content row per recipient. Push the loop
+// into a QStash batch job once volume warrants.
 const savers = await db
   .select({ userId: savedEvents.userId })
   .from(savedEvents)
@@ -222,20 +233,18 @@ const savers = await db
 await Promise.all(
   savers.map((s) =>
     ctx.dispatchNotification({
-      userId: s.userId,
-      type: 'saved_event_removed',
-      title: 'Event removed',
-      body: `"${event.title}" has been removed.`,
-      persona: 'spectator', // U-03 is universal — see matrix Section 5
-      route: `/events/${event.id}`,
+      trigger: NotificationTrigger.SAVED_EVENT_REMOVED_TO_SAVERS,
+      recipientUserId: s.userId,
+      vars: { eventId: event.id, eventTitle: event.title },
     })
   )
 );
 ```
 
-The dispatcher silently no-ops if the recipient has no registered device
-tokens (sign-in pending, push permission denied, etc.) — no defensive
-`if (token)` check needed at the call site.
+The dispatcher silently no-ops the push fan-out if the recipient has no
+registered device tokens (sign-in pending, push permission denied, etc.)
+— the inbox row still gets written. No defensive `if (token)` check
+needed at the call site.
 
 ---
 
@@ -341,15 +350,14 @@ app.post('/admin/events/:id/remove', zValidator('json', RemoveSchema), async (c)
     .returning();
 
   // Notify creator via FCM dispatcher (M7-T1 — see "Notification dispatch"
-  // section above for the full row mapping). The dispatcher writes the inbox
-  // row AND fans out push to all of the recipient's device tokens.
+  // section above for the full row mapping + the EVENT_REMOVED_TO_CREATOR
+  // trigger that must be added to @CeolX/shared/notifications). The
+  // dispatcher writes the notifications + notification_users rows AND fans
+  // out push to all of the recipient's device tokens.
   await ctx.dispatchNotification({
-    userId: event.created_by,
-    type: 'event_removed',
-    title: 'Your event needs revision',
-    body: `Moderation removed "${event.title}". Reason: ${reason}.`,
-    persona: event.creator_type, // 'artist' (A-15) or 'venue' (V-14)
-    route: `/events/${event.id}`,
+    trigger: NotificationTrigger.EVENT_REMOVED_TO_CREATOR,
+    recipientUserId: event.created_by,
+    vars: { eventId: event.id, eventTitle: event.title, reason },
   });
 
   console.log(`[ADMIN] Event ${eventId} removed by ${session.user.id}: ${reason}`);
