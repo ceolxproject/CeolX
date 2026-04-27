@@ -1,7 +1,7 @@
 import { and, count, desc, eq, gt, isNull } from 'drizzle-orm';
 
 import { db } from '@CeolX/db';
-import { notifications } from '@CeolX/db/schema/notifications';
+import { notifications, notificationUsers } from '@CeolX/db/schema/notifications';
 import {
   listNotificationsSchema,
   markNotificationReadSchema,
@@ -12,9 +12,19 @@ import { protectedProcedure, router } from '../index';
 
 const NINETY_DAYS_MS = 90 * 24 * 60 * 60 * 1000;
 
-type NotificationRow = typeof notifications.$inferSelect;
+// Joined inbox row — notifications content + notification_users state.
+type InboxRow = {
+  id: string;
+  type: string;
+  title: string;
+  body: string;
+  route: string;
+  persona: string;
+  isRead: boolean;
+  createdAt: Date | string;
+};
 
-function toDto(row: NotificationRow): NotificationDto {
+function toDto(row: InboxRow): NotificationDto {
   return {
     id: row.id,
     type: row.type,
@@ -29,26 +39,38 @@ function toDto(row: NotificationRow): NotificationDto {
 
 export const notificationsRouter = router({
   // List paginated, newest first. Excludes archived (>90d or archivedAt set).
+  // The id returned is the notification_users.id — that's what mark-read /
+  // archive mutations target.
   list: protectedProcedure.input(listNotificationsSchema).query(async ({ input, ctx }) => {
     const cutoff = new Date(Date.now() - NINETY_DAYS_MS);
     const where = and(
-      eq(notifications.userId, ctx.userId),
-      isNull(notifications.archivedAt),
-      gt(notifications.createdAt, cutoff)
+      eq(notificationUsers.userId, ctx.userId),
+      isNull(notificationUsers.archivedAt),
+      gt(notificationUsers.createdAt, cutoff)
     );
     const offset = (input.page - 1) * input.limit;
 
     const rows = (await db
-      .select()
-      .from(notifications)
+      .select({
+        id: notificationUsers.id,
+        type: notifications.type,
+        title: notifications.title,
+        body: notifications.body,
+        route: notifications.route,
+        persona: notifications.persona,
+        isRead: notificationUsers.isRead,
+        createdAt: notificationUsers.createdAt,
+      })
+      .from(notificationUsers)
+      .innerJoin(notifications, eq(notificationUsers.notificationId, notifications.id))
       .where(where)
-      .orderBy(desc(notifications.createdAt))
+      .orderBy(desc(notificationUsers.createdAt))
       .limit(input.limit)
-      .offset(offset)) as NotificationRow[];
+      .offset(offset)) as InboxRow[];
 
     const totalRows = (await db
       .select({ total: count() })
-      .from(notifications)
+      .from(notificationUsers)
       .where(where)) as Array<{ total: number }>;
     const total = Number(totalRows[0]?.total ?? 0);
 
@@ -59,16 +81,17 @@ export const notificationsRouter = router({
     };
   }),
 
-  // Mark a single notification read. Idempotent — already-read rows are no-ops.
-  // Scoped to caller's userId so users cannot mark someone else's row.
+  // Mark a single notification_users row read. Idempotent — already-read
+  // rows are no-ops. Scoped to caller's userId so users cannot mark
+  // someone else's row.
   markAsRead: protectedProcedure
     .input(markNotificationReadSchema)
     .mutation(async ({ input, ctx }) => {
       await db
-        .update(notifications)
-        .set({ isRead: true })
-        .where(and(eq(notifications.id, input.id), eq(notifications.userId, ctx.userId)))
-        .returning({ id: notifications.id });
+        .update(notificationUsers)
+        .set({ isRead: true, readAt: new Date() })
+        .where(and(eq(notificationUsers.id, input.id), eq(notificationUsers.userId, ctx.userId)))
+        .returning({ id: notificationUsers.id });
 
       return { success: true as const };
     }),
@@ -76,23 +99,23 @@ export const notificationsRouter = router({
   // Flip every unread row for the caller. Returns count for UX feedback.
   markAllAsRead: protectedProcedure.mutation(async ({ ctx }) => {
     const updated = await db
-      .update(notifications)
-      .set({ isRead: true })
-      .where(and(eq(notifications.userId, ctx.userId), eq(notifications.isRead, false)))
-      .returning({ id: notifications.id });
+      .update(notificationUsers)
+      .set({ isRead: true, readAt: new Date() })
+      .where(and(eq(notificationUsers.userId, ctx.userId), eq(notificationUsers.isRead, false)))
+      .returning({ id: notificationUsers.id });
 
     return { success: true as const, marked: updated.length };
   }),
 
-  // Badge count: unread notifications for the caller.
+  // Badge count: unread notification_users rows for the caller.
   // V1 polled from the mobile app every 30s; replace with WebSocket post-V1.
   unreadCount: protectedProcedure.query(async ({ ctx }) => {
     const rows = (await db
       .select({ count: count() })
-      .from(notifications)
-      .where(and(eq(notifications.userId, ctx.userId), eq(notifications.isRead, false)))) as Array<{
-      count: number;
-    }>;
+      .from(notificationUsers)
+      .where(
+        and(eq(notificationUsers.userId, ctx.userId), eq(notificationUsers.isRead, false))
+      )) as Array<{ count: number }>;
 
     return { count: Number(rows[0]?.count ?? 0) };
   }),

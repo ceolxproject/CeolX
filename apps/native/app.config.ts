@@ -17,6 +17,10 @@ const config = {
     supportsTablet: false,
     bundleIdentifier: 'ie.ceolx.app',
     usesAppleSignIn: true,
+    // FCM via @react-native-firebase. The plist is downloaded from the
+    // Firebase Console and gitignored — see docs/project-management/M7-T1
+    // human handoff checklist.
+    googleServicesFile: process.env.GOOGLE_SERVICES_INFO_PLIST ?? './GoogleService-Info.plist',
     // Universal Links target. Activation requires `apple-app-site-association`
     // hosted at https://ceolx.ie/.well-known/apple-app-site-association — tracked
     // with the M10-T1 / admin-redirect work; until then, in-app `ceolx://post/...`
@@ -40,6 +44,7 @@ const config = {
       monochromeImage: './assets/images/android-icon-monochrome.png',
     },
     package: 'ie.ceolx.app',
+    googleServicesFile: process.env.GOOGLE_SERVICES_JSON ?? './google-services.json',
     config: {
       googleMaps: {
         apiKey: process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY ?? '',
@@ -76,7 +81,17 @@ const config = {
       },
     ],
     'expo-secure-store',
-    'expo-notifications',
+    // FCM stack (M7-T1): @react-native-firebase replaces expo-notifications
+    // per Aravind's directive — direct FCM, no Expo proxy hop, future web
+    // push reuse. iOS Firebase SDK requires static frameworks.
+    '@react-native-firebase/app',
+    '@react-native-firebase/messaging',
+    [
+      'expo-build-properties',
+      {
+        ios: { useFrameworks: 'static' },
+      },
+    ],
     'expo-apple-authentication',
     [
       'react-native-maps',

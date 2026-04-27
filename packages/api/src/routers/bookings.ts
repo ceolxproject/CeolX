@@ -5,12 +5,13 @@ import { db } from '@CeolX/db';
 import { user } from '@CeolX/db/schema/auth';
 import { bookings } from '@CeolX/db/schema/bookings';
 import { eventCollaborators, events } from '@CeolX/db/schema/events';
-import { notifications } from '@CeolX/db/schema/notifications';
 import { artistProfiles, venueProfiles } from '@CeolX/db/schema/users';
 import {
   BookingDirection,
   BookingStatus,
   type BookingStatus as BookingStatusType,
+  formatNotificationDate,
+  NotificationTrigger,
   UserRole,
 } from '@CeolX/shared';
 import {
@@ -48,6 +49,42 @@ const VALID_TRANSITIONS: Record<BookingStatusType, BookingStatusType[]> = {
   [BookingStatus.REJECTED]: [],
   [BookingStatus.CANCELLED]: [],
 };
+
+// ─── Trigger resolver for the update mutation ────────────────────────────────
+// Booking copy lives in @CeolX/shared/notifications/triggers — anchored to
+// the M7-T0 matrix. This function only maps the (currentStatus, newStatus,
+// isArtist) tuple to the right NotificationTrigger ID; the dispatcher
+// resolves the actual title/body per surface (push vs in-app).
+
+function resolveBookingUpdateTrigger(args: {
+  isArtist: boolean;
+  currentStatus: BookingStatusType;
+  newStatus: BookingStatusType;
+}): NotificationTrigger {
+  if (args.newStatus === BookingStatus.ACCEPTED) {
+    // Artist accepting → notify Venue (V-10). Venue accepting → notify Artist (A-10).
+    return args.isArtist
+      ? NotificationTrigger.BOOKING_ACCEPTED_TO_VENUE
+      : NotificationTrigger.BOOKING_ACCEPTED_TO_ARTIST;
+  }
+  if (args.newStatus === BookingStatus.REJECTED) {
+    // Artist declining → notify Venue (V-11). Venue declining → notify Artist (A-11).
+    return args.isArtist
+      ? NotificationTrigger.BOOKING_REJECTED_TO_VENUE
+      : NotificationTrigger.BOOKING_REJECTED_TO_ARTIST;
+  }
+  // CANCELLED: PENDING → withdraw, ACCEPTED → post-acceptance cancel.
+  if (args.currentStatus === BookingStatus.PENDING) {
+    // V-13 if artist withdrawing; off-matrix mirror if venue withdrawing.
+    return args.isArtist
+      ? NotificationTrigger.BOOKING_WITHDRAWN_TO_VENUE
+      : NotificationTrigger.BOOKING_WITHDRAWN_TO_ARTIST;
+  }
+  // V-12 if artist cancelling accepted; A-12 if venue cancelling accepted.
+  return args.isArtist
+    ? NotificationTrigger.BOOKING_CANCELLED_TO_VENUE
+    : NotificationTrigger.BOOKING_CANCELLED_TO_ARTIST;
+}
 
 export const bookingsRouter = router({
   // ─── Create booking (venue adds collaborator → booking auto-created) ────────
@@ -122,14 +159,17 @@ export const bookingsRouter = router({
       return booking;
     });
 
-    // 6. Create in-app notification for the artist
-    await db.insert(notifications).values({
-      userId: artistProfile.userId,
-      type: 'booking_invitation',
-      title: 'New Booking Invitation',
-      body: `${venueProfile.venueName} invited you to perform at "${event.title}"`,
-      persona: UserRole.ARTIST,
-      route: `/bookings/${result.id}`,
+    // 6. Notify the artist (matrix A-09 — booking invitation received)
+    await ctx.dispatchNotification({
+      trigger: NotificationTrigger.BOOKING_INVITE_TO_ARTIST,
+      recipientUserId: artistProfile.userId,
+      vars: {
+        bookingId: result.id,
+        venueName: venueProfile.venueName,
+        artistName: artistProfile.stageName,
+        eventTitle: event.title,
+        date: formatNotificationDate(event.dateStart),
+      },
     });
 
     // 7. Return BookingSummary
@@ -261,14 +301,17 @@ export const bookingsRouter = router({
         return booking;
       });
 
-      // 7. Notify venue
-      await db.insert(notifications).values({
-        userId: venueProfile.userId,
-        type: 'booking_request',
-        title: 'New Performance Request',
-        body: `${artistProfile.stageName} requested to perform at "${event.title}"`,
-        persona: UserRole.VENUE,
-        route: `/bookings/${result.id}`,
+      // 7. Notify venue (matrix V-09 — booking request received)
+      await ctx.dispatchNotification({
+        trigger: NotificationTrigger.BOOKING_REQUEST_TO_VENUE,
+        recipientUserId: venueProfile.userId,
+        vars: {
+          bookingId: result.id,
+          venueName: venueProfile.venueName,
+          artistName: artistProfile.stageName,
+          eventTitle: event.title,
+          date: formatNotificationDate(event.dateStart),
+        },
       });
 
       // 8. Return BookingSummary
@@ -389,27 +432,20 @@ export const bookingsRouter = router({
       await db.delete(eventCollaborators).where(eq(eventCollaborators.bookingId, input.id));
     }
 
-    // 6. Create notification for other party
+    // 6. Notify the counter-party. Matrix rows: A-10/V-10 (accepted),
+    //    A-11/V-11 (rejected), V-13 (withdraw), A-12/V-12 (cancelled).
     const recipientUserId = isArtist ? booking.venue.userId : booking.artist.userId;
-    const recipientPersona = isArtist ? UserRole.VENUE : UserRole.ARTIST;
-    const actionLabel =
-      newStatus === BookingStatus.ACCEPTED
-        ? 'accepted'
-        : newStatus === BookingStatus.REJECTED
-          ? 'declined'
-          : currentStatus === BookingStatus.PENDING
-            ? 'withdrew'
-            : 'cancelled';
 
-    const actorName = isArtist ? booking.artist.stageName : booking.venue.venueName;
-
-    await db.insert(notifications).values({
-      userId: recipientUserId,
-      type: 'booking_update',
-      title: 'Booking Update',
-      body: `${actorName} ${actionLabel} the booking for "${booking.event?.title ?? 'event'}"`,
-      persona: recipientPersona,
-      route: `/bookings/${booking.id}`,
+    await ctx.dispatchNotification({
+      trigger: resolveBookingUpdateTrigger({ isArtist, currentStatus, newStatus }),
+      recipientUserId,
+      vars: {
+        bookingId: booking.id,
+        venueName: booking.venue.venueName,
+        artistName: booking.artist.stageName,
+        eventTitle: booking.event?.title ?? 'event',
+        date: formatNotificationDate(booking.event?.dateStart ?? new Date()),
+      },
     });
 
     return { id: updated.id, status: updated.status };

@@ -38,6 +38,11 @@ export const env = createEnv({
     AWS_SECRET_ACCESS_KEY: z.string().optional(),
     S3_BUCKET_NAME: z.string().optional(),
     CLOUDFRONT_DOMAIN: z.string().optional(),
+    // Firebase Cloud Messaging — used by apps/server/src/lib/firebase-admin
+    // and the notification.push QStash handler. Optional so the server boots
+    // in dev/test without push set up; getMessaging() throws on first use.
+    FIREBASE_PROJECT_ID: z.string().optional(),
+    FIREBASE_SERVICE_ACCOUNT_KEY: z.string().optional(),
   },
   runtimeEnv: process.env,
   emptyStringAsUndefined: true,

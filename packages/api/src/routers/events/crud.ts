@@ -6,15 +6,22 @@ import { db } from '@CeolX/db';
 import { user } from '@CeolX/db/schema/auth';
 import { bookings } from '@CeolX/db/schema/bookings';
 import { eventCollaborators, events, savedEvents } from '@CeolX/db/schema/events';
-import { notifications } from '@CeolX/db/schema/notifications';
 import { artistProfiles, venueProfiles } from '@CeolX/db/schema/users';
-import { BookingDirection, BookingStatus, EventStatus, UserRole } from '@CeolX/shared';
+import {
+  BookingDirection,
+  BookingStatus,
+  EventStatus,
+  formatNotificationDate,
+  NotificationTrigger,
+  UserRole,
+} from '@CeolX/shared';
 import {
   createEventSchema,
   myEventsQuerySchema,
   updateEventSchema,
 } from '@CeolX/shared/validators';
 
+import type { DispatchNotificationInput } from '../../context';
 import { creatorProcedure, protectedProcedure, publicProcedure } from '../../index';
 import { syncEventToTypesense, removeEventFromTypesense } from '../../services/event-sync';
 
@@ -224,6 +231,10 @@ export const create = creatorProcedure.input(createEventSchema).mutation(async (
     eventData.adDescription = undefined;
   }
 
+  // Collected inside the transaction; fired after commit so a rollback
+  // doesn't leave us with phantom notifications. See M7-T1 dispatcher.
+  const pendingDispatches: DispatchNotificationInput[] = [];
+
   const event = await db.transaction(async (tx) => {
     const rows = await tx
       .insert(events)
@@ -299,13 +310,16 @@ export const create = creatorProcedure.input(createEventSchema).mutation(async (
             bookingId: booking.id,
           });
 
-          await tx.insert(notifications).values({
-            userId: ap.userId,
-            type: 'booking_confirmed',
-            title: 'Booking Confirmed',
-            body: `${venueProfile.venueName} added you as a performer for "${inserted.title}"`,
-            persona: UserRole.ARTIST,
-            route: `/bookings/${booking.id}`,
+          // Matrix A-13 — Artist auto-confirmed as a Venue's collaborator.
+          pendingDispatches.push({
+            trigger: NotificationTrigger.ADDED_AS_COLLABORATOR_TO_ARTIST,
+            recipientUserId: ap.userId,
+            vars: {
+              eventId: inserted.id,
+              eventTitle: inserted.title,
+              venueName: venueProfile.venueName,
+              date: formatNotificationDate(inserted.dateStart),
+            },
           });
         }
       } else {
@@ -370,13 +384,17 @@ export const create = creatorProcedure.input(createEventSchema).mutation(async (
                 bookingId: booking.id,
               });
 
-              await tx.insert(notifications).values({
-                userId: ap.userId,
-                type: 'booking_invitation',
-                title: 'New Booking Invitation',
-                body: `${venueProfile.venueName} invited you to perform at "${inserted.title}"`,
-                persona: UserRole.ARTIST,
-                route: `/bookings/${booking.id}`,
+              // Matrix A-09 — Venue invited Artist (booking is PENDING here).
+              pendingDispatches.push({
+                trigger: NotificationTrigger.BOOKING_INVITE_TO_ARTIST,
+                recipientUserId: ap.userId,
+                vars: {
+                  bookingId: booking.id,
+                  venueName: venueProfile.venueName,
+                  artistName: ap.stageName,
+                  eventTitle: inserted.title,
+                  date: formatNotificationDate(inserted.dateStart),
+                },
               });
             }
           }
@@ -423,13 +441,18 @@ export const create = creatorProcedure.input(createEventSchema).mutation(async (
             },
           ]);
 
-          await tx.insert(notifications).values({
-            userId: venueProfile.userId,
-            type: 'booking_confirmed',
-            title: 'New Event Booking',
-            body: `${artistProfile.stageName} created an event at your venue: "${inserted.title}"`,
-            persona: UserRole.VENUE,
-            route: `/bookings/${booking.id}`,
+          // Off-matrix — Artist creating an event at this Venue's space
+          // auto-confirms the booking. Flag for Pratiksha's matrix audit.
+          pendingDispatches.push({
+            trigger: NotificationTrigger.EVENT_HOSTED_AT_VENUE_TO_VENUE,
+            recipientUserId: venueProfile.userId,
+            vars: {
+              eventId: inserted.id,
+              eventTitle: inserted.title,
+              artistName: artistProfile.stageName,
+              venueName: venueProfile.venueName,
+              date: formatNotificationDate(inserted.dateStart),
+            },
           });
         }
       }
@@ -437,6 +460,10 @@ export const create = creatorProcedure.input(createEventSchema).mutation(async (
 
     return inserted;
   });
+
+  // Fire all collected dispatches after the transaction commits — a rollback
+  // would leave us with phantom inbox rows + push notifications otherwise.
+  await Promise.all(pendingDispatches.map((d) => ctx.dispatchNotification(d)));
 
   // Sync to Typesense so event appears on map/feed immediately
   await syncEventToTypesense(event).catch(() => {
@@ -474,6 +501,10 @@ export const update = protectedProcedure
       updateData.adDescription = undefined;
     }
 
+    // Collected inside the transaction; fired after commit so a rollback
+    // doesn't leave us with phantom notifications.
+    const pendingDispatches: DispatchNotificationInput[] = [];
+
     const updated = await db.transaction(async (tx) => {
       // Build the update object — only set provided fields
       const setValues: Record<string, unknown> = { updatedAt: new Date() };
@@ -495,7 +526,8 @@ export const update = protectedProcedure
         setValues.adDescription = updateData.adDescription;
 
       // If event was removed by admin and creator is resubmitting, re-activate
-      if (event.status === EventStatus.REMOVED) {
+      const isResubmit = event.status === EventStatus.REMOVED;
+      if (isResubmit) {
         setValues.status = EventStatus.ACTIVE;
         setValues.removalReason = null;
       }
@@ -508,6 +540,21 @@ export const update = protectedProcedure
 
       const result = rows[0];
       if (!result) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Update failed' });
+
+      if (isResubmit) {
+        // Matrix A-16 / V-15 — confirm resubmission to the creator. Queued
+        // here, fired post-commit alongside any collaborator dispatches.
+        pendingDispatches.push({
+          trigger: isVenue
+            ? NotificationTrigger.EVENT_RESUBMITTED_TO_VENUE
+            : NotificationTrigger.EVENT_RESUBMITTED_TO_ARTIST,
+          recipientUserId: ctx.userId,
+          vars: {
+            eventId: result.id,
+            eventTitle: result.title,
+          },
+        });
+      }
 
       // Update collaborators if provided — for venues, create bookings for new additions
       // Removal is handled through the booking flow (reject/withdraw/cancel), not event edit
@@ -577,13 +624,16 @@ export const update = protectedProcedure
                 bookingId: booking.id,
               });
 
-              await tx.insert(notifications).values({
-                userId: ap.userId,
-                type: 'booking_confirmed',
-                title: 'Booking Confirmed',
-                body: `${venueProfile.venueName} added you as a performer for "${result.title}"`,
-                persona: UserRole.ARTIST,
-                route: `/bookings/${booking.id}`,
+              // Matrix A-13 — Artist auto-confirmed as a Venue's collaborator.
+              pendingDispatches.push({
+                trigger: NotificationTrigger.ADDED_AS_COLLABORATOR_TO_ARTIST,
+                recipientUserId: ap.userId,
+                vars: {
+                  eventId: input.id,
+                  eventTitle: result.title,
+                  venueName: venueProfile.venueName,
+                  date: formatNotificationDate(result.dateStart),
+                },
               });
             }
           }
@@ -678,13 +728,17 @@ export const update = protectedProcedure
                   bookingId: booking.id,
                 });
 
-                await tx.insert(notifications).values({
-                  userId: ap.userId,
-                  type: 'booking_invitation',
-                  title: 'New Booking Invitation',
-                  body: `${venueProfile.venueName} invited you to perform at "${result.title}"`,
-                  persona: UserRole.ARTIST,
-                  route: `/bookings/${booking.id}`,
+                // Matrix A-09 — Venue invited Artist (booking is PENDING here).
+                pendingDispatches.push({
+                  trigger: NotificationTrigger.BOOKING_INVITE_TO_ARTIST,
+                  recipientUserId: ap.userId,
+                  vars: {
+                    bookingId: booking.id,
+                    venueName: venueProfile.venueName,
+                    artistName: ap.stageName,
+                    eventTitle: result.title,
+                    date: formatNotificationDate(result.dateStart),
+                  },
                 });
               }
             }
@@ -701,6 +755,9 @@ export const update = protectedProcedure
     } else {
       await removeEventFromTypesense(updated.id).catch(() => {});
     }
+
+    // Fire collected dispatches after the transaction commits.
+    await Promise.all(pendingDispatches.map((d) => ctx.dispatchNotification(d)));
 
     return updated;
   });
