@@ -302,12 +302,10 @@ export const create = creatorProcedure.input(createEventSchema).mutation(async (
           await tx.insert(notifications).values({
             userId: ap.userId,
             type: 'booking_confirmed',
-            payload: {
-              title: 'Booking Confirmed',
-              body: `${venueProfile.venueName} added you as a performer for "${inserted.title}"`,
-              persona: UserRole.ARTIST,
-              route: `/bookings/${booking.id}`,
-            },
+            title: 'Booking Confirmed',
+            body: `${venueProfile.venueName} added you as a performer for "${inserted.title}"`,
+            persona: UserRole.ARTIST,
+            route: `/bookings/${booking.id}`,
           });
         }
       } else {
@@ -375,12 +373,10 @@ export const create = creatorProcedure.input(createEventSchema).mutation(async (
               await tx.insert(notifications).values({
                 userId: ap.userId,
                 type: 'booking_invitation',
-                payload: {
-                  title: 'New Booking Invitation',
-                  body: `${venueProfile.venueName} invited you to perform at "${inserted.title}"`,
-                  persona: UserRole.ARTIST,
-                  route: `/bookings/${booking.id}`,
-                },
+                title: 'New Booking Invitation',
+                body: `${venueProfile.venueName} invited you to perform at "${inserted.title}"`,
+                persona: UserRole.ARTIST,
+                route: `/bookings/${booking.id}`,
               });
             }
           }
@@ -430,12 +426,10 @@ export const create = creatorProcedure.input(createEventSchema).mutation(async (
           await tx.insert(notifications).values({
             userId: venueProfile.userId,
             type: 'booking_confirmed',
-            payload: {
-              title: 'New Event Booking',
-              body: `${artistProfile.stageName} created an event at your venue: "${inserted.title}"`,
-              persona: UserRole.VENUE,
-              route: `/bookings/${booking.id}`,
-            },
+            title: 'New Event Booking',
+            body: `${artistProfile.stageName} created an event at your venue: "${inserted.title}"`,
+            persona: UserRole.VENUE,
+            route: `/bookings/${booking.id}`,
           });
         }
       }
@@ -586,12 +580,10 @@ export const update = protectedProcedure
               await tx.insert(notifications).values({
                 userId: ap.userId,
                 type: 'booking_confirmed',
-                payload: {
-                  title: 'Booking Confirmed',
-                  body: `${venueProfile.venueName} added you as a performer for "${result.title}"`,
-                  persona: UserRole.ARTIST,
-                  route: `/bookings/${booking.id}`,
-                },
+                title: 'Booking Confirmed',
+                body: `${venueProfile.venueName} added you as a performer for "${result.title}"`,
+                persona: UserRole.ARTIST,
+                route: `/bookings/${booking.id}`,
               });
             }
           }
@@ -689,12 +681,10 @@ export const update = protectedProcedure
                 await tx.insert(notifications).values({
                   userId: ap.userId,
                   type: 'booking_invitation',
-                  payload: {
-                    title: 'New Booking Invitation',
-                    body: `${venueProfile.venueName} invited you to perform at "${result.title}"`,
-                    persona: UserRole.ARTIST,
-                    route: `/bookings/${booking.id}`,
-                  },
+                  title: 'New Booking Invitation',
+                  body: `${venueProfile.venueName} invited you to perform at "${result.title}"`,
+                  persona: UserRole.ARTIST,
+                  route: `/bookings/${booking.id}`,
                 });
               }
             }
