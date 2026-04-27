@@ -76,13 +76,13 @@ Tracks completed tasks per milestone. Each entry links to its PR.
 - [x] M6-T1 · Artist Profile — PR #43
 - [x] M6-T2 · Venue Profile — PR #44
 - [x] M6-T3 · Follow System — PR #45
-- [ ] M6-T4 · Posts & Promotional Content
+- [x] M6-T4 · Posts & Promotional Content — PR #46
 
 ## M7 — Push Notifications & Emails
 
 - [ ] M7-T1 · Push Notifications (FCM)
 - [ ] M7-T2 · In-App Notification Inbox
-- [ ] M7-T3 · Transactional Emails (Postmark)
+- [x] M7-T3 · Transactional Emails (Postmark) — PR #48
 
 ## M8 — Venue Subscription & Payments
 

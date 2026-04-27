@@ -3,7 +3,7 @@
 | Field          | Value                                                                                                                                |
 | -------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
 | **Milestone**  | M6 — Profiles & Social                                                                                                               |
-| **Status**     | 🔲 To Do                                                                                                                             |
+| **Status**     | ✅ Done (text + image) — PR #46. Video (Mux) + audio (expo-av) deferred pending M10-T1.                                              |
 | **Depends on** | M6-T1 (artist_profiles), M6-T2 (venue_profiles), M10-T1 (media upload — S3 presigned, Mux), M6-T3 (Follow System for feed inclusion) |
 | **PRD Ref**    | Section 5.1 (End User Features), Section 6.1 (Artist Features), Section 7.1 (Venue Features), Section 9.3 (Data Model)               |
 
@@ -416,65 +416,77 @@ None
 
 ### Post Creation
 
-- [ ] Artist can create text-only post (caption, no media)
-- [ ] Artist can create post with caption + image
-- [ ] Artist can create post with caption + video (Mux upload)
-- [ ] Artist can create post with caption + audio
-- [ ] Venue can create posts with all four media types
-- [ ] Spectator cannot see Create Post option or button
-- [ ] Post created with empty caption + no media returns 400 error
+- [x] Artist can create text-only post (caption, no media)
+- [x] Artist can create post with caption + image
+- [ ] Artist can create post with caption + video (Mux upload) — **deferred: M10-T1**
+- [ ] Artist can create post with caption + audio — **deferred: M10-T1**
+- [x] Venue can create posts (text + image) — video/audio deferred
+- [x] Spectator cannot see Create Post option or button
+- [x] Post created with empty caption + no media returns 400 error
 
 ### Image Upload
 
-- [ ] GET /api/v1/upload/presigned?type=post_image returns valid presigned URL (15 min expiry)
-- [ ] Mobile uploads image directly to S3 (not through backend)
-- [ ] CloudFront CDN URL returned and stored in posts.media_url
-- [ ] Image renders correctly in feed
+- [x] `posts.presignImage` returns valid presigned URL (15 min expiry) — `packages/api/src/services/s3-presigner.ts`
+- [x] Mobile uploads image directly to S3 (not through backend) — `apps/native/hooks/use-post-image-upload.ts`
+- [x] CloudFront CDN URL returned and stored in posts.media_url
+- [x] Image renders correctly in feed — `PostCard.tsx`
 
 ### Video Upload
 
-- [ ] GET /api/v1/upload/mux-url returns Mux Direct Upload URL (60 min expiry)
-- [ ] Mobile uploads video directly to Mux
-- [ ] Mux webhook confirms processing complete; posts.media_url updated with HLS URL
-- [ ] Thumbnail generated and stored in posts.thumbnail_url
-- [ ] Video plays inline in feed with HLS streaming
+- [ ] GET /api/v1/upload/mux-url returns Mux Direct Upload URL (60 min expiry) — **deferred: M10-T1**
+- [ ] Mobile uploads video directly to Mux — **deferred: M10-T1**
+- [ ] Mux webhook confirms processing complete — **deferred: M10-T1**
+- [ ] Thumbnail generated and stored in posts.thumbnail_url — **deferred: M10-T1**
+- [ ] Video plays inline in feed with HLS streaming — **deferred: M10-T1**
 
 ### Audio Upload
 
-- [ ] Audio upload to S3 presigned URL works
-- [ ] CloudFront URL stored in posts.media_url
-- [ ] Audio player renders in feed using expo-av
+- [ ] Audio upload to S3 presigned URL works — **deferred: M10-T1** (presign endpoint exists; mime-types accept audio, but UI/player deferred)
+- [ ] CloudFront URL stored in posts.media_url — **deferred: M10-T1**
+- [ ] Audio player renders in feed using expo-av — **deferred: M10-T1**
 
 ### Feed Display
 
-- [ ] Posts appear in Discover feed /api/v1/posts/feed (only from followed profiles + own)
-- [ ] Posts appear on artist/venue profile under Posts section (/api/v1/artists/:id/posts)
-- [ ] Post card shows all fields (author image, name, caption, media, like/comment counts)
-- [ ] Images, videos, audio render correctly in feed
+- [x] Posts appear in Discover "Posts" segment `posts.feed` (followed + own) — `discover/index.tsx` wires `useFeedPosts`
+- [x] Posts appear on artist/venue profile under Posts section — via `posts.byUser`
+- [x] Post card shows all fields (author image, name, caption, media, like counts) — comment count deferred (Figma omits it)
+- [x] Images render correctly in feed — video/audio deferred
 
 ### Likes
 
-- [ ] Like button on post card; tapping increments like_count
-- [ ] Like icon/color toggles to indicate liked state
-- [ ] Unlike (tapping again) decrements like_count
-- [ ] Like count displayed on post card
-- [ ] Attempting to like twice returns 409 Conflict
+- [x] Like button on post card; tapping increments like_count — `PostCard.tsx`
+- [x] Like icon/color toggles to indicate liked state
+- [x] Unlike (tapping again) decrements like_count — single `toggleLike` endpoint
+- [x] Like count displayed on post card
+- [~] Attempting to like twice — replaced with idempotent toggle (409 no longer applicable)
 
 ### Comments
 
-- [ ] Comment count shown on post card
-- [ ] Tapping comment count expands comment list below post
-- [ ] Text input field visible for adding comment
-- [ ] Submitting comment displays immediately with author name and timestamp
-- [ ] Comments listed in chronological order (oldest first)
-- [ ] Comment author can delete their own comment; comment disappears or shows "Comment deleted"
-- [ ] Post creator can delete any comment on their post
+- [~] Backend schema + table exist (`comments` table) — **UI deferred** (Figma 1-10863 / 1-6872 omits comments; only likes + share shown)
+- [ ] Comment count shown on post card — **deferred**
+- [ ] Tapping comment count expands comment list below post — **deferred**
+- [ ] Text input field visible for adding comment — **deferred**
+- [ ] Submitting comment displays immediately — **deferred**
+- [ ] Comments listed in chronological order — **deferred**
+- [ ] Comment author can delete their own comment — **deferred**
+- [ ] Post creator can delete any comment on their post — **deferred**
 
 ### Deletion
 
-- [ ] Creator can delete their own post; post disappears from feed or shows "Post deleted"
-- [ ] Deleted post is soft-deleted (deleted_at timestamp set, post remains in DB)
-- [ ] Other users cannot delete posts they don't own (401 error)
+- [x] Creator can delete their own post; post disappears from feed
+- [x] Deleted post is soft-deleted (deleted_at timestamp set, post remains in DB)
+- [x] Other users cannot delete posts they don't own (403 FORBIDDEN)
+
+### Extras beyond spec (per Priya 2026-04-17)
+
+- [x] Posts are public — `posts.byId` + `posts.byUser` are `publicProcedure`
+- [x] Edit post allows caption AND media swap (not caption-only)
+- [x] Share button uses native Share sheet with `https://ceolx.ie/post/<id>` deep link
+- [x] `app/(app)/post/[postId].tsx` deep-link landing route
+- [x] `app.config.ts` universal-link entries (iOS associatedDomains + Android intentFilters)
+- [x] "What would you like to create?" chooser screen (Figma 1-10934) — FAB now routes here
+- [ ] Web-side `https://ceolx.ie/post/<id>` redirect page — **deferred: admin-app task**
+- [ ] `apple-app-site-association` + `assetlinks.json` hosted at `ceolx.ie/.well-known/` — **deferred: prod signing + hosting**
 
 ---
 

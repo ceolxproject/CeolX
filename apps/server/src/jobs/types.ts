@@ -1,23 +1,27 @@
 import { z } from 'zod';
 
+import type { EmailTemplate } from '@CeolX/email';
+
 // ---------------------------------------------------------------------------
 // Payload schemas — one per job type
 // ---------------------------------------------------------------------------
 
+// Mirror of `EmailTemplate` from `@CeolX/email`. The `satisfies` clause is a
+// compile-time check — adding a template to the email package without adding
+// it here will fail `tsc -b`. Templates the email package doesn't ship yet
+// (booking, GDPR, etc.) are intentionally absent.
+const EMAIL_TEMPLATES = [
+  'verification',
+  'password-reset',
+  'venue-activation',
+  'payment-confirmation',
+  'event-approved',
+  'event-rejected',
+] as const satisfies readonly EmailTemplate[];
+
 export const emailSendSchema = z.object({
   to: z.email(),
-  template: z.enum([
-    'email-verification',
-    'password-reset',
-    'venue-activation',
-    'payment-confirmation',
-    'event-approved',
-    'event-rejected',
-    'booking-invitation',
-    'booking-accepted',
-    'booking-rejected',
-    'data-export-ready',
-  ]),
+  template: z.enum(EMAIL_TEMPLATES),
   locale: z.string().default('en'),
   data: z.record(z.string(), z.string()).optional(),
 });

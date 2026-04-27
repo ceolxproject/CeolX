@@ -7,7 +7,7 @@ export default function TabsLayout() {
 
   return (
     <Tabs
-      tabBar={(props) => <AppTabBar {...props} onFabPress={() => router.push('/events/create')} />}
+      tabBar={(props) => <AppTabBar {...props} onFabPress={() => router.push('/create')} />}
       screenOptions={{
         headerShown: false,
         // Force dark bg on every tab screen so the white React Navigation

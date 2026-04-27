@@ -59,7 +59,7 @@ describe('publishJob', () => {
   it('calls publishJSON with the correct url and body', async () => {
     await publishJob('email.send', {
       to: 'user@example.com',
-      template: 'email-verification',
+      template: 'verification',
       locale: 'en',
     });
 
