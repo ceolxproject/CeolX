@@ -4,27 +4,33 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 import type { UserRole } from '@CeolX/shared';
 
 // ─── Hoisted mocks ────────────────────────────────────────────────────────────
+// After the M7-T1 schema split the inbox queries JOIN notification_users
+// (state) onto notifications (content). The mocks below model the chain:
+//   list:         db.select(fields).from(nu).innerJoin(n).where().orderBy().limit().offset()
+//   total:        db.select({total}).from(nu).where()
+//   markAsRead:   db.update(nu).set().where().returning()
+//   markAllRead:  db.update(nu).set().where().returning()
+//   unreadCount:  db.select({count}).from(nu).where()
 
-const { mockListSelect, mockCountSelect, mockUpdateReturning, mockDb } = vi.hoisted(() => {
-  const mockListSelect = vi.fn();
-  const mockCountSelect = vi.fn();
+const { mockListOffset, mockCountWhere, mockUpdateReturning, mockDb } = vi.hoisted(() => {
+  const mockListOffset = vi.fn();
+  const mockCountWhere = vi.fn();
   const mockUpdateReturning = vi.fn();
-
-  const selectWithoutFields = vi.fn(() => ({
-    from: vi.fn(() => ({
-      where: vi.fn(() => ({
-        orderBy: vi.fn(() => ({
-          limit: vi.fn(() => ({
-            offset: mockListSelect,
-          })),
-        })),
-      })),
-    })),
-  }));
 
   const selectWithFields = vi.fn(() => ({
     from: vi.fn(() => ({
-      where: mockCountSelect,
+      // List query: from() chains into innerJoin().where().orderBy().limit().offset()
+      innerJoin: vi.fn(() => ({
+        where: vi.fn(() => ({
+          orderBy: vi.fn(() => ({
+            limit: vi.fn(() => ({
+              offset: mockListOffset,
+            })),
+          })),
+        })),
+      })),
+      // Count + unread queries: from() chains directly into where()
+      where: mockCountWhere,
     })),
   }));
 
@@ -37,11 +43,11 @@ const { mockListSelect, mockCountSelect, mockUpdateReturning, mockDb } = vi.hois
   }));
 
   const mockDb = {
-    select: vi.fn((fields?: unknown) => (fields ? selectWithFields() : selectWithoutFields())),
+    select: vi.fn(() => selectWithFields()),
     update: updateChain,
   };
 
-  return { mockListSelect, mockCountSelect, mockUpdateReturning, mockDb };
+  return { mockListOffset, mockCountWhere, mockUpdateReturning, mockDb };
 });
 
 vi.mock('@CeolX/db', () => ({ db: mockDb }));
@@ -49,15 +55,21 @@ vi.mock('@CeolX/db', () => ({ db: mockDb }));
 vi.mock('@CeolX/db/schema/notifications', () => ({
   notifications: {
     id: 'id',
-    userId: 'user_id',
     type: 'type',
     title: 'title',
     body: 'body',
     route: 'route',
     persona: 'persona',
-    isRead: 'is_read',
     createdAt: 'created_at',
+  },
+  notificationUsers: {
+    id: 'id',
+    notificationId: 'notification_id',
+    userId: 'user_id',
+    isRead: 'is_read',
+    readAt: 'read_at',
     archivedAt: 'archived_at',
+    createdAt: 'created_at',
   },
 }));
 
@@ -120,18 +132,16 @@ async function expectTRPCError(promise: Promise<unknown>, code: TRPCError['code'
 
 // ─── Fixtures ────────────────────────────────────────────────────────────────
 
-function notificationRow(overrides: Partial<Record<string, unknown>> = {}) {
+function inboxRow(overrides: Partial<Record<string, unknown>> = {}) {
   return {
-    id: 'aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa',
-    userId: USER_ID,
+    id: 'aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa', // notification_users.id
     type: 'booking_invitation',
-    title: 'New Booking Invitation',
+    title: 'New booking invite',
     body: 'A venue invited you',
     route: '/bookings/123',
     persona: 'artist',
     isRead: false,
     createdAt: new Date('2026-04-25T10:00:00Z'),
-    archivedAt: null,
     ...overrides,
   };
 }
@@ -145,11 +155,11 @@ beforeEach(() => {
 describe('notifications.list', () => {
   it('returns paginated rows newest-first with total + hasMore', async () => {
     const rows = [
-      notificationRow({ id: 'r1', createdAt: new Date('2026-04-25T10:00:00Z') }),
-      notificationRow({ id: 'r2', createdAt: new Date('2026-04-24T10:00:00Z') }),
+      inboxRow({ id: 'r1', createdAt: new Date('2026-04-25T10:00:00Z') }),
+      inboxRow({ id: 'r2', createdAt: new Date('2026-04-24T10:00:00Z') }),
     ];
-    mockListSelect.mockResolvedValueOnce(rows);
-    mockCountSelect.mockResolvedValueOnce([{ total: 5 }]);
+    mockListOffset.mockResolvedValueOnce(rows);
+    mockCountWhere.mockResolvedValueOnce([{ total: 5 }]);
 
     const caller = createCaller(authedContext());
     const result = await caller.notifications.list({ page: 1, limit: 2 });
@@ -161,8 +171,8 @@ describe('notifications.list', () => {
   });
 
   it('hasMore is false when offset+rows >= total', async () => {
-    mockListSelect.mockResolvedValueOnce([notificationRow()]);
-    mockCountSelect.mockResolvedValueOnce([{ total: 1 }]);
+    mockListOffset.mockResolvedValueOnce([inboxRow()]);
+    mockCountWhere.mockResolvedValueOnce([{ total: 1 }]);
 
     const caller = createCaller(authedContext());
     const result = await caller.notifications.list({ page: 1, limit: 20 });
@@ -171,16 +181,14 @@ describe('notifications.list', () => {
   });
 
   it('default limit is 20 and accepts custom limit', async () => {
-    mockListSelect.mockResolvedValue([]);
-    mockCountSelect.mockResolvedValue([{ total: 0 }]);
+    mockListOffset.mockResolvedValue([]);
+    mockCountWhere.mockResolvedValue([{ total: 0 }]);
 
     const caller = createCaller(authedContext());
-    // Default limit
     await caller.notifications.list({});
-    // Custom limit
     await caller.notifications.list({ limit: 5 });
 
-    expect(mockListSelect).toHaveBeenCalledTimes(2);
+    expect(mockListOffset).toHaveBeenCalledTimes(2);
   });
 
   it('rejects unauthenticated callers', async () => {
@@ -190,8 +198,8 @@ describe('notifications.list', () => {
 
   it('coerces createdAt to ISO string in DTO', async () => {
     const ts = new Date('2026-04-25T10:00:00Z');
-    mockListSelect.mockResolvedValueOnce([notificationRow({ createdAt: ts })]);
-    mockCountSelect.mockResolvedValueOnce([{ total: 1 }]);
+    mockListOffset.mockResolvedValueOnce([inboxRow({ createdAt: ts })]);
+    mockCountWhere.mockResolvedValueOnce([{ total: 1 }]);
 
     const caller = createCaller(authedContext());
     const result = await caller.notifications.list({});
@@ -260,7 +268,7 @@ describe('notifications.markAllAsRead', () => {
 
 describe('notifications.unreadCount', () => {
   it('returns the count of unread for the caller', async () => {
-    mockCountSelect.mockResolvedValueOnce([{ count: 7 }]);
+    mockCountWhere.mockResolvedValueOnce([{ count: 7 }]);
 
     const caller = createCaller(authedContext());
     const result = await caller.notifications.unreadCount();
@@ -269,7 +277,7 @@ describe('notifications.unreadCount', () => {
   });
 
   it('returns 0 when no rows match', async () => {
-    mockCountSelect.mockResolvedValueOnce([{ count: 0 }]);
+    mockCountWhere.mockResolvedValueOnce([{ count: 0 }]);
 
     const caller = createCaller(authedContext());
     const result = await caller.notifications.unreadCount();

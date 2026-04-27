@@ -848,14 +848,27 @@ describe('bookings.byId — cancelledBy', () => {
   });
 });
 
-// ─── M7-T1 dispatcher integration (matrix-copy assertions) ──────────────────
-// `mockEvent.dateStart` is 2026-05-01T20:00:00Z → en-IE short format
-// "Fri 1 May" (single-digit day, no leading zero).
+// ─── M7-T1 dispatcher integration (trigger + vars) ──────────────────────────
+// Routers no longer carry copy — they pass a NotificationTrigger ID and the
+// vars needed to interpolate it. The shared registry resolves push vs in-app
+// copy at dispatch time. `mockEvent.dateStart` 2026-05-01T20:00:00Z → "Fri 1 May".
 
-describe('bookings dispatch — matrix copy', () => {
+describe('bookings dispatch — trigger + vars', () => {
   const EVENT_DATE_FRI = 'Fri 1 May';
 
-  it('A-09: create dispatches "New booking invite" to the artist', async () => {
+  const expectVars = (
+    artistName = 'Celtic Thunder',
+    venueName = 'The Temple Bar',
+    eventTitle = 'Friday Night Trad Session'
+  ) => ({
+    bookingId: BOOKING_ID,
+    artistName,
+    venueName,
+    eventTitle,
+    date: EVENT_DATE_FRI,
+  });
+
+  it('A-09 — create dispatches BOOKING_INVITE_TO_ARTIST to the artist', async () => {
     const caller = createCaller(authedContext('venue', VENUE_USER_ID));
     mockVenuesFindFirst.mockResolvedValueOnce(mockVenueProfile);
     mockArtistsFindFirst.mockResolvedValueOnce(mockArtistProfile);
@@ -868,16 +881,13 @@ describe('bookings dispatch — matrix copy', () => {
     await caller.bookings.create({ artistId: ARTIST_PROFILE_ID, eventId: EVENT_ID });
 
     expect(mockDispatchNotification).toHaveBeenCalledWith({
-      userId: ARTIST_USER_ID,
-      type: 'booking_invitation',
-      title: 'New booking invite',
-      body: `The Temple Bar invited you to play "Friday Night Trad Session" on ${EVENT_DATE_FRI}.`,
-      persona: 'artist',
-      route: `/bookings/${BOOKING_ID}`,
+      trigger: 'booking_invite_to_artist',
+      recipientUserId: ARTIST_USER_ID,
+      vars: expectVars(),
     });
   });
 
-  it('V-09: requestToPerform dispatches "New booking request" to the venue', async () => {
+  it('V-09 — requestToPerform dispatches BOOKING_REQUEST_TO_VENUE', async () => {
     const caller = createCaller(authedContext('artist', ARTIST_USER_ID));
     mockArtistsFindFirst.mockResolvedValueOnce(mockArtistProfile);
     mockEventsFindFirst.mockResolvedValueOnce(mockEvent);
@@ -892,35 +902,27 @@ describe('bookings dispatch — matrix copy', () => {
     await caller.bookings.requestToPerform({ eventId: EVENT_ID });
 
     expect(mockDispatchNotification).toHaveBeenCalledWith({
-      userId: VENUE_USER_ID,
-      type: 'booking_request',
-      title: 'New booking request',
-      body: `Celtic Thunder applied for "Friday Night Trad Session" on ${EVENT_DATE_FRI}.`,
-      persona: 'venue',
-      route: `/bookings/${BOOKING_ID}`,
+      trigger: 'booking_request_to_venue',
+      recipientUserId: VENUE_USER_ID,
+      vars: expectVars(),
     });
   });
 
-  it('A-10: artist accepting dispatches "Booking Accepted ✓" to the venue', async () => {
+  it('A-10 / V-10 — artist accepting → BOOKING_ACCEPTED_TO_VENUE', async () => {
     const caller = createCaller(authedContext('artist', ARTIST_USER_ID));
     mockBookingsFindFirst.mockResolvedValueOnce(mockBooking);
     mockUpdateReturning.mockResolvedValueOnce([{ ...mockBooking, status: 'accepted' }]);
 
     await caller.bookings.update({ id: BOOKING_ID, status: 'accepted' });
 
-    expect(mockDispatchNotification).toHaveBeenCalledWith(
-      expect.objectContaining({
-        userId: VENUE_USER_ID,
-        type: 'booking_accepted',
-        title: 'Booking Accepted ✓',
-        body: `Celtic Thunder accepted your invite for "Friday Night Trad Session" on ${EVENT_DATE_FRI}.`,
-        persona: 'venue',
-      })
-    );
+    expect(mockDispatchNotification).toHaveBeenCalledWith({
+      trigger: 'booking_accepted_to_venue',
+      recipientUserId: VENUE_USER_ID,
+      vars: expectVars(),
+    });
   });
 
-  it('A-11: artist rejecting an artist-to-venue request → "Booking Not Accepted" to artist', async () => {
-    // Artist applied; venue is rejecting → notify artist with A-11 copy.
+  it('A-11 — venue rejecting an artist application → BOOKING_REJECTED_TO_ARTIST', async () => {
     const a2v = { ...mockBooking, direction: 'artist_to_venue' };
     const caller = createCaller(authedContext('venue', VENUE_USER_ID));
     mockBookingsFindFirst.mockResolvedValueOnce(a2v);
@@ -928,36 +930,28 @@ describe('bookings dispatch — matrix copy', () => {
 
     await caller.bookings.update({ id: BOOKING_ID, status: 'rejected' });
 
-    expect(mockDispatchNotification).toHaveBeenCalledWith(
-      expect.objectContaining({
-        userId: ARTIST_USER_ID,
-        type: 'booking_rejected',
-        title: 'Booking Not Accepted',
-        body: 'The Temple Bar has passed on your application for "Friday Night Trad Session".',
-        persona: 'artist',
-      })
-    );
+    expect(mockDispatchNotification).toHaveBeenCalledWith({
+      trigger: 'booking_rejected_to_artist',
+      recipientUserId: ARTIST_USER_ID,
+      vars: expectVars(),
+    });
   });
 
-  it('V-11: artist declining a venue invite → "Invitation Declined" to venue', async () => {
+  it('V-11 — artist declining a venue invite → BOOKING_REJECTED_TO_VENUE', async () => {
     const caller = createCaller(authedContext('artist', ARTIST_USER_ID));
     mockBookingsFindFirst.mockResolvedValueOnce(mockBooking);
     mockUpdateReturning.mockResolvedValueOnce([{ ...mockBooking, status: 'rejected' }]);
 
     await caller.bookings.update({ id: BOOKING_ID, status: 'rejected' });
 
-    expect(mockDispatchNotification).toHaveBeenCalledWith(
-      expect.objectContaining({
-        userId: VENUE_USER_ID,
-        type: 'booking_rejected',
-        title: 'Invitation Declined',
-        body: `Celtic Thunder can't make "Friday Night Trad Session" on ${EVENT_DATE_FRI}.`,
-        persona: 'venue',
-      })
-    );
+    expect(mockDispatchNotification).toHaveBeenCalledWith({
+      trigger: 'booking_rejected_to_venue',
+      recipientUserId: VENUE_USER_ID,
+      vars: expectVars(),
+    });
   });
 
-  it('V-13: artist withdrawing a pending application → "Application Withdrawn" to venue', async () => {
+  it('V-13 — artist withdrawing pending application → BOOKING_WITHDRAWN_TO_VENUE', async () => {
     const a2v = { ...mockBooking, direction: 'artist_to_venue' };
     const caller = createCaller(authedContext('artist', ARTIST_USER_ID));
     mockBookingsFindFirst.mockResolvedValueOnce(a2v);
@@ -965,18 +959,14 @@ describe('bookings dispatch — matrix copy', () => {
 
     await caller.bookings.update({ id: BOOKING_ID, status: 'cancelled' });
 
-    expect(mockDispatchNotification).toHaveBeenCalledWith(
-      expect.objectContaining({
-        userId: VENUE_USER_ID,
-        type: 'booking_withdrawn',
-        title: 'Application Withdrawn',
-        body: 'Celtic Thunder withdrew their application for "Friday Night Trad Session".',
-        persona: 'venue',
-      })
-    );
+    expect(mockDispatchNotification).toHaveBeenCalledWith({
+      trigger: 'booking_withdrawn_to_venue',
+      recipientUserId: VENUE_USER_ID,
+      vars: expectVars(),
+    });
   });
 
-  it('A-12: venue cancelling an accepted booking → "Booking Cancelled" to artist', async () => {
+  it('A-12 — venue cancelling accepted booking → BOOKING_CANCELLED_TO_ARTIST', async () => {
     const accepted = { ...mockBooking, status: 'accepted' };
     const caller = createCaller(authedContext('venue', VENUE_USER_ID));
     mockBookingsFindFirst.mockResolvedValueOnce(accepted);
@@ -984,14 +974,10 @@ describe('bookings dispatch — matrix copy', () => {
 
     await caller.bookings.update({ id: BOOKING_ID, status: 'cancelled' });
 
-    expect(mockDispatchNotification).toHaveBeenCalledWith(
-      expect.objectContaining({
-        userId: ARTIST_USER_ID,
-        type: 'booking_cancelled',
-        title: 'Booking Cancelled',
-        body: `The Temple Bar cancelled "Friday Night Trad Session" on ${EVENT_DATE_FRI}.`,
-        persona: 'artist',
-      })
-    );
+    expect(mockDispatchNotification).toHaveBeenCalledWith({
+      trigger: 'booking_cancelled_to_artist',
+      recipientUserId: ARTIST_USER_ID,
+      vars: expectVars(),
+    });
   });
 });
