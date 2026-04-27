@@ -126,12 +126,10 @@ export const bookingsRouter = router({
     await db.insert(notifications).values({
       userId: artistProfile.userId,
       type: 'booking_invitation',
-      payload: {
-        title: 'New Booking Invitation',
-        body: `${venueProfile.venueName} invited you to perform at "${event.title}"`,
-        persona: UserRole.ARTIST,
-        route: `/bookings/${result.id}`,
-      },
+      title: 'New Booking Invitation',
+      body: `${venueProfile.venueName} invited you to perform at "${event.title}"`,
+      persona: UserRole.ARTIST,
+      route: `/bookings/${result.id}`,
     });
 
     // 7. Return BookingSummary
@@ -267,12 +265,10 @@ export const bookingsRouter = router({
       await db.insert(notifications).values({
         userId: venueProfile.userId,
         type: 'booking_request',
-        payload: {
-          title: 'New Performance Request',
-          body: `${artistProfile.stageName} requested to perform at "${event.title}"`,
-          persona: UserRole.VENUE,
-          route: `/bookings/${result.id}`,
-        },
+        title: 'New Performance Request',
+        body: `${artistProfile.stageName} requested to perform at "${event.title}"`,
+        persona: UserRole.VENUE,
+        route: `/bookings/${result.id}`,
       });
 
       // 8. Return BookingSummary
@@ -410,12 +406,10 @@ export const bookingsRouter = router({
     await db.insert(notifications).values({
       userId: recipientUserId,
       type: 'booking_update',
-      payload: {
-        title: 'Booking Update',
-        body: `${actorName} ${actionLabel} the booking for "${booking.event?.title ?? 'event'}"`,
-        persona: recipientPersona,
-        route: `/bookings/${booking.id}`,
-      },
+      title: 'Booking Update',
+      body: `${actorName} ${actionLabel} the booking for "${booking.event?.title ?? 'event'}"`,
+      persona: recipientPersona,
+      route: `/bookings/${booking.id}`,
     });
 
     return { id: updated.id, status: updated.status };

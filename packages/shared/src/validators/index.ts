@@ -6,3 +6,4 @@ export * from './bookings.js';
 export * from './collections.js';
 export * from './follows.js';
 export * from './posts.js';
+export * from './notifications.js';

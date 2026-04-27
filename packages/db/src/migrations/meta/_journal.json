@@ -92,6 +92,13 @@
       "when": 1776351398443,
       "tag": "20260416145638_strange_tana_nile",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1777266627529,
+      "tag": "20260427051027_notifications_flat_columns",
+      "breakpoints": true
     }
   ]
 }

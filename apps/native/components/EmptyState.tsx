@@ -1,7 +1,7 @@
 import { cn } from 'heroui-native';
 import { Pressable, Text, View } from 'react-native';
 
-type EmptyVariant = 'no-events' | 'no-results' | 'no-bookings';
+type EmptyVariant = 'no-events' | 'no-results' | 'no-bookings' | 'no-notifications';
 
 const VARIANT_CONFIG: Record<EmptyVariant, { emoji: string; title: string; subtitle: string }> = {
   'no-events': {
@@ -18,6 +18,11 @@ const VARIANT_CONFIG: Record<EmptyVariant, { emoji: string; title: string; subti
     emoji: '📅',
     title: 'No bookings yet',
     subtitle: 'Your booking requests will appear here',
+  },
+  'no-notifications': {
+    emoji: '🔔',
+    title: 'No notifications yet',
+    subtitle: 'New activity will show up here',
   },
 };
 

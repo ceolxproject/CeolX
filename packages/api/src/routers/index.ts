@@ -6,6 +6,7 @@ import { bookingsRouter } from './bookings';
 import { collectionsRouter } from './collections';
 import { eventsRouter } from './events';
 import { followsRouter } from './follows';
+import { notificationsRouter } from './notifications';
 import { onboardingRouter } from './onboarding';
 import { postsRouter } from './posts';
 import { stripeRouter } from './stripe';
@@ -21,6 +22,7 @@ export const appRouter = router({
   bookings: bookingsRouter,
   collections: collectionsRouter,
   follows: followsRouter,
+  notifications: notificationsRouter,
   posts: postsRouter,
   stripe: stripeRouter,
   admin: adminRouter,
