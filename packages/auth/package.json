@@ -21,6 +21,7 @@
     "@better-auth/expo": "catalog:",
     "better-auth": "catalog:",
     "dotenv": "catalog:",
+    "drizzle-orm": "^0.45.1",
     "jose": "^6.1.0",
     "zod": "catalog:"
   },
