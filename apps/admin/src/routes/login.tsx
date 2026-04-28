@@ -4,10 +4,20 @@ import { useState } from 'react';
 import { CeolxLogo } from '@/components/CeolxLogo';
 import { authClient } from '@/lib/auth-client';
 
+async function getAdminSessionSafely() {
+  try {
+    const { data } = await authClient.getSession();
+    return data;
+  } catch {
+    // Backend offline / network error → treat as no session.
+    return null;
+  }
+}
+
 export const Route = createFileRoute('/login')({
   beforeLoad: async () => {
     // Already-authenticated admins get bounced straight to the dashboard.
-    const { data } = await authClient.getSession();
+    const data = await getAdminSessionSafely();
     if (data?.user && data.user.currentRole === 'admin') {
       // eslint-disable-next-line @typescript-eslint/only-throw-error
       throw redirect({ to: '/dashboard' });
