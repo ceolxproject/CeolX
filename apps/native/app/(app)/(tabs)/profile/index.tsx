@@ -21,6 +21,7 @@ import { ProfileEventCard } from '@/components/ProfileEventCard';
 import { SegmentControl } from '@/components/profiles';
 import { SettingsBottomSheet } from '@/components/SettingsBottomSheet';
 import { useAuth } from '@/contexts/auth-context';
+import { useArchiveEvent } from '@/hooks/use-archive-event';
 import { useConfirmedEvents } from '@/hooks/use-confirmed-events';
 import { useMe } from '@/hooks/use-me';
 import { useMyEvents } from '@/hooks/use-my-events';
@@ -166,7 +167,8 @@ function EmptyState({ message }: { message: string }) {
 // ─── My Events Tab ────────────────────────────────────────────────────────────
 
 function MyEventsTab() {
-  const { events, isLoading, loadMore, isFetchingNextPage } = useMyEvents();
+  const { events, isLoading, loadMore, isFetchingNextPage, refresh } = useMyEvents();
+  const archive = useArchiveEvent({ onSuccess: () => void refresh() });
 
   if (isLoading) {
     return (
@@ -193,6 +195,12 @@ function MyEventsTab() {
           category={event.category}
           venueAddress={event.venueAddress}
           status={event.status}
+          joinedCount={event.joinedCount}
+          ownerActions={{
+            onEdit: () => router.push(`/(app)/events/edit/${event.id}`),
+            onAnalytics: () => router.push(`/(app)/events/${event.id}/analytics`),
+            onArchive: () => archive.mutate({ id: event.id }),
+          }}
           onPress={() => router.push(`/(app)/(tabs)/discover/event/${event.id}`)}
         />
       ))}
