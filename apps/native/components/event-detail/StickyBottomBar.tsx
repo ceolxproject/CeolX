@@ -1,7 +1,10 @@
 import { cn } from 'heroui-native';
 import { ActivityIndicator, Linking, Pressable, Text, View } from 'react-native';
 
+import { useTrackTicketClick } from '@/hooks/use-track-ticket-click';
+
 interface StickyBottomBarProps {
+  eventId: string;
   ticketPrice?: number | null;
   ticketLink?: string | null;
   isArtist: boolean;
@@ -15,6 +18,7 @@ interface StickyBottomBarProps {
 }
 
 export function StickyBottomBar({
+  eventId,
   ticketPrice,
   ticketLink,
   isArtist,
@@ -26,6 +30,8 @@ export function StickyBottomBar({
   onRequestToPerform,
   className,
 }: StickyBottomBarProps) {
+  const trackClick = useTrackTicketClick();
+
   const showRequestToPerform =
     isArtist && isVenueEvent && !isOwner && !isCollaborator && !hasExistingRequest;
 
@@ -35,7 +41,11 @@ export function StickyBottomBar({
       : 'Book Ticket';
 
   const handleBookTicket = () => {
-    if (ticketLink) void Linking.openURL(ticketLink);
+    if (!ticketLink) return;
+    // Fire-and-forget click tracking before opening the external URL.
+    // Failures are silent — analytics must not block the user from buying tickets.
+    trackClick.mutate({ id: eventId });
+    void Linking.openURL(ticketLink);
   };
 
   return (

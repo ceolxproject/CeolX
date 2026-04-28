@@ -253,6 +253,7 @@ export function EventDetailView({
         <OwnerActionBar eventStatus={event.status} onEdit={onEdit} onArchive={onArchive} />
       ) : (
         <StickyBottomBar
+          eventId={event.id}
           ticketPrice={event.ticketPrice}
           ticketLink={event.ticketLink}
           isArtist={isArtist}
