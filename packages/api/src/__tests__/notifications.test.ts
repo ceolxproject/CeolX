@@ -113,11 +113,16 @@ function authedContext(role: UserRole = 'spectator', userId = USER_ID): Context 
       },
     },
     dispatchNotification: vi.fn(async () => {}),
+    scheduleAccountAnonymize: vi.fn(async () => {}),
   };
 }
 
 function anonContext(): Context {
-  return { session: null, dispatchNotification: vi.fn(async () => {}) };
+  return {
+    session: null,
+    dispatchNotification: vi.fn(async () => {}),
+    scheduleAccountAnonymize: vi.fn(async () => {}),
+  };
 }
 
 async function expectTRPCError(promise: Promise<unknown>, code: TRPCError['code']): Promise<void> {

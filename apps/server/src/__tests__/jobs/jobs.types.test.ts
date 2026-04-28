@@ -107,6 +107,15 @@ describe('jobPayloadSchemas', () => {
   });
 
   // ---------------------------------------------------------------------------
+  // account.flag-inactive
+  // ---------------------------------------------------------------------------
+  describe('account.flag-inactive', () => {
+    it('accepts an empty payload', () => {
+      expect(() => jobPayloadSchemas['account.flag-inactive'].parse({})).not.toThrow();
+    });
+  });
+
+  // ---------------------------------------------------------------------------
   // ip.anonymize
   // ---------------------------------------------------------------------------
   describe('ip.anonymize', () => {

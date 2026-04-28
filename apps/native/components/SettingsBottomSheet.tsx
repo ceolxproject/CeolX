@@ -8,6 +8,8 @@ import {
 import { forwardRef, useCallback } from 'react';
 import { Pressable, Text, View } from 'react-native';
 
+import { DeleteAccountButton } from './DeleteAccountButton';
+
 interface SettingsBottomSheetProps {
   onChangePassword: () => void;
   onSignOut: () => void;
@@ -76,6 +78,12 @@ export const SettingsBottomSheet = forwardRef<BottomSheetModal, SettingsBottomSh
             </View>
             <Ionicons name="chevron-forward" size={16} color="#8D8D8D" />
           </Pressable>
+
+          {/* Divider */}
+          <View className="h-px bg-[rgba(141,141,141,0.3)] my-1" />
+
+          {/* Delete Account (M11-T1 — destructive, 30-day cooling-off) */}
+          <DeleteAccountButton onDismiss={handleClose} />
         </BottomSheetView>
       </BottomSheetModal>
     );

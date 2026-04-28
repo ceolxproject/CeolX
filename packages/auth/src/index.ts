@@ -9,6 +9,7 @@ import { env } from '@CeolX/env/server';
 
 import { generateAppleClientSecret } from './apple-secret.js';
 import { buildVerificationDeepLink } from './email-utils';
+import { onSessionCreated } from './login-hook.js';
 
 export const auth = betterAuth({
   database: drizzleAdapter(db, {
@@ -37,6 +38,18 @@ export const auth = betterAuth({
       marketingConsent: { type: 'boolean', defaultValue: false, input: false },
       lastLoginAt: { type: 'date', required: false, input: false },
       flaggedInactive: { type: 'boolean', defaultValue: false, input: false },
+      deletionRequestedAt: { type: 'date', required: false, input: false },
+      deletionScheduledFor: { type: 'date', required: false, input: false },
+      deletionCancelledAt: { type: 'date', required: false, input: false },
+      isAnonymized: { type: 'boolean', defaultValue: false, input: false },
+      anonymizedAt: { type: 'date', required: false, input: false },
+    },
+  },
+  databaseHooks: {
+    session: {
+      create: {
+        after: onSessionCreated,
+      },
     },
   },
   emailVerification: {

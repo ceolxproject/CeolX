@@ -9,5 +9,5 @@
     "jsx": "react-jsx",
     "jsxImportSource": "react"
   },
-  "references": [{ "path": "../email" }]
+  "references": [{ "path": "../email" }, { "path": "../db" }]
 }

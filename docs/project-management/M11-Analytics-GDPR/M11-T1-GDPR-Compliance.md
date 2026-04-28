@@ -3,7 +3,7 @@
 | Field          | Value                                                   |
 | -------------- | ------------------------------------------------------- |
 | **Milestone**  | M11 — Analytics & GDPR                                  |
-| **Status**     | 🔲 To Do                                                |
+| **Status**     | ✅ Done — PR #52 (R3 + R6). R1/R2/R5 split to M11-T1.5  |
 | **Depends on** | M2-T1 (auth), M2-T4 (persona system), M1-T2 (DB schema) |
 | **PRD Ref**    | Section 11 (GDPR)                                       |
 
@@ -11,49 +11,63 @@
 
 ## Description
 
-GDPR compliance is mandatory — CeolX is an Irish client and the platform collects personal data. Covers consent at sign-up, right to erasure (account deletion), data portability (export), and inactive account handling.
+GDPR compliance is mandatory — CeolX is an Irish client and the platform collects personal data. The original task covers consent at sign-up, right to erasure, data portability, and inactive account handling.
+
+**Scope refinement (28 Apr 2026):** Priya re-scoped the deletion flow to a 30-day cooling-off period (mistake-recovery friendly) and dropped data portability for V1. Logging in within the 30-day window silently cancels deletion (toast on re-login). R1/R2/R5 remain To Do; R3 + R6 are implemented in this PR. R7 (cookie/tracking consent) was dropped for V1 — `apps/admin` ships without web analytics and the dashboard is internal-only (single Super Admin).
 
 ---
 
 ## Affected Apps / Packages
 
-| App / Package | Role                                                                                          |
-| ------------- | --------------------------------------------------------------------------------------------- |
-| `apps/api`    | Account deletion (anonymisation), data export endpoint, consent storage                       |
-| `apps/mobile` | Consent screen at sign-up, account deletion flow in Settings, data export request in Settings |
-| `apps/admin`  | No specific admin UI — handled server-side                                                    |
+| App / Package   | Role                                                                                       |
+| --------------- | ------------------------------------------------------------------------------------------ |
+| `apps/server`   | tRPC mutations + QStash-scheduled `account.anonymize` handler + daily inactive-flag cron   |
+| `apps/native`   | "Delete Account" button below Sign Out in profile settings, welcome-back toast on re-login |
+| `apps/admin`    | No admin UI for V1                                                                         |
+| `packages/auth` | BetterAuth `session.create.after` hook clears pending deletion on re-login                 |
+| `packages/db`   | New deletion fields on the `user` table                                                    |
 
 ---
 
-## API Endpoints
+## API Surface (tRPC, not REST)
 
-| Method | Path               | Purpose                                                |
-| ------ | ------------------ | ------------------------------------------------------ |
-| DELETE | `/users/me`        | Anonymise personal data (right to erasure)             |
-| GET    | `/users/me/export` | Generate and return user's personal data export (JSON) |
+| Procedure                         | Kind     | Purpose                                                        |
+| --------------------------------- | -------- | -------------------------------------------------------------- |
+| `users.requestAccountDeletion`    | mutation | Stamp timestamps + enqueue 30-day-delayed `account.anonymize`  |
+| `users.cancelAccountDeletion`     | mutation | Admin/rescue path — clear timestamps, stamp `cancelled_at`     |
+| `users.acknowledgeDeletionNotice` | mutation | Mobile clears `deletion_cancelled_at` after showing the toast  |
+| `users.me`                        | query    | Now returns `deletionCancelledNotice: boolean` (one-shot flag) |
 
 ---
 
 ## Requirements
 
-- R1: Consent screen shown at sign-up for: data collection, location use, and marketing communications — opt-in checkboxes (not pre-checked)
-- R2: Privacy Policy and Terms of Service links on the consent screen — must be accepted before proceeding
-- R3: **Right to Erasure**: `DELETE /users/me` anonymises personal data (`name`, `email`, `avatar` nulled/replaced with anonymised placeholder) — non-personal content structures (events, posts) retained in DB but unlinked from identifiable user
-- R4: **Right to Data Portability**: `GET /users/me/export` returns a JSON file of all personal data the platform holds for the user
-- R5: Location data collected on-demand only (when map is opened) — not background tracking
-- R6: Inactive accounts (no login for 24 months) flagged in DB for manual review — `users.flagged_inactive = true`
-- R7: Cookie/tracking consent notice if any web analytics are added to `apps/admin`
+- R1 (Out of scope this PR): Consent screen shown at sign-up. Note: `users.completeRegistration` already populates `consent_at` server-side; only the mobile UI is missing.
+- R2 (Out of scope this PR): Privacy Policy / ToS links on consent screen.
+- R3 ✅ **Right to Erasure (implemented)**: `users.requestAccountDeletion` schedules a 30-day-delayed QStash `account.anonymize` job. The handler overwrites PII on `user`, `artist_profiles`, `venue_profiles` and hard-deletes `profile_social_links`, `device_tokens`, `session`. `is_anonymized = true` blocks future logins via the BetterAuth hook.
+- R4 ❌ **Dropped for V1**: data portability (`GET /users/me/export`) is not implemented. The original `data-export.process` / `data-export.notify` job stubs are retained for forward compatibility but unused.
+- R5 (Out of scope this PR): on-demand location only. Mobile already enforces this via the existing location permission UX.
+- R6 ✅ **Inactivity flag (implemented)**: daily QStash cron (`account.flag-inactive`, `0 2 * * *`) sets `flagged_inactive = true` for accounts with `last_login_at < now − 24mo` that aren't already flagged or anonymised. Cron is registered via `apps/server/src/jobs/setup-crons.ts` (run once per environment).
+- R7 ❌ **Dropped for V1**: cookie/tracking consent on `apps/admin`. The admin dashboard is internal-only (single Super Admin) and ships without web analytics. If analytics are later added — particularly to the public `ceolx.ie/subscribe` page hit by paying Artists/Venues — a cookie banner must land in the same PR.
 
 ---
 
-## Acceptance Criteria
+## Acceptance Criteria (this PR)
 
-- [ ] Consent checkboxes shown at sign-up; user cannot proceed without accepting Privacy Policy + ToS
-- [ ] Accepted consents stored with timestamp on user record
-- [ ] Account deletion anonymises name, email, avatar; events/posts remain but show "Deleted User"
-- [ ] Data export returns a downloadable JSON with the user's personal data
-- [ ] No background location tracking — location only accessed when map screen is active
-- [ ] Accounts inactive for 24 months have `flagged_inactive = true` set by a scheduled job
+- [x] User row gains `deletion_requested_at`, `deletion_scheduled_for`, `deletion_cancelled_at`, `is_anonymized`, `anonymized_at` (Drizzle migration `20260428062055_true_rogue.sql`)
+- [x] `requestAccountDeletion` is idempotent — second call returns the existing `scheduledFor` and does not republish the QStash job
+- [x] BetterAuth `session.create.after` hook stamps `last_login_at` on every login and clears deletion fields if pending
+- [x] `account.anonymize` handler is idempotent — short-circuits on `isAnonymized=true` or `deletionScheduledFor=null`
+- [x] All anonymisation writes happen inside one Drizzle transaction
+- [x] Mobile renders "Delete Account" below Sign Out for Spectator/Artist/Venue (Super Admin uses web dashboard, excluded)
+- [x] `Alert.alert` OK/Cancel confirms before publishing; on success, toast + sign-out + route to login
+- [x] Welcome-back toast fires once on next login (cleared via `acknowledgeDeletionNotice`)
+- [x] Daily inactive-flag cron registration script lands in repo
+
+### Open (future PRs)
+
+- [ ] R1/R2 mobile consent screen at sign-up
+- [ ] R5 mobile location permission audit
 
 ---
 
