@@ -1,11 +1,11 @@
 # M11-T1 · GDPR Compliance (Irish Client — Mandatory)
 
-| Field          | Value                                                     |
-| -------------- | --------------------------------------------------------- |
-| **Milestone**  | M11 — Analytics & GDPR                                    |
-| **Status**     | ✅ Done — PR #52 (R3 + R6). R1/R2/R5/R7 split to M11-T1.5 |
-| **Depends on** | M2-T1 (auth), M2-T4 (persona system), M1-T2 (DB schema)   |
-| **PRD Ref**    | Section 11 (GDPR)                                         |
+| Field          | Value                                                   |
+| -------------- | ------------------------------------------------------- |
+| **Milestone**  | M11 — Analytics & GDPR                                  |
+| **Status**     | ✅ Done — PR #52 (R3 + R6). R1/R2/R5 split to M11-T1.5  |
+| **Depends on** | M2-T1 (auth), M2-T4 (persona system), M1-T2 (DB schema) |
+| **PRD Ref**    | Section 11 (GDPR)                                       |
 
 ---
 
@@ -13,7 +13,7 @@
 
 GDPR compliance is mandatory — CeolX is an Irish client and the platform collects personal data. The original task covers consent at sign-up, right to erasure, data portability, and inactive account handling.
 
-**Scope refinement (28 Apr 2026):** Priya re-scoped the deletion flow to a 30-day cooling-off period (mistake-recovery friendly) and dropped data portability for V1. Logging in within the 30-day window silently cancels deletion (toast on re-login). R1/R2/R5/R7 remain To Do; R3 + R6 are implemented in this PR.
+**Scope refinement (28 Apr 2026):** Priya re-scoped the deletion flow to a 30-day cooling-off period (mistake-recovery friendly) and dropped data portability for V1. Logging in within the 30-day window silently cancels deletion (toast on re-login). R1/R2/R5 remain To Do; R3 + R6 are implemented in this PR. R7 (cookie/tracking consent) was dropped for V1 — `apps/admin` ships without web analytics and the dashboard is internal-only (single Super Admin).
 
 ---
 
@@ -48,7 +48,7 @@ GDPR compliance is mandatory — CeolX is an Irish client and the platform colle
 - R4 ❌ **Dropped for V1**: data portability (`GET /users/me/export`) is not implemented. The original `data-export.process` / `data-export.notify` job stubs are retained for forward compatibility but unused.
 - R5 (Out of scope this PR): on-demand location only. Mobile already enforces this via the existing location permission UX.
 - R6 ✅ **Inactivity flag (implemented)**: daily QStash cron (`account.flag-inactive`, `0 2 * * *`) sets `flagged_inactive = true` for accounts with `last_login_at < now − 24mo` that aren't already flagged or anonymised. Cron is registered via `apps/server/src/jobs/setup-crons.ts` (run once per environment).
-- R7 (Out of scope this PR): cookie/tracking consent on `apps/admin` if web analytics are added later.
+- R7 ❌ **Dropped for V1**: cookie/tracking consent on `apps/admin`. The admin dashboard is internal-only (single Super Admin) and ships without web analytics. If analytics are later added — particularly to the public `ceolx.ie/subscribe` page hit by paying Artists/Venues — a cookie banner must land in the same PR.
 
 ---
 
@@ -68,7 +68,6 @@ GDPR compliance is mandatory — CeolX is an Irish client and the platform colle
 
 - [ ] R1/R2 mobile consent screen at sign-up
 - [ ] R5 mobile location permission audit
-- [ ] R7 admin cookie banner (only if web analytics get added)
 
 ---
 
