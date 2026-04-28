@@ -1,5 +1,6 @@
+import { useMutation } from '@tanstack/react-query';
 import { Redirect, Stack } from 'expo-router';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 
 import { UserRole } from '@CeolX/shared/enums';
 
@@ -7,6 +8,7 @@ import { appToast } from '@/components/AppToast';
 import { useAuth } from '@/contexts/auth-context';
 import { useFcmRegistration } from '@/hooks/use-fcm-registration';
 import { useMe } from '@/hooks/use-me';
+import { trpc } from '@/utils/trpc';
 
 export default function AppLayout() {
   const { user, isGuest, isLoading } = useAuth();
@@ -28,6 +30,21 @@ export default function AppLayout() {
     appToast.error('Something went wrong', 'Retrying your session…');
     void meRefetch();
   }, [meError, meRefetch]);
+
+  // M11-T1 — fire the "deletion cancelled" toast once per login. The flag is
+  // set by the BetterAuth session-create hook; we ack it on the server so it
+  // doesn't re-fire on subsequent me refreshes within the same session.
+  const acknowledgeNotice = useMutation(trpc.users.acknowledgeDeletionNotice.mutationOptions());
+  const noticeShown = useRef(false);
+  useEffect(() => {
+    if (!meData?.deletionCancelledNotice || noticeShown.current) return;
+    noticeShown.current = true;
+    appToast.success('Welcome back', 'Your account deletion has been cancelled.');
+    void acknowledgeNotice.mutateAsync().catch(() => {
+      // Server ack failed — allow the toast to re-fire on next session.
+      noticeShown.current = false;
+    });
+  }, [meData?.deletionCancelledNotice, acknowledgeNotice]);
 
   if (isLoading || (!!user && !isGuest && meLoading)) {
     return null;
