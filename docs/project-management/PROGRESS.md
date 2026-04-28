@@ -102,7 +102,7 @@ Tracks completed tasks per milestone. Each entry links to its PR.
 
 ## M11 — Analytics & GDPR
 
-- [ ] M11-T1 · GDPR Compliance
+- [~] M11-T1 · GDPR Compliance — PR #52 (R3 erasure + R6 inactive cron; R1/R2/R5/R7 still open)
 - [ ] M11-T2 · Admin Analytics & KPI
 - [ ] M11-T3 · Artist & Venue Analytics
 
