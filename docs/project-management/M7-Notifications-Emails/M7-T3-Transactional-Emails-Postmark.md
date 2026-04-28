@@ -3,7 +3,7 @@
 | Field          | Value                                                                                                                         |
 | -------------- | ----------------------------------------------------------------------------------------------------------------------------- |
 | **Milestone**  | M7 — Notifications & Emails                                                                                                   |
-| **Status**     | 🔲 To Do                                                                                                                      |
+| **Status**     | ✅ Done — PR #48                                                                                                              |
 | **Depends on** | M2-T1 (email verification endpoint), M2-T3 (password reset endpoint), M2-T4 (venue persona creation), M8-T1 (Stripe checkout) |
 | **PRD Ref**    | Section 4.1 (Auth Emails), Section 9.8 (Venue Subscription), Section 13 (Tech Stack)                                          |
 

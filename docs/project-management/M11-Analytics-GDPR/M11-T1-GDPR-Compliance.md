@@ -1,11 +1,11 @@
 # M11-T1 · GDPR Compliance (Irish Client — Mandatory)
 
-| Field          | Value                                                   |
-| -------------- | ------------------------------------------------------- |
-| **Milestone**  | M11 — Analytics & GDPR                                  |
-| **Status**     | 🟡 R3 + R6 implemented; R1/R2/R5/R7 still To Do         |
-| **Depends on** | M2-T1 (auth), M2-T4 (persona system), M1-T2 (DB schema) |
-| **PRD Ref**    | Section 11 (GDPR)                                       |
+| Field          | Value                                                     |
+| -------------- | --------------------------------------------------------- |
+| **Milestone**  | M11 — Analytics & GDPR                                    |
+| **Status**     | ✅ Done — PR #52 (R3 + R6). R1/R2/R5/R7 split to M11-T1.5 |
+| **Depends on** | M2-T1 (auth), M2-T4 (persona system), M1-T2 (DB schema)   |
+| **PRD Ref**    | Section 11 (GDPR)                                         |
 
 ---
 
