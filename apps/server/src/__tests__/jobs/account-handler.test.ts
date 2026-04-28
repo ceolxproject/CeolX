@@ -6,10 +6,12 @@ const mockSelectFrom = vi.hoisted(() => vi.fn(() => ({ where: mockSelectWhere })
 const mockSelect = vi.hoisted(() => vi.fn(() => ({ from: mockSelectFrom })));
 
 const mockTxUpdateWhere = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
-const mockTxUpdateSet = vi.hoisted(() => vi.fn(() => ({ where: mockTxUpdateWhere })));
-const mockTxUpdate = vi.hoisted(() => vi.fn(() => ({ set: mockTxUpdateSet })));
+const mockTxUpdateSet = vi.hoisted(() =>
+  vi.fn((_args: Record<string, unknown>) => ({ where: mockTxUpdateWhere }))
+);
+const mockTxUpdate = vi.hoisted(() => vi.fn((_table: unknown) => ({ set: mockTxUpdateSet })));
 const mockTxDeleteWhere = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
-const mockTxDelete = vi.hoisted(() => vi.fn(() => ({ where: mockTxDeleteWhere })));
+const mockTxDelete = vi.hoisted(() => vi.fn((_table: unknown) => ({ where: mockTxDeleteWhere })));
 
 const mockTransaction = vi.hoisted(() =>
   vi.fn(async (cb: (tx: unknown) => Promise<void>) => {
@@ -118,7 +120,7 @@ describe('handleAccountAnonymize — anonymisation path', () => {
 
     await handleAccountAnonymize(PAYLOAD);
 
-    const sets = mockTxUpdateSet.mock.calls.map((c) => c[0] as Record<string, unknown>);
+    const sets = mockTxUpdateSet.mock.calls.map((c) => c[0]);
     const artistSet = sets.find((s) => s.stageName === 'Deleted Artist');
     const venueSet = sets.find((s) => s.venueName === 'Deleted Venue');
     expect(artistSet).toBeDefined();

@@ -6,8 +6,10 @@ const mockSelectFrom = vi.hoisted(() => vi.fn(() => ({ where: mockSelectWhere })
 const mockSelect = vi.hoisted(() => vi.fn(() => ({ from: mockSelectFrom })));
 
 const mockUpdateWhere = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
-const mockUpdateSet = vi.hoisted(() => vi.fn(() => ({ where: mockUpdateWhere })));
-const mockUpdate = vi.hoisted(() => vi.fn(() => ({ set: mockUpdateSet })));
+const mockUpdateSet = vi.hoisted(() =>
+  vi.fn((_args: Record<string, unknown>) => ({ where: mockUpdateWhere }))
+);
+const mockUpdate = vi.hoisted(() => vi.fn((_table: unknown) => ({ set: mockUpdateSet })));
 
 vi.mock('@CeolX/db', () => ({
   db: { select: mockSelect, update: mockUpdate },

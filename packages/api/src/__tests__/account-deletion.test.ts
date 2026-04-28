@@ -10,8 +10,8 @@ const { mockSelectLimit, mockUpdateSet, mockDb } = vi.hoisted(() => {
   }));
 
   const mockUpdateWhere = vi.fn().mockResolvedValue(undefined);
-  const mockUpdateSet = vi.fn(() => ({ where: mockUpdateWhere }));
-  const mockUpdate = vi.fn(() => ({ set: mockUpdateSet }));
+  const mockUpdateSet = vi.fn((_args: Record<string, unknown>) => ({ where: mockUpdateWhere }));
+  const mockUpdate = vi.fn((_table: unknown) => ({ set: mockUpdateSet }));
 
   return {
     mockSelectLimit,
