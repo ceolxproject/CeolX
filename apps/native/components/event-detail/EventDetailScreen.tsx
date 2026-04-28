@@ -38,7 +38,7 @@ export function EventDetailScreen({ tabEventRoute }: EventDetailScreenProps) {
       isOwner={isOwner}
       userId={me?.id}
       onBack={() => router.back()}
-      onNavigateToEvent={(id) => router.push(`${tabEventRoute}/${id}` as never)}
+      onNavigateToEvent={(id) => router.push(`${tabEventRoute}/${id}`)}
       onEdit={() => router.push(`/(app)/events/edit/${event.id}`)}
       onArchive={() => archiveEvent({ id: event.id })}
     />
