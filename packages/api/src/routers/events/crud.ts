@@ -826,6 +826,8 @@ export const getMyEvents = creatorProcedure
           removalReason: events.removalReason,
           venueAddress: events.venueAddress,
           createdAt: events.createdAt,
+          // M11-T3 — saves count for the "X Joined" badge
+          joinedCount: sql<number>`(SELECT count(*)::int FROM ${savedEvents} WHERE ${savedEvents.eventId} = ${events.id})`,
         })
         .from(events)
         .where(eq(events.createdBy, ctx.userId))
