@@ -3,7 +3,7 @@
 | Field          | Value                                                                                          |
 | -------------- | ---------------------------------------------------------------------------------------------- |
 | **Milestone**  | M7 — Notifications & Emails                                                                    |
-| **Status**     | 🔲 To Do                                                                                       |
+| **Status**     | ✅ Done — PR #49                                                                               |
 | **Depends on** | M7-T1 (FCM handler + notifications table), M4-T3 (event moderation), M5-T1/T2 (booking system) |
 | **PRD Ref**    | Section 9.6 (Notifications), Section 4.3 (Notification Routing)                                |
 

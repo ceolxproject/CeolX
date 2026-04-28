@@ -32,7 +32,11 @@ const createCaller = t.createCallerFactory(testRouter);
 // ─── Context helpers ──────────────────────────────────────────────────────────
 
 function anonContext(): Context {
-  return { session: null, dispatchNotification: vi.fn(async () => {}) };
+  return {
+    session: null,
+    dispatchNotification: vi.fn(async () => {}),
+    scheduleAccountAnonymize: vi.fn(async () => {}),
+  };
 }
 
 function authedContext(role: UserRole, userId = 'test-user-id'): Context {

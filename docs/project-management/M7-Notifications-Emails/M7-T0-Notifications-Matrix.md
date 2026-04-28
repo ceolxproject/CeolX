@@ -3,7 +3,7 @@
 | Field         | Value                                                                                                                                      |
 | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
 | **Milestone** | M7 — Notifications & Emails (planning reference)                                                                                           |
-| **Status**    | 🔲 Draft rev 2 — pending Pratiksha audit                                                                                                   |
+| **Status**    | ✅ Done — used as the trigger source-of-truth for M7-T1/T2/T3 (PRs #48–#50)                                                                |
 | **Purpose**   | Single source of truth for every notification trigger across CeolX, organised by persona. Feeds the implementation of M7-T1 / T2 / T3.     |
 | **Owner**     | Priya Yadav                                                                                                                                |
 | **Audit by**  | Pratiksha Patil (PM)                                                                                                                       |
