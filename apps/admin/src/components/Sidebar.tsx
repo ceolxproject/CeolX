@@ -1,21 +1,37 @@
+import { useQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import { BarChart3, Clock, Menu, Settings, Users, X } from 'lucide-react';
 import { useState } from 'react';
 
+import { CeolxLogo } from '@/components/CeolxLogo';
+import { trpc } from '@/utils/trpc';
+
 const navItems = [
   { name: 'Dashboard', to: '/dashboard', icon: BarChart3 },
   { name: 'Users', to: '/users', icon: Users },
-  { name: 'Pending Events', to: '/events/pending', icon: Clock },
+  { name: 'Pending Events', to: '/events/pending', icon: Clock, badgeKey: 'pending' as const },
   { name: 'Account', to: '/account', icon: Settings },
 ] as const;
 
+function PendingBadge({ count }: { count: number }) {
+  if (count <= 0) return null;
+  return (
+    <span className="ml-auto inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-[10px] font-bold bg-[#C8FF2F] text-black">
+      {count > 99 ? '99+' : count}
+    </span>
+  );
+}
+
 export function Sidebar() {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { data: stats } = useQuery(trpc.admin.stats.queryOptions());
+  const pendingCount = stats?.pendingModeration ?? 0;
 
   const nav = (
     <nav className="px-4 space-y-1">
       {navItems.map((item) => {
         const Icon = item.icon;
+        const showBadge = 'badgeKey' in item && item.badgeKey === 'pending';
         return (
           <Link
             key={item.to}
@@ -29,6 +45,7 @@ export function Sidebar() {
           >
             <Icon size={18} />
             <span>{item.name}</span>
+            {showBadge && <PendingBadge count={pendingCount} />}
           </Link>
         );
       })}
@@ -60,9 +77,13 @@ export function Sidebar() {
           mobileOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
-        <div className="flex items-center justify-between p-5">
-          <h1 className="text-xl font-bold text-green-600">CeolX</h1>
-          <button onClick={() => setMobileOpen(false)} aria-label="Close navigation">
+        <div className="flex items-center justify-between p-5 bg-[#0d0c0f]">
+          <CeolxLogo fontSize={18} />
+          <button
+            onClick={() => setMobileOpen(false)}
+            aria-label="Close navigation"
+            className="text-white"
+          >
             <X size={20} />
           </button>
         </div>
@@ -71,9 +92,9 @@ export function Sidebar() {
 
       {/* Desktop sidebar */}
       <aside className="hidden md:flex flex-col w-64 bg-white border-r border-gray-200 shrink-0">
-        <div className="p-5">
-          <h1 className="text-xl font-bold text-green-600">CeolX</h1>
-          <p className="text-xs text-gray-400 mt-0.5">Admin Dashboard</p>
+        <div className="p-5 bg-[#0d0c0f]">
+          <CeolxLogo fontSize={18} />
+          <p className="text-xs text-white/50 mt-1.5">Admin Dashboard</p>
         </div>
         {nav}
       </aside>

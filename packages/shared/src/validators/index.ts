@@ -9,3 +9,4 @@ export * from './posts.js';
 export * from './notifications.js';
 export * from './device-tokens.js';
 export * from './event-analytics.js';
+export * from './admin.js';

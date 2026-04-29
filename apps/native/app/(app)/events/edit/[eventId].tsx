@@ -46,10 +46,7 @@ export default function EditEventScreen() {
             })
           ),
           platformInvites: [],
-          unregisteredCollaborators: (event.unregisteredCollaborators ?? []) as Array<{
-            name: string;
-            email: string;
-          }>,
+          unregisteredCollaborators: event.unregisteredCollaborators ?? [],
           dateStart: new Date(event.dateStart),
           dateEnd: event.dateEnd ? new Date(event.dateEnd) : null,
           startTime: new Date(event.dateStart),
@@ -86,7 +83,7 @@ export default function EditEventScreen() {
   };
   const tabBarNavigation = {
     emit: () => ({ defaultPrevented: false }),
-    navigate: (name: string) => router.replace(`/(app)/(tabs)/${name}` as never),
+    navigate: (name: string) => router.replace(`/(app)/(tabs)/${name}`),
   };
 
   if (isLoading) {
@@ -135,7 +132,7 @@ export default function EditEventScreen() {
 
       {/* Step indicator */}
       <View className="px-5">
-        <StepIndicator currentStep={form.currentStep as 1 | 2 | 3} />
+        <StepIndicator currentStep={form.currentStep} />
       </View>
 
       {/* Form steps */}
@@ -158,14 +155,8 @@ export default function EditEventScreen() {
             onCollaboratorArtistsChange={form.setCollaboratorArtists}
             platformInvites={form.platformInvites}
             onPlatformInvitesChange={form.setPlatformInvites}
-            unregisteredCollaborators={
-              form.unregisteredCollaborators as Array<{ name: string; email: string }>
-            }
-            onUnregisteredCollaboratorsChange={
-              form.setUnregisteredCollaborators as (
-                invites: Array<{ name: string; email: string }>
-              ) => void
-            }
+            unregisteredCollaborators={form.unregisteredCollaborators}
+            onUnregisteredCollaboratorsChange={form.setUnregisteredCollaborators}
             errors={form.errors}
             onContinue={form.goNext}
             isVenue={isVenue}
@@ -223,7 +214,7 @@ export default function EditEventScreen() {
       {/* Bottom tab bar */}
       <AppTabBar
         state={tabBarState as never}
-        descriptors={{} as never}
+        descriptors={{}}
         navigation={tabBarNavigation as never}
         insets={{ top: 0, bottom: 0, left: 0, right: 0 }}
       />

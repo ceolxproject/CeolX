@@ -1,10 +1,28 @@
+import { useNavigate } from '@tanstack/react-router';
 import { LogOut, User } from 'lucide-react';
 import { useState } from 'react';
 
 import { Button } from '@CeolX/ui/components/button';
 
+import { authClient } from '@/lib/auth-client';
+
 export function AdminHeader() {
+  const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
+  const session = authClient.useSession();
+  const email = session.data?.user.email ?? 'Admin';
+
+  async function handleLogout() {
+    setSigningOut(true);
+    try {
+      await authClient.signOut();
+      await navigate({ to: '/login' });
+    } finally {
+      setSigningOut(false);
+      setMenuOpen(false);
+    }
+  }
 
   return (
     <header className="bg-white border-b border-gray-200 px-6 py-3 shrink-0">
@@ -18,22 +36,18 @@ export function AdminHeader() {
             aria-label="Admin menu"
           >
             <User size={18} className="text-gray-600" />
-            <span className="font-medium text-gray-700">Admin</span>
+            <span className="font-medium text-gray-700 max-w-[180px] truncate">{email}</span>
           </button>
           {menuOpen && (
             <div className="absolute right-0 top-full mt-1 w-44 bg-white border border-gray-200 rounded-lg shadow-lg z-10">
               <Button
                 variant="ghost"
                 className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50"
-                onClick={() => {
-                  // Logout wired in M9
-                  // eslint-disable-next-line no-console
-                  console.log('Logout clicked');
-                  setMenuOpen(false);
-                }}
+                onClick={handleLogout}
+                disabled={signingOut}
               >
                 <LogOut size={15} className="mr-2" />
-                Logout
+                {signingOut ? 'Signing out…' : 'Logout'}
               </Button>
             </div>
           )}

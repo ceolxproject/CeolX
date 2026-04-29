@@ -220,7 +220,7 @@ describe('buildNotification — placeholder safety', () => {
       buildNotification(NotificationTrigger.BOOKING_INVITE_TO_ARTIST, NotificationSurface.PUSH, {
         bookingId: 'b-1',
         // venueName, eventTitle, date all missing
-      } as Record<string, string>)
+      })
     ).toThrow(/venueName/);
   });
 });
