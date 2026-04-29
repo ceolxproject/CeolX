@@ -5,6 +5,7 @@ import { useRef, useState } from 'react';
 import { ActivityIndicator, Alert, FlatList, Pressable, RefreshControl, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { BellWithBadge } from '@/components/notifications/BellWithBadge';
 import { PostsList } from '@/components/posts/PostsList';
 import {
   EventsTab,
@@ -103,9 +104,7 @@ export default function ArtistProfileScreen() {
                 <Pressable>
                   <Ionicons name="bookmark-outline" size={23} color="#fff" />
                 </Pressable>
-                <Pressable>
-                  <Ionicons name="notifications-outline" size={24} color="#fff" />
-                </Pressable>
+                <BellWithBadge onPress={() => router.push('/notifications')} size={24} />
               </View>
             </View>
 

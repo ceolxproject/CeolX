@@ -16,6 +16,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { UserRole } from '@CeolX/shared/enums';
 
 import { ConfirmedBookingCard } from '@/components/bookings/ConfirmedBookingCard';
+import { BellWithBadge } from '@/components/notifications/BellWithBadge';
 import { PostsList } from '@/components/posts/PostsList';
 import { ProfileEventCard } from '@/components/ProfileEventCard';
 import { SegmentControl } from '@/components/profiles';
@@ -89,9 +90,7 @@ function ProfileHeader({
             <Ionicons name="bookmark-outline" size={23} color="#fff" />
           </Pressable>
         )}
-        <Pressable onPress={() => {}}>
-          <Ionicons name="notifications-outline" size={24} color="#fff" />
-        </Pressable>
+        <BellWithBadge onPress={() => router.push('/notifications')} size={24} />
       </View>
 
       {/* Avatar + followers/following row */}
