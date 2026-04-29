@@ -1,0 +1,383 @@
+FCM Integration Report — Mentor Monorepo                    
+                                                                                                                                   
+  Architecture at a glance                                    
+                                                                                                                                   
+  ┌─────────────────────┐       ┌──────────────────┐
+  │ Mobile (Expo)       │──┐    │ packages/api     │                                                                               
+  │ expo-notifications  │  │    │  ├ lib/firebase  │  ← admin SDK init                                                             
+  │ → getDevicePush…    │  │    │  ├ lib/push.ts   │  ← sendEach(), token cleanup                                                  
+  │ → fcmTokens.register│  ├──▶ │  ├ lib/push-     │                                                                               
+  └─────────────────────┘  │    │  │   localized   │  ← per-user locale                                                            
+                           │    │  ├ lib/push-     │                                                                               
+  ┌─────────────────────┐  │    │  │   templates   │  ← 10 types × 4 locales                                                       
+  │ Web (Next.js)       │──┘    │  └ routers/      │                                                                               
+  │ firebase/messaging  │       │     fcm-token.ts │  ← register/refresh/...                                                       
+  │ + service worker    │       └──────────────────┘                                                                               
+  └─────────────────────┘                │                                                                                         
+                                         ▼                                                                                         
+                                ┌────────────────────┐                                                                             
+                                │  fcm_token table   │                                                                             
+                                │  (postgres/Drizzle)│
+                                └────────────────────┘                                                                             
+                                         │                    
+                                         ▼                                                                                         
+                                  Firebase Cloud              
+                                     Messaging 
+                                                                                                                                   
+  Three layers: server (firebase-admin), clients (web + mobile each with their own SDK), and a shared DB table + RPC router that   
+  ties them together.                                                                                                              
+                                                                                                                                   
+  ---                                                         
+  1. Database schema                           
+                    
+  packages/db/src/schema/notifications.ts defines fcm_token:
+                                                                                                                                   
+  export const fcmToken = pgTable(
+    "fcm_token",                                                                                                                   
+    {                                                                                                                              
+      ...uuidPk,                               
+      userId: text("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),                                        
+      token: text("token").notNull(),                                                                                              
+      deviceType: deviceTypeEnum("device_type").notNull(), // "ios" | "android" | "web"
+      deviceName: varchar("device_name", { length: 255 }),                                                                         
+      isActive: boolean("is_active").default(true).notNull(),                                                                      
+      createdAt: timestamp("created_at").defaultNow().notNull(),                                                                   
+      updatedAt: timestamp("updated_at").defaultNow().$onUpdate(() => new Date()).notNull(),                                       
+      lastUsedAt: timestamp("last_used_at"),                  
+    },                                                                                                                             
+    (table) => [                                              
+      uniqueIndex("fcm_token_user_id_token_idx").on(table.userId, table.token),                                                    
+      index("fcm_token_user_id_idx").on(table.userId),                                                                             
+      index("fcm_token_token_idx").on(table.token),
+      index("fcm_token_device_type_idx").on(table.deviceType),                                                                     
+      index("fcm_token_is_active_idx").on(table.isActive),    
+      index("fcm_token_updated_at_idx").on(table.updatedAt),                                                                       
+    ]                                                         
+  );                                                                                                                               
+                                                              
+  Key choices:                                                                                                                     
+  - One token = one row. Same physical device only stores one row even after re-registration (the unique (userId, token) index plus
+   the upsert logic in the router).                                                                                                
+  - Soft-deactivation via isActive instead of deleting — needed because the server discovers stale tokens lazily during send.
+  - lastUsedAt is updated on register and refresh so you can prune devices that haven't checked in.                                
+                                                                                                                                   
+  ---                                                                                                                              
+  2. Environment variables                                                                                                         
+                                                                                                                                   
+  packages/env/src/server.ts:                                 
+                                                                                                                                   
+  FIREBASE_PROJECT_ID:   z.string().optional(),
+  FIREBASE_CLIENT_EMAIL: z.string().optional(),                                                                                    
+  FIREBASE_PRIVATE_KEY:  z.string().optional(),                                                                                    
+                                               
+  packages/env/src/web.ts:                                                                                                         
+                                                              
+  NEXT_PUBLIC_FIREBASE_API_KEY,                                                                                                    
+  NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,                           
+  NEXT_PUBLIC_FIREBASE_PROJECT_ID,                                                                                                 
+  NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,                                                                                        
+  NEXT_PUBLIC_FIREBASE_APP_ID,                                
+  NEXT_PUBLIC_FIREBASE_VAPID_KEY,    // for web push (browser)                                                                     
+                                                                                                                                   
+  All of them are optional. The codebase silently no-ops if they are absent (isFirebaseConfigured() guards), so the app boots      
+  without FCM in dev / CI.                                                                                                         
+                                                                                                                                   
+  Mobile uses no env keys for FCM — Firebase config is bundled into the native binary via google-services.json /                   
+  GoogleService-Info.plist (managed by @react-native-firebase/app and Expo prebuild).
+                                                                                                                                   
+  ---                                                         
+  3. Server: firebase-admin initialisation     
+                                                                                                                                   
+  packages/api/src/lib/firebase.ts:
+                                                                                                                                   
+  import admin from "firebase-admin";                         
+  import { env } from "@mentor/env/server";    
+                                                                                                                                   
+  let initialized = false;
+  let initFailed = false;                                                                                                          
+                                                                                                                                   
+  export function isFirebaseConfigured(): boolean {
+    return Boolean(                                                                                                                
+      env.FIREBASE_PROJECT_ID && env.FIREBASE_CLIENT_EMAIL && env.FIREBASE_PRIVATE_KEY
+    );                                                                                                                             
+  }
+                                                                                                                                   
+  function initializeFirebase(): void {                                                                                            
+    if (initialized || admin.apps.length > 0) { initialized = true; return; }
+    if (initFailed || !isFirebaseConfigured()) return;                                                                             
+    try {                                                                                                                          
+      admin.initializeApp({                    
+        credential: admin.credential.cert({                                                                                        
+          projectId: env.FIREBASE_PROJECT_ID!,                
+          clientEmail: env.FIREBASE_CLIENT_EMAIL!,                                                                                 
+          privateKey: env.FIREBASE_PRIVATE_KEY!.replace(/\\n/g, "\n"),
+        }),                                                                                                                        
+      });                                                     
+      initialized = true;                                                                                                          
+    } catch (error) {                                         
+      initFailed = true;                                                                                                           
+      console.error("[firebase] Failed to initialize Firebase Admin:", error);
+    }                                                                                                                              
+  }                                                           
+                                               
+  export function getMessaging(): admin.messaging.Messaging | null {                                                               
+    if (!isFirebaseConfigured() || initFailed) return null;
+    initializeFirebase();                                                                                                          
+    if (!initialized) return null;                            
+    return admin.messaging();                                                                                                      
+  }                                                           
+                                                                                                                                   
+  Things that bite if you skip them:
+  - privateKey.replace(/\\n/g, "\n") — env files store the key with literal \n. Without this replace the SDK fails with an opaque  
+  PEM error.                                                                                                                       
+  - The double-guard (admin.apps.length > 0) avoids "default app already exists" errors when bundlers double-evaluate the module
+  (HMR, edge runtime).                                                                                                             
+  - initFailed short-circuits future attempts so you don't log spam.                                                               
+                                                                    
+  Build: apps/api/tsdown.config.ts must externalize firebase-admin (it has native deps). Otherwise the bundle compiles fine but    
+  blows up at runtime with Cannot find module './...'.                                                                             
+                                                                                                                                   
+  ---                                                                                                                              
+  4. Server: send logic                                       
+                                               
+  packages/api/src/lib/push.ts exposes three exports:
+                                                                                                                                   
+  export type PushPayload = {
+    title: string;                                                                                                                 
+    body: string;                                             
+    imageUrl?: string;                                                                                                             
+    deepLink?: string;
+    data?: Record<string, string>;                                                                                                 
+  };                                                          
+                                               
+  export async function sendPushToUser(userId, payload, options?)   // single user                                                 
+  export async function sendPushToUsers(userIds, payload, options?) // many users (batched)
+                                                                                                                                   
+  Key behaviours:                                             
+                                                                                                                                   
+  1. No-op when unconfigured — if (!isFirebaseConfigured()) return; first thing.                                                   
+  2. Quiet hours — calls isInQuietHours(userId) from notification-preferences.ts (computes in user's timezone, handles overnight
+  ranges like 22:00–08:00). Skipable with bypassQuietHours: true for security/urgent notifications.                                
+  3. Frequency limits — 3 marketing/week and 10 transactional/day per user, counted from the notification audit table where
+  sentViaPush=true.                                                                                                                
+  4. Multi-device fan-out — fetches every active token row for the user(s) and uses messaging.sendEach(messages), so iOS + Android
+  + web all get the same notification.                                                                                             
+  5. Auto-cleanup of dead tokens — when FCM returns messaging/invalid-registration-token or
+  messaging/registration-token-not-registered, the row is set to isActive=false:                                                   
+  const tokensToDeactivate: string[] = [];                    
+  response.responses.forEach((result, index) => {                                                                                  
+    if (result.error && (result.error.code === "messaging/invalid-registration-token" ||                                           
+        result.error.code === "messaging/registration-token-not-registered")) {                                                    
+      tokensToDeactivate.push(tokens[index]!.id);                                                                                  
+    }                                                                                                                              
+  });                                                         
+  6. Platform-specific message shape is set on every send — same payload, three sub-objects:                                       
+  {                                                                                                                                
+    token, notification: { title, body, imageUrl? },
+    data: { ...payload.data, deepLink: payload.deepLink ?? "", timestamp: Date.now().toString() },                                 
+    android: { priority: "high", notification: { channelId: "default", sound: "default" } },                                       
+    apns:    { payload: { aps: { sound: "default", badge: 1 } } },                                                                 
+  }                                                                                                                                
+                                                                                                                                   
+  ★ Insight ─────────────────────────────────────                                                                                  
+  Note data values are coerced to strings (FCM only allows string values in data). deepLink ?? "" is the safe default — clients
+  ignore empty strings.                                                                                                            
+  ─────────────────────────────────────────────────           
+                                                                                                                                   
+  ---                                                         
+  5. Server: localized push (optional layer)   
+                                                                                                                                   
+  packages/api/src/lib/push-localized.ts + push-templates.ts add a thin layer on top of sendPushToUser:
+                                                                                                                                   
+  export async function sendLocalizedPush<T extends PushTemplate>(
+    userId: string,                                                                                                                
+    type: T,                              // e.g. "qa_new_answer"
+    templateData: PushTemplateMap[T],     // typed: { lessonTitle: string }                                                        
+    options?: LocalizedPushOptions                                                                                                 
+  ): Promise<void>                                                                                                                 
+                                                                                                                                   
+  It looks up user.languagePreference, renders PUSH_TEMPLATES[type][locale] (10 types × 4 locales), and delegates to               
+  sendPushToUser. Used like:                   
+                                                                                                                                   
+  sendLocalizedPush(question.askerId, "qa_new_answer", { lessonTitle }, {
+    deepLink: `/lessons/${lessonId}`,                                                                                              
+  });
+                                                                                                                                   
+  If you don't need i18n, you can skip this file and call sendPushToUser directly.                                                 
+                                               
+  ---                                                                                                                              
+  6. RPC router: fcmTokens                                    
+                                               
+  packages/api/src/routers/fcm-token.ts — mounted as appRouter.fcmTokens in routers/index.ts. All five endpoints use
+  verifiedProcedure (auth required + email verified):                                                                              
+  
+  ┌───────────────┬─────────────────────────────────────────────────────────────────────────────────────────────────────────────┐  
+  │   Endpoint    │                                                  Behaviour                                                  │
+  ├───────────────┼─────────────────────────────────────────────────────────────────────────────────────────────────────────────┤  
+  │ register      │ Upsert by token. If the token already belongs to another user, reassigns it (handles a device changing      │
+  │               │ hands). Sets isActive=true, lastUsedAt=now().                                                               │
+  ├───────────────┼─────────────────────────────────────────────────────────────────────────────────────────────────────────────┤  
+  │ refresh       │ Touch lastUsedAt and re-activate. Falls back to insert if not found. Called on every app launch.            │
+  ├───────────────┼─────────────────────────────────────────────────────────────────────────────────────────────────────────────┤  
+  │ unregister    │ Sets isActive=false for (userId, token). Called on logout for the current device.                           │
+  ├───────────────┼─────────────────────────────────────────────────────────────────────────────────────────────────────────────┤  
+  │ deactivateAll │ Sets isActive=false for every token of the current user. Called on hard logout.                             │
+  ├───────────────┼─────────────────────────────────────────────────────────────────────────────────────────────────────────────┤  
+  │ list          │ Returns the user's devices for a "where am I logged in" UI.                                                 │
+  └───────────────┴─────────────────────────────────────────────────────────────────────────────────────────────────────────────┘  
+                                                              
+  Validators in packages/validators/src/fcm-token.ts:                                                                              
+                                                              
+  export const registerFcmTokenSchema = z.object({
+    token: z.string().min(50, "Invalid FCM token"),                                                                                
+    deviceType: z.enum(["ios", "android", "web"]),                                                                                 
+    deviceName: z.string().max(255).optional(),                                                                                    
+  });                                                                                                                              
+                                                              
+  export const unregisterFcmTokenSchema = z.object({                                                                               
+    token: z.string().min(50, "Invalid FCM token"),           
+  });                                          
+                                                                                                                                   
+  ---
+  7. Web client integration                                                                                                        
+                                                              
+  Three files per web app (mirrored across web-learner, web-mentor, web-admin):
+                                                                                                                                   
+  apps/web-learner/src/lib/firebase.ts (browser)                                                                                   
+                                                                                                                                   
+  - Lazy-inits firebase/app + firebase/messaging (only when configured).                                                           
+  - requestNotificationPermission() calls Notification.requestPermission(), then getToken(messaging, { vapidKey }), then sends the
+  token to client.fcmTokens.register({ token, deviceType: "web", deviceName: navigator.userAgent.slice(0, 100) }).                 
+  - setupForegroundListener(callback) wraps onMessage() — used to show in-app toasts when a push arrives while the tab is open.
+  - unregisterFcmToken(token) for sign-out.                                                                                        
+                                                                                                                                   
+  apps/web-learner/public/firebase-messaging-sw.js (service worker)                                                                
+                                                                                                                                   
+  - Cannot import process.env — service workers don't go through the bundler. Config is delivered at runtime via postMessage:      
+  self.addEventListener("message", (event) => {               
+    if (event.data?.type === "FIREBASE_CONFIG") {                                                                                  
+      firebaseConfig = event.data.config;                                                                                          
+      initFirebase();                          
+    }                                                                                                                              
+  });                                                         
+  - Uses the compat Firebase SDK (firebase-app-compat.js / firebase-messaging-compat.js) loaded from gstatic.com because           
+  tree-shaken modular imports don't run inside service workers.                                                                    
+  - messaging.onBackgroundMessage shows a system notification.
+  - A notificationclick handler reads event.notification.data.deepLink and either focuses an existing tab (posting a               
+  NOTIFICATION_CLICK message) or opens a new window.                                                                               
+                                                                                                                                   
+  apps/web-learner/src/components/notification-setup.tsx                                                                           
+                                                              
+  React component mounted in the root layout. It:                                                                                  
+  1. Registers /firebase-messaging-sw.js.                     
+  2. postMessages the Firebase config to all worker states (installing, waiting, active, plus navigator.serviceWorker.ready.active 
+  because active can be null on first install).                                                                                   
+  3. If permission is already granted, silently calls requestNotificationPermission() to refresh the token.                        
+  4. Sets up the foreground listener → shows a toast via sonner and tracks via @mentor/analytics.          
+  5. Listens for NOTIFICATION_CLICK SW messages and navigates to the deep link — but only if it's a same-origin relative URL       
+  (startsWith("/") && !startsWith("//")) to prevent open-redirect attacks.                                                         
+                                                                                                                                   
+  ★ Insight ─────────────────────────────────────                                                                                  
+  The two-step "register SW then postMessage config" dance is needed because the SW lives at a static URL                          
+  (/firebase-messaging-sw.js) so it can't read your bundler env vars. Don't try to template the SW file at build time — Next.js    
+  doesn't process public/.                     
+  ─────────────────────────────────────────────────                                                                                
+                                                              
+  ---                                          
+  8. Mobile client integration
+                              
+  Two files:
+                                                                                                                                   
+  apps/mobile/lib/notifications.ts
+                                                                                                                                   
+  Uses expo-notifications but pulls the native token, not an Expo push token:                                                      
+                                               
+  const tokenData = await Notifications.getDevicePushTokenAsync();  // native FCM/APNs                                             
+  const token = tokenData.data;                                                                                                    
+                                               
+  await client.fcmTokens.register({                                                                                                
+    token,                                                    
+    deviceType: Platform.OS === "ios" ? "ios" : "android",
+    deviceName: Device.modelName ?? undefined,                                                                                     
+  });
+                                                                                                                                   
+  This means the same firebase-admin server path delivers to mobile — no Expo push service involved.                               
+                                               
+  Other helpers in this file:                                                                                                      
+  - configureNotificationHandler() — sets foreground display behaviour.
+  - registerForPushNotificationsAsync() — full flow: permission prompt → record osPermissionStatus for analytics → Android channel 
+  setup → fetch token → register.                                                                                                 
+  - refreshPushTokenAsync() — called on every app launch.                                                                          
+  - unregisterPushToken() / deactivateAllTokens() — logout cleanup.
+  - shouldPromptForPermission() — checks server-side cooldown (30-day after denial, max 3 prompts total).                          
+                                                                                                                                   
+  apps/mobile/app/_layout.tsx — PushNotificationSetup component                                                                    
+                                                                                                                                   
+  Reactive integration with the auth session. On useSession() change:                                                              
+  - Logged out (was logged in) → deactivateAllTokens().
+  - Same user, fresh launch → refreshPushTokenAsync().
+  - New user logged in → registerForPushNotificationsAsync() with exponential-backoff retry (5s → 10s → … capped at 60s) for transient failures. "denied" is a hard stop
+  (no retry), while null is treated as transient.
+
+  const attemptRegistration = async (retryDelayMs: number) => {
+    const result = await registerForPushNotificationsAsync();
+    if (result === "denied") return;            // hard stop
+    if (result) { registeredUserId.current = userId; return; }
+    retryTimer.current = setTimeout(
+      () => void attemptRegistration(Math.min(retryDelayMs * 2, 60_000)),
+      retryDelayMs
+    );
+  };
+
+  apps/mobile/package.json
+
+  "@react-native-firebase/app": "^23.8.8",
+  // + analytics, remote-config (NOT messaging — handled by expo-notifications)
+  "expo-notifications": "...",
+  "expo-device": "...",
+
+  Native config must be added to app.json plugin config + google-services.json / GoogleService-Info.plist. The mobile CLAUDE.md confirms this is wired through
+  expo-notifications.
+
+  ---
+  9. What's left out (worth knowing)
+
+  - Stable tracking — notification audit table records every send (sentViaPush=true) which is what powers the rate-limit counters. If you copy push.ts you also need that
+  table or you'll lose frequency limiting.
+  - In-app notifications are a separate concern — notifications and admin-notifications routers manage in-DB notifications independently of FCM. Push is just the delivery 
+  channel.                                                                                                                                                                 
+  - Tests live at:
+    - packages/api/src/lib/__tests__/push.test.ts                                                                                                                          
+    - packages/api/src/routers/__tests__/fcm-token.test.ts    
+  - Coverage threshold is 80% repo-wide, so if you copy these files into another monorepo with the same pre-push hook, copy the tests too.                                 
+                                                                                                                                                                           
+  ---                                                                                                                                                                      
+  10. Minimal copy-list for a new project                                                                                                                                  
+                                                                                                                                                                           
+  If you're porting this end-to-end, copy in this order:
+                                                                                                                                                                           
+  1. Server                                                   
+    - packages/env/src/server.ts — add the 3 FIREBASE_* vars.                                                                                                              
+    - packages/api/src/lib/firebase.ts (admin init).                                                                                                                       
+    - packages/api/src/lib/push.ts (send + cleanup) — strip the quiet-hours / frequency-limit calls if you don't need them.                                                
+    - Add firebase-admin to deps and externalize it from your bundler.                                                                                                     
+  2. DB                                                                                                                                                                    
+    - fcm_token table from packages/db/src/schema/notifications.ts.                                                                                                        
+  3. API                                                                                                                                                                   
+    - packages/validators/src/fcm-token.ts (Zod schemas).     
+    - packages/api/src/routers/fcm-token.ts (router).                                                                                                                      
+    - Mount it in your root router.                           
+  4. Web                                                                                                                                                                   
+    - packages/env/src/web.ts — add the 7 NEXT_PUBLIC_FIREBASE_* vars.
+    - apps/web-learner/src/lib/firebase.ts.                                                                                                                                
+    - apps/web-learner/public/firebase-messaging-sw.js (verbatim, no bundling).
+    - apps/web-learner/src/components/notification-setup.tsx — mount in root layout.                                                                                       
+    - Add firebase to deps.                                   
+  5. Mobile                                                                                                                                                                
+    - apps/mobile/lib/notifications.ts.                       
+    - PushNotificationSetup block from apps/mobile/app/_layout.tsx.                                                                                                        
+    - expo-notifications, expo-device, @react-native-firebase/app to deps.                                                                                                 
+    - google-services.json / GoogleService-Info.plist + Expo plugin config.                                                                                                
+                                                                                                                                                                           
+  That's the entire FCM surface — ~10 files plus DB schema, env, and the validator.  
