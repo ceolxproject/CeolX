@@ -45,7 +45,7 @@ export default function CreateEventScreen() {
   };
   const tabBarNavigation = {
     emit: () => ({ defaultPrevented: false }),
-    navigate: (name: string) => router.replace(`/(app)/(tabs)/${name}` as never),
+    navigate: (name: string) => router.replace(`/(app)/(tabs)/${name}`),
   };
 
   return (
@@ -60,7 +60,7 @@ export default function CreateEventScreen() {
 
       {/* Step indicator */}
       <View className="px-5">
-        <StepIndicator currentStep={form.currentStep as 1 | 2 | 3} />
+        <StepIndicator currentStep={form.currentStep} />
       </View>
 
       {/* Form steps */}
@@ -141,7 +141,7 @@ export default function CreateEventScreen() {
       {/* Bottom tab bar — lets users navigate away without losing the back-stack */}
       <AppTabBar
         state={tabBarState as never}
-        descriptors={{} as never}
+        descriptors={{}}
         navigation={tabBarNavigation as never}
         insets={{ top: 0, bottom: 0, left: 0, right: 0 }}
       />

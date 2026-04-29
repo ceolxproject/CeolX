@@ -3,7 +3,7 @@
 | Field          | Value                                                  |
 | -------------- | ------------------------------------------------------ |
 | **Milestone**  | M9 — Super Admin                                       |
-| **Status**     | 🔲 To Do                                               |
+| **Status**     | ✅ Done                                                |
 | **Depends on** | M1-T5 (admin scaffold), M1-T3 (API), M1-T2 (DB schema) |
 | **PRD Ref**    | Section 8 (Super Admin Features)                       |
 

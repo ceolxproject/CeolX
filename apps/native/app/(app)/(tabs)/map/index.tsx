@@ -291,7 +291,7 @@ export default function MapScreen() {
         filters={filters}
         sections={MAP_FILTER_SECTIONS}
         variant="light"
-        onApply={(f) => setFilters(f as typeof filters)}
+        onApply={(f) => setFilters(f)}
         onClose={() => setFilterSheetVisible(false)}
       />
     </View>
