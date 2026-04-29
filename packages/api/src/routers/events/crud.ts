@@ -25,6 +25,8 @@ import type { DispatchNotificationInput } from '../../context';
 import { creatorProcedure, protectedProcedure, publicProcedure } from '../../index';
 import { syncEventToTypesense, removeEventFromTypesense } from '../../services/event-sync';
 
+import { recordEventView } from './view-tracking';
+
 export const byId = publicProcedure
   .input(z.object({ id: z.string().uuid() }))
   .query(async ({ input, ctx }) => {
@@ -48,6 +50,14 @@ export const byId = publicProcedure
     if (event.status === EventStatus.ARCHIVED && event.createdBy !== ctx.session?.user?.id) {
       throw new TRPCError({ code: 'NOT_FOUND', message: 'Event not found' });
     }
+
+    // Fire-and-forget per-event view tracking (M11-T3). Helper is best-effort
+    // and skips anonymous viewers + the creator themselves.
+    void recordEventView({
+      eventId: event.id,
+      viewerUserId: userId,
+      eventCreatorId: event.createdBy,
+    });
 
     const collaboratorUserIds = event.collaborators
       .map((c) => c.artistProfileId)
@@ -816,6 +826,8 @@ export const getMyEvents = creatorProcedure
           removalReason: events.removalReason,
           venueAddress: events.venueAddress,
           createdAt: events.createdAt,
+          // M11-T3 — saves count for the "X Joined" badge
+          joinedCount: sql<number>`(SELECT count(*)::int FROM ${savedEvents} WHERE ${savedEvents.eventId} = ${events.id})`,
         })
         .from(events)
         .where(eq(events.createdBy, ctx.userId))

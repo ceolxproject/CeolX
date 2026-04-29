@@ -17,6 +17,7 @@ type MyEvent = {
   removalReason: string | null;
   venueAddress: string | null;
   createdAt: string;
+  joinedCount: number;
 };
 
 export function useMyEvents() {

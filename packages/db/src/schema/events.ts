@@ -73,6 +73,7 @@ export const events = pgTable(
     rejectionReason: text('rejection_reason'), // legacy — kept for enum compat, not used in V1
     removalReason: text('removal_reason'), // populated by admin on post-publication takedown
     viewCount: integer('view_count').default(0),
+    ticketClicks: integer('ticket_clicks').default(0), // M11-T3 — clicks on external ticketLink
     createdAt: timestamp('created_at').notNull().defaultNow(),
     updatedAt: timestamp('updated_at').notNull().defaultNow(),
   },
@@ -146,6 +147,32 @@ export const eventCollaborators = pgTable(
 );
 
 // ---------------------------------------------------------------------------
+// event_views — append-only log of authenticated non-creator views.
+// One row per view powers per-event analytics: total views (also denormalised
+// onto events.view_count), daily-bucket aggregation for the 14-day trend chart,
+// and future per-user dedup if needed. Anonymous views are NOT tracked here;
+// creator viewing own event is NOT tracked here.
+// ---------------------------------------------------------------------------
+export const eventViews = pgTable(
+  'event_views',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    eventId: uuid('event_id')
+      .notNull()
+      .references(() => events.id, { onDelete: 'cascade' }),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    viewedAt: timestamp('viewed_at').notNull().defaultNow(),
+  },
+  (t) => [
+    // Composite for the only query pattern: views for event X in a date range,
+    // ordered by time. Postgres scans this index in either direction.
+    index('event_views_event_viewed_at_idx').on(t.eventId, t.viewedAt),
+  ]
+);
+
+// ---------------------------------------------------------------------------
 // Relations
 // ---------------------------------------------------------------------------
 export const collectionsRelations = relations(collections, ({ one, many }) => ({
@@ -171,6 +198,7 @@ export const eventsRelations = relations(events, ({ one, many }) => ({
   }),
   savedBy: many(savedEvents),
   collaborators: many(eventCollaborators),
+  views: many(eventViews),
 }));
 
 export const savedEventsRelations = relations(savedEvents, ({ one }) => ({
@@ -199,6 +227,17 @@ export const eventCollaboratorsRelations = relations(eventCollaborators, ({ one 
   }),
 }));
 
+export const eventViewsRelations = relations(eventViews, ({ one }) => ({
+  event: one(events, {
+    fields: [eventViews.eventId],
+    references: [events.id],
+  }),
+  user: one(user, {
+    fields: [eventViews.userId],
+    references: [user.id],
+  }),
+}));
+
 // ---------------------------------------------------------------------------
 // Inferred types
 // ---------------------------------------------------------------------------
@@ -210,3 +249,5 @@ export type SavedEvent = typeof savedEvents.$inferSelect;
 export type NewSavedEvent = typeof savedEvents.$inferInsert;
 export type EventCollaborator = typeof eventCollaborators.$inferSelect;
 export type NewEventCollaborator = typeof eventCollaborators.$inferInsert;
+export type EventView = typeof eventViews.$inferSelect;
+export type NewEventView = typeof eventViews.$inferInsert;
