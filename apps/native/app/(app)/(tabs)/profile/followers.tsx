@@ -17,36 +17,35 @@ import { useFollow } from '@/hooks/use-follow';
 import { MOCK_PROFILE_IMAGE } from '@/utils/mock-images';
 import { trpc } from '@/utils/trpc';
 
-type FollowingItem = {
+type FollowerItem = {
   id: string;
-  followeeId: string;
-  profileType: string | null;
+  followerId: string;
+  profileType: 'artist' | 'venue' | null;
   profile: {
-    id: string;
-    userId: string;
     displayName: string;
     profileImageUrl: string | null;
     genres: string[] | null;
-  } | null;
+  };
   eventsCount: number;
+  isFollowedBack: boolean;
 };
 
-function FollowingRow({
+function FollowerRow({
   item,
-  onUnfollow,
-  isUnfollowing,
+  onToggle,
+  isPending,
 }: {
-  item: FollowingItem;
-  onUnfollow: (followeeId: string) => void;
-  isUnfollowing: boolean;
+  item: FollowerItem;
+  onToggle: (followeeId: string, isFollowedBack: boolean) => void;
+  isPending: boolean;
 }) {
-  if (!item.profile) return null;
+  const isSpectator = item.profileType === null;
 
   const handleRowPress = () => {
     if (item.profileType === 'artist') {
-      router.push(`/(app)/artist/${item.followeeId}`);
+      router.push(`/(app)/artist/${item.followerId}`);
     } else if (item.profileType === 'venue') {
-      router.push(`/(app)/venue/${item.followeeId}`);
+      router.push(`/(app)/venue/${item.followerId}`);
     }
   };
 
@@ -66,19 +65,36 @@ function FollowingRow({
           {item.eventsCount} events
         </Text>
       </View>
-      <Pressable
-        className="border border-gray-10 rounded-[20px] h-8 px-3 items-center justify-center"
-        onPress={() => onUnfollow(item.followeeId)}
-        disabled={isUnfollowing}
-      >
-        {isUnfollowing ? (
-          <ActivityIndicator size="small" color="#fff" />
+      {!isSpectator &&
+        (item.isFollowedBack ? (
+          <Pressable
+            className="border border-gray-10 rounded-[20px] h-8 px-3 items-center justify-center"
+            onPress={() => onToggle(item.followerId, true)}
+            disabled={isPending}
+          >
+            {isPending ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <Text className="text-[12px] font-bold text-white uppercase tracking-wider font-urbanist">
+                Following
+              </Text>
+            )}
+          </Pressable>
         ) : (
-          <Text className="text-[12px] font-bold text-white uppercase tracking-wider font-urbanist">
-            Following
-          </Text>
-        )}
-      </Pressable>
+          <Pressable
+            className="bg-blue-10 rounded-[20px] h-8 px-4 items-center justify-center"
+            onPress={() => onToggle(item.followerId, false)}
+            disabled={isPending}
+          >
+            {isPending ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <Text className="text-[12px] font-bold text-white uppercase tracking-wider font-urbanist">
+                Follow
+              </Text>
+            )}
+          </Pressable>
+        ))}
     </Pressable>
   );
 }
@@ -87,19 +103,19 @@ function ItemDivider() {
   return <View className="h-px bg-gray-10/50 mx-4" />;
 }
 
-export default function FollowingScreen() {
-  const [unfollowingId, setUnfollowingId] = useState<string | null>(null);
+export default function FollowersScreen() {
+  const [pendingId, setPendingId] = useState<string | null>(null);
   const followMutation = useFollow();
 
   const { data, isLoading, refetch, isRefetching } = useQuery({
-    ...trpc.follows.getFollowing.queryOptions({ limit: 50, offset: 0 }),
+    ...trpc.follows.getFollowers.queryOptions({ limit: 50, offset: 0 }),
   });
 
-  const handleUnfollow = (followeeId: string) => {
-    setUnfollowingId(followeeId);
+  const handleToggle = (followeeId: string, isFollowedBack: boolean) => {
+    setPendingId(followeeId);
     followMutation.mutate(
-      { followeeId, isFollowing: true },
-      { onSettled: () => setUnfollowingId(null) }
+      { followeeId, isFollowing: isFollowedBack },
+      { onSettled: () => setPendingId(null) }
     );
   };
 
@@ -109,7 +125,7 @@ export default function FollowingScreen() {
         <Pressable onPress={() => router.back()} hitSlop={12}>
           <Ionicons name="arrow-back" size={24} color="#fff" />
         </Pressable>
-        <Text className="text-[34px] font-bold text-white font-urbanist">Following</Text>
+        <Text className="text-[34px] font-bold text-white font-urbanist">Followers</Text>
         <Ionicons name="search" size={22} color="#fff" />
       </View>
 
@@ -119,20 +135,20 @@ export default function FollowingScreen() {
         </View>
       ) : (
         <FlatList
-          data={data?.following ?? []}
+          data={data?.followers ?? []}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => (
-            <FollowingRow
+            <FollowerRow
               item={item}
-              onUnfollow={handleUnfollow}
-              isUnfollowing={unfollowingId === item.followeeId}
+              onToggle={handleToggle}
+              isPending={pendingId === item.followerId}
             />
           )}
           ItemSeparatorComponent={ItemDivider}
           ListEmptyComponent={
             <View className="py-16 items-center">
               <Text className="text-base text-white/60 text-center font-urbanist">
-                You&apos;re not following anyone yet
+                You don&apos;t have any followers yet
               </Text>
             </View>
           }

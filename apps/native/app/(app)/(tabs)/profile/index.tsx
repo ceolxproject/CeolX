@@ -97,7 +97,7 @@ function ProfileHeader({
       <View className="flex-row items-center justify-center gap-6 mb-3">
         <Pressable
           className="items-center w-[58px]"
-          onPress={() => router.push('/(app)/(tabs)/profile/following')}
+          onPress={() => router.push('/(app)/(tabs)/profile/followers')}
         >
           <Text className="text-[17px] font-semibold text-white">{followerCount}</Text>
           <Text className="text-[13px] text-white">Followers</Text>

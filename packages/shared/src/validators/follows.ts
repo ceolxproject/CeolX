@@ -14,6 +14,11 @@ export const followingQuerySchema = z.object({
   profileType: z.enum(['artist', 'venue']).optional(),
 });
 
+export const followersQuerySchema = z.object({
+  limit: z.number().int().min(1).max(100).default(50),
+  offset: z.number().int().min(0).default(0),
+});
+
 export const isFollowingSchema = z.object({
   userId: z.string().min(1),
 });
