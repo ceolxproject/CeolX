@@ -15,7 +15,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminUsersRouteImport } from './routes/_admin/users'
 import { Route as AdminDashboardRouteImport } from './routes/_admin/dashboard'
 import { Route as AdminAccountRouteImport } from './routes/_admin/account'
-import { Route as AdminEventsPendingRouteImport } from './routes/_admin/events/pending'
+import { Route as AdminEventsModerationRouteImport } from './routes/_admin/events/moderation'
 
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
@@ -46,9 +46,9 @@ const AdminAccountRoute = AdminAccountRouteImport.update({
   path: '/account',
   getParentRoute: () => AdminRoute,
 } as any)
-const AdminEventsPendingRoute = AdminEventsPendingRouteImport.update({
-  id: '/events/pending',
-  path: '/events/pending',
+const AdminEventsModerationRoute = AdminEventsModerationRouteImport.update({
+  id: '/events/moderation',
+  path: '/events/moderation',
   getParentRoute: () => AdminRoute,
 } as any)
 
@@ -58,7 +58,7 @@ export interface FileRoutesByFullPath {
   '/account': typeof AdminAccountRoute
   '/dashboard': typeof AdminDashboardRoute
   '/users': typeof AdminUsersRoute
-  '/events/pending': typeof AdminEventsPendingRoute
+  '/events/moderation': typeof AdminEventsModerationRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -66,7 +66,7 @@ export interface FileRoutesByTo {
   '/account': typeof AdminAccountRoute
   '/dashboard': typeof AdminDashboardRoute
   '/users': typeof AdminUsersRoute
-  '/events/pending': typeof AdminEventsPendingRoute
+  '/events/moderation': typeof AdminEventsModerationRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -76,7 +76,7 @@ export interface FileRoutesById {
   '/_admin/account': typeof AdminAccountRoute
   '/_admin/dashboard': typeof AdminDashboardRoute
   '/_admin/users': typeof AdminUsersRoute
-  '/_admin/events/pending': typeof AdminEventsPendingRoute
+  '/_admin/events/moderation': typeof AdminEventsModerationRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -86,9 +86,15 @@ export interface FileRouteTypes {
     | '/account'
     | '/dashboard'
     | '/users'
-    | '/events/pending'
+    | '/events/moderation'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/login' | '/account' | '/dashboard' | '/users' | '/events/pending'
+  to:
+    | '/'
+    | '/login'
+    | '/account'
+    | '/dashboard'
+    | '/users'
+    | '/events/moderation'
   id:
     | '__root__'
     | '/'
@@ -97,7 +103,7 @@ export interface FileRouteTypes {
     | '/_admin/account'
     | '/_admin/dashboard'
     | '/_admin/users'
-    | '/_admin/events/pending'
+    | '/_admin/events/moderation'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -150,11 +156,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminAccountRouteImport
       parentRoute: typeof AdminRoute
     }
-    '/_admin/events/pending': {
-      id: '/_admin/events/pending'
-      path: '/events/pending'
-      fullPath: '/events/pending'
-      preLoaderRoute: typeof AdminEventsPendingRouteImport
+    '/_admin/events/moderation': {
+      id: '/_admin/events/moderation'
+      path: '/events/moderation'
+      fullPath: '/events/moderation'
+      preLoaderRoute: typeof AdminEventsModerationRouteImport
       parentRoute: typeof AdminRoute
     }
   }
@@ -164,14 +170,14 @@ interface AdminRouteChildren {
   AdminAccountRoute: typeof AdminAccountRoute
   AdminDashboardRoute: typeof AdminDashboardRoute
   AdminUsersRoute: typeof AdminUsersRoute
-  AdminEventsPendingRoute: typeof AdminEventsPendingRoute
+  AdminEventsModerationRoute: typeof AdminEventsModerationRoute
 }
 
 const AdminRouteChildren: AdminRouteChildren = {
   AdminAccountRoute: AdminAccountRoute,
   AdminDashboardRoute: AdminDashboardRoute,
   AdminUsersRoute: AdminUsersRoute,
-  AdminEventsPendingRoute: AdminEventsPendingRoute,
+  AdminEventsModerationRoute: AdminEventsModerationRoute,
 }
 
 const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)

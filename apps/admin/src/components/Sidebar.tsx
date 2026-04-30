@@ -1,11 +1,11 @@
 import { Link } from '@tanstack/react-router';
-import { BarChart3, Clock, Menu, Settings, Users, X } from 'lucide-react';
+import { BarChart3, Menu, Settings, ShieldAlert, Users, X } from 'lucide-react';
 import { useState } from 'react';
 
 const navItems = [
   { name: 'Dashboard', to: '/dashboard', icon: BarChart3 },
   { name: 'Users', to: '/users', icon: Users },
-  { name: 'Pending Events', to: '/events/pending', icon: Clock },
+  { name: 'Event Moderation', to: '/events/moderation', icon: ShieldAlert },
   { name: 'Account', to: '/account', icon: Settings },
 ] as const;
 
