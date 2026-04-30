@@ -94,7 +94,7 @@ Tracks completed tasks per milestone. Each entry links to its PR.
 ## M9 — Super Admin Dashboard
 
 - [ ] M9-T1 · Admin Auth & Dashboard
-- [ ] M9-T2 · Event Moderation Queue
+- [x] M9-T2 · Event Moderation Queue — PR #57
 
 ## M10 — Media (S3, CloudFront, Mux)
 
