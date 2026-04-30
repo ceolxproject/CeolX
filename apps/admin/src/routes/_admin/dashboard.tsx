@@ -32,24 +32,33 @@ function TrendLine({ trend, label }: { trend: Trend; label: string }) {
 function KpiSkeletonGrid() {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-      {Array.from({ length: 6 }).map((_, i) => (
+      {Array.from({ length: 8 }).map((_, i) => (
         <Skeleton key={i} className="h-32 rounded-lg" />
       ))}
     </div>
   );
 }
 
-function KpiBreakdown({ items }: { items: Array<{ label: string; value: number }> }) {
+function KpiBreakdown({ items }: { items: Array<{ label: string; value: number | string }> }) {
   return (
     <div className="space-y-1.5 mt-2">
       {items.map((it) => (
         <div key={it.label} className="flex items-center justify-between text-xs">
           <span className="text-muted-foreground">{it.label}</span>
-          <span className="font-medium">{it.value.toLocaleString()}</span>
+          <span className="font-medium">
+            {typeof it.value === 'number' ? it.value.toLocaleString() : it.value}
+          </span>
         </div>
       ))}
     </div>
   );
+}
+
+function formatCacheAge(cachedAt: string): string {
+  const ageMs = Date.now() - new Date(cachedAt).getTime();
+  const ageSec = Math.max(0, Math.round(ageMs / 1000));
+  if (ageSec < 60) return `${ageSec}s ago`;
+  return `${Math.round(ageSec / 60)}m ago`;
 }
 
 function DashboardPage() {
@@ -75,18 +84,25 @@ function DashboardPage() {
     );
   }
 
-  const { users, events, subscriptions, engagement, pendingModeration } = data;
+  const {
+    users,
+    events,
+    subscriptions,
+    bookings,
+    engagement,
+    moderation,
+    topCategories,
+    sessions,
+  } = data;
 
   const cards: Array<{ label: string; value: ReactNode; trend?: ReactNode }> = [
-    // 6 cards per spec: total users, users by persona, events by status,
-    // subscriptions/MRR, engagement, pending moderation.
     {
       label: 'Total Users',
       value: users.total.toLocaleString(),
       trend: (
-        <div className="flex items-center justify-between">
-          <TrendLine trend={users.trend} label={`${users.newLast30Days} new in 30 days`} />
-          <span className="text-xs text-muted-foreground">{users.newLast7Days} this week</span>
+        <div className="space-y-1">
+          <TrendLine trend={users.trend7d} label={`${users.newLast7Days} new this week`} />
+          <TrendLine trend={users.trend30d} label={`${users.newLast30Days} new in 30 days`} />
         </div>
       ),
     },
@@ -99,6 +115,18 @@ function DashboardPage() {
             { label: 'Spectators', value: users.byPersona.spectator },
             { label: 'Artists', value: users.byPersona.artist },
             { label: 'Venues', value: users.byPersona.venue },
+          ]}
+        />
+      ),
+    },
+    {
+      label: 'Active Users',
+      value: sessions.activeLast30Days.toLocaleString(),
+      trend: (
+        <KpiBreakdown
+          items={[
+            { label: 'Last 7 days', value: sessions.activeLast7Days },
+            { label: 'Last 30 days', value: sessions.activeLast30Days },
           ]}
         />
       ),
@@ -118,6 +146,18 @@ function DashboardPage() {
       ),
     },
     {
+      label: 'Top Categories',
+      value: topCategories[0]?.category ?? '—',
+      trend:
+        topCategories.length > 0 ? (
+          <KpiBreakdown
+            items={topCategories.map((tc) => ({ label: tc.category, value: tc.count }))}
+          />
+        ) : (
+          <p className="text-xs text-muted-foreground mt-2">No events yet.</p>
+        ),
+    },
+    {
       label: 'Active Subscriptions',
       value: subscriptions.activeVenues.toLocaleString(),
       trend: (
@@ -131,41 +171,67 @@ function DashboardPage() {
             <span className="font-medium">{subscriptions.pastDueCount}</span>
           </div>
           <TrendLine
-            trend={subscriptions.trend}
+            trend={subscriptions.trend30d}
             label={`${subscriptions.newLast30Days} new in 30 days`}
           />
         </div>
       ),
     },
     {
-      label: 'Engagement',
-      value: (engagement.totalFollows + engagement.totalBookings).toLocaleString(),
+      label: 'Bookings',
+      value: bookings.total.toLocaleString(),
       trend: (
         <KpiBreakdown
           items={[
-            { label: 'Follows', value: engagement.totalFollows },
-            { label: 'Bookings', value: engagement.totalBookings },
-            { label: 'Posts', value: engagement.totalPosts },
+            { label: 'Pending', value: bookings.byStatus.pending },
+            { label: 'Accepted', value: bookings.byStatus.accepted },
+            { label: 'Rejected', value: bookings.byStatus.rejected },
+            { label: 'Cancelled', value: bookings.byStatus.cancelled },
           ]}
         />
       ),
     },
     {
-      label: 'Pending Moderation',
-      value: pendingModeration.toLocaleString(),
+      label: 'Engagement',
+      value: (engagement.totalFollows + engagement.totalPosts).toLocaleString(),
       trend: (
-        <p className="text-xs text-muted-foreground mt-2">
-          {pendingModeration === 0
-            ? 'No events awaiting review.'
-            : `${pendingModeration} event${pendingModeration === 1 ? '' : 's'} awaiting review.`}
-        </p>
+        <KpiBreakdown
+          items={[
+            { label: 'Follows', value: engagement.totalFollows },
+            { label: 'Posts', value: engagement.totalPosts },
+            { label: 'Avg likes/post', value: engagement.avgLikesPerPost.toFixed(1) },
+          ]}
+        />
+      ),
+    },
+    {
+      label: 'Removed Events',
+      value: moderation.removedLast7Days.toLocaleString(),
+      trend: (
+        <div className="space-y-1.5 mt-2">
+          <div className="flex items-center justify-between text-xs">
+            <span className="text-muted-foreground">Last 7 days</span>
+            <span className="font-medium">{moderation.removedLast7Days}</span>
+          </div>
+          <div className="flex items-center justify-between text-xs">
+            <span className="text-muted-foreground">Total removed</span>
+            <span className="font-medium">{moderation.removedTotal}</span>
+          </div>
+          <div className="flex items-center justify-between text-xs">
+            <span className="text-muted-foreground">Pending review</span>
+            <span className="font-medium">{moderation.pendingReview}</span>
+          </div>
+        </div>
       ),
     },
   ];
 
   return (
     <div className="space-y-6">
-      <h1 className="text-3xl font-bold">Dashboard</h1>
+      <div className="flex items-baseline justify-between">
+        <h1 className="text-3xl font-bold">Dashboard</h1>
+        <p className="text-xs text-muted-foreground">Updated {formatCacheAge(data.cachedAt)}</p>
+      </div>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {cards.map((c) => (
           <KpiCard key={c.label} label={c.label} value={c.value} trend={c.trend} />
