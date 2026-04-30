@@ -55,6 +55,19 @@ export const removeEventSchema = z.object({
   removalReason: z.string().min(10, 'Removal reason must be at least 10 characters').max(500),
 });
 
+export const adminEventListQuerySchema = z.object({
+  status: z.enum(['active', 'removed', 'archived']).default('active'),
+  persona: z.enum(['artist', 'venue']).optional(),
+  q: z.string().max(100).optional(),
+  limit: z.number().int().min(1).max(50).default(20),
+  offset: z.number().int().min(0).default(0),
+});
+
+export const adminRemoveEventSchema = z.object({
+  id: z.string().uuid(),
+  removalReason: z.string().min(10, 'Removal reason must be at least 10 characters').max(500),
+});
+
 export const feedQuerySchema = z.object({
   lat: z.number().min(-90).max(90),
   lng: z.number().min(-180).max(180),
@@ -68,4 +81,6 @@ export const feedQuerySchema = z.object({
 export type CreateEventInput = z.infer<typeof createEventSchema>;
 export type UpdateEventInput = z.infer<typeof updateEventSchema>;
 export type RemoveEventInput = z.infer<typeof removeEventSchema>;
+export type AdminEventListQueryInput = z.infer<typeof adminEventListQuerySchema>;
+export type AdminRemoveEventInput = z.infer<typeof adminRemoveEventSchema>;
 export type FeedQueryInput = z.infer<typeof feedQuerySchema>;

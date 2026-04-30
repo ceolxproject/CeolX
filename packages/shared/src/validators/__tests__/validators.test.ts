@@ -8,6 +8,8 @@ import {
   consentSchema,
   createEventSchema,
   removeEventSchema,
+  adminEventListQuerySchema,
+  adminRemoveEventSchema,
   onboardingSchema,
   switchRoleSchema,
   createArtistOnboardingSchema,
@@ -347,5 +349,94 @@ describe('removeEventSchema', () => {
 
   it('rejects empty reason', () => {
     expect(removeEventSchema.safeParse({ removalReason: '' }).success).toBe(false);
+  });
+});
+
+describe('adminEventListQuerySchema', () => {
+  it('accepts an empty input and applies defaults', () => {
+    const result = adminEventListQuerySchema.safeParse({});
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.status).toBe('active');
+      expect(result.data.limit).toBe(20);
+      expect(result.data.offset).toBe(0);
+      expect(result.data.persona).toBeUndefined();
+      expect(result.data.q).toBeUndefined();
+    }
+  });
+
+  it('accepts a fully specified valid input', () => {
+    expect(
+      adminEventListQuerySchema.safeParse({
+        status: 'removed',
+        persona: 'venue',
+        q: 'trad session',
+        limit: 50,
+        offset: 40,
+      }).success
+    ).toBe(true);
+  });
+
+  it('rejects invalid status values', () => {
+    expect(adminEventListQuerySchema.safeParse({ status: 'pending_review' }).success).toBe(false);
+  });
+
+  it('rejects invalid persona values', () => {
+    expect(adminEventListQuerySchema.safeParse({ persona: 'spectator' }).success).toBe(false);
+  });
+
+  it('rejects limit greater than 50', () => {
+    expect(adminEventListQuerySchema.safeParse({ limit: 51 }).success).toBe(false);
+  });
+
+  it('rejects negative offset', () => {
+    expect(adminEventListQuerySchema.safeParse({ offset: -1 }).success).toBe(false);
+  });
+
+  it('rejects non-integer limit', () => {
+    expect(adminEventListQuerySchema.safeParse({ limit: 1.5 }).success).toBe(false);
+  });
+
+  it('rejects q longer than 100 characters', () => {
+    expect(adminEventListQuerySchema.safeParse({ q: 'a'.repeat(101) }).success).toBe(false);
+  });
+});
+
+describe('adminRemoveEventSchema', () => {
+  const validId = '550e8400-e29b-41d4-a716-446655440000';
+
+  it('accepts a valid uuid + sufficient reason', () => {
+    expect(
+      adminRemoveEventSchema.safeParse({
+        id: validId,
+        removalReason: 'Event location is outside Ireland.',
+      }).success
+    ).toBe(true);
+  });
+
+  it('rejects a non-uuid id', () => {
+    const result = adminRemoveEventSchema.safeParse({
+      id: 'not-a-uuid',
+      removalReason: 'Valid reason here.',
+    });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues.map((i) => i.path.join('.'))).toContain('id');
+    }
+  });
+
+  it('rejects reason shorter than 10 characters', () => {
+    expect(
+      adminRemoveEventSchema.safeParse({ id: validId, removalReason: 'Too short' }).success
+    ).toBe(false);
+  });
+
+  it('rejects reason longer than 500 characters', () => {
+    expect(
+      adminRemoveEventSchema.safeParse({
+        id: validId,
+        removalReason: 'a'.repeat(501),
+      }).success
+    ).toBe(false);
   });
 });
