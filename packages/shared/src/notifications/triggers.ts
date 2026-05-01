@@ -44,6 +44,7 @@ export const NotificationTrigger = {
   EVENT_REMOVED_BY_ADMIN_TO_VENUE: 'event_removed_by_admin_to_venue',
   EVENT_RESUBMITTED_TO_ARTIST: 'event_resubmitted_to_artist',
   EVENT_RESUBMITTED_TO_VENUE: 'event_resubmitted_to_venue',
+  SAVED_EVENT_REMOVED_TO_SAVERS: 'saved_event_removed_to_savers',
 } as const;
 
 export type NotificationTrigger = (typeof NotificationTrigger)[keyof typeof NotificationTrigger];
@@ -326,6 +327,24 @@ export const NOTIFICATION_TRIGGERS: Record<NotificationTrigger, TriggerDefinitio
     inApp: {
       title: 'Event Resubmitted ✓',
       body: 'Your updated event "{eventTitle}" is back live on CeolX.',
+    },
+    email: null,
+  },
+  // U-03 — Universal: every user who saved an event is told when an admin
+  // removes it. Fans out per-saver from the admin.removeEvent mutation.
+  // Routes to /feed because the original event link is a dead end once removed.
+  [NotificationTrigger.SAVED_EVENT_REMOVED_TO_SAVERS]: {
+    matrixRef: 'U-03',
+    type: 'saved_event_removed',
+    persona: 'spectator',
+    routeTemplate: '/feed',
+    push: {
+      title: 'A saved event was removed',
+      body: '"{eventTitle}" was removed by moderation and is no longer on CeolX.',
+    },
+    inApp: {
+      title: 'A saved event was removed',
+      body: '"{eventTitle}" was removed by moderation. Browse the feed for similar events.',
     },
     email: null,
   },
