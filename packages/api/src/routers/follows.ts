@@ -1,12 +1,14 @@
 import { TRPCError } from '@trpc/server';
-import { and, desc, eq, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 
 import { db } from '@CeolX/db';
 import { user } from '@CeolX/db/schema/auth';
+import { events } from '@CeolX/db/schema/events';
 import { follows } from '@CeolX/db/schema/social';
 import { artistProfiles, venueProfiles } from '@CeolX/db/schema/users';
 import {
   followerCountSchema,
+  followersQuerySchema,
   followingQuerySchema,
   followSchema,
   isFollowingSchema,
@@ -14,6 +16,20 @@ import {
 } from '@CeolX/shared/validators';
 
 import { protectedProcedure, publicProcedure, router } from '../index';
+
+// Counts active events per creator. Returns a Map<userId, count> with 0 default.
+async function getActiveEventsCounts(userIds: string[]): Promise<Map<string, number>> {
+  if (userIds.length === 0) return new Map();
+  const rows = await db
+    .select({
+      createdBy: events.createdBy,
+      count: sql<number>`count(*)::int`,
+    })
+    .from(events)
+    .where(and(inArray(events.createdBy, userIds), eq(events.status, 'active')))
+    .groupBy(events.createdBy);
+  return new Map(rows.map((r) => [r.createdBy, r.count]));
+}
 
 function isUniqueConstraintError(err: unknown): boolean {
   return (
@@ -179,7 +195,115 @@ export const followsRouter = router({
       return true;
     });
 
-    return { following: filtered, totalCount, hasNextPage };
+    const eventsCounts = await getActiveEventsCounts(filtered.map((f) => f.followeeId));
+    const enriched = filtered.map((f) => ({
+      ...f,
+      eventsCount: eventsCounts.get(f.followeeId) ?? 0,
+    }));
+
+    return { following: enriched, totalCount, hasNextPage };
+  }),
+
+  /**
+   * List the authenticated user's followers, with profile data + interaction state.
+   * Each row includes:
+   *  - profileType: 'artist' | 'venue' | null  (null = spectator follower; no public profile)
+   *  - eventsCount: count of active events the follower has created
+   *  - isFollowedBack: true if the authenticated user follows this follower
+   * Spectator followers fall back to the base user.name / user.image so the row still renders.
+   */
+  getFollowers: protectedProcedure.input(followersQuerySchema).query(async ({ ctx, input }) => {
+    const { limit, offset } = input;
+
+    const followRows = await db
+      .select({
+        id: follows.id,
+        followerId: follows.followerId,
+        createdAt: follows.createdAt,
+      })
+      .from(follows)
+      .where(eq(follows.followeeId, ctx.userId))
+      .orderBy(desc(follows.createdAt))
+      .limit(limit + 1)
+      .offset(offset);
+
+    const [countResult] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(follows)
+      .where(eq(follows.followeeId, ctx.userId));
+    const totalCount = countResult?.count ?? 0;
+
+    const hasNextPage = followRows.length > limit;
+    const rows = hasNextPage ? followRows.slice(0, limit) : followRows;
+    const followerIds = rows.map((r) => r.followerId);
+
+    if (followerIds.length === 0) {
+      return { followers: [], totalCount, hasNextPage };
+    }
+
+    const [artists, venues, baseUsers, followBackRows, eventsCountRows] = await Promise.all([
+      db
+        .select({
+          userId: artistProfiles.userId,
+          displayName: artistProfiles.stageName,
+          profileImageUrl: artistProfiles.profileImageUrl,
+          genres: artistProfiles.genres,
+        })
+        .from(artistProfiles)
+        .where(and(inArray(artistProfiles.userId, followerIds), eq(artistProfiles.isActive, true))),
+      db
+        .select({
+          userId: venueProfiles.userId,
+          displayName: venueProfiles.venueName,
+          profileImageUrl: venueProfiles.profileImageUrl,
+        })
+        .from(venueProfiles)
+        .where(and(inArray(venueProfiles.userId, followerIds), eq(venueProfiles.isActive, true))),
+      db
+        .select({ id: user.id, name: user.name, image: user.image })
+        .from(user)
+        .where(inArray(user.id, followerIds)),
+      db
+        .select({ followeeId: follows.followeeId })
+        .from(follows)
+        .where(and(eq(follows.followerId, ctx.userId), inArray(follows.followeeId, followerIds))),
+      db
+        .select({ createdBy: events.createdBy, count: sql<number>`count(*)::int` })
+        .from(events)
+        .where(and(inArray(events.createdBy, followerIds), eq(events.status, 'active')))
+        .groupBy(events.createdBy),
+    ]);
+    const eventsCounts = new Map(eventsCountRows.map((r) => [r.createdBy, r.count]));
+
+    const artistByUser = new Map(artists.map((a) => [a.userId, a]));
+    const venueByUser = new Map(venues.map((v) => [v.userId, v]));
+    const baseByUser = new Map(baseUsers.map((u) => [u.id, u]));
+    const followedBackSet = new Set(followBackRows.map((r) => r.followeeId));
+
+    const followers = rows.map((row) => {
+      const artist = artistByUser.get(row.followerId);
+      const venue = venueByUser.get(row.followerId);
+      const base = baseByUser.get(row.followerId);
+      const profileType: 'artist' | 'venue' | null = artist ? 'artist' : venue ? 'venue' : null;
+
+      const profile = {
+        displayName: artist?.displayName ?? venue?.displayName ?? base?.name ?? '',
+        profileImageUrl: artist?.profileImageUrl ?? venue?.profileImageUrl ?? base?.image ?? null,
+        genres: artist?.genres ?? null,
+      };
+
+      return {
+        id: row.id,
+        followerId: row.followerId,
+        createdAt: row.createdAt,
+        profileType,
+        profile,
+        eventsCount: eventsCounts.get(row.followerId) ?? 0,
+        isFollowedBack: followedBackSet.has(row.followerId),
+      };
+    });
+
+    return { followers, totalCount, hasNextPage };
   }),
 
   /** Check if the authenticated user follows a specific user. */

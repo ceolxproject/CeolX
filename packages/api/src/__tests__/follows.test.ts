@@ -35,13 +35,14 @@ const {
 
 vi.mock('@CeolX/db', () => {
   // The chain is thenable: all methods keep returning chain; awaiting it pulls the next
-  // mockSelectChain value. This lets a query terminate on any method (.limit, .offset, .where).
+  // mockSelectChain value. This lets a query terminate on any method (.limit, .offset, .where, .groupBy).
   const chain = {
     from: vi.fn(() => chain),
     where: vi.fn(() => chain),
     orderBy: vi.fn(() => chain),
     limit: vi.fn(() => chain),
     offset: vi.fn(() => chain),
+    groupBy: vi.fn(() => chain),
     then: (resolve: (v: unknown) => unknown, reject?: (e: unknown) => unknown) =>
       (mockSelectChain() as Promise<unknown>).then(resolve, reject),
   };
@@ -65,6 +66,14 @@ vi.mock('@CeolX/db', () => {
     },
   };
 });
+
+vi.mock('@CeolX/db/schema/events', () => ({
+  events: {
+    id: 'id',
+    createdBy: 'created_by',
+    status: 'status',
+  },
+}));
 
 vi.mock('@CeolX/db/schema/social', () => ({
   follows: {
@@ -222,7 +231,8 @@ describe('follows router', () => {
     //   2) count       query   (terminates at .where via thenable)
     //   3) artist lookup for row0   (terminates at .limit)
     //   4) venue  lookup for row0   (terminates at .limit)
-    it('returns venue profileImageUrl for a followed venue', async () => {
+    //   5) events count batch      (terminates at .groupBy)
+    it('returns venue profileImageUrl and eventsCount for a followed venue', async () => {
       const followRow = { id: 'f-1', followeeId: 'user-v', createdAt: new Date() };
       mockSelectChain.mockResolvedValueOnce([followRow]);
       mockSelectChain.mockResolvedValueOnce([{ count: 1 }]);
@@ -236,6 +246,7 @@ describe('follows router', () => {
           isActive: true,
         },
       ]);
+      mockSelectChain.mockResolvedValueOnce([{ createdBy: 'user-v', count: 7 }]);
 
       const caller = authedCaller('user-1');
       const result = await caller.getFollowing({ limit: 50, offset: 0 });
@@ -243,6 +254,107 @@ describe('follows router', () => {
       expect(result.following).toHaveLength(1);
       expect(result.following[0]?.profileType).toBe('venue');
       expect(result.following[0]?.profile?.profileImageUrl).toBe('https://cdn/venues/kilkee.jpg');
+      expect(result.following[0]?.eventsCount).toBe(7);
+    });
+  });
+
+  describe('getFollowers', () => {
+    // Mock sequence for getFollowers, in code order:
+    //   1) followRows  query                            (terminates at .offset)
+    //   2) count       query                            (terminates at .where)
+    //   3) artists batch query  (Promise.all index 0)   (terminates at .where)
+    //   4) venues  batch query  (Promise.all index 1)   (terminates at .where)
+    //   5) baseUsers batch      (Promise.all index 2)   (terminates at .where)
+    //   6) followBack rows      (Promise.all index 3)   (terminates at .where)
+    //   7) events count batch   (Promise.all index 4)   (terminates at .groupBy)
+
+    it('returns empty list when user has no followers', async () => {
+      mockSelectChain.mockResolvedValueOnce([]); // followRows
+      mockSelectChain.mockResolvedValueOnce([{ count: 0 }]); // total
+
+      const caller = authedCaller('user-1');
+      const result = await caller.getFollowers({ limit: 50, offset: 0 });
+
+      expect(result.followers).toEqual([]);
+      expect(result.totalCount).toBe(0);
+      expect(result.hasNextPage).toBe(false);
+    });
+
+    it('marks a follower with no active profile as a spectator (profileType: null)', async () => {
+      const followRow = { id: 'f-1', followerId: 'user-s', createdAt: new Date() };
+      mockSelectChain.mockResolvedValueOnce([followRow]);
+      mockSelectChain.mockResolvedValueOnce([{ count: 1 }]);
+      mockSelectChain.mockResolvedValueOnce([]); // artists batch — none
+      mockSelectChain.mockResolvedValueOnce([]); // venues batch — none
+      mockSelectChain.mockResolvedValueOnce([
+        { id: 'user-s', name: 'Spec Tator', image: 'https://cdn/u/s.jpg' },
+      ]); // baseUsers
+      mockSelectChain.mockResolvedValueOnce([]); // followBack — not following back
+      mockSelectChain.mockResolvedValueOnce([]); // events count — none
+
+      const caller = authedCaller('user-1');
+      const result = await caller.getFollowers({ limit: 50, offset: 0 });
+
+      expect(result.followers).toHaveLength(1);
+      expect(result.followers[0]?.profileType).toBeNull();
+      expect(result.followers[0]?.profile.displayName).toBe('Spec Tator');
+      expect(result.followers[0]?.profile.profileImageUrl).toBe('https://cdn/u/s.jpg');
+      expect(result.followers[0]?.eventsCount).toBe(0);
+      expect(result.followers[0]?.isFollowedBack).toBe(false);
+    });
+
+    it('returns artist follower with eventsCount and isFollowedBack=true', async () => {
+      const followRow = { id: 'f-2', followerId: 'user-a', createdAt: new Date() };
+      mockSelectChain.mockResolvedValueOnce([followRow]);
+      mockSelectChain.mockResolvedValueOnce([{ count: 1 }]);
+      mockSelectChain.mockResolvedValueOnce([
+        {
+          userId: 'user-a',
+          displayName: 'Brave Entertain',
+          profileImageUrl: 'https://cdn/a.jpg',
+          genres: ['trad'],
+        },
+      ]); // artists batch
+      mockSelectChain.mockResolvedValueOnce([]); // venues
+      mockSelectChain.mockResolvedValueOnce([
+        { id: 'user-a', name: 'Brave Entertain Acc', image: null },
+      ]); // baseUsers
+      mockSelectChain.mockResolvedValueOnce([{ followeeId: 'user-a' }]); // followBack — yes
+      mockSelectChain.mockResolvedValueOnce([{ createdBy: 'user-a', count: 27 }]); // events
+
+      const caller = authedCaller('user-1');
+      const result = await caller.getFollowers({ limit: 50, offset: 0 });
+
+      expect(result.followers).toHaveLength(1);
+      expect(result.followers[0]?.profileType).toBe('artist');
+      expect(result.followers[0]?.profile.displayName).toBe('Brave Entertain');
+      expect(result.followers[0]?.profile.profileImageUrl).toBe('https://cdn/a.jpg');
+      expect(result.followers[0]?.eventsCount).toBe(27);
+      expect(result.followers[0]?.isFollowedBack).toBe(true);
+    });
+
+    it('returns venue follower with isFollowedBack=false when not followed back', async () => {
+      const followRow = { id: 'f-3', followerId: 'user-v', createdAt: new Date() };
+      mockSelectChain.mockResolvedValueOnce([followRow]);
+      mockSelectChain.mockResolvedValueOnce([{ count: 1 }]);
+      mockSelectChain.mockResolvedValueOnce([]); // artists
+      mockSelectChain.mockResolvedValueOnce([
+        {
+          userId: 'user-v',
+          displayName: 'Kilkee Hall',
+          profileImageUrl: 'https://cdn/v.jpg',
+        },
+      ]); // venues batch
+      mockSelectChain.mockResolvedValueOnce([{ id: 'user-v', name: 'Kilkee Hall', image: null }]);
+      mockSelectChain.mockResolvedValueOnce([]); // followBack — none
+      mockSelectChain.mockResolvedValueOnce([{ createdBy: 'user-v', count: 3 }]);
+
+      const caller = authedCaller('user-1');
+      const result = await caller.getFollowers({ limit: 50, offset: 0 });
+
+      expect(result.followers[0]?.profileType).toBe('venue');
+      expect(result.followers[0]?.isFollowedBack).toBe(false);
+      expect(result.followers[0]?.eventsCount).toBe(3);
     });
   });
 });
