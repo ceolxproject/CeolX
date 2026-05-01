@@ -1,37 +1,23 @@
-import { useQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
-import { BarChart3, Clock, Menu, Settings, Users, X } from 'lucide-react';
+import { BarChart3, Menu, Settings, ShieldAlert, Users, X } from 'lucide-react';
 import { useState } from 'react';
 
 import { CeolxLogo } from '@/components/CeolxLogo';
-import { trpc } from '@/utils/trpc';
 
 const navItems = [
   { name: 'Dashboard', to: '/dashboard', icon: BarChart3 },
   { name: 'Users', to: '/users', icon: Users },
-  { name: 'Pending Events', to: '/events/pending', icon: Clock, badgeKey: 'pending' as const },
+  { name: 'Event Moderation', to: '/events/moderation', icon: ShieldAlert },
   { name: 'Account', to: '/account', icon: Settings },
 ] as const;
 
-function PendingBadge({ count }: { count: number }) {
-  if (count <= 0) return null;
-  return (
-    <span className="ml-auto inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-[10px] font-bold bg-[#C8FF2F] text-black">
-      {count > 99 ? '99+' : count}
-    </span>
-  );
-}
-
 export function Sidebar() {
   const [mobileOpen, setMobileOpen] = useState(false);
-  const { data: stats } = useQuery(trpc.admin.stats.queryOptions());
-  const pendingCount = stats?.pendingModeration ?? 0;
 
   const nav = (
     <nav className="px-4 space-y-1">
       {navItems.map((item) => {
         const Icon = item.icon;
-        const showBadge = 'badgeKey' in item && item.badgeKey === 'pending';
         return (
           <Link
             key={item.to}
@@ -45,7 +31,6 @@ export function Sidebar() {
           >
             <Icon size={18} />
             <span>{item.name}</span>
-            {showBadge && <PendingBadge count={pendingCount} />}
           </Link>
         );
       })}
