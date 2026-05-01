@@ -93,7 +93,7 @@ Tracks completed tasks per milestone. Each entry links to its PR.
 
 ## M9 — Super Admin Dashboard
 
-- [ ] M9-T1 · Admin Auth & Dashboard
+- [x] M9-T1 · Admin Auth & Dashboard — PR #53
 - [x] M9-T2 · Event Moderation Queue — PR #57
 
 ## M10 — Media (S3, CloudFront, Mux)
@@ -102,9 +102,10 @@ Tracks completed tasks per milestone. Each entry links to its PR.
 
 ## M11 — Analytics & GDPR
 
-- [ ] M11-T1 · GDPR Compliance
-- [ ] M11-T2 · Admin Analytics & KPI
-- [ ] M11-T3 · Artist & Venue Analytics
+- [x] M11-T1 · GDPR Compliance — PR #52 (R3 erasure + R6 inactive cron)
+- [ ] M11-T1.5 · GDPR Consent + Privacy + Cookie + Location Audit (R1/R2/R5/R7, split out of T1)
+- [x] M11-T2 · Admin Analytics & KPI — PR #56 (cache + bookings/likes/sessions/categories + removed-events moderation)
+- [x] M11-T3 · Per-Event Analytics — PR #54 (pivoted from overall to per-event scope)
 
 ## M12 — QA & Launch Prep
 

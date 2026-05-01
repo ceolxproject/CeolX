@@ -1,447 +1,180 @@
-# M11-T3 · Artist & Venue In-App Analytics
+# M11-T3 · Per-Event Analytics
 
-| Field          | Value                                                                                                                          |
-| -------------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| **Milestone**  | M11 — Analytics & GDPR                                                                                                         |
-| **Status**     | 🔲 To Do                                                                                                                       |
-| **Depends on** | M2-T4 (personas), M4-T1 (events), M5 (bookings), M6-T1 (Artist profile), M6-T2 (Venue profile), M6-T3 (follows), M6-T4 (posts) |
-| **PRD Ref**    | Section 6.1 (Artist Features), Section 7.1 (Venue Features — Analytics)                                                        |
+| Field          | Value                                                                                                         |
+| -------------- | ------------------------------------------------------------------------------------------------------------- |
+| **Milestone**  | M11 — Analytics & GDPR                                                                                        |
+| **Status**     | ✅ Done (per-event scope) — overall profile analytics deferred                                                |
+| **Depends on** | M2-T4 (personas), M4-T1 (events), M5 (bookings), M6-T1 (Artist profile), M6-T2 (Venue profile), M6-T4 (posts) |
+| **PRD Ref**    | Section 6.1 (Artist Features), Section 7.1 (Venue Features — Analytics)                                       |
+
+---
+
+## Pivot Note (Apr 2026)
+
+The original spec scoped **overall profile analytics** (`GET /artists/me/analytics`, `GET /venues/me/analytics`) returning aggregated KPIs across all of a creator's posts/events/bookings/followers. After reviewing the Figma designs ([card](https://www.figma.com/design/sIBHy8w0VESlY7O9eEGZos/Design-%7C-Ceolx?node-id=1-10478) + [analytics screen](https://www.figma.com/design/sIBHy8w0VESlY7O9eEGZos/Design-%7C-Ceolx?node-id=1-10537)), this task pivoted to **per-event analytics** instead — accessed from a kebab menu on each event card in the My Events tab.
+
+**Why the pivot:**
+
+- The data model has clean per-event aggregation (`saved_events.event_id`, `bookings.event_id`, `event_collaborators.event_id`) but messy aggregate-level data: posts have no `event_id` so post engagement can't be attributed to specific events; no event-follower intersection table to compute follower reach.
+- The Figma designs show per-event drill-downs, not an overall dashboard.
+- Per-event ships sooner and avoids the schema gaps above.
+
+**Out of scope (deferred to future M-task):**
+
+- Profile-level rollup analytics
+- Hourly view chart with Today vs Yesterday (Figma showed hourly; we ship daily-for-14-days)
+- Real ticket-sales rings (Figma showed 3 rings of "Tickets Sold / Presale / Final Presale" — replaced with engagement metrics because CeolX uses external `ticketLink` and has no purchase data)
+- Source attribution (map vs feed vs notification)
+- Posts↔event linkage so post likes can be attributed to specific events
+- Follower reach intersection
 
 ---
 
 ## Description
 
-Artists and Venues need visibility into their content performance to make informed decisions about future events and promotions. This task provides a creator-only analytics tab within their profile showing engagement metrics (post likes, event views, event saves), booking activity status, follower growth, and audience insights. All metrics are aggregated server-side and cached for 30 minutes to balance freshness and performance. Analytics data is **strictly private** — each creator can only view their own analytics; the endpoints use the authenticated user's session identity, not a profile ID parameter. Spectators have no access to this feature. This is essential during the controlled launch to help creators understand what resonates with the audience.
+Artists and Venues need visibility into how each of their events is performing so they can make informed decisions about future events and promotions. This task adds a **per-event analytics screen** with view trend, engagement metrics, performers list, and bookings breakdown. Analytics are owner-only — each creator can only view analytics for events they created, enforced server-side via the authenticated session identity. Spectators have no access. The screen is reached from the kebab menu (Edit / Analytics / Delete) on each card in the Profile → Events tab.
 
 ---
 
 ## Affected Apps / Packages
 
-| App / Package     | Role                                                                                                                                                |
-| ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `apps/api`        | `GET /artists/me/analytics`, `GET /venues/me/analytics` endpoints; aggregation queries; caching layer (Redis or DB timestamp)                       |
-| `apps/mobile`     | Analytics tab on Artist profile (ProfileArtist screen) and Venue profile (ProfileVenue screen); visible to owner only; stat cards, breakdown tables |
-| `packages/shared` | TypeScript interfaces for analytics response schema                                                                                                 |
+| App / Package     | Role                                                                                                                                            |
+| ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `packages/db`     | New `event_views` table; `events.ticket_clicks` column                                                                                          |
+| `packages/api`    | `events.analytics` (owner-only, cached 5 min), `events.trackTicketClick` (public), view increment on `events.byId`                              |
+| `packages/shared` | Zod input + response schemas in `event-analytics.ts`                                                                                            |
+| `apps/native`     | Kebab menu on `ProfileEventCard`, "X Joined" badge, new analytics screen at `/(app)/events/[eventId]/analytics` with chart and engagement rings |
 
 ---
 
-## API Endpoints
+## API (tRPC)
 
-### GET /api/v1/artists/me/analytics
+### `events.analytics({ id })` — protected, owner-only
 
-Retrieve analytics for the authenticated Artist. Returns post engagement, event reach, bookings, and follower data.
+Returns a complete per-event analytics payload. Throws `FORBIDDEN` if the caller is not the event creator. 5-minute in-process cache keyed by event ID.
 
-**Response (200 OK):**
+Response shape (TypeScript inferred from `eventAnalyticsResponseSchema` in `packages/shared/src/validators/event-analytics.ts`):
 
-```json
+```ts
 {
-  "posts": {
-    "totalLikes": 342,
-    "totalPosts": 8,
-    "avgLikesPerPost": 42.75,
-    "topPosts": [
-      {
-        "postId": "post_123",
-        "title": "Join me at Fleadh Cheoil 2026",
-        "likes": 157,
-        "createdAt": "2026-03-10T14:30:00Z"
-      },
-      {
-        "postId": "post_124",
-        "title": "New fiddle tune release",
-        "likes": 98,
-        "createdAt": "2026-03-05T10:00:00Z"
-      },
-      {
-        "postId": "post_125",
-        "title": "Live session this weekend",
-        "likes": 87,
-        "createdAt": "2026-02-28T16:45:00Z"
-      }
-    ]
+  event: {
+    id, title, coverImage, dateStart, dateEnd, venueAddress,
+    category, status, createdAt, updatedAt, hasTicketLink,
   },
-  "events": {
-    "totalEvents": 5,
-    "totalViews": 1243,
-    "totalSaves": 89,
-    "avgViewsPerEvent": 248.6
+  views: {
+    total: number,
+    daily: Array<{ date: 'YYYY-MM-DD', count: number }>,  // padded to exactly 14 entries
   },
-  "bookings": {
-    "total": 12,
-    "byStatus": {
-      "pending": 2,
-      "accepted": 8,
-      "rejected": 1,
-      "cancelled": 1
-    }
+  saves: { total: number },
+  engagement: { rate: number },                            // saves/views * 100
+  ticketClicks: {
+    total: number,
+    clickRate: number | null,                              // null if no ticketLink
   },
-  "followers": 156,
-  "cachedAt": "2026-03-23T14:30:00Z",
-  "cacheExpiresAt": "2026-03-23T15:00:00Z"
+  bookings: {
+    total: number,
+    byStatus: { pending, accepted, rejected, cancelled },
+    acceptanceRate: number | null,                         // null if no bookings
+  },
+  performers: {
+    confirmed: Array<{ artistProfileId, stageName, profileImageUrl }>,
+    invitedCount: number,                                  // outside-platform invites
+  },
+  cachedAt: string,
+  cacheExpiresAt: string,
 }
 ```
 
-**Error Responses:**
+### `events.trackTicketClick({ id })` — public
 
-- `401 Unauthorized`: User not authenticated or not an artist
-- `403 Forbidden`: Artist profile not set up for this user
+Atomically increments `events.ticket_clicks`. Called from the mobile ticket-link button before opening the external URL. Fire-and-forget; failures are silent.
 
----
+### `events.byId` — modified
 
-### GET /api/v1/venues/me/analytics
-
-Retrieve analytics for the authenticated Venue. Includes all artist metrics plus applications received.
-
-**Response (200 OK):**
-
-```json
-{
-  "posts": {
-    "totalLikes": 512,
-    "totalPosts": 15,
-    "avgLikesPerPost": 34.1,
-    "topPosts": [
-      {
-        "postId": "post_201",
-        "title": "St. Patrick's Day Ceili - Tickets Now on Sale",
-        "likes": 234,
-        "createdAt": "2026-03-01T09:00:00Z"
-      }
-    ]
-  },
-  "events": {
-    "totalEvents": 12,
-    "totalViews": 3456,
-    "totalSaves": 234,
-    "avgViewsPerEvent": 288
-  },
-  "bookings": {
-    "total": 28,
-    "byStatus": {
-      "pending": 3,
-      "accepted": 22,
-      "rejected": 2,
-      "cancelled": 1
-    }
-  },
-  "gigOpportunities": {
-    "totalPosted": 4,
-    "totalApplications": 16,
-    "applicationsByOpportunity": [
-      {
-        "eventId": "event_501",
-        "eventTitle": "Live Music Every Friday",
-        "applicationsCount": 8
-      },
-      {
-        "eventId": "event_502",
-        "eventTitle": "St. Paddy's Day Special",
-        "applicationsCount": 5
-      }
-    ]
-  },
-  "followers": 312,
-  "subscription": {
-    "status": "active",
-    "since": "2026-02-10T00:00:00Z",
-    "nextBillingDate": "2026-04-10T00:00:00Z"
-  },
-  "cachedAt": "2026-03-23T14:30:00Z",
-  "cacheExpiresAt": "2026-03-23T15:00:00Z"
-}
-```
+Now records a view side-effect: when `userId !== event.createdBy` and `userId` is present, atomically increments `events.view_count` and inserts a row into `event_views(event_id, user_id, viewed_at)`. Errors are swallowed so a tracking failure never breaks the event load. Anonymous viewers and the creator themselves are not tracked.
 
 ---
 
 ## Requirements
 
-### Event View Counting
+### View tracking
 
-- R1: **Add column to schema**: `events.view_count` (integer, default 0)
-- R2: On each `GET /events/:id` call from a non-creator user, increment `events.view_count` by 1
-  - Creator viewing their own event does NOT increment the count
-  - Spectators, Artists viewing other events, Venues all increment
-  - Simple approach: `UPDATE events SET view_count = view_count + 1 WHERE id = ? AND created_by != ?`
-- R3: No deduplication needed in V1; same user viewing multiple times counts each time
+- R1: `events.view_count` column exists (already in schema pre-task)
+- R2: `events.byId` increments `view_count` on each non-creator authenticated view (atomic UPDATE)
+- R3: `event_views` log table records each tracked view with `(event_id, user_id, viewed_at)` for daily aggregation
 
-### Artist Analytics
+### Per-event analytics
 
-- R4: **Post engagement**: SUM of all likes across artist's posts (`SUM(post_likes)` where post belongs to artist)
-- R5: **Top 3 posts by likes**: fetch top 3 posts with highest like counts; include postId, title, likes, createdAt
-- R6: **Event reach**: SUM of `view_count` from all artist's active events; also show total event saves (count from `saved_events` where event belongs to artist)
-- R7: **Follower count**: COUNT rows in `follows` where `followedId = artist_id`
-- R8: **Booking activity**: COUNT bookings by status where `artistId = artist_id`; breakdown: pending, accepted, rejected, cancelled
+- R4: Owner-only access enforced via session identity (`ctx.userId`); 403 for non-owners
+- R5: Total views, total saves, engagement rate (saves/views × 100), 14-day daily view trend
+- R6: Performers section: confirmed performers (avatars + stage names) and outside-platform invite count
+- R7: Bookings breakdown by status (pending / accepted / rejected / cancelled) with acceptance rate; only shown when total > 0
+- R8: Ticket-link click tracking via `trackTicketClick` mutation; click rate = clicks / views × 100; only shown when event has a `ticketLink`
 
-### Venue Analytics
+### UI & access control
 
-- R9: All metrics from R4–R8 above (posts, event reach, bookings, followers)
-- R10: **Gig opportunities**: identify all events where `is_gig_opportunity = true` and `created_by = venue_id`; for each, count applications (`bookings` where the event is a gig opportunity)
-- R11: **Subscription status**: fetch from `venue_subscriptions` table; show "Active" (green), "Past Due" (red), "Inactive" (gray)
-- R12: **Subscription dates**: show "Member since" (subscription created date) and "Next billing date" (calculated from subscription period)
+- R9: Kebab menu (3-dot, brand accent green) on each owner's event card; opens popover with Edit / Analytics / Delete
+- R10: Delete uses existing archive flow (`useArchiveEvent` hook + confirmation Alert)
+- R11: "X Joined" public save-count badge on each card in the My Events tab (visible when count > 0)
+- R12: Per-event analytics screen at `/(app)/events/[eventId]/analytics`; back to profile on dismiss
+- R13: Non-owners attempting to navigate to the analytics route see a "You can't view this analytics page" error state with a Go Back button
 
-### Caching & Performance
+### Caching & performance
 
-- R13: Cache analytics responses per profile ID with 30-minute TTL (via Redis or DB timestamp)
-- R14: Invalidate cache immediately on:
-  - New post created by creator
-  - New like on creator's post
-  - New booking (any status change)
-  - New follow of the creator
-  - New event view (optional — can wait for cache expiry)
-- R15: All queries use indexed columns (`created_by`, `status`, `createdAt`); no complex CTEs or window functions
-- R16: Analytics load within 2 seconds (cached response within 100ms, fresh computation within 2 seconds)
-
-### UI & Access Control
-
-- R17: Analytics tab appears on creator's own Artist profile (when viewing self); hidden when another user views the profile
-- R18: Analytics tab appears on creator's own Venue profile (when viewing self); hidden when other users view the profile
-- R19: Spectators have NO analytics tab — only Artists and Venues see this feature
-- R20: On mobile, analytics tab is a secondary tab in the profile (after "About" and "Events" tabs); swipe or tab selector to navigate
-- R21: No analytics data is exposed via public profile endpoints; all data is creator-only and authenticated
+- R14: 5-minute in-process cache for analytics responses (keyed by event ID); cache hit returns identical payload without re-running rollup queries
+- R15: All rollup queries use indexed columns (`event_views_event_viewed_at_idx`, `bookings_event_status` via `bookings.eventId`, etc.); no complex CTEs
 
 ---
 
 ## Acceptance Criteria
 
-- [ ] `view_count` column exists on events table
-- [ ] Event view count increments on each non-creator view of event detail screen
-- [ ] `GET /artists/me/analytics` returns correct post, event, booking, and follower data
-- [ ] `GET /venues/me/analytics` returns all artist metrics plus gig opportunity applications
-- [ ] Analytics tab visible on Creator's own profile; hidden when viewing another profile
-- [ ] Top 3 posts by likes displayed correctly
-- [ ] Event saves count accurate
-- [ ] Booking breakdown (pending/accepted/rejected/cancelled) correct
-- [ ] Venue sees gig opportunity application counts per event
-- [ ] Subscription status and dates shown for Venues
-- [ ] Analytics load within 2 seconds
-- [ ] Cache invalidation works: creating a new post immediately updates analytics
-- [ ] No analytics visible to Spectators
+- [x] `event_views` table created with composite index on `(event_id, viewed_at)`
+- [x] `events.ticket_clicks` integer column added (default 0)
+- [x] `events.byId` increments `view_count` and inserts `event_views` row when `userId !== createdBy`; creator viewing own event does NOT increment
+- [x] `events.trackTicketClick` procedure exists and increments atomically; mobile ticket-link button calls it before opening the external URL
+- [x] `events.analytics` returns 403 when caller is not the event creator
+- [x] Analytics payload includes total views, total saves, engagement rate, 14 daily-bucketed view counts, ticket-clicks + click rate (when `ticketLink` set), bookings breakdown + acceptance rate (when bookings exist), confirmed performers, invite count
+- [x] Analytics response cached in-memory for 5 minutes keyed by event ID
+- [x] Kebab menu (3-dot) on `ProfileEventCard`; menu has Edit / Analytics / Delete
+- [x] Delete from kebab triggers existing archive confirmation Alert
+- [x] "X Joined" badge appears on My Events cards when save count > 0
+- [x] New `events/[eventId]/analytics` screen renders hero card, daily line chart, three engagement rings, performers list (when present), bookings breakdown (when present), context strip
+- [x] Analytics screen access denied (Go Back error state) for non-owners
+- [x] All tests pass: 23 new tests added (4 view-tracking, 12 helper unit tests, 4 procedure tests, 3 trackTicketClick tests); 188 total api tests + 115 server tests pass
+- [x] Lint, type-check, build all green
 
 ---
 
 ## Dependencies
 
-- **Upstream**: M4-T1 (events schema, view_count column); M5 (bookings); M6-T1/T2 (artist/venue profiles); M6-T3 (follows); M6-T4 (posts, likes); M8 (venue subscriptions)
+- **Upstream**: M4-T1 (events schema, view_count column); M5 (bookings); M6-T1/T2 (artist/venue profiles); M6-T4 (posts)
 - **Downstream**: M12-T1 (testing — verify accuracy of aggregations); M12-T3 (launch monitoring — baseline engagement metrics)
-- **External services**: Neon PostgreSQL (aggregation queries); Redis (optional caching)
+- **External services**: Neon PostgreSQL (aggregation queries)
 
 ---
 
 ## Technical Notes
 
-### Event View Count Increment (Hono Endpoint)
+### Helper: `recordEventView` (`packages/api/src/routers/events/view-tracking.ts`)
 
-```typescript
-app.get('/api/v1/events/:eventId', async (c) => {
-  const eventId = c.req.param('eventId');
-  const userId = c.get('userId'); // from auth middleware, nullable for Spectators
+Atomic best-effort writes invoked from `events.byId`. Skips anonymous viewers and the creator. Try/catch swallows DB errors so analytics failures never break event loads.
 
-  const event = await db.query.events.findFirst({
-    where: eq(events.id, eventId),
-  });
+### `events.analytics` query (`packages/api/src/routers/events/analytics.ts`)
 
-  if (!event) {
-    return c.json({ error: 'Event not found' }, 404);
-  }
+- Owner check via `event.createdBy !== ctx.userId`
+- 5-min in-memory `Map<eventId, { data, expiresAt }>` cache (Redis migration is a 2-line swap if needed at scale)
+- Parallel rollup via `Promise.all`: saves count, bookings grouped by status, daily views (`date_trunc('day', viewed_at)` GROUP BY), performers join
+- Pure helpers `computeEngagementRate`, `computeAcceptanceRate`, `computeClickRate`, `padDailyViews` are exported and unit-tested
 
-  // Increment view count if user is NOT the creator
-  if (userId && userId !== event.createdBy) {
-    await db
-      .update(events)
-      .set({ viewCount: event.viewCount + 1 })
-      .where(eq(events.id, eventId));
-  }
+### Mobile chart library — `react-native-gifted-charts`
 
-  return c.json(event);
-});
-```
-
-### Artist Analytics Endpoint (Hono)
-
-```typescript
-app.get('/api/v1/artists/me/analytics', authMiddleware, async (c) => {
-  const userId = c.get('userId');
-
-  // Verify artist profile exists
-  const artistProfile = await db.query.artistProfiles.findFirst({
-    where: eq(artistProfiles.userId, userId),
-  });
-
-  if (!artistProfile) {
-    return c.json({ error: 'Artist profile not found' }, 403);
-  }
-
-  // Check cache
-  const cached = await redis.get(`analytics:artist:${userId}`);
-  if (cached) {
-    return c.json(JSON.parse(cached));
-  }
-
-  // Fetch analytics in parallel
-  const [postLikes, topPosts, eventReach, eventSaves, bookings, followers] = await Promise.all([
-    // Total likes
-    db
-      .select({ total: sql`sum(${postLikes.count})` })
-      .from(postLikes)
-      .innerJoin(posts, eq(posts.id, postLikes.postId))
-      .where(eq(posts.createdBy, userId)),
-
-    // Top 3 posts
-    db
-      .select({
-        postId: posts.id,
-        title: posts.title,
-        likes: sql`count(${postLikes.id})`,
-        createdAt: posts.createdAt,
-      })
-      .from(posts)
-      .leftJoin(postLikes, eq(postLikes.postId, posts.id))
-      .where(eq(posts.createdBy, userId))
-      .groupBy(posts.id)
-      .orderBy(desc(sql`count(${postLikes.id})`))
-      .limit(3),
-
-    // Event views + saves
-    db
-      .select({
-        totalViews: sql`sum(${events.viewCount})`,
-        totalEvents: count(),
-      })
-      .from(events)
-      .where(eq(events.createdBy, userId)),
-
-    // Event saves
-    db
-      .select({ count: count() })
-      .from(savedEvents)
-      .innerJoin(events, eq(events.id, savedEvents.eventId))
-      .where(eq(events.createdBy, userId)),
-
-    // Bookings by status
-    db
-      .select({
-        status: bookings.status,
-        count: count(),
-      })
-      .from(bookings)
-      .where(eq(bookings.artistId, userId))
-      .groupBy(bookings.status),
-
-    // Follower count
-    db.select({ count: count() }).from(follows).where(eq(follows.followedId, userId)),
-  ]);
-
-  const analytics = {
-    posts: {
-      totalLikes: postLikes[0]?.total || 0,
-      totalPosts: topPosts.length,
-      avgLikesPerPost:
-        topPosts.length > 0 ? topPosts.reduce((sum, p) => sum + p.likes, 0) / topPosts.length : 0,
-      topPosts: topPosts.map((p) => ({
-        postId: p.postId,
-        title: p.title,
-        likes: p.likes,
-        createdAt: p.createdAt,
-      })),
-    },
-    events: {
-      totalEvents: eventReach[0]?.totalEvents || 0,
-      totalViews: eventReach[0]?.totalViews || 0,
-      totalSaves: eventSaves[0]?.count || 0,
-      avgViewsPerEvent:
-        (eventReach[0]?.totalEvents || 0) > 0
-          ? (eventReach[0]?.totalViews || 0) / eventReach[0]?.totalEvents
-          : 0,
-    },
-    bookings: {
-      total: bookings.reduce((sum, b) => sum + b.count, 0),
-      byStatus: Object.fromEntries(bookings.map((b) => [b.status, b.count])),
-    },
-    followers: followers[0]?.count || 0,
-    cachedAt: new Date().toISOString(),
-    cacheExpiresAt: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
-  };
-
-  // Cache for 30 minutes
-  await redis.setex(`analytics:artist:${userId}`, 1800, JSON.stringify(analytics));
-
-  return c.json(analytics);
-});
-```
-
-### Mobile UI - Analytics Tab (React Native)
-
-```typescript
-// AnalyticsTab.tsx
-import { useQuery } from '@tanstack/react-query';
-
-export function AnalyticsTab() {
-  const { data: analytics, isLoading } = useQuery({
-    queryKey: ['artist-analytics'],
-    queryFn: () => api.get('/artists/me/analytics'),
-    staleTime: 30 * 60 * 1000, // 30 minutes
-  });
-
-  if (isLoading) return <ActivityIndicator />;
-  if (!analytics) return <Text>No analytics</Text>;
-
-  return (
-    <ScrollView className="p-4">
-      <StatCard title="Total Likes" value={analytics.posts.totalLikes} />
-      <StatCard
-        title="Event Views"
-        value={analytics.events.totalViews}
-        subtitle={`Avg: ${analytics.events.avgViewsPerEvent.toFixed(0)} per event`}
-      />
-      <StatCard
-        title="Event Saves"
-        value={analytics.events.totalSaves}
-      />
-      <StatCard title="Followers" value={analytics.followers} />
-
-      <View className="mt-6">
-        <Text className="mb-3 text-lg font-bold">Top Posts</Text>
-        {analytics.posts.topPosts.map(post => (
-          <View key={post.postId} className="mb-3 rounded-lg bg-gray-50 p-3">
-            <Text className="font-semibold">{post.title}</Text>
-            <Text className="text-sm text-gray-600">
-              {post.likes} likes
-            </Text>
-          </View>
-        ))}
-      </View>
-
-      <View className="mt-6">
-        <Text className="mb-3 text-lg font-bold">Bookings</Text>
-        <View className="rounded-lg bg-gray-50 p-3">
-          <Text className="text-sm">
-            Pending: {analytics.bookings.byStatus.pending || 0}
-          </Text>
-          <Text className="text-sm">
-            Accepted: {analytics.bookings.byStatus.accepted || 0}
-          </Text>
-          <Text className="text-sm">
-            Rejected: {analytics.bookings.byStatus.rejected || 0}
-          </Text>
-        </View>
-      </View>
-    </ScrollView>
-  );
-}
-```
+Picked over Victory Native XL because Victory requires `@shopify/react-native-skia` (~10–15 MB native binary) for one simple line chart. Gifted-charts uses the already-installed `react-native-svg` and ships in a single component call. See PR description for the full Decision Brief.
 
 ---
 
 ## Common Gotchas
 
-- **View count race conditions**: Multiple concurrent requests viewing the same event can race. Use atomic database operations (`viewCount = viewCount + 1`) to avoid lost increments.
-
-- **Cache invalidation**: If cache is invalidated on every event view, performance suffers. For V1, it's acceptable to cache for 30 minutes and let analytics be slightly stale. Alternatively, increment view count without cache invalidation and let the cache expire naturally.
-
-- **Creator vs spectator**: Ensure the creator viewing their own event does NOT increment the count. Check `userId !== event.createdBy` before incrementing.
-
-- **Aggregation query performance**: COUNT and SUM queries on large tables can be slow. Ensure indexed columns (`created_by`, `status`, `followedId`). At V1 scale (under 1,000 users), indexes on these columns are sufficient.
-
-- **Subscription dates for Venues**: The `next_billing_date` should be calculated based on the billing cycle. If using Stripe, fetch this from the Stripe API or cache it locally on subscription updates.
-
-- **No access control bypass**: The `/analytics` endpoints must verify the authenticated user is the creator. Never accept a profile ID parameter; always use `c.get('userId')` from the session.
+- **Owner check must use session, not URL param**: never accept `creatorId` as input — always use `ctx.userId`. The `events.analytics` procedure loads the event row and compares `createdBy` to the session user.
+- **Cache invalidation deferred**: 5-min TTL is acceptable staleness for V1. If a creator wants instant feedback after a new save/view, they can pull-to-refresh (clears React Query cache; server cache will still hold for up to 5 min).
+- **`view_count` and `event_views` row count must stay in sync**: both writes happen in the same `Promise.all`. If one fails (network glitch, DB error), the helper's try/catch catches and discards — slight drift is acceptable since we treat `view_count` as the source of truth for the total.
+- **Daily view padding**: server returns exactly 14 entries even when there are no views (zero-fill). The mobile chart shows an empty-state card when total is 0.

@@ -135,10 +135,7 @@ export function useMapEvents(opts?: UseMapEventsOpts) {
       opts.centerLng,
       async (bbox) => {
         const expandQueryOptions = trpc.events.getMap.queryOptions(bbox);
-        return queryClient.fetchQuery(expandQueryOptions) as Promise<{
-          events: MapEventResult[];
-          totalCount: number;
-        }>;
+        return queryClient.fetchQuery(expandQueryOptions);
       },
       expandAbortRef
     )

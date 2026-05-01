@@ -28,7 +28,7 @@ function navigateFromRemoteData(data: Record<string, string | object> | undefine
   const route = data?.[FCM_DATA_ROUTE_KEY];
   if (typeof route === 'string' && route.startsWith('/')) {
     // expo-router accepts any string path; routes are typed at render time.
-    router.push(route as never);
+    router.push(route);
   }
 }
 

@@ -3,7 +3,7 @@
 | Field          | Value                                                                                             |
 | -------------- | ------------------------------------------------------------------------------------------------- |
 | **Milestone**  | M7 — Notifications & Emails                                                                       |
-| **Status**     | 🔲 To Do                                                                                          |
+| **Status**     | ✅ Done — PR #50                                                                                  |
 | **Depends on** | M2-T4 (persona system + device_tokens table), M4-T3 (event moderation), M5-T1/T2 (booking system) |
 | **PRD Ref**    | Section 9.6 (Notifications), Section 4.3 (Notification Routing), Section 4.4 (Persona Switching)  |
 

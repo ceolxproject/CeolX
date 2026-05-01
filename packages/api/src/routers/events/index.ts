@@ -1,5 +1,6 @@
 import { router } from '../../index';
 
+import { analytics, trackTicketClick } from './analytics';
 import { archive, byId, create, getMyEvents, update } from './crud';
 import { getFeed } from './feed';
 import { getMap } from './map';
@@ -17,4 +18,6 @@ export const eventsRouter = router({
   getMyEvents,
   getSavedEvents,
   getPresignedUrl,
+  analytics,
+  trackTicketClick,
 });

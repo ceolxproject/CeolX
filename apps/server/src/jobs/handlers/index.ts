@@ -5,6 +5,7 @@ import { jobPayloadSchemas, type JobType } from '../types.js';
 import { handleAccountAnonymize, handleAccountCleanup } from './account.js';
 import { handleDataExportNotify, handleDataExportProcess } from './dataExport.js';
 import { handleEmailSend } from './email.js';
+import { handleAccountFlagInactive } from './inactive.js';
 import { handleIpAnonymize } from './ip.js';
 import { handleNotificationBatch, handleNotificationPush } from './notification.js';
 import { handleVenueSubscriptionRetry } from './venue.js';
@@ -20,6 +21,8 @@ const handlers: Record<JobType, (payload: unknown) => Promise<void>> = {
   'account.anonymize': (p) =>
     handleAccountAnonymize(jobPayloadSchemas['account.anonymize'].parse(p)),
   'account.cleanup': (p) => handleAccountCleanup(jobPayloadSchemas['account.cleanup'].parse(p)),
+  'account.flag-inactive': (p) =>
+    handleAccountFlagInactive(jobPayloadSchemas['account.flag-inactive'].parse(p)),
   'ip.anonymize': (p) => handleIpAnonymize(jobPayloadSchemas['ip.anonymize'].parse(p)),
   'notification.push': (p) =>
     handleNotificationPush(jobPayloadSchemas['notification.push'].parse(p)),

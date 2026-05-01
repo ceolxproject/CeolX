@@ -19,16 +19,32 @@ export type DispatchNotificationInput = {
 
 export type DispatchNotificationFn = (input: DispatchNotificationInput) => Promise<void>;
 
+// ─── Account-deletion scheduler (M11-T1) ─────────────────────────────────────
+// `users.requestAccountDeletion` calls this to enqueue the 30-day-delayed
+// `account.anonymize` job. Real impl lives in apps/server (depends on QStash);
+// tests inject vi.fn().
+// ─────────────────────────────────────────────────────────────────────────────
+
+export type ScheduleAccountAnonymizeFn = (input: {
+  userId: string;
+  requestedAt: Date;
+}) => Promise<void>;
+
 export type CreateContextOptions = {
   context: HonoContext;
   dispatchNotification: DispatchNotificationFn;
+  scheduleAccountAnonymize: ScheduleAccountAnonymizeFn;
 };
 
-export async function createContext({ context, dispatchNotification }: CreateContextOptions) {
+export async function createContext({
+  context,
+  dispatchNotification,
+  scheduleAccountAnonymize,
+}: CreateContextOptions) {
   const session = await auth.api.getSession({
     headers: context.req.raw.headers,
   });
-  return { session, dispatchNotification };
+  return { session, dispatchNotification, scheduleAccountAnonymize };
 }
 
 export type Context = Awaited<ReturnType<typeof createContext>>;

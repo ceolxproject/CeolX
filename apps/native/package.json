@@ -64,6 +64,7 @@
     "react-dom": "19.2.0",
     "react-native": "0.83.2",
     "react-native-gesture-handler": "~2.30.0",
+    "react-native-gifted-charts": "^1.4.76",
     "react-native-keyboard-controller": "1.20.7",
     "react-native-map-clustering": "^4.0.0",
     "react-native-maps": "1.27.2",

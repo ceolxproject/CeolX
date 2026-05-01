@@ -20,6 +20,14 @@ export const user = pgTable('user', {
   marketingConsent: boolean('marketing_consent').default(false),
   lastLoginAt: timestamp('last_login_at'),
   flaggedInactive: boolean('flagged_inactive').default(false), // GDPR: flagged after 24mo inactivity
+  // GDPR Right-to-Erasure (M11-T1): 30-day cooling-off then anonymise.
+  // deletionScheduledFor is the QStash run-at; clearing it on re-login no-ops the job.
+  deletionRequestedAt: timestamp('deletion_requested_at'),
+  deletionScheduledFor: timestamp('deletion_scheduled_for'),
+  // One-shot signal for the mobile "deletion cancelled" toast — read-then-clear via UPDATE…RETURNING.
+  deletionCancelledAt: timestamp('deletion_cancelled_at'),
+  isAnonymized: boolean('is_anonymized').notNull().default(false),
+  anonymizedAt: timestamp('anonymized_at'),
 });
 
 export const session = pgTable(

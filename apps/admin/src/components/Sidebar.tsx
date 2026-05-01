@@ -2,6 +2,8 @@ import { Link } from '@tanstack/react-router';
 import { BarChart3, Menu, Settings, ShieldAlert, Users, X } from 'lucide-react';
 import { useState } from 'react';
 
+import { CeolxLogo } from '@/components/CeolxLogo';
+
 const navItems = [
   { name: 'Dashboard', to: '/dashboard', icon: BarChart3 },
   { name: 'Users', to: '/users', icon: Users },
@@ -60,9 +62,13 @@ export function Sidebar() {
           mobileOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
-        <div className="flex items-center justify-between p-5">
-          <h1 className="text-xl font-bold text-green-600">CeolX</h1>
-          <button onClick={() => setMobileOpen(false)} aria-label="Close navigation">
+        <div className="flex items-center justify-between p-5 bg-[#0d0c0f]">
+          <CeolxLogo fontSize={18} />
+          <button
+            onClick={() => setMobileOpen(false)}
+            aria-label="Close navigation"
+            className="text-white"
+          >
             <X size={20} />
           </button>
         </div>
@@ -71,9 +77,9 @@ export function Sidebar() {
 
       {/* Desktop sidebar */}
       <aside className="hidden md:flex flex-col w-64 bg-white border-r border-gray-200 shrink-0">
-        <div className="p-5">
-          <h1 className="text-xl font-bold text-green-600">CeolX</h1>
-          <p className="text-xs text-gray-400 mt-0.5">Admin Dashboard</p>
+        <div className="p-5 bg-[#0d0c0f]">
+          <CeolxLogo fontSize={18} />
+          <p className="text-xs text-white/50 mt-1.5">Admin Dashboard</p>
         </div>
         {nav}
       </aside>

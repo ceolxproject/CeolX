@@ -1,8 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import { cn } from 'heroui-native';
 import { Pressable, View } from 'react-native';
 
 import { CeolxLogo } from '@/components/CeolxLogo';
+import { BellWithBadge } from '@/components/notifications/BellWithBadge';
 
 interface EventDetailHeaderProps {
   onBack: () => void;
@@ -31,7 +33,7 @@ export function EventDetailHeader({
         <Pressable onPress={onToggleSave} hitSlop={12} className="active:opacity-70">
           <Ionicons name={isSaved ? 'bookmark' : 'bookmark-outline'} size={23} color="#fff" />
         </Pressable>
-        <Ionicons name="notifications-outline" size={24} color="#fff" />
+        <BellWithBadge onPress={() => router.push('/notifications')} size={24} />
       </View>
     </View>
   );

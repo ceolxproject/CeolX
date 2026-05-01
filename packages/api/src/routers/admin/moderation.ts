@@ -12,23 +12,18 @@ import {
   adminRemoveEventSchema,
 } from '@CeolX/shared';
 
-import type { DispatchNotificationInput } from '../context';
-import { adminProcedure, router } from '../index';
-import { removeEventFromTypesense } from '../services/event-sync';
+import type { DispatchNotificationInput } from '../../context';
+import { adminProcedure } from '../../index';
+import { removeEventFromTypesense } from '../../services/event-sync';
 
-// ---------------------------------------------------------------------------
 // Post-publication moderation (PRD: MoM 3rd Apr 2026, Section 4).
 // Events go live immediately on creation; admins remove inappropriate
 // content with a mandatory reason. Resubmit (REMOVED → ACTIVE) is handled
 // by the creator-side events.update mutation, which fires A-16/V-15.
-// ---------------------------------------------------------------------------
 
-export const adminRouter = router({
-  /**
-   * List events for the moderation dashboard. Defaults to active events sorted
-   * newest first. Filters by status, creator persona, and title search.
-   */
-  listEvents: adminProcedure.input(adminEventListQuerySchema).query(async ({ input }) => {
+export const listEvents = adminProcedure
+  .input(adminEventListQuerySchema)
+  .query(async ({ input }) => {
     const filters = [eq(events.status, input.status)];
     if (input.persona) {
       filters.push(eq(user.currentRole, input.persona));
@@ -90,15 +85,11 @@ export const adminRouter = router({
       })),
       total,
     };
-  }),
+  });
 
-  /**
-   * Remove a live event with a mandatory reason. Sets status=REMOVED, stores
-   * the reason, fires A-15 (artist) or V-14 (venue) notification, and removes
-   * the event from the Typesense map index. Idempotent: removing an already-
-   * removed event throws NOT_FOUND.
-   */
-  removeEvent: adminProcedure.input(adminRemoveEventSchema).mutation(async ({ input, ctx }) => {
+export const removeEvent = adminProcedure
+  .input(adminRemoveEventSchema)
+  .mutation(async ({ input, ctx }) => {
     const lookup = await db
       .select({
         id: events.id,
@@ -135,7 +126,7 @@ export const adminRouter = router({
       throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Removal failed' });
     }
 
-    // Fire post-update — a transient dispatch failure should not block the
+    // Best-effort fan-out: a transient dispatch failure should not block the
     // moderation action; mirrors the pattern in events/crud.ts.
     const dispatch: DispatchNotificationInput = {
       trigger:
@@ -151,10 +142,7 @@ export const adminRouter = router({
     };
     await ctx.dispatchNotification(dispatch).catch(() => {});
 
-    // Remove from search index — best effort; Typesense being down should not
-    // block removal in the DB.
     await removeEventFromTypesense(result.id).catch(() => {});
 
     return result;
-  }),
-});
+  });
