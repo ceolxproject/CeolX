@@ -117,18 +117,6 @@ vi.mock('@CeolX/db/schema/users', () => ({
   },
 }));
 
-// Don't actually import the s3 sdk during tests — mock the whole presigner.
-vi.mock('../services/s3-presigner', () => ({
-  presignPostImageUpload: vi.fn(() =>
-    Promise.resolve({
-      uploadUrl: 'https://s3.example/upload',
-      cdnUrl: 'https://cdn.example/posts/x.jpg',
-      key: 'posts/user-1/x.jpg',
-      expiresIn: 900,
-    })
-  ),
-}));
-
 import { t } from '../index';
 import { postsRouter } from '../routers/posts';
 
@@ -388,25 +376,6 @@ describe('posts.toggleLike', () => {
     await expect(
       caller.toggleLike({ postId: '550e8400-e29b-41d4-a716-446655440001' })
     ).rejects.toMatchObject({ code: 'NOT_FOUND' });
-  });
-});
-
-describe('posts.presignImage', () => {
-  it('rejects spectators', async () => {
-    const caller = authedCaller('user-1', 'spectator' as UserRole);
-    await expect(caller.presignImage({ contentType: 'image/jpeg' })).rejects.toMatchObject({
-      code: 'FORBIDDEN',
-    });
-  });
-
-  it('returns upload + cdn URLs for artists', async () => {
-    const caller = authedCaller('user-1', 'artist' as UserRole);
-    const result = await caller.presignImage({ contentType: 'image/jpeg' });
-    expect(result).toMatchObject({
-      uploadUrl: 'https://s3.example/upload',
-      cdnUrl: 'https://cdn.example/posts/x.jpg',
-      expiresIn: 900,
-    });
   });
 });
 

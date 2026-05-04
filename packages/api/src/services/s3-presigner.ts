@@ -159,16 +159,3 @@ export function keyFromCdnUrl(url: string | null | undefined, cdnDomain: string)
   const key = url.slice(expectedPrefix.length);
   return key.length > 0 ? key : null;
 }
-
-/**
- * @deprecated Replaced by `presignUpload({ type: 'post_image', ... })`.
- * Kept temporarily so `routers/posts/upload.ts` keeps compiling — both go
- * away together when the uploads tRPC router lands.
- */
-export type PresignedPostImage = PresignedUpload;
-export async function presignPostImageUpload(params: {
-  contentType: 'image/jpeg' | 'image/png' | 'image/webp';
-  userId: string;
-}): Promise<PresignedPostImage> {
-  return presignUpload({ type: 'post_image', ...params });
-}

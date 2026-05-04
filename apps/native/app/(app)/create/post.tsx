@@ -16,15 +16,19 @@ import { createPostSchema, updatePostSchema } from '@CeolX/shared/validators';
 
 import { MediaPickerField } from '@/components/posts/MediaPickerField';
 import { useCreatePost } from '@/hooks/use-create-post';
+import { useMediaDelete, keyFromCdnUrl } from '@/hooks/use-media-delete';
+import { useMediaUpload } from '@/hooks/use-media-upload';
 import { usePostById } from '@/hooks/use-post-by-id';
-import { usePostImageUpload } from '@/hooks/use-post-image-upload';
 import { useUpdatePost } from '@/hooks/use-update-post';
+import { useVideoUpload } from '@/hooks/use-video-upload';
 
 const CAPTION_MAX = 500;
 
 type LocalMedia = {
   uri: string;
   mimeType?: string | null;
+  fileSize?: number | null;
+  kind: 'image' | 'video';
   /** Already-uploaded CDN url (when editing a post that has media). */
   cdnUrl?: string;
 };
@@ -39,45 +43,78 @@ export default function CreatePostScreen() {
 
   const createPost = useCreatePost();
   const updatePost = useUpdatePost();
-  const { uploadImage, isUploading } = usePostImageUpload();
+  const imageUpload = useMediaUpload('post_image');
+  const videoUpload = useVideoUpload();
+  const { cleanupAfterDelete } = useMediaDelete();
+
+  const isUploading = imageUpload.isUploading || videoUpload.isUploading;
+  const progress = imageUpload.isUploading ? imageUpload.progress : videoUpload.progress;
 
   // Seed form when editing an existing post.
   useEffect(() => {
     if (!isEditing || !existing.data) return;
     setCaption(existing.data.caption);
     if (existing.data.mediaType === 'image' && existing.data.mediaUrl) {
-      setMedia({ uri: existing.data.mediaUrl, cdnUrl: existing.data.mediaUrl });
+      setMedia({ uri: existing.data.mediaUrl, cdnUrl: existing.data.mediaUrl, kind: 'image' });
     } else {
       setMedia(null);
     }
   }, [existing.data, isEditing]);
+
+  const handleRemoveMedia = async () => {
+    // If the existing media is already in S3, delete it now so the bucket
+    // doesn't accumulate orphans. Best-effort — log and move on if it fails.
+    if (media?.cdnUrl) {
+      const key = keyFromCdnUrl(media.cdnUrl);
+      if (key) {
+        try {
+          await cleanupAfterDelete({ key });
+        } catch (err) {
+          console.warn('[post] failed to clean up replaced media', err);
+        }
+      }
+    }
+    setMedia(null);
+  };
 
   const disabled =
     caption.trim().length === 0 || isUploading || createPost.isPending || updatePost.isPending;
 
   const handlePublish = async () => {
     try {
-      // If media was picked locally and not yet uploaded, upload it first.
-      let mediaUrl = media?.cdnUrl ?? null;
-      if (media && !media.cdnUrl) {
-        const { cdnUrl } = await uploadImage({ uri: media.uri, mimeType: media.mimeType });
-        mediaUrl = cdnUrl;
-      }
-
       if (isEditing && editId) {
-        const input = updatePostSchema.parse({
-          id: editId,
-          caption: caption.trim(),
-          mediaType: mediaUrl ? 'image' : 'text',
-          mediaUrl: mediaUrl ?? null,
-        });
+        // Editing only updates caption (video mediaUrl is server-managed,
+        // and we don't currently support swapping media on edit).
+        const input = updatePostSchema.parse({ id: editId, caption: caption.trim() });
         await updatePost.mutateAsync(input);
-      } else {
+      } else if (media?.kind === 'video') {
+        // Mux pipeline — get an uploadId, persist that. The webhook fills
+        // in playback_id/mediaUrl asynchronously.
+        const result = await videoUpload.uploadVideo({
+          uri: media.uri,
+          fileSize: media.fileSize ?? null,
+        });
         const input = createPostSchema.parse({
           caption: caption.trim(),
-          mediaType: mediaUrl ? 'image' : 'text',
-          ...(mediaUrl ? { mediaUrl } : {}),
+          mediaType: 'video',
+          muxUploadId: result.uploadId,
         });
+        await createPost.mutateAsync(input);
+      } else if (media) {
+        // Image post — s3 upload, persist CDN URL.
+        const { cdnUrl } = await imageUpload.uploadMedia({
+          uri: media.uri,
+          mimeType: media.mimeType,
+          fileSize: media.fileSize ?? null,
+        });
+        const input = createPostSchema.parse({
+          caption: caption.trim(),
+          mediaType: 'image',
+          mediaUrl: cdnUrl,
+        });
+        await createPost.mutateAsync(input);
+      } else {
+        const input = createPostSchema.parse({ caption: caption.trim(), mediaType: 'text' });
         await createPost.mutateAsync(input);
       }
 
@@ -104,9 +141,18 @@ export default function CreatePostScreen() {
           <View className="mb-5">
             <MediaPickerField
               mediaUri={media?.uri ?? null}
-              onPick={(asset) => setMedia({ uri: asset.uri, mimeType: asset.mimeType })}
-              onRemove={() => setMedia(null)}
+              mediaKind={media?.kind}
+              onPick={(asset) =>
+                setMedia({
+                  uri: asset.uri,
+                  mimeType: asset.mimeType,
+                  fileSize: asset.fileSize,
+                  kind: asset.mediaKind ?? 'image',
+                })
+              }
+              onRemove={handleRemoveMedia}
               isUploading={isUploading}
+              progress={progress}
             />
           </View>
 

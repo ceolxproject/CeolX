@@ -74,9 +74,8 @@ export const togglePostLikeSchema = z.object({
   postId: z.string().uuid(),
 });
 
-export const presignPostImageSchema = z.object({
-  contentType: z.enum(PRESIGN_CONTENT_TYPES),
-});
+// presignPostImageSchema was retired in M10-T1 — clients call the generic
+// presignUploadSchema with `{ type: 'post_image', contentType }`.
 
 export type CreatePostInput = z.infer<typeof createPostSchema>;
 export type UpdatePostInput = z.infer<typeof updatePostSchema>;
@@ -85,9 +84,3 @@ export type PostByIdInput = z.infer<typeof postByIdSchema>;
 export type PostFeedQueryInput = z.infer<typeof postFeedQuerySchema>;
 export type UserPostsQueryInput = z.infer<typeof userPostsQuerySchema>;
 export type TogglePostLikeInput = z.infer<typeof togglePostLikeSchema>;
-/**
- * @deprecated Use `presignUploadSchema` from `./uploads.js` with
- * `{ type: 'post_image', contentType }`. Removed in the same PR that
- * deletes `posts.upload.presignImage`.
- */
-export type PresignPostImageInput = z.infer<typeof presignPostImageSchema>;
