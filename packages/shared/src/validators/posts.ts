@@ -1,7 +1,9 @@
 import { z } from 'zod';
 
 export const POST_CAPTION_MAX = 500;
-export const POST_MEDIA_TYPES = ['image', 'text'] as const; // video + audio deferred
+// M10-T1 widened the media universe — image and audio land on S3, video on Mux,
+// text has neither URL nor upload id.
+export const POST_MEDIA_TYPES = ['image', 'video', 'audio', 'text'] as const;
 export const PRESIGN_CONTENT_TYPES = ['image/jpeg', 'image/png', 'image/webp'] as const;
 
 export const createPostSchema = z
@@ -9,11 +11,23 @@ export const createPostSchema = z
     caption: z.string().min(1, 'Caption is required').max(POST_CAPTION_MAX).trim(),
     mediaType: z.enum(POST_MEDIA_TYPES),
     mediaUrl: z.string().url().optional(),
+    // Mux Direct Upload id — set only for video posts. mediaUrl gets filled in
+    // by the mux webhook once transcoding completes (HLS playback URL).
+    muxUploadId: z.string().min(1).optional(),
   })
-  .refine((d) => (d.mediaType === 'text' ? !d.mediaUrl : !!d.mediaUrl), {
-    message: 'Image posts require mediaUrl; text posts must not have one',
-    path: ['mediaUrl'],
-  });
+  .refine(
+    (d) => {
+      if (d.mediaType === 'text') return !d.mediaUrl && !d.muxUploadId;
+      if (d.mediaType === 'video') return !d.mediaUrl && !!d.muxUploadId;
+      // image | audio
+      return !!d.mediaUrl && !d.muxUploadId;
+    },
+    {
+      message:
+        'Inconsistent media: text→neither, video→muxUploadId only, image|audio→mediaUrl only',
+      path: ['mediaType'],
+    }
+  );
 
 export const updatePostSchema = z
   .object({
@@ -28,7 +42,10 @@ export const updatePostSchema = z
   .refine(
     (d) => {
       if (d.mediaType === 'text') return d.mediaUrl === null || d.mediaUrl === undefined;
-      if (d.mediaType === 'image') return typeof d.mediaUrl === 'string';
+      if (d.mediaType === 'image' || d.mediaType === 'audio') {
+        return typeof d.mediaUrl === 'string';
+      }
+      // video: mediaUrl is server-managed (webhook) — clients shouldn't update it
       return true;
     },
     { message: 'mediaType and mediaUrl must be consistent', path: ['mediaUrl'] }
@@ -68,4 +85,9 @@ export type PostByIdInput = z.infer<typeof postByIdSchema>;
 export type PostFeedQueryInput = z.infer<typeof postFeedQuerySchema>;
 export type UserPostsQueryInput = z.infer<typeof userPostsQuerySchema>;
 export type TogglePostLikeInput = z.infer<typeof togglePostLikeSchema>;
+/**
+ * @deprecated Use `presignUploadSchema` from `./uploads.js` with
+ * `{ type: 'post_image', contentType }`. Removed in the same PR that
+ * deletes `posts.upload.presignImage`.
+ */
 export type PresignPostImageInput = z.infer<typeof presignPostImageSchema>;
