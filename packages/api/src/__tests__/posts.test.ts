@@ -282,15 +282,21 @@ describe('posts.update', () => {
 });
 
 describe('posts.delete', () => {
-  it('soft-deletes own post', async () => {
+  it('soft-deletes own post and surfaces media identifiers', async () => {
     mockPostsFindFirst.mockResolvedValueOnce({
       id: 'post-1',
       createdBy: 'user-1',
       deletedAt: null,
+      mediaUrl: 'https://cdn.example/posts/u/x.jpg',
+      muxAssetId: null,
     });
     const caller = authedCaller('user-1', 'artist' as UserRole);
     const result = await caller.delete({ id: '550e8400-e29b-41d4-a716-446655440001' });
-    expect(result).toEqual({ success: true });
+    expect(result).toEqual({
+      success: true,
+      mediaUrl: 'https://cdn.example/posts/u/x.jpg',
+      muxAssetId: null,
+    });
     expect(mockUpdateWhereNoReturn).toHaveBeenCalled();
   });
 

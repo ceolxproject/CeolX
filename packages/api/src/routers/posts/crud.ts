@@ -95,7 +95,15 @@ export const remove = protectedProcedure
       .set({ deletedAt: new Date(), updatedAt: new Date() })
       .where(eq(posts.id, input.id));
 
-    return { success: true };
+    // Surface the underlying media identifiers so the client can clean up
+    // S3 / Mux directly. Image / audio: media_url is a CDN URL; the client
+    // strips the CloudFront domain to get the s3 key. Video: mux_asset_id
+    // routes through uploads.deleteMuxAsset. Either may be null.
+    return {
+      success: true as const,
+      mediaUrl: existing.mediaUrl ?? null,
+      muxAssetId: existing.muxAssetId ?? null,
+    };
   });
 
 export const byId = publicProcedure.input(postByIdSchema).query(async ({ input, ctx }) => {
