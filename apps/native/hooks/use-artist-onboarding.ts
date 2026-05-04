@@ -6,6 +6,7 @@ import { createArtistOnboardingSchema } from '@CeolX/shared/validators';
 
 import type { SocialLinks } from '@/components/onboarding/SocialLinksSection';
 import { useAuth } from '@/contexts/auth-context';
+import { useMediaUpload } from '@/hooks/use-media-upload';
 import { pickSquarePhoto, requestPhotoLibraryPermission } from '@/utils/image-picker';
 import { trpc } from '@/utils/trpc';
 import { getTRPCErrorMessage } from '@/utils/trpc-error';
@@ -31,6 +32,7 @@ export function useArtistOnboarding() {
   const { mutateAsync: createArtistProfile, isPending } = useMutation(
     trpc.onboarding.createArtistProfile.mutationOptions()
   );
+  const { uploadMedia, isUploading: isImageUploading } = useMediaUpload('profile_image');
 
   const handlePickImage = async () => {
     setImageError(null);
@@ -59,6 +61,21 @@ export function useArtistOnboarding() {
     setSubmitError(null);
     setErrors({});
 
+    // Upload the profile image first so we can pass the cdn url into the
+    // shared validator. We do this before parsing because the schema may
+    // require profileImageUrl — letting validation fail with "missing image"
+    // before the upload runs would block submission needlessly.
+    let profileImageUrl: string | undefined;
+    if (profileImageUri) {
+      try {
+        const { cdnUrl } = await uploadMedia({ uri: profileImageUri });
+        profileImageUrl = cdnUrl;
+      } catch (err) {
+        setImageError(err instanceof Error ? err.message : 'Image upload failed');
+        return;
+      }
+    }
+
     const parsed = createArtistOnboardingSchema.safeParse({
       stageName,
       bio: bio || undefined,
@@ -69,7 +86,7 @@ export function useArtistOnboarding() {
         TIKTOK: socialLinks.TIKTOK || undefined,
         YOUTUBE: socialLinks.YOUTUBE || undefined,
       },
-      // TODO M10: upload image to S3 and pass the CDN URL as profileImageUrl
+      profileImageUrl,
     });
 
     if (!parsed.success) {
@@ -110,7 +127,7 @@ export function useArtistOnboarding() {
     // state
     errors,
     submitError,
-    isPending,
+    isPending: isPending || isImageUploading,
     // handlers
     handlePickImage,
     handleSubmit,

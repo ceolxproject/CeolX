@@ -6,6 +6,7 @@ import { createVenueOnboardingSchema } from '@CeolX/shared/validators';
 
 import type { VenueLinks } from '@/components/onboarding/VenueLinksSection';
 import { useAuth } from '@/contexts/auth-context';
+import { useMediaUpload } from '@/hooks/use-media-upload';
 import { pickSquarePhoto, requestPhotoLibraryPermission } from '@/utils/image-picker';
 import { trpc } from '@/utils/trpc';
 import { getTRPCErrorMessage } from '@/utils/trpc-error';
@@ -55,6 +56,7 @@ export function useVenueOnboarding(): UseVenueOnboardingReturn {
   const { mutateAsync: createVenueProfile, isPending } = useMutation(
     trpc.onboarding.createVenueProfile.mutationOptions()
   );
+  const { uploadMedia, isUploading: isImageUploading } = useMediaUpload('profile_image');
 
   const handleVenueLinkChange = (field: keyof VenueLinks, value: string) => {
     setVenueLinks((prev) => ({ ...prev, [field]: value }));
@@ -83,6 +85,17 @@ export function useVenueOnboarding(): UseVenueOnboardingReturn {
     setSubmitError(null);
     setErrors({});
 
+    let profileImageUrl: string | undefined;
+    if (profileImageUri) {
+      try {
+        const { cdnUrl } = await uploadMedia({ uri: profileImageUri });
+        profileImageUrl = cdnUrl;
+      } catch (err) {
+        setImageError(err instanceof Error ? err.message : 'Image upload failed');
+        return;
+      }
+    }
+
     const parsed = createVenueOnboardingSchema.safeParse({
       venueName,
       address,
@@ -94,7 +107,7 @@ export function useVenueOnboarding(): UseVenueOnboardingReturn {
         FACEBOOK: venueLinks.FACEBOOK || undefined,
         TWITTER: venueLinks.TWITTER || undefined,
       },
-      // TODO M10: upload image to S3 and pass the CDN URL as profileImageUrl
+      profileImageUrl,
     });
 
     if (!parsed.success) {
@@ -138,7 +151,7 @@ export function useVenueOnboarding(): UseVenueOnboardingReturn {
     // state
     errors,
     submitError,
-    isPending,
+    isPending: isPending || isImageUploading,
     // handlers
     handlePickImage,
     handleSubmit,
