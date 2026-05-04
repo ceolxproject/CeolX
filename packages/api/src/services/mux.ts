@@ -71,6 +71,36 @@ export async function deleteAsset(assetId: string): Promise<void> {
   await client.video.assets.delete(assetId);
 }
 
+export type MuxUploadStatus = {
+  status: 'pending' | 'ready' | 'errored';
+  playbackId: string | null;
+  assetId: string | null;
+};
+
+/**
+ * Look up the current state of a Mux Direct Upload + its produced asset.
+ * Used by the polling endpoint so we don't have to wait for the webhook to
+ * fire before the mobile client can show "ready". Two HTTP calls in the
+ * worst case (upload → asset), one in the common case (no asset yet).
+ */
+export async function retrieveUploadStatus(uploadId: string): Promise<MuxUploadStatus> {
+  const client = getMuxClient();
+  const upload = await client.video.uploads.retrieve(uploadId);
+  const assetId = upload.asset_id ?? null;
+  if (!assetId) {
+    return { status: 'pending', playbackId: null, assetId: null };
+  }
+  const asset = await client.video.assets.retrieve(assetId);
+  if (asset.status === 'ready') {
+    const playbackId = asset.playback_ids?.[0]?.id ?? null;
+    return { status: 'ready', playbackId, assetId };
+  }
+  if (asset.status === 'errored') {
+    return { status: 'errored', playbackId: null, assetId };
+  }
+  return { status: 'pending', playbackId: null, assetId };
+}
+
 export type MuxEvent = Awaited<ReturnType<Mux['webhooks']['unwrap']>>;
 
 /**
