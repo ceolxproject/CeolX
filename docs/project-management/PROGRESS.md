@@ -98,7 +98,7 @@ Tracks completed tasks per milestone. Each entry links to its PR.
 
 ## M10 — Media (S3, CloudFront, Mux)
 
-- [ ] M10-T1 · Media Upload (S3 + Mux)
+- [x] M10-T1 · Media Upload (S3 + Mux) — PR #60
 
 ## M11 — Analytics & GDPR
 
