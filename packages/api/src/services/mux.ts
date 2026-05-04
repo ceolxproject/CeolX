@@ -54,6 +54,12 @@ export async function createDirectUpload(): Promise<MuxDirectUpload> {
     new_asset_settings: { playback_policy: ['public'] },
     cors_origin: '*',
   });
+  if (!upload.url) {
+    throw new TRPCError({
+      code: 'INTERNAL_SERVER_ERROR',
+      message: 'Mux returned an upload without a url',
+    });
+  }
   return {
     uploadUrl: upload.url,
     uploadId: upload.id,
