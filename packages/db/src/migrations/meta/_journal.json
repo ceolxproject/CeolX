@@ -120,6 +120,13 @@
       "when": 1777365031480,
       "tag": "20260428083031_nifty_kabuki",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1777874518911,
+      "tag": "20260504060158_fixed_black_tarantula",
+      "breakpoints": true
     }
   ]
 }
