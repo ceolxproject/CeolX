@@ -31,7 +31,7 @@
     "@trpc/server": "catalog:",
     "better-auth": "catalog:",
     "dotenv": "catalog:",
-    "drizzle-orm": "^0.45.1",
+    "drizzle-orm": "catalog:",
     "firebase-admin": "^13.5.0",
     "hono": "catalog:",
     "zod": "catalog:"
@@ -40,7 +40,7 @@
     "@CeolX/config": "workspace:*",
     "@types/node": "^22.13.14",
     "tsdown": "^0.16.5",
-    "tsx": "^4.19.2",
+    "tsx": "catalog:",
     "typescript": "^5",
     "vitest": "^3.0.0"
   }
