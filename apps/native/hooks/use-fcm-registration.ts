@@ -1,21 +1,23 @@
-import messaging from '@react-native-firebase/messaging';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { router } from 'expo-router';
+import * as Notifications from 'expo-notifications';
+import { router, type Href } from 'expo-router';
 import { useEffect, useRef } from 'react';
 import { Platform } from 'react-native';
 
-import { appToast } from '@/components/AppToast';
 import { useAuth } from '@/contexts/auth-context';
 import { requestNotificationPermission } from '@/lib/fcm-permission';
 import { trpc } from '@/utils/trpc';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Wires the device into FCM once a session is active (M7-T1).
-//   1. Asks for notification permission (iOS dialog / Android 13+ runtime)
-//   2. Fetches the FCM token and posts it to /trpc/deviceTokens.register
-//   3. Subscribes to: foreground messages (toast + invalidate inbox),
-//      background taps (deep-link), token refresh (re-register), and the
-//      cold-start initial notification (deep-link after auth resolves).
+// Wires the device into FCM once a session is active (M7-T1, mentor pattern).
+//   1. Asks for notification permission via expo-notifications.
+//   2. Fetches the native FCM token (iOS Firebase SDK provides it; RNFB/app
+//      is what makes getDevicePushTokenAsync return FCM rather than APNs).
+//   3. Calls deviceTokens.refresh — handles both first-time insert and the
+//      "device already known, just touch lastUsedAt + reactivate" path.
+//   4. Subscribes to: foreground notification (invalidate inbox), tap
+//      response (deep-link), and the cold-start last response (deep-link
+//      after auth resolves).
 //
 // Persona switching is intentionally NOT performed on tap — CeolX V1 has a
 // fixed `current_role` per account (CLAUDE.md, MoM 03/04/2026 §2.1). The
@@ -24,52 +26,56 @@ import { trpc } from '@/utils/trpc';
 
 const FCM_DATA_ROUTE_KEY = 'route';
 
-function navigateFromRemoteData(data: Record<string, string | object> | undefined) {
-  const route = data?.[FCM_DATA_ROUTE_KEY];
+// SDK 55 deprecated shouldShowAlert in favour of shouldShowBanner +
+// shouldShowList. The handler runs on every received notification while
+// the app is foregrounded; without it the OS won't display anything.
+Notifications.setNotificationHandler({
+  handleNotification: () =>
+    Promise.resolve({
+      shouldShowBanner: true,
+      shouldShowList: true,
+      shouldPlaySound: true,
+      shouldSetBadge: true,
+    }),
+});
+
+function navigateFromRemoteData(data: unknown): void {
+  if (typeof data !== 'object' || data === null) return;
+  const route = (data as Record<string, unknown>)[FCM_DATA_ROUTE_KEY];
   if (typeof route === 'string' && route.startsWith('/')) {
-    // expo-router accepts any string path; routes are typed at render time.
-    router.push(route);
+    // typed routes only know about routes we've authored; FCM `route` strings
+    // are decided server-side, so we cast through Href and trust the runtime
+    // value (server validates against the trigger registry).
+    router.push(route as Href);
   }
 }
 
-export function useFcmRegistration() {
+export function useFcmRegistration(): void {
   const { user, isAuthenticated, isGuest } = useAuth();
   const queryClient = useQueryClient();
-  const registerMutation = useMutation(trpc.deviceTokens.register.mutationOptions());
+  const refreshMutation = useMutation(trpc.deviceTokens.refresh.mutationOptions());
 
-  // mutate / mutateAsync are referentially stable across renders; useMutation
-  // returns a new wrapper object each render, so we hold the methods in refs
-  // to keep the effect's deps narrow.
-  const registerAsyncRef = useRef(registerMutation.mutateAsync);
-  registerAsyncRef.current = registerMutation.mutateAsync;
-  const registerSyncRef = useRef(registerMutation.mutate);
-  registerSyncRef.current = registerMutation.mutate;
+  // mutateAsync is referentially stable; useMutation returns a new wrapper
+  // each render, so we hold the method in a ref to keep effect deps narrow.
+  const refreshAsyncRef = useRef(refreshMutation.mutateAsync);
+  refreshAsyncRef.current = refreshMutation.mutateAsync;
 
   useEffect(() => {
     if (!isAuthenticated || isGuest || !user) return;
 
     let cancelled = false;
-    const platform = Platform.OS as 'ios' | 'android';
+    const platform: 'ios' | 'android' = Platform.OS === 'ios' ? 'ios' : 'android';
 
-    // Foreground push: surface a toast and refetch the inbox + badge so the
-    // bell updates instantly. FCM does NOT auto-display when app is in fg.
-    const unsubscribeOnMessage = messaging().onMessage(async (remoteMessage) => {
-      const title = remoteMessage.notification?.title ?? 'New notification';
-      const body = remoteMessage.notification?.body ?? '';
-      appToast.info(title, body);
-      await queryClient.invalidateQueries({ queryKey: [['notifications', 'list']] });
-      await queryClient.invalidateQueries({ queryKey: [['notifications', 'unreadCount']] });
+    // Foreground notification — handler at module init shows the banner;
+    // we just refresh the inbox queries so the bell badge updates instantly.
+    const receivedSub = Notifications.addNotificationReceivedListener(() => {
+      void queryClient.invalidateQueries({ queryKey: [['notifications', 'list']] });
+      void queryClient.invalidateQueries({ queryKey: [['notifications', 'unreadCount']] });
     });
 
-    // Background tap: deep-link to the route.
-    const unsubscribeOnOpenedApp = messaging().onNotificationOpenedApp((remoteMessage) => {
-      navigateFromRemoteData(remoteMessage?.data);
-    });
-
-    // Firebase rotates tokens occasionally — re-register so the new one
-    // replaces the stale row (upsert on user_id + fcm_token).
-    const unsubscribeOnTokenRefresh = messaging().onTokenRefresh((newToken) => {
-      registerSyncRef.current({ token: newToken, platform });
+    // Tap (background or foreground) — deep-link to the route.
+    const responseSub = Notifications.addNotificationResponseReceivedListener((response) => {
+      navigateFromRemoteData(response.notification.request.content.data);
     });
 
     void (async () => {
@@ -77,26 +83,29 @@ export function useFcmRegistration() {
         const granted = await requestNotificationPermission();
         if (!granted || cancelled) return;
 
-        const token = await messaging().getToken();
+        const tokenData = await Notifications.getDevicePushTokenAsync();
+        const token = typeof tokenData?.data === 'string' ? tokenData.data : null;
         if (cancelled || !token) return;
 
-        await registerAsyncRef.current({ token, platform });
+        await refreshAsyncRef.current({ token, platform });
 
-        // Cold start: route the user where the tapped notification points.
-        const initial = await messaging().getInitialNotification();
-        if (initial?.data) navigateFromRemoteData(initial.data);
+        // Cold start — route the user where the tapped notification points.
+        // expo-notifications doesn't have an onTokenRefresh equivalent; FCM
+        // tokens rarely rotate, and any rotation is picked up on the next
+        // launch by this same flow.
+        const lastResponse = await Notifications.getLastNotificationResponseAsync();
+        if (lastResponse) {
+          navigateFromRemoteData(lastResponse.notification.request.content.data);
+        }
       } catch (error) {
-        // Don't toast here — failure is non-blocking; the user just won't
-        // get push until the next launch.
         console.warn('[FCM] init failed:', error);
       }
     })();
 
     return () => {
       cancelled = true;
-      unsubscribeOnMessage();
-      unsubscribeOnOpenedApp();
-      unsubscribeOnTokenRefresh();
+      receivedSub.remove();
+      responseSub.remove();
     };
   }, [isAuthenticated, isGuest, user?.id, queryClient]);
 }

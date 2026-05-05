@@ -1,35 +1,27 @@
-import messaging from '@react-native-firebase/messaging';
-import { PermissionsAndroid, Platform } from 'react-native';
+import * as Notifications from 'expo-notifications';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// FCM permission gate.
-// iOS: messaging().requestPermission() drives the APNs system dialog and
-//   returns an AuthorizationStatus enum. Both AUTHORIZED and PROVISIONAL
-//   allow the app to receive notifications (PROVISIONAL = quiet inbox-only).
-// Android 12 and below: notification posting is granted at install time.
-// Android 13+: requires the runtime POST_NOTIFICATIONS permission, which
-//   @react-native-firebase doesn't request — we use PermissionsAndroid.
+// Notification permission gate (mentor pattern §8 — expo-notifications).
+//
+// expo-notifications.requestPermissionsAsync handles both platforms in one
+// call: iOS shows the APNs system dialog, Android 13+ triggers the
+// POST_NOTIFICATIONS runtime prompt, Android 12 and below grants at install
+// time and resolves immediately. No more manual PermissionsAndroid plumbing.
+//
+// Both 'granted' and the iOS PROVISIONAL pseudo-status (returned as
+// 'granted' here) allow the app to receive notifications.
 // ─────────────────────────────────────────────────────────────────────────────
 
 export async function requestNotificationPermission(): Promise<boolean> {
-  if (Platform.OS === 'ios') {
-    const status = await messaging().requestPermission();
-    return (
-      status === messaging.AuthorizationStatus.AUTHORIZED ||
-      status === messaging.AuthorizationStatus.PROVISIONAL
-    );
-  }
+  const existing = await Notifications.getPermissionsAsync();
+  if (existing.status === Notifications.PermissionStatus.GRANTED) return true;
 
-  if (Platform.OS === 'android') {
-    if (typeof Platform.Version === 'number' && Platform.Version >= 33) {
-      const result = await PermissionsAndroid.request(
-        PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS
-      );
-      return result === PermissionsAndroid.RESULTS.GRANTED;
-    }
-    // Pre-Android-13: granted at install
-    return true;
-  }
-
-  return false;
+  const result = await Notifications.requestPermissionsAsync({
+    ios: {
+      allowAlert: true,
+      allowBadge: true,
+      allowSound: true,
+    },
+  });
+  return result.status === Notifications.PermissionStatus.GRANTED;
 }
