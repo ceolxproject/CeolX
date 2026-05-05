@@ -1,4 +1,9 @@
+import { eq } from 'drizzle-orm';
 import { Hono } from 'hono';
+
+import { verifyAndUnwrap } from '@CeolX/api/services/mux';
+import { db } from '@CeolX/db';
+import { posts } from '@CeolX/db/schema/social';
 
 import { routeJob } from '../jobs/handlers/index.js';
 import { verifyQStashSignature } from '../jobs/verify.js';
@@ -41,6 +46,64 @@ webhooksRoutes.post('/postmark', async (c) => {
   const event = parsePostmarkEvent(body);
   logPostmarkEvent(event);
   return c.json({ received: true, kind: event.kind }, 200);
+});
+
+/**
+ * Mux webhook — fired when video transcoding completes (or errors). Mux
+ * signs the request with MUX_WEBHOOK_SECRET; we verify via the SDK
+ * (mux.webhooks.verifySignature) which is wrapped by verifyAndUnwrap.
+ *
+ * On video.asset.ready we persist the resulting playback_id and rewrite
+ * mediaUrl to the HLS streaming URL — this is what the mobile client
+ * eventually renders. The handler is idempotent: a redelivered
+ * video.asset.ready performs the same UPDATE and is harmless.
+ */
+webhooksRoutes.post('/mux', async (c) => {
+  const rawBody = await c.req.text();
+  const headers: Record<string, string> = {};
+  c.req.raw.headers.forEach((value, key) => {
+    headers[key] = value;
+  });
+
+  let event;
+  try {
+    event = await verifyAndUnwrap(rawBody, headers);
+  } catch (err) {
+    console.warn('[Mux] webhook verification failed:', err);
+    return c.json({ error: 'unauthorized' }, 401);
+  }
+
+  if (event.type === 'video.asset.ready') {
+    const data = event.data as {
+      id: string;
+      upload_id?: string;
+      playback_ids?: { id: string; policy: string }[];
+    };
+    const playbackId = data.playback_ids?.[0]?.id;
+    if (data.upload_id && playbackId) {
+      await db
+        .update(posts)
+        .set({
+          muxAssetId: data.id,
+          muxPlaybackId: playbackId,
+          muxStatus: 'ready',
+          mediaUrl: `https://stream.mux.com/${playbackId}.m3u8`,
+        })
+        .where(eq(posts.muxUploadId, data.upload_id));
+    }
+  } else if (event.type === 'video.asset.errored') {
+    const data = event.data as { upload_id?: string };
+    if (data.upload_id) {
+      await db
+        .update(posts)
+        .set({ muxStatus: 'errored' })
+        .where(eq(posts.muxUploadId, data.upload_id));
+    }
+  }
+  // Other event types (video.upload.created, video.asset.created, ...) are
+  // acknowledged but not acted on. Returning 200 prevents Mux from retrying.
+
+  return c.json({ received: true }, 200);
 });
 
 webhooksRoutes.post('/qstash', verifyQStashSignature, async (c) => {

@@ -11,6 +11,7 @@ import { notificationsRouter } from './notifications';
 import { onboardingRouter } from './onboarding';
 import { postsRouter } from './posts';
 import { stripeRouter } from './stripe';
+import { uploadsRouter } from './uploads';
 import { usersRouter } from './users';
 import { venuesRouter } from './venues';
 
@@ -27,6 +28,7 @@ export const appRouter = router({
   deviceTokens: deviceTokensRouter,
   posts: postsRouter,
   stripe: stripeRouter,
+  uploads: uploadsRouter,
   admin: adminRouter,
 });
 

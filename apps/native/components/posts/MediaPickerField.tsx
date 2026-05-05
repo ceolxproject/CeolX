@@ -6,28 +6,43 @@ import { ActivityIndicator, Alert, Image, Pressable, Text, View } from 'react-na
 type PickedAsset = {
   uri: string;
   mimeType?: string | null;
+  fileSize?: number | null;
+  /** The picker reports type='image' or 'video' — used to route uploads. */
+  mediaKind?: 'image' | 'video';
 };
 
 type Props = {
   /** The URL/URI to display. CDN url after upload; local uri during pick. */
   mediaUri: string | null;
-  /** Called with the local asset when the user picks an image. */
+  /** What to render — image preview or a video placeholder. */
+  mediaKind?: 'image' | 'video';
+  /** Called with the local asset when the user picks media. */
   onPick: (asset: PickedAsset) => void;
   /** Called when the user removes the media. */
   onRemove?: () => void;
   /** Show a spinner overlay while the parent uploads. */
   isUploading?: boolean;
+  /** 0–1 progress while uploading. */
+  progress?: number;
 };
 
 /**
  * Dashed-border media picker matching Figma 1-10650.
- * Triggers the OS photo library picker and returns the local asset URI.
- * The parent is responsible for uploading to S3 (see `use-post-image-upload`).
+ * Triggers the OS photo library picker for images + videos and forwards
+ * the local asset to the parent. The parent uploads via useMediaUpload
+ * (image → s3) or useVideoUpload (video → mux).
  *
- * Label reads "Upload Image / Video / Audio" per Figma but only images are
- * picker-enabled for now — video and audio land with M10-T1.
+ * Audio is V1-deferred — it lands via a separate AudioPickerField using
+ * expo-document-picker (expo-image-picker doesn't expose audio).
  */
-export function MediaPickerField({ mediaUri, onPick, onRemove, isUploading }: Props) {
+export function MediaPickerField({
+  mediaUri,
+  mediaKind,
+  onPick,
+  onRemove,
+  isUploading,
+  progress,
+}: Props) {
   const handlePick = useCallback(async () => {
     const perm = await requestMediaLibraryPermissionsAsync();
     if (!perm.granted) {
@@ -36,16 +51,21 @@ export function MediaPickerField({ mediaUri, onPick, onRemove, isUploading }: Pr
     }
 
     const result = await launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      allowsEditing: true,
-      aspect: [16, 9],
+      mediaTypes: ['images', 'videos'],
+      // No allowsEditing for videos — iOS forces a trim UI we don't want.
       quality: 0.8,
     });
 
     if (!result.canceled && result.assets.length > 0) {
       const asset = result.assets[0];
       if (asset?.uri) {
-        onPick({ uri: asset.uri, mimeType: asset.mimeType });
+        const kind: 'image' | 'video' = asset.type === 'video' ? 'video' : 'image';
+        onPick({
+          uri: asset.uri,
+          mimeType: asset.mimeType,
+          fileSize: asset.fileSize,
+          mediaKind: kind,
+        });
       }
     }
   }, [onPick]);
@@ -65,11 +85,20 @@ export function MediaPickerField({ mediaUri, onPick, onRemove, isUploading }: Pr
       >
         {mediaUri ? (
           <>
-            <Image source={{ uri: mediaUri }} className="h-full w-full" resizeMode="cover" />
+            {mediaKind === 'video' ? (
+              <View className="h-full w-full items-center justify-center bg-black">
+                <Ionicons name="play-circle" size={56} color="#C8FF2F" />
+                <Text className="mt-2 text-xs text-white/80 font-urbanist">Video selected</Text>
+              </View>
+            ) : (
+              <Image source={{ uri: mediaUri }} className="h-full w-full" resizeMode="cover" />
+            )}
             {isUploading && (
               <View className="absolute inset-0 items-center justify-center bg-black/50">
                 <ActivityIndicator color="#C8FF2F" />
-                <Text className="mt-2 text-xs text-white font-urbanist">Uploading…</Text>
+                <Text className="mt-2 text-xs text-white font-urbanist">
+                  Uploading… {typeof progress === 'number' ? `${Math.round(progress * 100)}%` : ''}
+                </Text>
               </View>
             )}
             {!isUploading && onRemove && (
@@ -86,7 +115,7 @@ export function MediaPickerField({ mediaUri, onPick, onRemove, isUploading }: Pr
           <View className="items-center gap-2 px-4">
             <Ionicons name="cloud-upload-outline" size={24} color="#C8FF2F" />
             <Text className="text-sm font-bold text-white/80 font-urbanist">
-              Upload Image / Video / Audio
+              Upload Image or Video
             </Text>
           </View>
         )}

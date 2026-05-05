@@ -72,7 +72,7 @@ export default function CreateEventScreen() {
             description={form.description}
             onDescriptionChange={form.setDescription}
             coverImageUri={form.coverImageUri}
-            onPickImage={() => {}}
+            onPickImage={form.pickCoverImage}
             category={form.category}
             onCategoryChange={form.setCategory}
             collectionId={form.collectionId}

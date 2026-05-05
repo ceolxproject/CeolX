@@ -38,6 +38,12 @@ export const env = createEnv({
     AWS_SECRET_ACCESS_KEY: z.string().optional(),
     S3_BUCKET_NAME: z.string().optional(),
     CLOUDFRONT_DOMAIN: z.string().optional(),
+    // Mux — used by uploads router (Direct Upload) + /api/webhooks/mux.
+    // Optional so the server boots in dev/test without Mux configured;
+    // upload calls throw PRECONDITION_FAILED with a clear message instead.
+    MUX_TOKEN_ID: z.string().optional(),
+    MUX_TOKEN_SECRET: z.string().optional(),
+    MUX_WEBHOOK_SECRET: z.string().optional(),
     // Firebase Cloud Messaging — used by apps/server/src/lib/firebase-admin
     // and the notification.push QStash handler. Optional so the server boots
     // in dev/test without push set up; getMessaging() throws on first use.

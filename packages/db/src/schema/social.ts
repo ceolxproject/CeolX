@@ -18,13 +18,28 @@ export const posts = pgTable(
       .references(() => user.id, { onDelete: 'cascade' }),
     caption: text('caption').notNull(),
     mediaType: mediaTypeEnum('media_type').notNull(),
-    mediaUrl: text('media_url'), // null for text-only posts; S3/CloudFront URL otherwise
+    mediaUrl: text('media_url'), // null for text-only posts; S3/CloudFront URL or Mux HLS URL otherwise
+    // Mux fields — populated only for video posts (M10-T1).
+    // mux_upload_id is set on createPost (client receives it from
+    // uploads.createMuxUpload). mux_asset_id and mux_playback_id are filled by
+    // the mux webhook once transcoding completes; mediaUrl is also rewritten
+    // to https://stream.mux.com/<playbackId>.m3u8 at that point.
+    muxUploadId: text('mux_upload_id'),
+    muxAssetId: text('mux_asset_id'),
+    muxPlaybackId: text('mux_playback_id'),
+    muxStatus: text('mux_status'), // 'pending' | 'ready' | 'errored'
     likeCount: integer('like_count').default(0), // denormalized — do NOT use COUNT(post_likes)
     deletedAt: timestamp('deleted_at'), // soft delete — API filters WHERE deleted_at IS NULL
     createdAt: timestamp('created_at').notNull().defaultNow(),
     updatedAt: timestamp('updated_at').notNull().defaultNow(),
   },
-  (t) => [index('posts_created_by_idx').on(t.createdBy)]
+  (t) => [
+    index('posts_created_by_idx').on(t.createdBy),
+    // Webhook lookup: UPDATE posts ... WHERE mux_upload_id = $1
+    index('posts_mux_upload_id_idx').on(t.muxUploadId),
+    // Delete-asset ownership lookup: SELECT 1 WHERE mux_asset_id = $1 AND created_by = $2
+    index('posts_mux_asset_id_idx').on(t.muxAssetId),
+  ]
 );
 
 // ---------------------------------------------------------------------------
