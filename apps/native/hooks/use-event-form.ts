@@ -1,10 +1,13 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { launchImageLibraryAsync, requestMediaLibraryPermissionsAsync } from 'expo-image-picker';
 import { useCallback, useState } from 'react';
 import { Alert } from 'react-native';
 
 import type { EventCategory } from '@CeolX/shared';
 import { createEventSchema } from '@CeolX/shared/validators';
 
+import { keyFromCdnUrl, useMediaDelete } from '@/hooks/use-media-delete';
+import { useMediaUpload } from '@/hooks/use-media-upload';
 import { trpc } from '@/utils/trpc';
 
 // ---------------------------------------------------------------------------
@@ -183,7 +186,38 @@ export function useEventForm(options?: UseEventFormOptions) {
   const createMutation = useMutation(trpc.events.create.mutationOptions());
   const updateMutation = useMutation(trpc.events.update.mutationOptions());
 
-  const isPending = createMutation.isPending || updateMutation.isPending;
+  // Media pipeline — cover image is uploaded to s3 at submit time. The
+  // original CDN URL (edit mode) is captured so we can clean up the old
+  // s3 object after a successful replace.
+  const coverUpload = useMediaUpload('event_cover');
+  const { cleanupAfterDelete } = useMediaDelete();
+  const initialCoverImage = options?.initialData?.coverImageUri ?? null;
+
+  const isPending = createMutation.isPending || updateMutation.isPending || coverUpload.isUploading;
+
+  // ---------------------------------------------------------------------------
+  // Cover image picker
+  // ---------------------------------------------------------------------------
+
+  const pickCoverImage = useCallback(async () => {
+    const perm = await requestMediaLibraryPermissionsAsync();
+    if (!perm.granted) {
+      Alert.alert('Permission needed', 'Please allow access to your photo library.');
+      return;
+    }
+
+    const result = await launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      aspect: [16, 9],
+      quality: 0.8,
+    });
+
+    if (!result.canceled && result.assets.length > 0) {
+      const uri = result.assets[0]?.uri;
+      if (uri) setCoverImageUri(uri);
+    }
+  }, []);
 
   // ---------------------------------------------------------------------------
   // Validation helpers (per-step)
@@ -297,10 +331,26 @@ export function useEventForm(options?: UseEventFormOptions) {
     const dateStartISO = combineDateAndTime(dateStart, startTime);
     const dateEndISO = combineDateAndTime(dateEnd ?? dateStart, endTime);
 
+    // If the user picked a new local image, upload it first and use the
+    // returned CDN url in the payload. CDN urls (https://...) are passed
+    // through unchanged. Failure here aborts the submit so we don't
+    // persist a stale or empty cover.
+    let finalCoverImage: string | undefined = coverImageUri ?? undefined;
+    if (coverImageUri && !coverImageUri.startsWith('https://')) {
+      try {
+        const { cdnUrl } = await coverUpload.uploadMedia({ uri: coverImageUri });
+        finalCoverImage = cdnUrl;
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Image upload failed.';
+        Alert.alert('Upload failed', message);
+        return;
+      }
+    }
+
     const payload = {
       title: title.trim(),
       description: description.trim(),
-      coverImage: coverImageUri ?? undefined,
+      coverImage: finalCoverImage,
       dateStart: dateStartISO ?? new Date().toISOString(),
       dateEnd: dateEndISO,
       lat: lat ?? undefined,
@@ -354,6 +404,18 @@ export function useEventForm(options?: UseEventFormOptions) {
       return;
     }
 
+    // Best-effort cleanup of the old cover image when the user replaced
+    // it on edit. Fire-and-forget — the save already succeeded, and s3
+    // lifecycle (90-day expiry) catches anything we miss here.
+    if (initialCoverImage && initialCoverImage !== finalCoverImage) {
+      const oldKey = keyFromCdnUrl(initialCoverImage);
+      if (oldKey) {
+        cleanupAfterDelete({ key: oldKey }).catch((err) => {
+          console.warn('[event-form] failed to clean up replaced cover image', err);
+        });
+      }
+    }
+
     // Invalidate cached event queries so detail/feed/map show updated data
     void queryClient.invalidateQueries({ queryKey: [['events']] });
 
@@ -369,6 +431,9 @@ export function useEventForm(options?: UseEventFormOptions) {
     title,
     description,
     coverImageUri,
+    coverUpload,
+    initialCoverImage,
+    cleanupAfterDelete,
     lat,
     lng,
     venueId,
@@ -400,6 +465,9 @@ export function useEventForm(options?: UseEventFormOptions) {
     setDescription,
     coverImageUri,
     setCoverImageUri,
+    pickCoverImage,
+    isUploadingCover: coverUpload.isUploading,
+    coverUploadProgress: coverUpload.progress,
     category,
     setCategory,
     collectionId,
