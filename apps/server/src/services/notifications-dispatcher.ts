@@ -1,8 +1,6 @@
-import { eq } from 'drizzle-orm';
-
 import type { DispatchNotificationFn } from '@CeolX/api/context';
 import { db as defaultDb } from '@CeolX/db';
-import { deviceTokens, notifications, notificationUsers } from '@CeolX/db/schema/notifications';
+import { notifications, notificationUsers } from '@CeolX/db/schema/notifications';
 import { buildNotification, NotificationSurface } from '@CeolX/shared';
 
 import { publishJob as defaultPublishJob } from '../jobs/publish.js';
@@ -18,17 +16,17 @@ import type { JobPayload, JobType } from '../jobs/types.js';
 //
 // Per call:
 //   1. Resolve trigger → in-app copy via @CeolX/shared/notifications.
-//   2. INSERT one row into the `notifications` inbox (read by M7-T2 inbox UI)
-//      using the in-app copy variant.
-//   3. Resolve trigger → push copy (separate variant per matrix).
-//   4. SELECT every active fcm_token for the recipient.
-//   5. For each token, publishJob('notification.push', { ...push copy, deviceToken }).
+//   2. INSERT one row into the `notifications` inbox (read by M7-T2 inbox UI).
+//   3. INSERT one row into `notification_users` linking the inbox row to the
+//      recipient. Mark-read / archive operations target this join row.
+//   4. Resolve trigger → push copy (separate variant per matrix).
+//   5. publishJob('notification.push', { userId, ...push copy }).
 //
-// QStash retries handle transient FCM failures (R7.3). The handler swallows
-// UNREGISTERED token errors so they don't burn retries.
-//
-// Rate limiting (M7-T1 R7.2 — max 5/user/min): TODO. No infra in repo today
-// and matrix doesn't mandate it. Add when notification volume warrants.
+// Mentor pattern §3 hybrid: the dispatcher publishes ONE push job per
+// dispatch (not per device token). The handler does the token lookup + a
+// single messaging.sendEach call internally. This preserves QStash's retry
+// resilience while gaining batched fan-out — and shrinks dispatch's DB
+// footprint from 3 queries (inbox + join + select tokens) to 2.
 // ─────────────────────────────────────────────────────────────────────────────
 
 type Db = typeof defaultDb;
@@ -70,27 +68,19 @@ export function makeDispatchNotification(
       userId: input.recipientUserId,
     });
 
-    // 3. Token fan-out — push variant of the same trigger.
-    const tokens = (await deps.db
-      .select({ fcmToken: deviceTokens.fcmToken })
-      .from(deviceTokens)
-      .where(eq(deviceTokens.userId, input.recipientUserId))) as Array<{ fcmToken: string }>;
-
-    if (tokens.length === 0) return;
-
+    // 3. Per-user push job — handler resolves tokens + calls sendEach.
+    //    Cheap when the user has no devices: handler returns early. We
+    //    accept that small cost in exchange for not duplicating the token
+    //    lookup here.
     const push = buildNotification(input.trigger, NotificationSurface.PUSH, input.vars);
 
-    await Promise.all(
-      tokens.map((t) =>
-        deps.publishJob('notification.push', {
-          deviceToken: t.fcmToken,
-          title: push.title,
-          body: push.body,
-          persona: push.persona,
-          route: push.route,
-        })
-      )
-    );
+    await deps.publishJob('notification.push', {
+      userId: input.recipientUserId,
+      title: push.title,
+      body: push.body,
+      persona: push.persona,
+      route: push.route,
+    });
   };
 }
 

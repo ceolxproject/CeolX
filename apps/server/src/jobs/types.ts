@@ -41,8 +41,12 @@ export const ipAnonymizeSchema = z.object({
   olderThanDays: z.number().int().positive().default(30),
 });
 
+// Per-user push job (mentor pattern §3 hybrid). The dispatcher publishes one
+// of these per recipient; the handler fetches active tokens and calls
+// messaging.sendEach for batched fan-out. Replaces the previous per-token
+// payload — turns N device-token jobs into 1 user job.
 export const notificationPushSchema = z.object({
-  deviceToken: z.string(),
+  userId: z.string(),
   title: z.string(),
   body: z.string(),
   persona: z.enum(['spectator', 'artist', 'venue']),

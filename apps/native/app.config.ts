@@ -17,9 +17,10 @@ const config = {
     supportsTablet: false,
     bundleIdentifier: 'ie.ceolx.app',
     usesAppleSignIn: true,
-    // FCM via @react-native-firebase. The plist is downloaded from the
-    // Firebase Console and gitignored — see docs/project-management/M7-T1
-    // human handoff checklist.
+    // Firebase iOS SDK (loaded by @react-native-firebase/app) is what makes
+    // expo-notifications.getDevicePushTokenAsync() return an FCM token instead
+    // of a raw APNs token. The plist is downloaded from the Firebase Console
+    // and gitignored — see docs/project-management/M7-T1 human handoff checklist.
     googleServicesFile: process.env.GOOGLE_SERVICES_INFO_PLIST ?? './GoogleService-Info.plist',
     // Universal Links target. Activation requires `apple-app-site-association`
     // hosted at https://ceolx.ie/.well-known/apple-app-site-association — tracked
@@ -81,17 +82,14 @@ const config = {
       },
     ],
     'expo-secure-store',
-    // FCM stack (M7-T1): @react-native-firebase replaces expo-notifications
-    // per Aravind's directive — direct FCM, no Expo proxy hop, future web
-    // push reuse. iOS Firebase SDK requires static frameworks.
+    // FCM stack (M7-T1, mentor pattern): @react-native-firebase/app loads the
+    // Firebase iOS SDK so expo-notifications.getDevicePushTokenAsync() returns
+    // an FCM token. We do NOT install /messaging — its `use_frameworks!
+    // :linkage => :static` requirement breaks iOS builds on RN 0.83's prebuilt
+    // React-Core xcframework. expo-notifications gives us the listeners +
+    // permission flow without that constraint.
     '@react-native-firebase/app',
-    '@react-native-firebase/messaging',
-    [
-      'expo-build-properties',
-      {
-        ios: { useFrameworks: 'static' },
-      },
-    ],
+    'expo-notifications',
     'expo-apple-authentication',
     [
       'react-native-maps',

@@ -69,9 +69,11 @@ export const notificationUsers = pgTable(
 // ─────────────────────────────────────────────────────────────────────────────
 // device_tokens — FCM registration tokens per device.
 // Unique on (user_id, fcm_token) — prevents duplicate registrations.
-// Upsert pattern on app open:
-//   INSERT ... ON CONFLICT (user_id, fcm_token) DO UPDATE SET updated_at = NOW()
-// Clean up tokens when FCM returns UNREGISTERED error (token rotation).
+// Soft-deactivate via `is_active` (mentor pattern §4) — dead tokens stay in
+// the table for diagnostics; only active rows are sent to. Cleanup happens
+// lazily inside the push handler on terminal FCM error codes.
+// `last_used_at` is touched on register/refresh; powers future pruning of
+// devices that haven't checked in for N days.
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const deviceTokens = pgTable(
@@ -83,10 +85,18 @@ export const deviceTokens = pgTable(
       .references(() => user.id, { onDelete: 'cascade' }),
     fcmToken: text('fcm_token').notNull(),
     platform: platformEnum('platform').notNull(),
+    isActive: boolean('is_active').notNull().default(true),
+    lastUsedAt: timestamp('last_used_at'),
     createdAt: timestamp('created_at').notNull().defaultNow(),
     updatedAt: timestamp('updated_at').notNull().defaultNow(),
   },
-  (t) => [uniqueIndex('device_tokens_user_token_idx').on(t.userId, t.fcmToken)]
+  (t) => [
+    uniqueIndex('device_tokens_user_token_idx').on(t.userId, t.fcmToken),
+    // Fan-out lookup: "give me all active tokens for this user" — hit on every push send.
+    index('device_tokens_user_active_idx').on(t.userId, t.isActive),
+    // Pruning scan: "tokens not refreshed since X" — used by future cleanup cron.
+    index('device_tokens_updated_at_idx').on(t.updatedAt),
+  ]
 );
 
 // ─────────────────────────────────────────────────────────────────────────────
