@@ -138,6 +138,20 @@ describe('buildNotification — inApp surface diverges from push', () => {
     ).toBe('Event Resubmitted ✓');
   });
 
+  it('U-03 saver cascade — push tells the saver the event is gone, route /feed', () => {
+    const built = buildNotification(
+      NotificationTrigger.SAVED_EVENT_REMOVED_TO_SAVERS,
+      NotificationSurface.PUSH,
+      { eventId: 'e-1', eventTitle: 'Friday Night Trad' }
+    );
+    expect(built.persona).toBe('spectator');
+    expect(built.route).toBe('/feed');
+    expect(built.title).toBe('A saved event was removed');
+    expect(built.body).toBe(
+      '"Friday Night Trad" was removed by moderation and is no longer on CeolX.'
+    );
+  });
+
   it('A-09 inApp adds "Respond before it expires"', () => {
     expect(
       buildNotification(

@@ -46,6 +46,7 @@ type ListedEvent = {
   lat: string;
   lng: string;
   venueAddress: string | null;
+  category: string | null;
   status: 'active' | 'removed' | 'archived' | 'draft' | 'pending_review' | 'rejected';
   removalReason: string | null;
   createdAt: string | Date;
@@ -92,10 +93,26 @@ function EventModerationPage() {
     })
   );
 
+  const restoreMutation = useMutation(
+    trpc.admin.restoreEvent.mutationOptions({
+      onSuccess: () => {
+        toast.success('Event restored. It is live on the map again.');
+        void queryClient.invalidateQueries(trpc.admin.listEvents.queryFilter());
+      },
+      onError: (err) => {
+        toast.error(err.message);
+      },
+    })
+  );
+
   function handleConfirmRemove(reason: string) {
     if (!removeTarget) return;
     removeMutation.mutate({ id: removeTarget.id, removalReason: reason });
     setRemoveTarget(null);
+  }
+
+  function handleRestore(eventId: string) {
+    restoreMutation.mutate({ id: eventId });
   }
 
   const events = (listQuery.data?.events ?? []) as ListedEvent[];
@@ -154,6 +171,7 @@ function EventModerationPage() {
             <tr>
               <th className="px-4 py-3 font-medium text-gray-600">Cover</th>
               <th className="px-4 py-3 font-medium text-gray-600">Title</th>
+              <th className="px-4 py-3 font-medium text-gray-600">Category</th>
               <th className="px-4 py-3 font-medium text-gray-600">Creator</th>
               <th className="px-4 py-3 font-medium text-gray-600">Date</th>
               <th className="px-4 py-3 font-medium text-gray-600">Location</th>
@@ -164,13 +182,13 @@ function EventModerationPage() {
           <tbody>
             {listQuery.isError ? (
               <tr>
-                <td colSpan={7} className="px-4 py-8 text-center text-red-500">
+                <td colSpan={8} className="px-4 py-8 text-center text-red-500">
                   Failed to load events. {listQuery.error.message}
                 </td>
               </tr>
             ) : events.length === 0 && !listQuery.isLoading ? (
               <tr>
-                <td colSpan={7} className="px-4 py-8 text-center text-gray-400">
+                <td colSpan={8} className="px-4 py-8 text-center text-gray-400">
                   No events match the current filters.
                 </td>
               </tr>
@@ -189,6 +207,9 @@ function EventModerationPage() {
                     )}
                   </td>
                   <td className="px-4 py-3 font-medium text-gray-900">{ev.title}</td>
+                  <td className="px-4 py-3 text-gray-700 capitalize">
+                    {ev.category ? ev.category.replace(/_/g, ' ') : '—'}
+                  </td>
                   <td className="px-4 py-3 text-gray-700">
                     <div>{ev.creator.name ?? 'Unknown'}</div>
                     <div className="text-xs text-gray-500 capitalize">
@@ -214,6 +235,18 @@ function EventModerationPage() {
                         disabled={removeMutation.isPending}
                       >
                         Remove
+                      </Button>
+                    ) : ev.status === 'removed' ? (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleRestore(ev.id);
+                        }}
+                        disabled={restoreMutation.isPending}
+                      >
+                        Restore
                       </Button>
                     ) : (
                       <span className="text-xs text-gray-400">—</span>
