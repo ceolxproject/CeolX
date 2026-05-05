@@ -89,6 +89,9 @@ const config = {
     // React-Core xcframework. expo-notifications gives us the listeners +
     // permission flow without that constraint.
     '@react-native-firebase/app',
+    // Firebase Swift pods (FirebaseCoreInternal) depend on GoogleUtilities, which
+    // is non-modular Obj-C. Without this, `pod install` fails on `expo prebuild`.
+    './plugins/with-modular-headers.cjs',
     'expo-notifications',
     'expo-apple-authentication',
     [
