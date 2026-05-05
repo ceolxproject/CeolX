@@ -1,0 +1,53 @@
+# Vercel uploads everything in this directory unless excluded here.
+# Goal: drop the 22k+ files in node_modules / build outputs / git so
+# we land under Vercel's 15000-file upload limit. Vercel re-installs
+# dependencies at build time anyway.
+
+# Dependencies (re-installed by Vercel during build)
+node_modules
+**/node_modules
+
+# Build outputs / caches
+.turbo
+**/.turbo
+**/dist
+**/build
+**/.next
+**/.expo
+**/.expo-shared
+**/coverage
+**/.tsbuildinfo
+**/*.tsbuildinfo
+
+# Expo prebuild outputs (Android/iOS native projects) — apps/server doesn't
+# need them, and apps/native/ios alone has 10k+ files that blow past Vercel's
+# 15000-file upload limit.
+apps/native/ios
+apps/native/android
+**/Pods
+**/DerivedData
+**/build/Build
+
+# Git + CI metadata
+.git
+.github
+.husky
+
+# Tooling / IDE / agent configs (large, not needed for build)
+.claude
+.cursor
+.vscode
+.agents
+.superpowers
+.codex
+.gemini
+.idea
+
+# Local env files (defence-in-depth — these should be gitignored already)
+.env
+.env.*
+!apps/server/.env.example
+
+# Misc
+.DS_Store
+*.log
