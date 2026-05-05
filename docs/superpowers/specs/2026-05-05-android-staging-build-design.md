@@ -16,6 +16,17 @@ Ship an installable, shareable Android **staging** build of the CeolX mobile app
 - Production deployment of `apps/server` to Vercel (only the staging environment is provisioned here).
 - Multi-tester management features (groups, per-tester release notes, crash linkage). EAS Internal Distribution gives a single shared install URL — sufficient for the current QA team size.
 
+## Prerequisites (manual setup before Phase 0)
+
+These are dashboard / console actions that have to happen outside the codebase before any phase can run end-to-end. The implementation plan will include them as explicit pre-flight tasks; flagging them here so they're not invisible.
+
+1. **Create Firebase project `ceolx-staging`** in the Firebase Console. Provision a Service Account → download the private key JSON → split into `FIREBASE_PRIVATE_KEY` and `FIREBASE_CLIENT_EMAIL` for the server `.env.staging`. (Without this, FCM registration on the server side fails and Phase 1 step 4 has no project to register the Android app inside.)
+2. **Vercel account on Hobby tier** with permission to create a new project under the team (or personal) account that owns the deployment.
+3. **DNS access to `ceolx.ie`** to add the `api-staging` CNAME pointing at Vercel.
+4. **EAS organisation membership** — confirm the account running `eas build` is a member of `ceolxprojects-organization` with build permissions (project ID `91f9219e-c91c-47f2-b55a-5ee1db979b66`).
+5. **Stripe test mode** enabled on the CeolX Stripe account, with a `price_test_…` price ID for the staging Venue subscription.
+6. **Postmark sender domain `ceolx.ie` verified** for the staging stream (or share the prod stream if the domain check is already passing).
+
 ## Success criteria
 
 1. A QA tester opens `https://expo.dev/install/<id>` on an Android device and the staging app installs in a single tap.
@@ -182,12 +193,13 @@ Create `docs/qa-staging-install.md` covering:
 
 ## Risks and open items
 
-1. **Firebase staging project existence** — `apps/server/.env.staging` references `FIREBASE_PROJECT_ID=ceolx-staging`. If this project does not yet exist in the Firebase Console, it must be created (Phase 1 prerequisite). Includes provisioning a Service Account → exporting JSON → splitting into `FIREBASE_PRIVATE_KEY` + `FIREBASE_CLIENT_EMAIL` env vars.
-2. **Google OAuth client IDs are placeholders** — `GOOGLE_OAUTH_CLIENT_ID_IOS` and `GOOGLE_OAUTH_CLIENT_ID_ANDROID` in `.env.staging` are placeholder strings. Real OAuth clients must be created in GCP Console (Android client tied to package `ie.ceolx.app.staging` + the EAS-generated SHA-1). If Google Sign-In is out of scope for QA, this can be deferred — email/password still works.
-3. **Vercel function timeout** — Hobby tier caps at 10 seconds; Pro at 60. Long-running tRPC procedures (e.g., S3 multipart uploads, Mux polling) may exceed Hobby and surface as cryptic 504s. Confirm Vercel tier before Phase 0 deploy.
-4. **Postmark sender domain** — `noreply@ceolx.ie` requires DKIM/SPF on `ceolx.ie`. Likely already configured for prod; confirm staging emails aren't blocked by Postmark's signature verification gate.
-5. **EAS owner / project access** — `app.config.ts` declares `owner: 'ceolxprojects-organization'` and `projectId: '91f9219e-c91c-47f2-b55a-5ee1db979b66'`. Ensure the user running `eas build` is a member of that org with build permissions.
-6. **DNS propagation for `api-staging.ceolx.ie`** — Cloudflare-managed DNS propagates in ~minutes; legacy registrar DNS can take hours. Plan accordingly.
+1. **Google OAuth client IDs are placeholders** — `GOOGLE_OAUTH_CLIENT_ID_IOS` and `GOOGLE_OAUTH_CLIENT_ID_ANDROID` in `.env.staging` are placeholder strings. Real OAuth clients must be created in GCP Console (Android client tied to package `ie.ceolx.app.staging` + the EAS-generated SHA-1). If Google Sign-In is out of scope for the first QA pass, this can be deferred — email/password still works.
+2. **Vercel Hobby tier — 10-second function timeout (confirmed)**. This is the staging budget for every server invocation. Surface areas to watch:
+   - **Cold-start latency** — first request after idle: Vercel Node cold start (~500 ms) + Neon serverless connection wake (~500 ms–1 s) + Hono/tRPC handler. Worst case ~2 s, well inside the budget.
+   - **`firebase-admin` initialisation** — the Admin SDK reads the service-account credentials on cold start. If we recreate the app on every invocation it adds ~300 ms; ensure `getApps().length` is checked before `initializeApp()` in `apps/server/src/lib/firebase.ts` (or wherever the Admin SDK is initialised).
+   - **Long-running tRPC procedures** — anything that loops over external API calls (e.g., a future bulk-import endpoint) will silently 504 at 10 s. None of the V1 procedures listed in the routers should fall into this bucket (S3 uploads use presigned URLs, Mux uses async webhooks, Postmark sends are single requests). If the smoke test in Phase 0 surfaces a slow procedure, the fix is either to refactor it into a QStash background job or upgrade Vercel to Pro.
+3. **Postmark sender domain** — `noreply@ceolx.ie` requires DKIM/SPF on `ceolx.ie`. Likely already configured for prod; confirm staging emails aren't blocked by Postmark's signature verification gate.
+4. **DNS propagation for `api-staging.ceolx.ie`** — Cloudflare-managed DNS propagates in ~minutes; legacy registrar DNS can take hours. Plan accordingly.
 
 ## Time estimate
 
