@@ -1,6 +1,7 @@
 {
   "cli": {
-    "version": ">= 5.0.0"
+    "version": ">= 5.0.0",
+    "appVersionSource": "remote"
   },
   "build": {
     "development": {
@@ -13,8 +14,22 @@
     "preview": {
       "distribution": "internal"
     },
+    "staging": {
+      "distribution": "internal",
+      "channel": "staging",
+      "env": {
+        "APP_VARIANT": "staging"
+      },
+      "android": {
+        "buildType": "apk"
+      }
+    },
     "production": {
-      "distribution": "store"
+      "distribution": "store",
+      "channel": "production",
+      "env": {
+        "APP_VARIANT": "production"
+      }
     }
   }
 }
