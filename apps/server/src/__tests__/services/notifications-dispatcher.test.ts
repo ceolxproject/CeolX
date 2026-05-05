@@ -1,51 +1,41 @@
 // Hoisted mocks — must be defined before imports that depend on them.
-const {
-  mockNotificationsReturning,
-  mockNotificationUsersValues,
-  mockSelectFromWhere,
-  mockDb,
-  insertCalls,
-} = vi.hoisted(() => {
-  const mockNotificationsReturning = vi.fn().mockResolvedValue([{ id: 'n-1' }]);
-  const mockNotificationUsersValues = vi.fn().mockResolvedValue(undefined);
-  const mockSelectFromWhere = vi.fn();
+const { mockNotificationsReturning, mockNotificationUsersValues, mockDb, insertCalls } = vi.hoisted(
+  () => {
+    const mockNotificationsReturning = vi.fn().mockResolvedValue([{ id: 'n-1' }]);
+    const mockNotificationUsersValues = vi.fn().mockResolvedValue(undefined);
 
-  // Track which schema table each insert() targets so tests can route
-  // assertions properly. The dispatcher inserts twice (notifications, then
-  // notification_users); the schema mock below hands back a discriminator
-  // each call site can compare against.
-  const insertCalls: Array<'notifications' | 'notification_users'> = [];
+    // Track which schema table each insert() targets so tests can route
+    // assertions properly. The dispatcher inserts twice (notifications, then
+    // notification_users); the schema mock below hands back a discriminator
+    // each call site can compare against.
+    const insertCalls: Array<'notifications' | 'notification_users'> = [];
 
-  const mockDb = {
-    insert: vi.fn((schema: { __table: 'notifications' | 'notification_users' }) => {
-      insertCalls.push(schema.__table);
-      if (schema.__table === 'notifications') {
-        return {
-          values: vi.fn(() => ({ returning: mockNotificationsReturning })),
-        };
-      }
-      return { values: mockNotificationUsersValues };
-    }),
-    select: vi.fn(() => ({
-      from: vi.fn(() => ({ where: mockSelectFromWhere })),
-    })),
-  };
+    const mockDb = {
+      insert: vi.fn((schema: { __table: 'notifications' | 'notification_users' }) => {
+        insertCalls.push(schema.__table);
+        if (schema.__table === 'notifications') {
+          return {
+            values: vi.fn(() => ({ returning: mockNotificationsReturning })),
+          };
+        }
+        return { values: mockNotificationUsersValues };
+      }),
+    };
 
-  return {
-    mockNotificationsReturning,
-    mockNotificationUsersValues,
-    mockSelectFromWhere,
-    mockDb,
-    insertCalls,
-  };
-});
+    return {
+      mockNotificationsReturning,
+      mockNotificationUsersValues,
+      mockDb,
+      insertCalls,
+    };
+  }
+);
 
 vi.mock('@CeolX/db', () => ({ db: mockDb }));
 
 vi.mock('@CeolX/db/schema/notifications', () => ({
   notifications: { __table: 'notifications', id: 'id' },
   notificationUsers: { __table: 'notification_users', id: 'id' },
-  deviceTokens: { __table: 'device_tokens', fcmToken: 'fcm_token', userId: 'user_id' },
 }));
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -84,8 +74,6 @@ const baseInput = {
 
 describe('dispatchNotification — split schema', () => {
   it('writes the content row to notifications and the per-user row to notification_users', async () => {
-    mockSelectFromWhere.mockResolvedValueOnce([]); // no device tokens
-
     const dispatch = makeDispatchNotification({ db: dbMock, publishJob: mockPublishJob });
     await dispatch(baseInput);
 
@@ -110,43 +98,25 @@ describe('dispatchNotification — split schema', () => {
   });
 });
 
-// ─── Push fan-out (uses push variant copy) ──────────────────────────────────
+// ─── Push job publish (per-user, mentor §3 hybrid) ──────────────────────────
 
 describe('dispatchNotification — push fan-out', () => {
-  it('skips publishJob when the user has no device tokens', async () => {
-    mockSelectFromWhere.mockResolvedValueOnce([]);
-
+  it('publishes exactly one notification.push job per dispatch (handler does the token fan-out)', async () => {
     const dispatch = makeDispatchNotification({ db: dbMock, publishJob: mockPublishJob });
     await dispatch(baseInput);
 
-    expect(mockPublishJob).not.toHaveBeenCalled();
+    expect(mockPublishJob).toHaveBeenCalledTimes(1);
+    expect(mockPublishJob).toHaveBeenCalledWith('notification.push', {
+      userId: 'user-123',
+      title: 'New booking invite',
+      // push variant — no "Respond before it expires."
+      body: 'The Temple Bar invited you to play "Trad Night" on Fri 1 May.',
+      persona: 'artist',
+      route: '/bookings/b-abc',
+    });
   });
 
-  it('publishes one push job per token with the push body (shorter than in-app)', async () => {
-    mockSelectFromWhere.mockResolvedValueOnce([
-      { fcmToken: 'token-ios-1' },
-      { fcmToken: 'token-android-1' },
-    ]);
-
-    const dispatch = makeDispatchNotification({ db: dbMock, publishJob: mockPublishJob });
-    await dispatch(baseInput);
-
-    expect(mockPublishJob).toHaveBeenCalledTimes(2);
-    for (const token of ['token-ios-1', 'token-android-1']) {
-      expect(mockPublishJob).toHaveBeenCalledWith('notification.push', {
-        deviceToken: token,
-        title: 'New booking invite',
-        // push variant — no "Respond before it expires."
-        body: 'The Temple Bar invited you to play "Trad Night" on Fri 1 May.',
-        persona: 'artist',
-        route: '/bookings/b-abc',
-      });
-    }
-  });
-
-  it('different triggers resolve to different copy', async () => {
-    mockSelectFromWhere.mockResolvedValueOnce([{ fcmToken: 'token-1' }]);
-
+  it('different triggers resolve to different copy (persona pinned by the trigger)', async () => {
     const dispatch = makeDispatchNotification({ db: dbMock, publishJob: mockPublishJob });
     await dispatch({
       trigger: NotificationTrigger.BOOKING_REQUEST_TO_VENUE,
@@ -157,6 +127,7 @@ describe('dispatchNotification — push fan-out', () => {
     expect(mockPublishJob).toHaveBeenCalledWith(
       'notification.push',
       expect.objectContaining({
+        userId: 'venue-user-1',
         title: 'New booking request',
         body: 'Celtic Thunder applied for "Trad Night" on Fri 1 May.',
         persona: 'venue',
@@ -168,8 +139,7 @@ describe('dispatchNotification — push fan-out', () => {
 // ─── Error propagation ───────────────────────────────────────────────────────
 
 describe('dispatchNotification — error propagation', () => {
-  it('rejects if any publishJob fails (QStash retries the job, not the caller)', async () => {
-    mockSelectFromWhere.mockResolvedValueOnce([{ fcmToken: 'token-1' }]);
+  it('rejects if publishJob fails (QStash retries the job, not the caller)', async () => {
     mockPublishJob.mockRejectedValueOnce(new Error('qstash 500'));
 
     const dispatch = makeDispatchNotification({ db: dbMock, publishJob: mockPublishJob });
@@ -178,8 +148,6 @@ describe('dispatchNotification — error propagation', () => {
   });
 
   it('throws when vars are missing — surfaces matrix mismatches early', async () => {
-    mockSelectFromWhere.mockResolvedValueOnce([]);
-
     const dispatch = makeDispatchNotification({ db: dbMock, publishJob: mockPublishJob });
 
     await expect(

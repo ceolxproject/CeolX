@@ -139,10 +139,10 @@ describe('jobPayloadSchemas', () => {
   // notification.push
   // ---------------------------------------------------------------------------
   describe('notification.push', () => {
-    it('accepts a valid payload', () => {
+    it('accepts a valid per-user payload', () => {
       expect(() =>
         jobPayloadSchemas['notification.push'].parse({
-          deviceToken: 'fcm-token-abc',
+          userId: 'user-123',
           title: 'Event Approved',
           body: 'Your event is now live.',
           persona: 'artist',
@@ -153,7 +153,7 @@ describe('jobPayloadSchemas', () => {
 
     it('rejects an unknown persona', () => {
       const result = jobPayloadSchemas['notification.push'].safeParse({
-        deviceToken: 'token',
+        userId: 'user-123',
         title: 'Hi',
         body: 'Hello',
         persona: 'admin',
