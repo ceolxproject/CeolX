@@ -25,8 +25,8 @@
     "@trpc/client": "catalog:",
     "@trpc/server": "catalog:",
     "dotenv": "catalog:",
-    "drizzle-orm": "^0.45.1",
-    "typesense": "^3.0.5",
+    "drizzle-orm": "catalog:",
+    "typesense": "catalog:",
     "zod": "catalog:"
   },
   "devDependencies": {
