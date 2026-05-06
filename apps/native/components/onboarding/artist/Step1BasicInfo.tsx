@@ -8,7 +8,7 @@ interface Step1BasicInfoProps {
   contactEmail: string;
   setContactEmail: (v: string) => void;
   profileImageUri: string | null;
-  imageError: string;
+  imageError: string | null;
   handlePickImage: () => void;
   errors: Record<string, string>;
   handleBlur: (field: string) => void;

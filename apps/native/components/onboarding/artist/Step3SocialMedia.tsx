@@ -6,7 +6,7 @@ interface Step3SocialMediaProps {
   socialLinks: SocialLinks;
   handleSocialLinkChange: (field: keyof SocialLinks, value: string) => void;
   errors: Record<string, string>;
-  submitError: string;
+  submitError: string | null;
 }
 
 export function Step3SocialMedia({

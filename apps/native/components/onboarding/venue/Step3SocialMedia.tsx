@@ -6,7 +6,7 @@ interface Step3SocialMediaProps {
   venueLinks: VenueLinks;
   handleVenueLinkChange: (field: keyof VenueLinks, value: string) => void;
   errors: Record<string, string>;
-  submitError: string;
+  submitError: string | null;
 }
 
 export function Step3SocialMedia({
