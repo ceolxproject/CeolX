@@ -167,6 +167,10 @@ export function useArtistOnboarding() {
         profileImageUrl = cdnUrl;
       } catch (err) {
         setImageError(err instanceof Error ? err.message : 'Image upload failed');
+        // The error is rendered next to ProfilePicture on Step 1. If the user
+        // pressed Submit on Step 3 we'd otherwise leave them staring at an
+        // unresponsive button — walk them back to where the error is visible.
+        if (currentStep !== 1) setCurrentStep(1);
         return;
       }
     }
