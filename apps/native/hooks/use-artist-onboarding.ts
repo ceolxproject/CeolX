@@ -2,7 +2,12 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import { useState } from 'react';
 
-import { createArtistOnboardingSchema } from '@CeolX/shared/validators';
+import {
+  artistOnboardingStep1Schema,
+  artistOnboardingStep2Schema,
+  artistOnboardingStep3Schema,
+  createArtistOnboardingSchema,
+} from '@CeolX/shared/validators';
 
 import type { SocialLinks } from '@/components/onboarding/SocialLinksSection';
 import { useAuth } from '@/contexts/auth-context';
@@ -10,6 +15,18 @@ import { useMediaUpload } from '@/hooks/use-media-upload';
 import { pickSquarePhoto, requestPhotoLibraryPermission } from '@/utils/image-picker';
 import { trpc } from '@/utils/trpc';
 import { getTRPCErrorMessage } from '@/utils/trpc-error';
+
+type Step = 1 | 2 | 3;
+
+// Field paths driving the per-step touched-set policy. On Next-press, every
+// field for the current step is marked touched so validation errors render
+// at the right time; the same map clears only the current step's errors when
+// validation passes.
+const FIELDS_BY_STEP: Record<Step, readonly string[]> = {
+  1: ['stageName', 'contactEmail'],
+  2: ['bio'],
+  3: ['socialLinks.INSTAGRAM', 'socialLinks.FACEBOOK', 'socialLinks.TIKTOK', 'socialLinks.YOUTUBE'],
+};
 
 export function useArtistOnboarding() {
   const { user } = useAuth();
@@ -27,12 +44,94 @@ export function useArtistOnboarding() {
   const [imageError, setImageError] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [currentStep, setCurrentStep] = useState<Step>(1);
+  const [touched, setTouched] = useState<Set<string>>(new Set());
   const queryClient = useQueryClient();
 
   const { mutateAsync: createArtistProfile, isPending } = useMutation(
     trpc.onboarding.createArtistProfile.mutationOptions()
   );
   const { uploadMedia, isUploading: isImageUploading } = useMediaUpload('profile_image');
+
+  // ── Step navigation ─────────────────────────────────────────────────────
+
+  const buildStepValues = (step: Step) => {
+    if (step === 1) return { stageName, contactEmail: contactEmail || undefined };
+    if (step === 2) return { bio: bio || undefined };
+    return {
+      socialLinks: {
+        INSTAGRAM: socialLinks.INSTAGRAM || undefined,
+        FACEBOOK: socialLinks.FACEBOOK || undefined,
+        TIKTOK: socialLinks.TIKTOK || undefined,
+        YOUTUBE: socialLinks.YOUTUBE || undefined,
+      },
+    };
+  };
+
+  // Pass an explicit `currentTouched` Set when the caller has just computed a
+  // new value; React batches setState so reading `touched` after setTouched in
+  // the same handler would return the stale snapshot.
+  const validateStep = (step: Step, currentTouched: Set<string> = touched): boolean => {
+    const schema =
+      step === 1
+        ? artistOnboardingStep1Schema
+        : step === 2
+          ? artistOnboardingStep2Schema
+          : artistOnboardingStep3Schema;
+    const result = schema.safeParse(buildStepValues(step));
+
+    setErrors((prev) => {
+      const next = { ...prev };
+      for (const f of FIELDS_BY_STEP[step]) delete next[f];
+      if (!result.success) {
+        for (const issue of result.error.issues) {
+          const field = issue.path.join('.');
+          if (currentTouched.has(field)) next[field] = issue.message;
+        }
+      }
+      return next;
+    });
+
+    return result.success;
+  };
+
+  const markStepTouched = (step: Step): Set<string> => {
+    const next = new Set(touched);
+    for (const f of FIELDS_BY_STEP[step]) next.add(f);
+    setTouched(next);
+    return next;
+  };
+
+  const handleBlur = (field: string) => {
+    const next = touched.has(field) ? touched : new Set(touched).add(field);
+    if (next !== touched) setTouched(next);
+    validateStep(currentStep, next);
+  };
+
+  const goNext = async () => {
+    const newTouched = markStepTouched(currentStep);
+
+    if (currentStep === 3) {
+      if (!validateStep(3, newTouched)) return;
+      await handleSubmit();
+      return;
+    }
+
+    if (validateStep(currentStep, newTouched)) {
+      setCurrentStep((s) => (s + 1) as Step);
+    }
+  };
+
+  const goBack = () => {
+    if (currentStep === 1) return;
+    setCurrentStep((s) => (s - 1) as Step);
+  };
+
+  const goToStep = (step: Step) => {
+    if (step < currentStep) setCurrentStep(step);
+  };
+
+  // ── Existing handlers ───────────────────────────────────────────────────
 
   const handlePickImage = async () => {
     setImageError(null);
@@ -61,10 +160,6 @@ export function useArtistOnboarding() {
     setSubmitError(null);
     setErrors({});
 
-    // Upload the profile image first so we can pass the cdn url into the
-    // shared validator. We do this before parsing because the schema may
-    // require profileImageUrl — letting validation fail with "missing image"
-    // before the upload runs would block submission needlessly.
     let profileImageUrl: string | undefined;
     if (profileImageUri) {
       try {
@@ -95,6 +190,11 @@ export function useArtistOnboarding() {
         fieldErrors[issue.path.join('.')] = issue.message;
       }
       setErrors(fieldErrors);
+      // Walk the user back to the earliest step that has an unresolved error.
+      const stepWithError = ([1, 2, 3] as const).find((s) =>
+        FIELDS_BY_STEP[s].some((f) => fieldErrors[f])
+      );
+      if (stepWithError && stepWithError !== currentStep) setCurrentStep(stepWithError);
       return;
     }
 
@@ -131,5 +231,12 @@ export function useArtistOnboarding() {
     // handlers
     handlePickImage,
     handleSubmit,
+    // step navigation
+    currentStep,
+    touched,
+    goNext,
+    goBack,
+    goToStep,
+    handleBlur,
   };
 }
