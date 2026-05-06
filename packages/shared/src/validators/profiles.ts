@@ -30,26 +30,48 @@ export const venueLinksSchema = z.object({
   unknown
 >);
 
-export const createVenueOnboardingSchema = z.object({
+// Per-step schemas power the multi-step wizard UI in apps/native.
+// The merged createVenueOnboardingSchema is the server contract — its shape must stay equivalent to the prior flat schema (asserted in validators.test.ts).
+export const venueOnboardingStep1Schema = z.object({
   venueName: z.string().min(1, 'Venue name is required').max(255).trim(),
+  contactEmail: z.string().email('Invalid email address').optional(),
+});
+
+export const venueOnboardingStep2Schema = z.object({
   address: z.string().min(1, 'Venue location is required').max(255).trim(),
   bio: z.string().max(50, 'Description must be 50 characters or less').trim().optional(),
-  contactEmail: z.string().email('Invalid email address').optional(),
-  venueLinks: venueLinksSchema.optional(),
-  // profileImageUrl omitted — S3/CDN upload deferred to M10.
 });
+
+export const venueOnboardingStep3Schema = z.object({
+  venueLinks: venueLinksSchema.optional(),
+});
+
+export const createVenueOnboardingSchema = venueOnboardingStep1Schema
+  .merge(venueOnboardingStep2Schema)
+  .merge(venueOnboardingStep3Schema);
+// profileImageUrl omitted — S3/CDN upload deferred to M10.
 
 export type CreateVenueOnboardingInput = z.infer<typeof createVenueOnboardingSchema>;
 
 // ── Artist onboarding (initial profile creation — follows Figma design) ───────
 
-export const createArtistOnboardingSchema = z.object({
+export const artistOnboardingStep1Schema = z.object({
   stageName: z.string().min(1, 'Stage name is required').max(100).trim(),
-  bio: z.string().max(50, 'Bio must be 50 characters or less').trim().optional(),
   contactEmail: z.string().email('Invalid email address').optional(),
-  socialLinks: socialLinksSchema.optional(),
-  // profileImageUrl omitted — S3/CDN upload deferred to M10. Add here when upload flow is ready.
 });
+
+export const artistOnboardingStep2Schema = z.object({
+  bio: z.string().max(50, 'Bio must be 50 characters or less').trim().optional(),
+});
+
+export const artistOnboardingStep3Schema = z.object({
+  socialLinks: socialLinksSchema.optional(),
+});
+
+export const createArtistOnboardingSchema = artistOnboardingStep1Schema
+  .merge(artistOnboardingStep2Schema)
+  .merge(artistOnboardingStep3Schema);
+// profileImageUrl omitted — S3/CDN upload deferred to M10. Add here when upload flow is ready.
 
 export type CreateArtistOnboardingInput = z.infer<typeof createArtistOnboardingSchema>;
 export type SocialLinks = z.infer<typeof socialLinksSchema>;

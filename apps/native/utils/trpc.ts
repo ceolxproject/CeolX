@@ -1,5 +1,6 @@
 import { QueryClient } from '@tanstack/react-query';
 import { createTRPCClient, httpBatchLink } from '@trpc/client';
+import type { inferRouterOutputs } from '@trpc/server';
 import { createTRPCOptionsProxy } from '@trpc/tanstack-react-query';
 import { Platform } from 'react-native';
 
@@ -7,6 +8,8 @@ import type { AppRouter } from '@CeolX/api/routers/index';
 import { env } from '@CeolX/env/native';
 
 import { authClient } from '@/lib/auth-client';
+
+export type RouterOutputs = inferRouterOutputs<AppRouter>;
 
 export const queryClient = new QueryClient();
 
