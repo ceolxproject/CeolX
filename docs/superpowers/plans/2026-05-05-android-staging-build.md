@@ -357,7 +357,7 @@ No commit unless changes were needed.
 
 **Prerequisites:** Tasks 1, 2, 3 complete.
 
-- [ ] **Step 5.1: Install Vercel CLI globally**
+- [x] **Step 5.1: Install Vercel CLI globally**
 
 ```bash
 npm install -g vercel
@@ -366,7 +366,7 @@ vercel --version
 
 Expected: version printed (any 30.x+ is fine).
 
-- [ ] **Step 5.2: Login**
+- [x] **Step 5.2: Login**
 
 ```bash
 vercel login
@@ -374,7 +374,7 @@ vercel login
 
 Follow the email magic link.
 
-- [ ] **Step 5.3: Link the project**
+- [x] **Step 5.3: Link the project**
 
 ```bash
 cd apps/server
@@ -385,7 +385,7 @@ Prompts: pick scope (your team / personal account) → "Link to existing project
 
 This creates `apps/server/.vercel/project.json` (gitignored by default).
 
-- [ ] **Step 5.4: First deploy (will fail validation but provisions the project)**
+- [x] **Step 5.4: First deploy (will fail validation but provisions the project)**
 
 ```bash
 vercel --prod
