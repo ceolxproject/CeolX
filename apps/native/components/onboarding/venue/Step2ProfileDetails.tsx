@@ -40,6 +40,7 @@ export function Step2ProfileDetails({
               onChangeText={setAddress}
               onBlur={() => handleBlur('address')}
               autoCapitalize="words"
+              autoCorrect={false}
             />
             <Ionicons name="location-outline" size={20} color="#C8FF2F" />
           </View>

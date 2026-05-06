@@ -52,6 +52,7 @@ export function Step1BasicInfo({
               onChangeText={setStageName}
               onBlur={() => handleBlur('stageName')}
               autoCapitalize="words"
+              autoCorrect={false}
             />
           </View>
           {errors.stageName ? <Text className="text-xs text-error">{errors.stageName}</Text> : null}
@@ -69,6 +70,7 @@ export function Step1BasicInfo({
               onBlur={() => handleBlur('contactEmail')}
               keyboardType="email-address"
               autoCapitalize="none"
+              autoCorrect={false}
               placeholderTextColor="rgba(0,0,0,0.4)"
             />
           </View>
