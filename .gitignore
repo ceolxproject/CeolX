@@ -84,3 +84,5 @@ apps/native/android
 .worktrees/
 # M10-T1: local Mux reference code from another project (not part of CeolX)
 mux/
+.vercel
+.env*.local
