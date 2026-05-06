@@ -13,6 +13,13 @@ import {
   onboardingSchema,
   switchRoleSchema,
   createArtistOnboardingSchema,
+  createVenueOnboardingSchema,
+  artistOnboardingStep1Schema,
+  artistOnboardingStep2Schema,
+  artistOnboardingStep3Schema,
+  venueOnboardingStep1Schema,
+  venueOnboardingStep2Schema,
+  venueOnboardingStep3Schema,
 } from '../index.js';
 
 // ─── Auth validators ────────────────────────────────────────────────────────
@@ -333,6 +340,288 @@ describe('createArtistOnboardingSchema', () => {
 
   it('accepts missing socialLinks entirely (optional)', () => {
     expect(createArtistOnboardingSchema.safeParse({ stageName: 'Seán' }).success).toBe(true);
+  });
+});
+
+// ─── Onboarding step schemas (multi-step refactor 2026-05-06) ──────────────
+//
+// These per-step schemas back the wizard UI in apps/native. The merged
+// createArtist/VenueOnboardingSchema is the server contract — the equivalence
+// block at the bottom guards that the merge stays byte-equivalent to what the
+// flat schema produced before this refactor (D1.A: bio remains optional).
+
+describe('artistOnboardingStep1Schema', () => {
+  it('accepts stageName + contactEmail', () => {
+    expect(
+      artistOnboardingStep1Schema.safeParse({ stageName: 'Seán', contactEmail: 'a@b.co' }).success
+    ).toBe(true);
+  });
+
+  it('accepts stageName only (email optional)', () => {
+    expect(artistOnboardingStep1Schema.safeParse({ stageName: 'Seán' }).success).toBe(true);
+  });
+
+  it('rejects empty stageName', () => {
+    expect(artistOnboardingStep1Schema.safeParse({ stageName: '' }).success).toBe(false);
+  });
+
+  it('rejects stageName longer than 100 characters', () => {
+    expect(artistOnboardingStep1Schema.safeParse({ stageName: 'a'.repeat(101) }).success).toBe(
+      false
+    );
+  });
+
+  it('rejects malformed contactEmail', () => {
+    expect(
+      artistOnboardingStep1Schema.safeParse({ stageName: 'Seán', contactEmail: 'not-an-email' })
+        .success
+    ).toBe(false);
+  });
+});
+
+describe('artistOnboardingStep2Schema (D1.A — bio optional)', () => {
+  it('accepts bio at exactly 50 characters', () => {
+    expect(artistOnboardingStep2Schema.safeParse({ bio: 'a'.repeat(50) }).success).toBe(true);
+  });
+
+  it('accepts empty body — bio omitted', () => {
+    expect(artistOnboardingStep2Schema.safeParse({}).success).toBe(true);
+  });
+
+  it('trims surrounding whitespace from bio', () => {
+    const result = artistOnboardingStep2Schema.safeParse({ bio: '  short bio  ' });
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.bio).toBe('short bio');
+  });
+
+  it('rejects bio longer than 50 characters', () => {
+    expect(artistOnboardingStep2Schema.safeParse({ bio: 'a'.repeat(51) }).success).toBe(false);
+  });
+});
+
+describe('artistOnboardingStep3Schema', () => {
+  it('accepts missing socialLinks entirely', () => {
+    expect(artistOnboardingStep3Schema.safeParse({}).success).toBe(true);
+  });
+
+  it('accepts all four links as empty strings (clear intent)', () => {
+    expect(
+      artistOnboardingStep3Schema.safeParse({
+        socialLinks: { INSTAGRAM: '', FACEBOOK: '', TIKTOK: '', YOUTUBE: '' },
+      }).success
+    ).toBe(true);
+  });
+
+  it('accepts a single filled link', () => {
+    expect(
+      artistOnboardingStep3Schema.safeParse({
+        socialLinks: { INSTAGRAM: 'https://instagram.com/sean' },
+      }).success
+    ).toBe(true);
+  });
+
+  it('accepts all four filled links', () => {
+    expect(
+      artistOnboardingStep3Schema.safeParse({
+        socialLinks: {
+          INSTAGRAM: 'https://instagram.com/x',
+          FACEBOOK: 'https://facebook.com/x',
+          TIKTOK: 'https://tiktok.com/@x',
+          YOUTUBE: 'https://youtube.com/@x',
+        },
+      }).success
+    ).toBe(true);
+  });
+
+  it('rejects malformed URL in any link', () => {
+    expect(
+      artistOnboardingStep3Schema.safeParse({ socialLinks: { INSTAGRAM: 'not-a-url' } }).success
+    ).toBe(false);
+  });
+});
+
+describe('venueOnboardingStep1Schema', () => {
+  it('accepts venueName + contactEmail', () => {
+    expect(
+      venueOnboardingStep1Schema.safeParse({ venueName: 'The Cobblestone', contactEmail: 'a@b.co' })
+        .success
+    ).toBe(true);
+  });
+
+  it('accepts venueName only (email optional)', () => {
+    expect(venueOnboardingStep1Schema.safeParse({ venueName: 'The Cobblestone' }).success).toBe(
+      true
+    );
+  });
+
+  it('rejects empty venueName', () => {
+    expect(venueOnboardingStep1Schema.safeParse({ venueName: '' }).success).toBe(false);
+  });
+
+  it('rejects venueName longer than 255 characters', () => {
+    expect(venueOnboardingStep1Schema.safeParse({ venueName: 'a'.repeat(256) }).success).toBe(
+      false
+    );
+  });
+
+  it('rejects malformed contactEmail', () => {
+    expect(
+      venueOnboardingStep1Schema.safeParse({ venueName: 'The Cobblestone', contactEmail: 'bad' })
+        .success
+    ).toBe(false);
+  });
+});
+
+describe('venueOnboardingStep2Schema', () => {
+  it('accepts address + bio', () => {
+    expect(
+      venueOnboardingStep2Schema.safeParse({ address: 'Galway', bio: 'Trad sessions nightly' })
+        .success
+    ).toBe(true);
+  });
+
+  it('accepts address only (bio optional)', () => {
+    expect(venueOnboardingStep2Schema.safeParse({ address: 'Galway' }).success).toBe(true);
+  });
+
+  it('rejects empty address', () => {
+    expect(venueOnboardingStep2Schema.safeParse({ address: '' }).success).toBe(false);
+  });
+
+  it('rejects missing address entirely', () => {
+    expect(venueOnboardingStep2Schema.safeParse({}).success).toBe(false);
+  });
+
+  it('rejects bio longer than 50 characters', () => {
+    expect(
+      venueOnboardingStep2Schema.safeParse({ address: 'Galway', bio: 'a'.repeat(51) }).success
+    ).toBe(false);
+  });
+});
+
+describe('venueOnboardingStep3Schema', () => {
+  it('accepts missing venueLinks entirely', () => {
+    expect(venueOnboardingStep3Schema.safeParse({}).success).toBe(true);
+  });
+
+  it('accepts a mix of filled and empty links', () => {
+    expect(
+      venueOnboardingStep3Schema.safeParse({
+        venueLinks: {
+          WEBSITE: 'https://thecobblestone.ie',
+          INSTAGRAM: '',
+          FACEBOOK: '',
+          TWITTER: '',
+        },
+      }).success
+    ).toBe(true);
+  });
+
+  it('rejects malformed URL in any link', () => {
+    expect(
+      venueOnboardingStep3Schema.safeParse({ venueLinks: { WEBSITE: 'not-a-url' } }).success
+    ).toBe(false);
+  });
+});
+
+describe('Onboarding schema equivalence (server contract)', () => {
+  // Pinned regression tests: a payload + its expected parsed output. If the
+  // per-step schemas drift from the prior flat shape, these break.
+
+  it('artist — full payload parses to expected shape', () => {
+    const result = createArtistOnboardingSchema.safeParse({
+      stageName: '  Seán Ó Murchú  ',
+      bio: '  Trad fiddle.  ',
+      contactEmail: 'sean@music.ie',
+      socialLinks: {
+        INSTAGRAM: 'https://instagram.com/sean',
+        FACEBOOK: '',
+        TIKTOK: '',
+        YOUTUBE: '',
+      },
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data).toEqual({
+        stageName: 'Seán Ó Murchú',
+        bio: 'Trad fiddle.',
+        contactEmail: 'sean@music.ie',
+        socialLinks: {
+          INSTAGRAM: 'https://instagram.com/sean',
+          FACEBOOK: '',
+          TIKTOK: '',
+          YOUTUBE: '',
+        },
+      });
+    }
+  });
+
+  it('artist — minimal payload parses to {stageName} only', () => {
+    const result = createArtistOnboardingSchema.safeParse({ stageName: 'Seán' });
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data).toEqual({ stageName: 'Seán' });
+  });
+
+  it('artist — profileImageUrl is silently stripped (M10 deferral preserved)', () => {
+    const result = createArtistOnboardingSchema.safeParse({
+      stageName: 'Seán',
+      profileImageUrl: 'https://cdn.ceolx.ie/x.jpg',
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data).toEqual({ stageName: 'Seán' });
+      expect('profileImageUrl' in result.data).toBe(false);
+    }
+  });
+
+  it('venue — full payload parses to expected shape', () => {
+    const result = createVenueOnboardingSchema.safeParse({
+      venueName: '  The Cobblestone  ',
+      address: '  77 King St N, Smithfield, Dublin  ',
+      bio: '  Trad sessions nightly  ',
+      contactEmail: 'hello@cobblestone.ie',
+      venueLinks: {
+        WEBSITE: 'https://thecobblestone.ie',
+        INSTAGRAM: '',
+        FACEBOOK: '',
+        TWITTER: '',
+      },
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data).toEqual({
+        venueName: 'The Cobblestone',
+        address: '77 King St N, Smithfield, Dublin',
+        bio: 'Trad sessions nightly',
+        contactEmail: 'hello@cobblestone.ie',
+        venueLinks: {
+          WEBSITE: 'https://thecobblestone.ie',
+          INSTAGRAM: '',
+          FACEBOOK: '',
+          TWITTER: '',
+        },
+      });
+    }
+  });
+
+  it('venue — minimal payload parses to {venueName, address}', () => {
+    const result = createVenueOnboardingSchema.safeParse({
+      venueName: 'The Cobblestone',
+      address: 'Dublin',
+    });
+    expect(result.success).toBe(true);
+    if (result.success)
+      expect(result.data).toEqual({ venueName: 'The Cobblestone', address: 'Dublin' });
+  });
+
+  it('venue — profileImageUrl is silently stripped (M10 deferral preserved)', () => {
+    const result = createVenueOnboardingSchema.safeParse({
+      venueName: 'The Cobblestone',
+      address: 'Dublin',
+      profileImageUrl: 'https://cdn.ceolx.ie/x.jpg',
+    });
+    expect(result.success).toBe(true);
+    if (result.success) expect('profileImageUrl' in result.data).toBe(false);
   });
 });
 
