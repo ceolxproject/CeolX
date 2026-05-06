@@ -6,6 +6,13 @@ const SHARED_MESSAGES: Partial<Record<string, string>> = {
   TOO_MANY_REQUESTS: 'Too many attempts. Please try again later.',
 };
 
+/** Extract the tRPC error code (e.g. 'CONFLICT', 'FORBIDDEN') from an unknown caught value. */
+export function getTRPCErrorCode(err: unknown): string | undefined {
+  if (!(err instanceof TRPCClientError)) return undefined;
+  const data = err.data as Record<string, unknown> | undefined;
+  return typeof data?.code === 'string' ? data.code : undefined;
+}
+
 /**
  * Maps a tRPC error to a user-facing message.
  *
@@ -23,12 +30,7 @@ export function getTRPCErrorMessage(
   overrides?: Partial<Record<string, string>>,
   fallback = 'Something went wrong. Please try again.'
 ): string {
-  if (!(err instanceof TRPCClientError)) return fallback;
-
-  // err.data is typed `any` by tRPC internals — narrow safely before accessing .code
-  const data = err.data as Record<string, unknown> | undefined;
-  const code = typeof data?.code === 'string' ? data.code : undefined;
-
+  const code = getTRPCErrorCode(err);
   const messages = { ...SHARED_MESSAGES, ...overrides };
   return (code !== undefined ? messages[code] : undefined) ?? fallback;
 }
