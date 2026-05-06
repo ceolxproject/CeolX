@@ -14,7 +14,7 @@ import { useAuth } from '@/contexts/auth-context';
 import { useMediaUpload } from '@/hooks/use-media-upload';
 import { pickSquarePhoto, requestPhotoLibraryPermission } from '@/utils/image-picker';
 import { trpc } from '@/utils/trpc';
-import { getTRPCErrorMessage } from '@/utils/trpc-error';
+import { getTRPCErrorCode, getTRPCErrorMessage } from '@/utils/trpc-error';
 
 const BIO_MAX = 50;
 
@@ -230,9 +230,16 @@ export function useVenueOnboarding(): UseVenueOnboardingReturn {
       await queryClient.invalidateQueries({ queryKey: trpc.users.me.queryKey() });
       router.replace('/(app)/(tabs)/map');
     } catch (err: unknown) {
+      // If the server says the profile already exists, the user has finished
+      // onboarding (possibly from a half-failed prior submit). Route them
+      // forward instead of dead-ending on the form.
+      if (getTRPCErrorCode(err) === 'CONFLICT') {
+        await queryClient.invalidateQueries({ queryKey: trpc.users.me.queryKey() });
+        router.replace('/(app)/(tabs)/map');
+        return;
+      }
       setSubmitError(
         getTRPCErrorMessage(err, {
-          CONFLICT: 'A venue profile already exists for this account. Please sign in.',
           FORBIDDEN: "Your account isn't set up as a venue. Please contact support.",
         })
       );

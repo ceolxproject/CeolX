@@ -14,7 +14,7 @@ import { useAuth } from '@/contexts/auth-context';
 import { useMediaUpload } from '@/hooks/use-media-upload';
 import { pickSquarePhoto, requestPhotoLibraryPermission } from '@/utils/image-picker';
 import { trpc } from '@/utils/trpc';
-import { getTRPCErrorMessage } from '@/utils/trpc-error';
+import { getTRPCErrorCode, getTRPCErrorMessage } from '@/utils/trpc-error';
 
 type Step = 1 | 2 | 3;
 
@@ -207,9 +207,16 @@ export function useArtistOnboarding() {
       await queryClient.invalidateQueries({ queryKey: trpc.users.me.queryKey() });
       router.replace('/(app)/(tabs)/map');
     } catch (err: unknown) {
+      // If the server says the profile already exists, the user has finished
+      // onboarding (possibly from a half-failed prior submit). Route them
+      // forward instead of dead-ending on the form.
+      if (getTRPCErrorCode(err) === 'CONFLICT') {
+        await queryClient.invalidateQueries({ queryKey: trpc.users.me.queryKey() });
+        router.replace('/(app)/(tabs)/map');
+        return;
+      }
       setSubmitError(
         getTRPCErrorMessage(err, {
-          CONFLICT: 'An artist profile already exists for this account. Please sign in.',
           FORBIDDEN: "Your account isn't set up as an artist. Please contact support.",
         })
       );
