@@ -13,7 +13,7 @@ import type { VenueLinks } from '@/components/onboarding/VenueLinksSection';
 import { useAuth } from '@/contexts/auth-context';
 import { useMediaUpload } from '@/hooks/use-media-upload';
 import { pickSquarePhoto, requestPhotoLibraryPermission } from '@/utils/image-picker';
-import { trpc } from '@/utils/trpc';
+import { trpc, type RouterOutputs } from '@/utils/trpc';
 import { getTRPCErrorCode, getTRPCErrorMessage } from '@/utils/trpc-error';
 
 const BIO_MAX = 50;
@@ -227,14 +227,23 @@ export function useVenueOnboarding(): UseVenueOnboardingReturn {
 
     try {
       await createVenueProfile(parsed.data);
-      await queryClient.invalidateQueries({ queryKey: trpc.users.me.queryKey() });
+      // Optimistically flip onboardingComplete so (app)/_layout's redirect
+      // guard doesn't bounce us back on the next mount. invalidate runs in
+      // the background to reconcile the rest of the me payload.
+      queryClient.setQueryData<RouterOutputs['users']['me']>(trpc.users.me.queryKey(), (old) =>
+        old ? { ...old, onboardingComplete: true } : old
+      );
+      void queryClient.invalidateQueries({ queryKey: trpc.users.me.queryKey() });
       router.replace('/(app)/(tabs)/map');
     } catch (err: unknown) {
       // If the server says the profile already exists, the user has finished
       // onboarding (possibly from a half-failed prior submit). Route them
       // forward instead of dead-ending on the form.
       if (getTRPCErrorCode(err) === 'CONFLICT') {
-        await queryClient.invalidateQueries({ queryKey: trpc.users.me.queryKey() });
+        queryClient.setQueryData<RouterOutputs['users']['me']>(trpc.users.me.queryKey(), (old) =>
+          old ? { ...old, onboardingComplete: true } : old
+        );
+        void queryClient.invalidateQueries({ queryKey: trpc.users.me.queryKey() });
         router.replace('/(app)/(tabs)/map');
         return;
       }

@@ -42,6 +42,10 @@ export default function ArtistOnboardingScreen() {
       return true;
     });
     const navUnsub = navigation.addListener('beforeRemove', (e) => {
+      const actionType = e.data.action.type;
+      const isBackNavigation =
+        actionType === 'GO_BACK' || actionType === 'POP' || actionType === 'POP_TO_TOP';
+      if (!isBackNavigation) return;
       e.preventDefault();
       goBack();
     });
