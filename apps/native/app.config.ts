@@ -1,5 +1,13 @@
-const config = {
-  name: 'CeolX',
+import type { ConfigContext, ExpoConfig } from 'expo/config';
+
+const VARIANT = (process.env.APP_VARIANT ?? 'production') as 'staging' | 'production';
+const IS_STAGING = VARIANT === 'staging';
+
+const PROD_BUNDLE_ID = 'ie.ceolx.app';
+const STAGING_BUNDLE_ID = 'ie.ceolx.app.staging';
+
+export default (_: ConfigContext): ExpoConfig => ({
+  name: IS_STAGING ? 'CeolX (Staging)' : 'CeolX',
   slug: 'ceolx',
   owner: 'ceolxprojects-organization',
   version: '1.0.0',
@@ -15,7 +23,7 @@ const config = {
   assetBundlePatterns: ['**/*'],
   ios: {
     supportsTablet: false,
-    bundleIdentifier: 'ie.ceolx.app',
+    bundleIdentifier: IS_STAGING ? STAGING_BUNDLE_ID : PROD_BUNDLE_ID,
     usesAppleSignIn: true,
     // Firebase iOS SDK (loaded by @react-native-firebase/app) is what makes
     // expo-notifications.getDevicePushTokenAsync() return an FCM token instead
@@ -44,8 +52,10 @@ const config = {
       backgroundImage: './assets/images/android-icon-background.png',
       monochromeImage: './assets/images/android-icon-monochrome.png',
     },
-    package: 'ie.ceolx.app',
-    googleServicesFile: process.env.GOOGLE_SERVICES_JSON ?? './google-services.json',
+    package: IS_STAGING ? STAGING_BUNDLE_ID : PROD_BUNDLE_ID,
+    googleServicesFile:
+      process.env.GOOGLE_SERVICES_JSON ??
+      (IS_STAGING ? './google-services.staging.json' : './google-services.json'),
     config: {
       googleMaps: {
         apiKey: process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY ?? '',
@@ -110,7 +120,6 @@ const config = {
     eas: {
       projectId: '91f9219e-c91c-47f2-b55a-5ee1db979b66',
     },
+    appVariant: VARIANT,
   },
-};
-
-export default config;
+});
