@@ -47,16 +47,13 @@ Refactor the existing single-screen Artist and Venue onboarding flows into 3-ste
 | 6   | Image upload still happens at final submit (Step 3), not on pick               | Avoids orphan S3 uploads if the user abandons mid-flow. Keeps existing `useMediaUpload` integration intact.                                                                                            |
 | 7   | Step components live under `apps/native/components/onboarding/{artist,venue}/` | Component reuse not anticipated, but the colocation under `components/onboarding/` matches the pattern already established by `ProfilePicture.tsx`, `SocialLinksSection.tsx`, `VenueLinksSection.tsx`. |
 
-### Pending Decision (must resolve before implementation)
+### Resolved Decision
 
-**D1. Should bio be required to advance from Step 2?**
+**D1 — Bio remains optional in Step 2 (D1.A locked, 2026-05-06).**
 
-The current `createArtistOnboardingSchema` and `createVenueOnboardingSchema` (in `packages/shared/src/validators/profiles.ts:36,48`) both have `bio` as **optional** (`z.string().max(50).trim().optional()`). If we keep bio optional, Artist Step 2 becomes a no-op for users who don't want to write one — they can press Next on empty input and the step feels pointless.
+Both `createArtistOnboardingSchema` and `createVenueOnboardingSchema` (`packages/shared/src/validators/profiles.ts:36,48`) keep `bio` as `z.string().max(50).trim().optional()`. Artist Step 2 advances even on empty bio; Venue Step 2 still requires `address`. The server contract is unchanged.
 
-- **Option D1.A — Keep bio optional.** Step 2 is "fast-skip" friendly. Per-step schema for Step 2 (Artist) accepts empty input. Step 2 (Venue) still has `address` as required, so it's not pass-through there.
-- **Option D1.B — Tighten bio to required (≥1 char) as part of this PR.** Step 2 has meaning for both personas. Schema change: `bio: z.string().min(1).max(50).trim()`. Server contract gets stricter — but only forward, since this is an input validator and existing rows are unaffected.
-
-This is a UX/product call, not a technical one. **Default if unresolved**: D1.A (keep optional, don't change server contract in a UX-refactor PR). The per-step schemas in §6 below currently reflect D1.A.
+If a future PR wants to tighten bio to required, it's a one-line schema change plus a corresponding test update.
 
 ---
 
@@ -104,7 +101,7 @@ packages/shared/src/validators/__tests__/validators.test.ts  -- step + equivalen
 
 ## 4. Step Contents
 
-> Required-to-advance reflects **Decision D1.A** (default: keep bio optional). If D1.B is chosen during user spec review, update Bio rows in both tables to "(≥1 char, ≤50, required)".
+> Required-to-advance reflects **Decision D1.A** (resolved): bio is optional in Step 2.
 
 ### Artist onboarding
 
@@ -210,7 +207,7 @@ export const createVenueOnboardingSchema = venueOnboardingStep1Schema
   .merge(venueOnboardingStep3Schema);
 ```
 
-If Decision **D1.B** is chosen (bio required), update the Step 2 schemas to `bio: z.string().min(1).max(50).trim()` for both personas — and update the equivalence tests in §10 to assert the new contract.
+(If a future PR tightens bio to required, the change is `bio: z.string().min(1).max(50).trim()` in both Step 2 schemas and corresponding test updates in §10.)
 
 ### Equivalence guarantee
 
@@ -412,15 +409,14 @@ Step 2/3 hardware back is handled by the screen-level `useEffect` (see §8) — 
 - `artistOnboardingStep1Schema`:
   - Pass: valid stage name + email; valid stage name only (email omitted).
   - Fail: empty stage name; malformed email; stage name >100 chars (note: existing schema is `.max(100)`, not 50).
-- `artistOnboardingStep2Schema` (assuming Decision **D1.A**):
+- `artistOnboardingStep2Schema` (D1.A — bio optional):
   - Pass: bio at exactly 50 chars; bio omitted entirely; bio with surrounding whitespace (trimmed).
   - Fail: bio at 51 chars.
-  - (If **D1.B**: also Fail on empty/omitted bio.)
 - `artistOnboardingStep3Schema`:
   - Pass: socials omitted; all four empty strings (the existing `socialUrl` accepts `''`); one filled; all four filled.
   - Fail: malformed URL in any non-empty field.
 - `venueOnboardingStep1Schema`: parallel to artist Step 1 with `venueName.max(255)`.
-- `venueOnboardingStep2Schema`: address required (≥1, ≤255, trim); bio optional ≤50 (or required if D1.B).
+- `venueOnboardingStep2Schema`: address required (≥1, ≤255, trim); bio optional ≤50.
 - `venueOnboardingStep3Schema`: parallel to artist Step 3.
 - **Equivalence**: `Step1.merge(Step2).merge(Step3).safeParse(payload)` produces the same `success` and `data` as `createArtistOnboardingSchema.safeParse(payload)` for at least 3 payloads (full, minimal, with-image-key-that-gets-stripped). Same three for Venue.
 
