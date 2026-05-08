@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1057693721951",
+    "project_id": "ceolx-staging",
+    "storage_bucket": "ceolx-staging.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1057693721951:android:f77979655f9c691f4a02ea",
+        "android_client_info": {
+          "package_name": "ie.ceolx.app.staging"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDmDs6U8OzQ1crMuITwethdH2cBhuYvw9s"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
