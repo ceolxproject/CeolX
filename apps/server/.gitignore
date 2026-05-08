@@ -2,6 +2,9 @@
 dist/
 /build
 /out/
+# generated Vercel function entry (built from src/vercel-entry.ts by tsdown)
+api/index.js
+api/_chunks/
 
 # dev
 .yarn/
