@@ -1,15 +1,17 @@
-import type { ConfigContext, ExpoConfig } from 'expo/config';
-
-const VARIANT = (process.env.APP_VARIANT ?? 'production') as 'staging' | 'production';
+const VARIANT = process.env.APP_VARIANT ?? 'production';
 const IS_STAGING = VARIANT === 'staging';
 
 const PROD_BUNDLE_ID = 'ie.ceolx.app';
 const STAGING_BUNDLE_ID = 'ie.ceolx.app.staging';
 
-export default (_: ConfigContext): ExpoConfig => ({
+/**
+ * @param {import('expo/config').ConfigContext} _ctx
+ * @returns {import('expo/config').ExpoConfig}
+ */
+export default (_) => ({
   name: IS_STAGING ? 'CeolX (Staging)' : 'CeolX',
   slug: 'ceolx',
-  owner: 'ceolxprojects-organization',
+  owner: 'raftlabs_expo',
   version: '1.0.0',
   orientation: 'portrait',
   icon: './assets/images/icon.png',
@@ -21,6 +23,11 @@ export default (_: ConfigContext): ExpoConfig => ({
     backgroundColor: '#ffffff',
   },
   assetBundlePatterns: ['**/*'],
+  runtimeVersion: { policy: 'fingerprint' },
+  updates: {
+    url: 'https://u.expo.dev/222e34aa-8637-46cc-8cc1-666ccec22b71',
+    enabled: true,
+  },
   ios: {
     supportsTablet: false,
     bundleIdentifier: IS_STAGING ? STAGING_BUNDLE_ID : PROD_BUNDLE_ID,
@@ -118,7 +125,7 @@ export default (_: ConfigContext): ExpoConfig => ({
   },
   extra: {
     eas: {
-      projectId: '91f9219e-c91c-47f2-b55a-5ee1db979b66',
+      projectId: '222e34aa-8637-46cc-8cc1-666ccec22b71',
     },
     appVariant: VARIANT,
   },

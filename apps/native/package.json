@@ -11,8 +11,8 @@
     "ios": "expo run:ios",
     "web": "expo start --web",
     "prebuild": "expo prebuild",
-    "build:dev:ios": "eas build --platform ios --profile development",
-    "build:dev:android": "eas build --platform android --profile development",
+    "build:dev:ios": "eas build --platform ios --profile staging",
+    "build:dev:android": "eas build --platform android --profile staging",
     "build:preview": "eas build --platform all --profile preview",
     "build:prod": "eas build --platform all --profile production",
     "submit": "eas submit --platform all",
@@ -21,10 +21,10 @@
     "lint:fix": "eslint . --fix"
   },
   "dependencies": {
+    "@better-auth/expo": "catalog:",
     "@CeolX/api": "workspace:*",
     "@CeolX/env": "workspace:*",
     "@CeolX/shared": "workspace:*",
-    "@better-auth/expo": "catalog:",
     "@expo-google-fonts/inter": "^0.4.2",
     "@expo-google-fonts/urbanist": "^0.4.2",
     "@expo/metro-runtime": "~55.0.6",
@@ -58,6 +58,7 @@
     "expo-router": "~55.0.2",
     "expo-secure-store": "~55.0.8",
     "expo-status-bar": "~55.0.4",
+    "expo-updates": "~55.0.21",
     "expo-web-browser": "~55.0.9",
     "heroui-native": "^1.0.0",
     "react": "19.2.0",
@@ -83,6 +84,7 @@
   },
   "devDependencies": {
     "@CeolX/config": "workspace:*",
+    "@expo/config-plugins": "~55.0.7",
     "@types/node": "^24.10.0",
     "@types/react": "~19.2.10",
     "@types/react-native": "^0.73.0",
