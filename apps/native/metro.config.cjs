@@ -3,9 +3,25 @@ const { getDefaultConfig } = require('expo/metro-config');
 const { withSentryConfig } = require('@sentry/react-native/metro');
 const { withUniwindConfig } = require('uniwind/metro');
 const { wrapWithReanimatedMetroConfig } = require('react-native-reanimated/metro-config');
+const path = require('node:path');
+
+const projectRoot = __dirname;
+const workspaceRoot = path.resolve(projectRoot, '../..');
 
 /** @type {import('expo/metro-config').MetroConfig} */
-const config = getDefaultConfig(__dirname);
+const config = getDefaultConfig(projectRoot);
+
+// pnpm monorepo: extend the watched filesystem to the workspace root so
+// symlinked workspace packages (apps/native/node_modules/@CeolX/* point at
+// ../../packages/*) resolve cleanly. Without this, `expo export:embed --eager`
+// crashes with TreeFS "Unexpectedly escaped traversal" when metro walks up
+// from a workspace file to find its package.json.
+config.watchFolders = [workspaceRoot];
+config.resolver.nodeModulesPaths = [
+  path.resolve(projectRoot, 'node_modules'),
+  path.resolve(workspaceRoot, 'node_modules'),
+];
+config.resolver.disableHierarchicalLookup = true;
 
 // TypeScript ESM packages (e.g. packages/shared) use `.js` extensions in their
 // import paths as required by the TS compiler. Metro resolves imports literally
