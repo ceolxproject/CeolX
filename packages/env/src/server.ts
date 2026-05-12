@@ -8,7 +8,7 @@ export const env = createEnv({
     BETTER_AUTH_SECRET: z.string().min(32),
     BETTER_AUTH_URL: z.url(),
     CORS_ALLOWED_ORIGINS: z.string().min(1),
-    NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
+    NODE_ENV: z.enum(['development', 'production', 'staging']).catch('development'),
     POSTMARK_API_TOKEN: z.string().optional(),
     POSTMARK_FROM_ADDRESS: z.string().default('noreply@ceolx.ie'),
     SMTP_HOST: z.string().default('localhost'),
