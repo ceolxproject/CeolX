@@ -19,7 +19,7 @@
       "channel": "staging",
       "env": {
         "APP_VARIANT": "staging",
-        "EXPO_PUBLIC_SERVER_URL": "https://ceol-x-server-git-main-ceolxproject-6613s-projects.vercel.app",
+        "EXPO_PUBLIC_SERVER_URL": "https://ceol-x-server-git-staging-ceolxproject-6613s-projects.vercel.app",
         "EXPO_PUBLIC_SENTRY_DSN": "https://9e5bd61ee5ce285201b7f8d571e27b83@o4511115981750272.ingest.de.sentry.io/4511116008620112"
       },
       "android": {
