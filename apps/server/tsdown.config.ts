@@ -13,17 +13,20 @@ export default defineConfig([
     external: sharedExternals,
   },
   {
-    entry: { index: './src/vercel-entry.ts' },
+    // Written to dist/vercel-bundle.mjs (not api/index.js) for two reasons:
+    // 1. apps/server/api/index.ts is committed so Vercel autodetects the
+    //    serverless function — it re-exports from this .mjs bundle.
+    // 2. The explicit .mjs extension lets @vercel/node's esbuild resolve the
+    //    import without falling foul of Node ESM's "explicit extension required"
+    //    rule that breaks plain `import '../src/app'` in transpile-only output.
+    entry: { 'vercel-bundle': './src/vercel-entry.ts' },
     format: 'esm',
-    outDir: './api',
-    outExtensions: () => ({ js: '.js' }),
+    outDir: './dist',
+    outExtensions: () => ({ js: '.mjs' }),
     noExternal: sharedNoExternal,
     external: sharedExternals,
-    // CJS interop wrappers must be split into chunks; route them into a
-    // _chunks/ subdirectory so Vercel's serverless-function discovery
-    // (which only scans top-level api/*.js) ignores them.
     outputOptions: {
-      chunkFileNames: '_chunks/[name].js',
+      chunkFileNames: '_chunks/vercel-[name].mjs',
     },
   },
 ]);
