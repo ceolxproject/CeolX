@@ -422,18 +422,16 @@ describe('posts.feed', () => {
     });
   });
 
-  it('returns own + followed posts', async () => {
-    // 1st select: follows -> list of followees
-    // 2nd: posts page
-    // 3rd: count
+  it('returns all non-deleted posts globally', async () => {
+    // 1st select: posts page
+    // 2nd: count
     // Then hydration queries (user, artist, venue)
     mockSelectChain
-      .mockResolvedValueOnce([{ followeeId: 'user-2' }]) // follows
       .mockResolvedValueOnce([
         {
           id: 'post-1',
-          createdBy: 'user-1',
-          caption: 'own post',
+          createdBy: 'user-2',
+          caption: 'a post from someone not followed',
           mediaType: 'text',
           mediaUrl: null,
           likeCount: 0,
@@ -443,7 +441,7 @@ describe('posts.feed', () => {
         },
       ]) // paginated posts
       .mockResolvedValueOnce([{ count: 1 }]) // count
-      .mockResolvedValueOnce([{ id: 'user-1', name: 'Me', image: null }]) // users hydration
+      .mockResolvedValueOnce([{ id: 'user-2', name: 'Stranger', image: null }]) // users hydration
       .mockResolvedValueOnce([]) // artists
       .mockResolvedValueOnce([]) // venues
       .mockResolvedValueOnce([]); // likedRows
@@ -451,6 +449,7 @@ describe('posts.feed', () => {
     const caller = authedCaller('user-1', 'artist' as UserRole);
     const result = await caller.feed({ limit: 20, offset: 0 });
     expect(result.posts).toHaveLength(1);
+    expect(result.posts[0]?.createdBy).toBe('user-2');
     expect(result.totalCount).toBe(1);
   });
 });

@@ -24,7 +24,7 @@ type HydratedPost = {
 
 type Opts = { enabled?: boolean };
 
-/** Personalised feed — own + followed creators' posts, chronological. */
+/** Discover feed — all non-deleted posts, newest first. */
 export function useFeedPosts({ enabled = true }: Opts = {}) {
   const queryClient = useQueryClient();
   const [offset, setOffset] = useState(0);
