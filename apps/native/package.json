@@ -27,6 +27,7 @@
     "@better-auth/expo": "catalog:",
     "@expo-google-fonts/inter": "^0.4.2",
     "@expo-google-fonts/urbanist": "^0.4.2",
+    "@expo/dom-webview": "55.0.6",
     "@expo/metro-runtime": "~55.0.11",
     "@expo/vector-icons": "^15.0.3",
     "@gorhom/bottom-sheet": "^5",
