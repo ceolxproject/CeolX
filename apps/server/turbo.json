@@ -7,6 +7,7 @@
       "env": [
         "ENABLE_EXPERIMENTAL_COREPACK",
         "NODE_ENV",
+        "APP_ENV",
         "ADMIN_EMAIL",
         "ADMIN_PASSWORD",
         "DATABASE_URL",
