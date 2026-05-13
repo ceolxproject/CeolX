@@ -1,5 +1,3 @@
-import { TRPCError } from '@trpc/server';
-
 import { publicProcedure } from '../../index';
 import { typesenseClient } from '../../lib/typesense';
 
@@ -57,10 +55,7 @@ export const getMap = publicProcedure.input(MapQueryInput).query(async ({ input 
 
     return { events, totalCount: result.found ?? 0 };
   } catch (err) {
-    throw new TRPCError({
-      code: 'INTERNAL_SERVER_ERROR',
-      message: 'Failed to search events',
-      cause: err,
-    });
+    console.error('[events.getMap] Typesense search failed:', err);
+    return { events: [], totalCount: 0 };
   }
 });
