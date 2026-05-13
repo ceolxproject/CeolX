@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import type { Tabs } from 'expo-router';
+import { type Tabs, usePathname } from 'expo-router';
 import { cn } from 'heroui-native';
 import type { ComponentProps } from 'react';
 import { Pressable, Text, View } from 'react-native';
@@ -8,6 +8,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { UserRole } from '@CeolX/shared/enums';
 
 import { useMe } from '@/hooks/use-me';
+
+// Nested stack routes inside (tabs) that render full-screen and must hide the tab bar.
+const HIDDEN_TAB_BAR_PATHS = new Set(['/profile/followers', '/profile/following']);
 
 type IoniconsName = ComponentProps<typeof Ionicons>['name'];
 
@@ -34,8 +37,11 @@ export type AppTabBarProps = TabBarCallbackProps & {
 
 export function AppTabBar({ state, navigation, onFabPress }: AppTabBarProps) {
   const insets = useSafeAreaInsets();
+  const pathname = usePathname();
   const { data: me } = useMe();
   const currentRole = me?.currentRole ?? 'spectator';
+
+  if (HIDDEN_TAB_BAR_PATHS.has(pathname)) return null;
 
   const getTabLabel = (tab: TabConfig) => {
     if (tab.name === 'bookings') {

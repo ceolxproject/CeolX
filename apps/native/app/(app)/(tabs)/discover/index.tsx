@@ -270,7 +270,7 @@ export default function DiscoverScreen() {
             hasNextPage={feedPosts.hasNextPage}
             currentUserId={me?.id ?? null}
             onLoadMore={feedPosts.loadMore}
-            emptyMessage="No posts yet. Follow artists and venues to see their updates here."
+            emptyMessage="No posts yet. Check back soon for updates from artists and venues."
           />
         </ScrollView>
       )}

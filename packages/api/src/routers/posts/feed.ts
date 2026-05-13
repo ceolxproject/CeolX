@@ -1,7 +1,7 @@
-import { and, desc, eq, inArray, isNull, or, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
 
 import { db } from '@CeolX/db';
-import { follows, postLikes, posts } from '@CeolX/db/schema/social';
+import { postLikes, posts } from '@CeolX/db/schema/social';
 import { postFeedQuerySchema } from '@CeolX/shared/validators';
 
 import { protectedProcedure } from '../../index';
@@ -12,33 +12,18 @@ export const feed = protectedProcedure.input(postFeedQuerySchema).query(async ({
   const { limit, offset } = input;
   const viewerId = ctx.userId;
 
-  // Who does the viewer follow?
-  const followed = await db
-    .select({ followeeId: follows.followeeId })
-    .from(follows)
-    .where(eq(follows.followerId, viewerId));
-
-  const includedUserIds = [viewerId, ...followed.map((f) => f.followeeId)];
-
-  // Page query + count in parallel. We include viewer's own posts even if
-  // they don't follow themselves.
   const [rows, countRow] = await Promise.all([
     db
       .select()
       .from(posts)
-      .where(
-        and(
-          isNull(posts.deletedAt),
-          or(eq(posts.createdBy, viewerId), inArray(posts.createdBy, includedUserIds))
-        )
-      )
+      .where(isNull(posts.deletedAt))
       .orderBy(desc(posts.createdAt))
       .limit(limit + 1)
       .offset(offset),
     db
       .select({ count: sql<number>`count(*)::int` })
       .from(posts)
-      .where(and(isNull(posts.deletedAt), inArray(posts.createdBy, includedUserIds))),
+      .where(isNull(posts.deletedAt)),
   ]);
 
   const totalCount = countRow[0]?.count ?? 0;
