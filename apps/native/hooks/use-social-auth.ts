@@ -40,6 +40,7 @@ export function useSocialAuth() {
 
       router.replace(POST_AUTH_ROUTE);
     } catch (error) {
+      console.error('[google-signin]', error);
       const msg = toUserMessage(error);
       if (!msg.includes('cancelled')) {
         Alert.alert('Google Sign-In', msg);

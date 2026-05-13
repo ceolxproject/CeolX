@@ -18,7 +18,7 @@ export const auth = betterAuth({
   }),
   trustedOrigins: [
     ...env.CORS_ALLOWED_ORIGINS.split('|'),
-    'CeolX://',
+    'ceolx://',
     'https://appleid.apple.com',
     ...(env.NODE_ENV === 'development' ? ['exp://', 'exp://**', 'exp://192.168.*.*:*/**'] : []),
   ],
