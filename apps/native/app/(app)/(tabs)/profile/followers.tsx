@@ -75,7 +75,7 @@ function FollowerRow({
             {isPending ? (
               <ActivityIndicator size="small" color="#fff" />
             ) : (
-              <Text className="text-[12px] font-bold text-white uppercase tracking-wider font-urbanist">
+              <Text className="text-[12px] font-bold text-white uppercase tracking-[0.24px] font-urbanist">
                 Following
               </Text>
             )}
@@ -89,7 +89,7 @@ function FollowerRow({
             {isPending ? (
               <ActivityIndicator size="small" color="#fff" />
             ) : (
-              <Text className="text-[12px] font-bold text-white uppercase tracking-wider font-urbanist">
+              <Text className="text-[12px] font-bold text-white uppercase tracking-[0.24px] font-urbanist">
                 Follow
               </Text>
             )}
@@ -100,7 +100,7 @@ function FollowerRow({
 }
 
 function ItemDivider() {
-  return <View className="h-px bg-gray-10/50 mx-4" />;
+  return <View className="h-px bg-gray-10/50 ml-[73px]" />;
 }
 
 export default function FollowersScreen() {
@@ -120,13 +120,21 @@ export default function FollowersScreen() {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#333335' }} edges={['top']}>
-      <View className="bg-black px-4 pt-2 pb-4 flex-row items-center justify-between">
-        <Pressable onPress={() => router.back()} hitSlop={12}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#000' }} edges={['top', 'bottom']}>
+      <View className="bg-black h-[96px] justify-center">
+        <Text className="text-[34px] font-bold text-white font-urbanist text-center leading-[41px]">
+          Followers
+        </Text>
+        <Pressable
+          onPress={() => router.back()}
+          hitSlop={12}
+          className="absolute left-1 bottom-3 size-12 items-center justify-center rounded-full"
+        >
           <Ionicons name="arrow-back" size={24} color="#fff" />
         </Pressable>
-        <Text className="text-[34px] font-bold text-white font-urbanist">Followers</Text>
-        <Ionicons name="search" size={22} color="#fff" />
+        <Pressable hitSlop={12} className="absolute right-4 bottom-[22px]">
+          <Ionicons name="search" size={22} color="#fff" />
+        </Pressable>
       </View>
 
       {isLoading ? (
