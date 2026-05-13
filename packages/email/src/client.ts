@@ -15,7 +15,7 @@ function createSmtpTransport(): EmailTransport {
   const transporter = nodemailer.createTransport({
     host: process.env.SMTP_HOST ?? 'localhost',
     port: Number(process.env.SMTP_PORT ?? 1025),
-    secure: false,
+    secure: process.env.SMTP_SECURE === 'true',
   });
   return {
     async send({ from, to, subject, html, text }) {
@@ -44,14 +44,18 @@ let transport: EmailTransport | undefined;
 
 export function getTransport(): EmailTransport {
   if (transport) return transport;
-  if (process.env.NODE_ENV === 'development') {
-    transport = createSmtpTransport();
-  } else {
+  // APP_ENV wins over NODE_ENV so Vercel-set NODE_ENV='production' on
+  // preview builds can't override the per-environment intent. `||` (not `??`)
+  // so an empty-string APP_ENV from Vercel is treated as unset.
+  const appEnv = process.env.APP_ENV || process.env.NODE_ENV;
+  if (appEnv === 'production') {
     const token = process.env.POSTMARK_API_TOKEN;
     if (!token) {
-      throw new Error('POSTMARK_API_TOKEN is required in non-development environments');
+      throw new Error('POSTMARK_API_TOKEN is required when APP_ENV/NODE_ENV is production');
     }
     transport = createPostmarkTransport(token);
+  } else {
+    transport = createSmtpTransport();
   }
   return transport;
 }
