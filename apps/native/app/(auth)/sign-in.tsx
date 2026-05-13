@@ -16,6 +16,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { AppButton } from '@/components/AppButton';
 import { CeolxLogo } from '@/components/CeolxLogo';
 import { SocialLoginButtons } from '@/components/SocialLoginButtons';
+import { useSocialAuth } from '@/hooks/use-social-auth';
 import { authClient } from '@/lib/auth-client';
 
 // ── Types ────────────────────────────────────────────────────────────
@@ -33,6 +34,7 @@ export default function SignInScreen() {
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorState, setErrorState] = useState<ErrorState>(null);
+  const { signInWithGoogle, signInWithApple } = useSocialAuth();
 
   const handleSignIn = async () => {
     setErrorState(null);
@@ -105,7 +107,11 @@ export default function SignInScreen() {
               Login to your account
             </Text>
 
-            <SocialLoginButtons separator="Or sign in with" />
+            <SocialLoginButtons
+              separator="Or sign in with"
+              onGooglePress={signInWithGoogle}
+              onApplePress={signInWithApple}
+            />
 
             {/* Error / warning banners */}
             {errorState?.type === 'unverified' ? (

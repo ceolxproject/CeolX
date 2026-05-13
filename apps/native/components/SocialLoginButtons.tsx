@@ -1,4 +1,4 @@
-import { Pressable, Text, View } from 'react-native';
+import { Platform, Pressable, Text, View } from 'react-native';
 import { Path, Svg } from 'react-native-svg';
 
 function GoogleIcon() {
@@ -34,8 +34,8 @@ function AppleIcon() {
 
 interface SocialLoginButtonsProps {
   separator?: string;
-  onGooglePress?: () => void;
-  onApplePress?: () => void;
+  onGooglePress: () => void;
+  onApplePress: () => void;
 }
 
 export function SocialLoginButtons({
@@ -53,12 +53,14 @@ export function SocialLoginButtons({
         >
           <GoogleIcon />
         </Pressable>
-        <Pressable
-          onPress={onApplePress}
-          className="flex-1 border border-[#ededed] rounded-lg p-2 items-center justify-center"
-        >
-          <AppleIcon />
-        </Pressable>
+        {Platform.OS === 'ios' ? (
+          <Pressable
+            onPress={onApplePress}
+            className="flex-1 border border-[#ededed] rounded-lg p-2 items-center justify-center"
+          >
+            <AppleIcon />
+          </Pressable>
+        ) : null}
       </View>
 
       {/* Separator */}

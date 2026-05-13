@@ -19,6 +19,7 @@ import { AppButton } from '@/components/AppButton';
 import { CeolxLogo } from '@/components/CeolxLogo';
 import { CheckboxField } from '@/components/CheckboxField';
 import { SocialLoginButtons } from '@/components/SocialLoginButtons';
+import { useSocialAuth } from '@/hooks/use-social-auth';
 import { authClient } from '@/lib/auth-client';
 
 type Role = 'spectator' | 'artist' | 'venue';
@@ -34,6 +35,7 @@ export default function SignUpScreen() {
   const [tosAccepted, setTosAccepted] = useState(false);
   const [marketingOptIn, setMarketingOptIn] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { signInWithGoogle, signInWithApple } = useSocialAuth();
 
   const handleSignUp = async () => {
     setError(null);
@@ -113,7 +115,11 @@ export default function SignUpScreen() {
               </Text>
             </Text>
 
-            <SocialLoginButtons separator="Or sign up with" />
+            <SocialLoginButtons
+              separator="Or sign up with"
+              onGooglePress={signInWithGoogle}
+              onApplePress={signInWithApple}
+            />
 
             {error ? (
               <View className="bg-error/15 rounded-lg p-3 mb-4">
