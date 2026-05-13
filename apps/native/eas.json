@@ -17,6 +17,7 @@
     "staging": {
       "distribution": "internal",
       "channel": "staging",
+      "environment": "preview",
       "env": {
         "APP_VARIANT": "staging",
         "EXPO_PUBLIC_SERVER_URL": "https://ceol-x-server-git-staging-ceolxproject-6613s-projects.vercel.app",
