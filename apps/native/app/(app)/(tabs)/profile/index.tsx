@@ -155,10 +155,23 @@ function ProfileHeader({
 
 // ─── Empty State ──────────────────────────────────────────────────────────────
 
-function EmptyState({ message }: { message: string }) {
+function EmptyState({
+  message,
+  action,
+}: {
+  message: string;
+  action?: { label: string; onPress: () => void };
+}) {
   return (
-    <View className="py-16 items-center">
-      <Text className="text-base text-white/60 text-center font-urbanist">{message}</Text>
+    <View className="py-16 items-center px-5">
+      <Text className="text-base text-white/60 text-center font-urbanist mb-4">{message}</Text>
+      {action && (
+        <Pressable onPress={action.onPress} className="rounded-full bg-[#662FFF] px-6 py-3">
+          <Text className="text-xs font-bold text-white uppercase tracking-wider font-urbanist">
+            {action.label}
+          </Text>
+        </Pressable>
+      )}
     </View>
   );
 }
@@ -178,7 +191,15 @@ function MyEventsTab() {
   }
 
   if (events.length === 0) {
-    return <EmptyState message="You haven't created any events yet" />;
+    return (
+      <EmptyState
+        message="You haven't created any events yet"
+        action={{
+          label: 'Create Event',
+          onPress: () => router.push('/(app)/events/create'),
+        }}
+      />
+    );
   }
 
   return (
