@@ -39,7 +39,7 @@ const FEED_FILTER_SECTIONS: FilterSection[] = [
 export default function DiscoverScreen() {
   const router = useRouter();
   const { data: session } = authClient.useSession();
-  const { initialRegion, locationSource } = useGpsRegion();
+  const { initialRegion, locationSource, placeLabel } = useGpsRegion();
   const [activeSegment, setActiveSegment] = useState(0);
   const [filterSheetVisible, setFilterSheetVisible] = useState(false);
 
@@ -95,11 +95,12 @@ export default function DiscoverScreen() {
   const hasActiveFilters = !!(category || dateRange);
 
   const locationText =
-    locationSource === 'gps'
+    placeLabel ??
+    (locationSource === 'gps'
       ? 'Current Location'
       : locationSource === 'ip'
         ? 'Approximate Location'
-        : 'Ireland';
+        : 'Ireland');
 
   const renderEvent = useCallback(
     ({ item }: { item: (typeof events)[number] }) => (

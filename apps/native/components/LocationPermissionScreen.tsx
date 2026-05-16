@@ -138,14 +138,18 @@ export function LocationPermissionScreen({ onDone }: Props) {
               Allow <Text className="font-bold">CEOLX</Text> to access your location?
             </Text>
 
-            {/* Precise / Approximate visual selector */}
+            {/* Precise / Approximate visual selector.
+                Both render in the neutral state — the actual Precise/Approximate
+                pick happens in the OS dialog fired by handleAllow. */}
             <View className="flex-row items-start justify-center mb-8">
-              {/* Precise — selected state */}
+              {/* Precise */}
               <View className="items-center gap-2 w-[110px]">
-                <View className="w-[100px] h-[100px] rounded-full border-[3px] border-[#D4FC5A] bg-[#222224] items-center justify-center">
-                  <Ionicons name="locate" size={36} color="#D4FC5A" />
+                <View className="w-[100px] h-[100px] rounded-full border-2 border-[rgba(255,255,255,0.15)] bg-[#222224] items-center justify-center">
+                  <Ionicons name="locate" size={36} color="rgba(255,255,255,0.6)" />
                 </View>
-                <Text className="text-[#D4FC5A] text-[14px] text-center">Precise</Text>
+                <Text className="text-[rgba(255,255,255,0.8)] text-[14px] text-center">
+                  Precise
+                </Text>
               </View>
 
               {/* Divider */}
