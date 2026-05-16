@@ -9,6 +9,7 @@ import {
   createArtistOnboardingSchema,
 } from '@CeolX/shared/validators';
 
+import { appToast } from '@/components/AppToast';
 import type { SocialLinks } from '@/components/onboarding/SocialLinksSection';
 import { useAuth } from '@/contexts/auth-context';
 import { useMediaUpload } from '@/hooks/use-media-upload';
@@ -211,6 +212,7 @@ export function useArtistOnboarding() {
         old ? { ...old, onboardingComplete: true } : old
       );
       void queryClient.invalidateQueries({ queryKey: trpc.users.me.queryKey() });
+      appToast.success('Artist profile created', 'Welcome to CeolX!');
       router.replace('/(app)/(tabs)/map');
     } catch (err: unknown) {
       // If the server says the profile already exists, the user has finished
