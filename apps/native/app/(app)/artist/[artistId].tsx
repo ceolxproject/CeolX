@@ -117,6 +117,7 @@ export default function ArtistProfileScreen() {
               isOwner={profile.isOwner}
               isFollowing={isFollowing}
               socialLinks={profile.socialLinks}
+              contactEmail={profile.contactEmail}
               onEditPress={() => router.push('/(app)/(tabs)/profile/edit')}
               onSettingsPress={profile.isOwner ? () => settingsRef.current?.present() : undefined}
               onFollowPress={!profile.isOwner ? onFollowPress : undefined}
