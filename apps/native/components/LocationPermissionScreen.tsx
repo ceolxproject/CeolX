@@ -55,9 +55,12 @@ export function LocationPermissionScreen({ onDone }: Props) {
   }
 
   return (
-    <View className="flex-1 bg-black" style={{ paddingTop: insets.top }}>
+    <View
+      className="flex-1 bg-black"
+      style={{ paddingTop: insets.top, paddingBottom: insets.bottom }}
+    >
       {/* ── State 1: Priming screen (Figma 1:4696) ── */}
-      <View className="flex-1 items-center px-6 pt-6">
+      <View className="flex-1 items-center px-6 pt-6 pb-6">
         {/* CEOLX logo */}
         <Text className="text-[#6155F5] text-lg font-bold tracking-[2px] mb-12">CEOLX</Text>
 
