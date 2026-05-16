@@ -3,7 +3,6 @@ import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Image,
   KeyboardAvoidingView,
   Platform,
@@ -17,6 +16,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { UserRole } from '@CeolX/shared/enums';
 
+import { appToast } from '@/components/AppToast';
 import { SocialLinkInput } from '@/components/profiles';
 import { useMe } from '@/hooks/use-me';
 import { useUpdateArtistProfile } from '@/hooks/use-update-artist-profile';
@@ -86,7 +86,7 @@ export default function EditProfileScreen() {
 
   const handleSave = async () => {
     if (!displayName.trim()) {
-      Alert.alert('Required', `${isVenue ? 'Venue name' : 'Display name'} is required.`);
+      appToast.warning('Required', `${isVenue ? 'Venue name' : 'Display name'} is required.`);
       return;
     }
 
@@ -126,11 +126,11 @@ export default function EditProfileScreen() {
         });
       }
 
-      Alert.alert('Success', 'Profile updated successfully.');
+      appToast.success('Profile updated', 'Your changes are saved.');
       router.back();
     } catch (err) {
-      Alert.alert(
-        'Error',
+      appToast.error(
+        'Update failed',
         getTRPCErrorMessage(
           err,
           {
@@ -175,7 +175,7 @@ export default function EditProfileScreen() {
             <Pressable
               className="mt-2"
               onPress={() =>
-                Alert.alert('Coming Soon', 'Image upload will be available in a future update.')
+                appToast.info('Coming soon', 'Image upload will be available in a future update.')
               }
             >
               <Text className="text-xs text-[#662FFF] font-semibold font-urbanist">

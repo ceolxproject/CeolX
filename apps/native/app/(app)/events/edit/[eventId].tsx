@@ -8,6 +8,7 @@ import type { EventCategory } from '@CeolX/shared';
 import { EventStatus, UserRole } from '@CeolX/shared/enums';
 
 import { AppTabBar, TAB_CONFIG } from '@/components/AppTabBar';
+import { appToast } from '@/components/AppToast';
 import { BasicDetailsStep } from '@/components/events/BasicDetailsStep';
 import { DateVenueStep } from '@/components/events/DateVenueStep';
 import { StepIndicator } from '@/components/events/StepIndicator';
@@ -63,9 +64,8 @@ export default function EditEventScreen() {
         }
       : undefined,
     onSuccess: () => {
-      Alert.alert('Success', 'Event updated successfully!', [
-        { text: 'Done', onPress: () => router.back() },
-      ]);
+      appToast.success('Event updated', 'Your changes are saved.');
+      router.back();
     },
     isVenue,
   });
