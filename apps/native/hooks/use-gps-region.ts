@@ -17,6 +17,8 @@ type GpsRegionResult = {
   initialRegion: MapRegion;
   gpsPermissionGranted: boolean;
   locationSource: LocationSource;
+  /** Reverse-geocoded city/town for the resolved coordinates. `null` while pending or on failure. */
+  placeLabel: string | null;
   /** Increment to remount MapView after region changes */
   mapKey: number;
 };
@@ -126,6 +128,7 @@ export function useGpsRegion(enabled = true): GpsRegionResult {
   const [initialRegion, setInitialRegion] = useState<MapRegion>(IRELAND_INITIAL_REGION);
   const [gpsPermissionGranted, setGpsPermissionGranted] = useState(false);
   const [locationSource, setLocationSource] = useState<LocationSource>('pending');
+  const [placeLabel, setPlaceLabel] = useState<string | null>(null);
   const [mapKey, setMapKey] = useState(0);
 
   useEffect(() => {
@@ -138,5 +141,34 @@ export function useGpsRegion(enabled = true): GpsRegionResult {
     });
   }, [enabled]);
 
-  return { initialRegion, gpsPermissionGranted, locationSource, mapKey };
+  // Reverse-geocode whenever we have real coordinates (GPS or IP). Failures
+  // are non-fatal — consumers fall back to a source-based label.
+  useEffect(() => {
+    if (locationSource !== 'gps' && locationSource !== 'ip') {
+      setPlaceLabel(null);
+      return;
+    }
+
+    let cancelled = false;
+    Location.reverseGeocodeAsync({
+      latitude: initialRegion.latitude,
+      longitude: initialRegion.longitude,
+    })
+      .then((results) => {
+        if (cancelled) return;
+        const first = results[0];
+        if (!first) return;
+        const label = first.city ?? first.subregion ?? first.region;
+        if (label) setPlaceLabel(label);
+      })
+      .catch((err: unknown) => {
+        console.warn('[useGpsRegion] reverseGeocodeAsync failed:', err);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [initialRegion.latitude, initialRegion.longitude, locationSource]);
+
+  return { initialRegion, gpsPermissionGranted, locationSource, placeLabel, mapKey };
 }
