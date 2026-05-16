@@ -4,7 +4,7 @@ import * as Linking from 'expo-linking';
 import { router, useLocalSearchParams } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, Text, View } from 'react-native';
+import { ActivityIndicator, Platform, Pressable, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { UserRole } from '@CeolX/shared/enums';
@@ -145,8 +145,24 @@ export default function VerifyEmailScreen() {
     cooldownRef.current = interval;
   };
 
-  const handleOpenEmailApp = () => {
-    void Linking.openURL('message://');
+  const handleOpenEmailApp = async () => {
+    // `message://` is the iOS Mail inbox scheme — no Android handler, which
+    // is why the button used to do nothing on Android. Prefer platform-native
+    // schemes; fall back to mailto: so any registered email client can open.
+    if (Platform.OS === 'android') {
+      const gmailInbox = 'googlegmail://inbox';
+      try {
+        if (await Linking.canOpenURL(gmailInbox)) {
+          await Linking.openURL(gmailInbox);
+          return;
+        }
+      } catch {
+        // canOpenURL can throw on some manifest configs — fall through.
+      }
+      await Linking.openURL('mailto:');
+      return;
+    }
+    await Linking.openURL('message://');
   };
 
   if (isVerifying) {
