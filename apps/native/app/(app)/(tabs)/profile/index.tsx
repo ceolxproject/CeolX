@@ -317,16 +317,6 @@ function SpectatorProfile() {
         </View>
       </View>
 
-      <View className="mx-4 border border-gray-10 rounded-xl">
-        <Pressable
-          className="flex-row justify-between items-center px-4 py-3.5"
-          onPress={() => router.push('/(app)/(tabs)/profile/edit')}
-        >
-          <Text className="text-[15px] text-white">Edit Profile</Text>
-          <Text className="text-lg text-gray-10">›</Text>
-        </Pressable>
-      </View>
-
       <SettingsBottomSheet
         ref={settingsRef}
         onChangePassword={() => {
