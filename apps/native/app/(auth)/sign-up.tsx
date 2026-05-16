@@ -2,15 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Link, router, useLocalSearchParams } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import { useState } from 'react';
-import {
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  ScrollView,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { KeyboardAvoidingView, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { signUpSchema } from '@CeolX/shared/validators';
@@ -34,19 +26,29 @@ export default function SignUpScreen() {
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [tosAccepted, setTosAccepted] = useState(false);
   const [marketingOptIn, setMarketingOptIn] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const { signInWithGoogle, signInWithApple } = useSocialAuth();
 
   const handleSignUp = async () => {
-    setError(null);
+    setErrors({});
+    setSubmitError(null);
 
     const parsed = signUpSchema.safeParse({ name, email, password, confirmPassword: password });
     if (!parsed.success) {
-      setError(parsed.error.issues[0]?.message ?? 'Invalid input');
+      // Map every zod issue to its field path so the message renders next to
+      // the field that triggered it (P2 #B3 — password errors used to appear
+      // above the Full Name field).
+      const fieldErrors: Record<string, string> = {};
+      for (const issue of parsed.error.issues) {
+        const field = issue.path.join('.') || '_form';
+        if (!fieldErrors[field]) fieldErrors[field] = issue.message;
+      }
+      setErrors(fieldErrors);
       return;
     }
     if (!tosAccepted) {
-      setError('You must accept the Terms of Service and Privacy Policy');
+      setSubmitError('You must accept the Terms of Service and Privacy Policy');
       return;
     }
 
@@ -59,9 +61,9 @@ export default function SignUpScreen() {
 
     if (authError) {
       if (authError.status === 409 || authError.message?.toLowerCase().includes('already')) {
-        setError('An account with this email already exists');
+        setErrors({ email: 'An account with this email already exists' });
       } else {
-        setError(authError.message ?? 'Sign up failed. Please try again.');
+        setSubmitError(authError.message ?? 'Sign up failed. Please try again.');
       }
       return;
     }
@@ -88,7 +90,11 @@ export default function SignUpScreen() {
     <View style={{ flex: 1, backgroundColor: '#080808' }}>
       <SafeAreaView style={{ flex: 1 }}>
         <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          // 'padding' on both platforms gives consistent behaviour: the
+          // ScrollView gets extra bottom padding equal to the keyboard height,
+          // so a focused input near the bottom stays scrollable above the
+          // keyboard instead of being covered by it.
+          behavior="padding"
           style={{ flex: 1 }}
         >
           <ScrollView
@@ -121,9 +127,9 @@ export default function SignUpScreen() {
               onApplePress={signInWithApple}
             />
 
-            {error ? (
+            {submitError ? (
               <View className="bg-error/15 rounded-lg p-3 mb-4">
-                <Text className="text-error text-sm">{error}</Text>
+                <Text className="text-error text-sm">{submitError}</Text>
               </View>
             ) : null}
 
@@ -139,6 +145,7 @@ export default function SignUpScreen() {
                 value={name}
                 onChangeText={setName}
               />
+              {errors.name && <Text className="text-error text-xs mt-1">{errors.name}</Text>}
             </View>
 
             {/* Email */}
@@ -154,6 +161,7 @@ export default function SignUpScreen() {
                 value={email}
                 onChangeText={setEmail}
               />
+              {errors.email && <Text className="text-error text-xs mt-1">{errors.email}</Text>}
             </View>
 
             {/* Password */}
@@ -180,6 +188,9 @@ export default function SignUpScreen() {
                   />
                 </Pressable>
               </View>
+              {errors.password && (
+                <Text className="text-error text-xs mt-1">{errors.password}</Text>
+              )}
             </View>
 
             {/* Checkboxes */}
