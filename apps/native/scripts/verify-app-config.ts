@@ -4,7 +4,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const configPath = path.resolve(here, '..', 'app.config.ts');
+const configPath = path.resolve(here, '..', 'app.config.js');
 
 type AppConfigShape = {
   name: string;
@@ -22,6 +22,7 @@ function loadConfig(variant: 'staging' | 'production'): AppConfigShape {
     ],
     {
       env: { ...process.env, APP_VARIANT: variant },
+      cwd: path.dirname(configPath),
       encoding: 'utf8',
     }
   );
@@ -41,4 +42,4 @@ assert.equal(prod.name, 'CeolX');
 assert.equal(prod.extra.appVariant, 'production');
 
 // eslint-disable-next-line no-console
-console.log('app.config.ts: both variants verified ✓');
+console.log('app.config.js: both variants verified ✓');
