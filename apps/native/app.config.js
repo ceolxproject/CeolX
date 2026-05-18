@@ -1,5 +1,6 @@
-import pkg from './package.json' with { type: 'json' };
+import { readFileSync } from 'node:fs';
 
+const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8'));
 const APP_VERSION = pkg.version;
 
 const VARIANT = process.env.APP_VARIANT ?? 'production';
