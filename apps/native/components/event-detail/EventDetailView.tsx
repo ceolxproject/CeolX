@@ -188,6 +188,13 @@ export function EventDetailView({
           </View>
         </View>
 
+        {/* Offers — only this event's own ad, if it has one */}
+        <OfferBlock
+          adTitle={event.adTitle}
+          eventTitle={event.title}
+          coverImage={event.coverImageUrl ?? null}
+        />
+
         {/* Performing Artists */}
         {event.collaborators.length > 0 && (
           <>
@@ -222,9 +229,6 @@ export function EventDetailView({
             distanceKm={distanceKm}
           />
         </View>
-
-        {/* Offers — only this event's own ad, if it has one */}
-        <OfferBlock title={event.adTitle} description={event.adDescription} />
 
         {/* Explore the collection */}
         {event.relatedEvents.length > 0 && (

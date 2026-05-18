@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('react-native', () => ({
+  Image: 'Image',
   Text: 'Text',
   View: 'View',
 }));
@@ -8,16 +9,21 @@ vi.mock('react-native', () => ({
 import { OfferBlock } from '../OfferBlock';
 
 describe('OfferBlock', () => {
-  it('renders null when title is empty', () => {
-    expect(OfferBlock({ title: '', description: 'x' })).toBeNull();
+  const baseProps = {
+    adTitle: 'Flat 50% Off',
+    eventTitle: 'The Bodhrán Buzz',
+    coverImage: null,
+  };
+
+  it('renders null when adTitle is empty', () => {
+    expect(OfferBlock({ ...baseProps, adTitle: '' })).toBeNull();
   });
 
-  it('renders null when title is null', () => {
-    expect(OfferBlock({ title: null, description: 'x' })).toBeNull();
+  it('renders null when adTitle is null', () => {
+    expect(OfferBlock({ ...baseProps, adTitle: null })).toBeNull();
   });
 
-  it('renders a section element when title is non-empty', () => {
-    const node = OfferBlock({ title: 'Flat 50% Off', description: 'Tonight only' });
-    expect(node).not.toBeNull();
+  it('renders a section element when adTitle is non-empty', () => {
+    expect(OfferBlock(baseProps)).not.toBeNull();
   });
 });

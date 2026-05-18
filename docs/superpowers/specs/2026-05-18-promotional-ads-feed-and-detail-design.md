@@ -163,8 +163,8 @@ This keeps the bold portion robust against quotes or special characters in eithe
 **Detail Offers block (`OfferBlock`):**
 
 - Section heading: `Offers` (small caps, gray-3, 12px, matching other detail-page section headers).
-- Body card: same white-on-dark card style as the feed, but **no buttons** and **no dismiss**. Just thumbnail + headline + description.
-- Sits directly below the location section, with the same horizontal padding as the rest of the detail page.
+- Body card: visually identical to the feed `AdCard` (white background, 12px radius, soft shadow, 35×35 rounded thumbnail with gray fallback, bold-quoted headline `{adTitle} on "{eventTitle}"`, light 11px event-title subtitle), but **no DISMISS / VIEW DETAILS buttons** — the user is already on the event detail page.
+- Position: between the description/location row and the Performing Artists section divider.
 
 ## Acceptance criteria
 
