@@ -1,8 +1,3 @@
-import { readFileSync } from 'node:fs';
-
-const pkg = JSON.parse(readFileSync('package.json', 'utf8'));
-const APP_VERSION = pkg.version;
-
 const VARIANT = process.env.APP_VARIANT ?? 'production';
 const IS_STAGING = VARIANT === 'staging';
 
@@ -17,7 +12,7 @@ export default (_) => ({
   name: IS_STAGING ? 'CeolX (Staging)' : 'CeolX',
   slug: 'ceolx',
   owner: 'raftlabs_expo',
-  version: APP_VERSION,
+  version: '1.0.0',
   orientation: 'portrait',
   icon: './assets/images/icon.png',
   userInterfaceStyle: 'automatic',

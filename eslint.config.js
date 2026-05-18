@@ -26,6 +26,7 @@ export default tseslint.config(
       'commitlint.config.js',
       'apps/native/app.config.js',
       'apps/native/plugins/**',
+      'apps/native/scripts/*.cjs',
     ],
   },
 
