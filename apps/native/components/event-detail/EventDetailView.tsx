@@ -14,6 +14,7 @@ import { EventHeroImage } from './EventHeroImage';
 import { EventInfoRow } from './EventInfoRow';
 import { HostArtistInfoBox } from './HostArtistInfoBox';
 import { LocationMapPreview } from './LocationMapPreview';
+import { OfferBlock } from './OfferBlock';
 import { OwnerActionBar } from './OwnerActionBar';
 import { PerformingArtistCard } from './PerformingArtistCard';
 import { SectionDivider } from './SectionDivider';
@@ -221,6 +222,9 @@ export function EventDetailView({
             distanceKm={distanceKm}
           />
         </View>
+
+        {/* Offers — only this event's own ad, if it has one */}
+        <OfferBlock title={event.adTitle} description={event.adDescription} />
 
         {/* Explore the collection */}
         {event.relatedEvents.length > 0 && (
