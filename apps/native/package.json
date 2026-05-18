@@ -4,6 +4,10 @@
   "private": true,
   "type": "module",
   "main": "expo-router/entry",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Raft-Labs/CeolX.git"
+  },
   "scripts": {
     "start": "expo start",
     "dev": "expo start --clear",
