@@ -24,6 +24,7 @@ export default tseslint.config(
       '**/index.js',
       'eslint.config.js',
       'commitlint.config.js',
+      'apps/native/app.config.js',
       'apps/native/plugins/**',
     ],
   },
