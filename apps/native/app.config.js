@@ -1,3 +1,7 @@
+import pkg from './package.json' with { type: 'json' };
+
+const APP_VERSION = pkg.version;
+
 const VARIANT = process.env.APP_VARIANT ?? 'production';
 const IS_STAGING = VARIANT === 'staging';
 
@@ -12,7 +16,7 @@ export default (_) => ({
   name: IS_STAGING ? 'CeolX (Staging)' : 'CeolX',
   slug: 'ceolx',
   owner: 'raftlabs_expo',
-  version: '1.0.0',
+  version: APP_VERSION,
   orientation: 'portrait',
   icon: './assets/images/icon.png',
   userInterfaceStyle: 'automatic',
