@@ -21,7 +21,8 @@
     "@react-email/render": "^2.0.5",
     "nodemailer": "^6.10.1",
     "postmark": "^4.0.5",
-    "react": "^19.2.3"
+    "react": "^19.2.3",
+    "react-dom": "^19.2.3"
   },
   "devDependencies": {
     "@CeolX/config": "workspace:*",

@@ -3,7 +3,6 @@ import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Image,
   KeyboardAvoidingView,
   Platform,
@@ -17,11 +16,14 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { UserRole } from '@CeolX/shared/enums';
 
+import { appToast } from '@/components/AppToast';
 import { SocialLinkInput } from '@/components/profiles';
 import { useMe } from '@/hooks/use-me';
 import { useUpdateArtistProfile } from '@/hooks/use-update-artist-profile';
 import { useUpdateVenueProfile } from '@/hooks/use-update-venue-profile';
 import { MOCK_PROFILE_IMAGE } from '@/utils/mock-images';
+import { normalizeOptionalUrl } from '@/utils/normalize-url';
+import { getTRPCErrorMessage } from '@/utils/trpc-error';
 
 export default function EditProfileScreen() {
   const { data: me } = useMe();
@@ -84,7 +86,7 @@ export default function EditProfileScreen() {
 
   const handleSave = async () => {
     if (!displayName.trim()) {
-      Alert.alert('Required', `${isVenue ? 'Venue name' : 'Display name'} is required.`);
+      appToast.warning('Required', `${isVenue ? 'Venue name' : 'Display name'} is required.`);
       return;
     }
 
@@ -95,13 +97,13 @@ export default function EditProfileScreen() {
           bio: bio.trim() || undefined,
           address: address.trim() || undefined,
           county: county.trim() || undefined,
-          websiteUrl: websiteUrl.trim() || undefined,
+          websiteUrl: normalizeOptionalUrl(websiteUrl),
           phone: phone.trim() || undefined,
           socialLinks: {
-            WEBSITE: website.trim() || undefined,
-            INSTAGRAM: instagram.trim() || undefined,
-            FACEBOOK: facebook.trim() || undefined,
-            TWITTER: twitter.trim() || undefined,
+            WEBSITE: normalizeOptionalUrl(website),
+            INSTAGRAM: normalizeOptionalUrl(instagram),
+            FACEBOOK: normalizeOptionalUrl(facebook),
+            TWITTER: normalizeOptionalUrl(twitter),
           },
         });
       } else {
@@ -116,18 +118,29 @@ export default function EditProfileScreen() {
           genres: genres.length > 0 ? genres : undefined,
           location: location.trim() || undefined,
           socialLinks: {
-            INSTAGRAM: instagram.trim() || undefined,
-            FACEBOOK: facebook.trim() || undefined,
-            TIKTOK: tiktok.trim() || undefined,
-            YOUTUBE: youtube.trim() || undefined,
+            INSTAGRAM: normalizeOptionalUrl(instagram),
+            FACEBOOK: normalizeOptionalUrl(facebook),
+            TIKTOK: normalizeOptionalUrl(tiktok),
+            YOUTUBE: normalizeOptionalUrl(youtube),
           },
         });
       }
 
-      Alert.alert('Success', 'Profile updated successfully.');
+      appToast.success('Profile updated', 'Your changes are saved.');
       router.back();
-    } catch {
-      Alert.alert('Error', 'Failed to update profile. Please try again.');
+    } catch (err) {
+      appToast.error(
+        'Update failed',
+        getTRPCErrorMessage(
+          err,
+          {
+            BAD_REQUEST: 'Please check the entered values and try again.',
+            FORBIDDEN: 'You do not have permission to edit this profile.',
+            NOT_FOUND: 'Profile not found. Please complete onboarding first.',
+          },
+          'Failed to update profile. Please try again.'
+        )
+      );
     }
   };
 
@@ -162,7 +175,7 @@ export default function EditProfileScreen() {
             <Pressable
               className="mt-2"
               onPress={() =>
-                Alert.alert('Coming Soon', 'Image upload will be available in a future update.')
+                appToast.info('Coming soon', 'Image upload will be available in a future update.')
               }
             >
               <Text className="text-xs text-[#662FFF] font-semibold font-urbanist">

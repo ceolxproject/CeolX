@@ -1,6 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
 import { cn } from 'heroui-native';
-import { useRef } from 'react';
 import { Pressable, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -23,17 +22,19 @@ export function MapSearchBar({
 }: MapSearchBarProps) {
   const insets = useSafeAreaInsets();
   const top = insets.top + MAP_HEADER_HEIGHT + MAP_SEARCH_BAR_GAP;
-  const inputRef = useRef<TextInput>(null);
 
   return (
     <View className="absolute left-4 right-4" style={{ top }}>
-      <Pressable
-        className="flex-row items-center bg-white rounded-full h-11 px-4 gap-2"
-        onPress={() => inputRef.current?.focus()}
-      >
+      {/* The pill used to be a Pressable wrapping the TextInput so tapping
+          anywhere on the pill would focus the field. On android that pattern
+          fights the TextInput for the touch responder — keystrokes could
+          trigger the parent onPress and re-focus the field mid-IME-composition,
+          dropping typed characters. The TextInput is already full-width inside
+          the pill (flex-1), so a plain View is enough to render the bg + icons
+          without intercepting input touches. */}
+      <View className="flex-row items-center bg-white rounded-full h-11 px-4 gap-2">
         <Ionicons name="search" size={20} color="#8D8D8D" />
         <TextInput
-          ref={inputRef}
           className="flex-1 text-[#1A1A1A] text-[14px]"
           style={{ padding: 0 }}
           placeholder={placeholder}
@@ -61,7 +62,7 @@ export function MapSearchBar({
             </View>
           )}
         </Pressable>
-      </Pressable>
+      </View>
     </View>
   );
 }

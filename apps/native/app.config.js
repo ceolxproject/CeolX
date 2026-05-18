@@ -114,7 +114,7 @@ export default (_) => ({
     [
       'react-native-maps',
       {
-        googleMapsApiKey: process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY ?? '',
+        androidGoogleMapsApiKey: process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY ?? '',
       },
     ],
     '@react-native-community/datetimepicker',

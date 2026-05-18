@@ -81,7 +81,9 @@
       "rolldown": "1.0.0-beta.52",
       "react": "19.2.0",
       "react-dom": "19.2.0",
-      "@expo/dom-webview": "55.0.6"
+      "@expo/dom-webview": "55.0.6",
+      "@react-email/components>react-dom": "19.2.0",
+      "@react-email/render>react-dom": "19.2.0"
     },
     "onlyBuiltDependencies": [
       "esbuild",

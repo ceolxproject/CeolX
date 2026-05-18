@@ -70,6 +70,8 @@ overrides:
   react: 19.2.0
   react-dom: 19.2.0
   '@expo/dom-webview': 55.0.6
+  '@react-email/components>react-dom': 19.2.0
+  '@react-email/render>react-dom': 19.2.0
 
 importers:
 
@@ -741,10 +743,10 @@ importers:
     dependencies:
       '@react-email/components':
         specifier: ^0.0.36
-        version: 0.0.36(react-dom@19.2.4(react@19.2.0))(react@19.2.0)
+        version: 0.0.36(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
       '@react-email/render':
         specifier: ^2.0.5
-        version: 2.0.5(react-dom@19.2.4(react@19.2.0))(react@19.2.0)
+        version: 2.0.5(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
       nodemailer:
         specifier: ^6.10.1
         version: 6.10.1
@@ -754,6 +756,9 @@ importers:
       react:
         specifier: 19.2.0
         version: 19.2.0
+      react-dom:
+        specifier: 19.2.0
+        version: 19.2.0(react@19.2.0)
     devDependencies:
       '@CeolX/config':
         specifier: workspace:*
@@ -3094,8 +3099,8 @@ packages:
       '@cfworker/json-schema':
         optional: true
 
-  '@mongodb-js/saslprep@1.4.6':
-    resolution: {integrity: sha512-y+x3H1xBZd38n10NZF/rEBlvDOOMQ6LKUTHqr8R9VkJ+mmQOYtJFxIlkkK8fZrtOiL6VixbOBWMbZGBdal3Z1g==}
+  '@mongodb-js/saslprep@1.4.11':
+    resolution: {integrity: sha512-o9rAHc0IpIjuPSxRutWpE1F62x7n+4mVS4rCNHkzhIUMQcc18bb6xEq5wd2NdN0WjepIyXIppRshYI2kQDOZVA==}
 
   '@mswjs/interceptors@0.41.3':
     resolution: {integrity: sha512-cXu86tF4VQVfwz8W1SPbhoRyHJkti6mjH/XJIxp40jhO4j2k1m4KYrEykxqWPkFF3vrK4rgQppBh//AwyGSXPA==}
@@ -8940,11 +8945,6 @@ packages:
     peerDependencies:
       react: 19.2.0
 
-  react-dom@19.2.4:
-    resolution: {integrity: sha512-AXJdLo8kgMbimY95O2aKQqsz2iWi9jMgKJhRBAxECE4IFxfcazB2LmzloIoibJI3C12IlY20+KFaLv+71bUJeQ==}
-    peerDependencies:
-      react: 19.2.0
-
   react-fast-compare@3.2.2:
     resolution: {integrity: sha512-nsO+KSNgo1SbJqJEYRE9ERzo7YtYbou/OqjSQKxV7jcKox7+usiUVZOAC+XnDOABXggQTno0Y1CpVnuWEc1boQ==}
 
@@ -13266,7 +13266,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@mongodb-js/saslprep@1.4.6':
+  '@mongodb-js/saslprep@1.4.11':
     dependencies:
       sparse-bitfield: 3.0.3
 
@@ -13850,7 +13850,7 @@ snapshots:
     dependencies:
       react: 19.2.0
 
-  '@react-email/components@0.0.36(react-dom@19.2.4(react@19.2.0))(react@19.2.0)':
+  '@react-email/components@0.0.36(react-dom@19.2.0(react@19.2.0))(react@19.2.0)':
     dependencies:
       '@react-email/body': 0.0.11(react@19.2.0)
       '@react-email/button': 0.0.19(react@19.2.0)
@@ -13867,7 +13867,7 @@ snapshots:
       '@react-email/link': 0.0.12(react@19.2.0)
       '@react-email/markdown': 0.0.14(react@19.2.0)
       '@react-email/preview': 0.0.12(react@19.2.0)
-      '@react-email/render': 1.0.6(react-dom@19.2.4(react@19.2.0))(react@19.2.0)
+      '@react-email/render': 1.0.6(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
       '@react-email/row': 0.0.12(react@19.2.0)
       '@react-email/section': 0.0.16(react@19.2.0)
       '@react-email/tailwind': 1.0.4(react@19.2.0)
@@ -13917,20 +13917,20 @@ snapshots:
     dependencies:
       react: 19.2.0
 
-  '@react-email/render@1.0.6(react-dom@19.2.4(react@19.2.0))(react@19.2.0)':
+  '@react-email/render@1.0.6(react-dom@19.2.0(react@19.2.0))(react@19.2.0)':
     dependencies:
       html-to-text: 9.0.5
       prettier: 3.5.3
       react: 19.2.0
-      react-dom: 19.2.4(react@19.2.0)
+      react-dom: 19.2.0(react@19.2.0)
       react-promise-suspense: 0.3.4
 
-  '@react-email/render@2.0.5(react-dom@19.2.4(react@19.2.0))(react@19.2.0)':
+  '@react-email/render@2.0.5(react-dom@19.2.0(react@19.2.0))(react@19.2.0)':
     dependencies:
       html-to-text: 9.0.5
       prettier: 3.8.1
       react: 19.2.0
-      react-dom: 19.2.4(react@19.2.0)
+      react-dom: 19.2.0(react@19.2.0)
 
   '@react-email/row@0.0.12(react@19.2.0)':
     dependencies:
@@ -19139,7 +19139,7 @@ snapshots:
 
   mongodb@7.1.0:
     dependencies:
-      '@mongodb-js/saslprep': 1.4.6
+      '@mongodb-js/saslprep': 1.4.11
       bson: 7.2.0
       mongodb-connection-string-url: 7.0.1
 
@@ -19721,11 +19721,6 @@ snapshots:
       - utf-8-validate
 
   react-dom@19.2.0(react@19.2.0):
-    dependencies:
-      react: 19.2.0
-      scheduler: 0.27.0
-
-  react-dom@19.2.4(react@19.2.0):
     dependencies:
       react: 19.2.0
       scheduler: 0.27.0

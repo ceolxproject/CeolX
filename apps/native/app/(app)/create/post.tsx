@@ -1,19 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  Pressable,
-  ScrollView,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { createPostSchema, updatePostSchema } from '@CeolX/shared/validators';
 
+import { appToast } from '@/components/AppToast';
 import { MediaPickerField } from '@/components/posts/MediaPickerField';
 import { useCreatePost } from '@/hooks/use-create-post';
 import { useMediaDelete, keyFromCdnUrl } from '@/hooks/use-media-delete';
@@ -118,9 +111,10 @@ export default function CreatePostScreen() {
         await createPost.mutateAsync(input);
       }
 
+      appToast.success(isEditing ? 'Post updated' : 'Post published');
       router.back();
     } catch (err) {
-      Alert.alert('Failed to publish', err instanceof Error ? err.message : 'Please try again.');
+      appToast.error('Failed to publish', err instanceof Error ? err.message : 'Please try again.');
     }
   };
 

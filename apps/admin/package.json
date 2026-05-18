@@ -34,7 +34,7 @@
     "lucide-react": "catalog:",
     "next-themes": "catalog:",
     "react": "^19.2.3",
-    "react-dom": "^19.2.3",
+    "react-dom": "19.2.0",
     "sonner": "catalog:",
     "zod": "catalog:"
   },

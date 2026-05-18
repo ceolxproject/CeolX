@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { UserRole } from '@CeolX/shared/enums';
 
 import { AppTabBar, TAB_CONFIG } from '@/components/AppTabBar';
+import { appToast } from '@/components/AppToast';
 import { BasicDetailsStep } from '@/components/events/BasicDetailsStep';
 import { DateVenueStep } from '@/components/events/DateVenueStep';
 import { StepIndicator } from '@/components/events/StepIndicator';
@@ -23,9 +24,8 @@ export default function CreateEventScreen() {
 
   const form = useEventForm({
     onSuccess: () => {
-      Alert.alert('Success', 'Event created successfully!', [
-        { text: 'Done', onPress: () => router.replace('/(app)/(tabs)/discover') },
-      ]);
+      appToast.success('Event created', 'Your event is now live.');
+      router.replace('/(app)/(tabs)/discover');
     },
     isVenue,
   });

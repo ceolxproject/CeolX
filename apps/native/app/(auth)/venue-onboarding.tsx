@@ -37,7 +37,14 @@ export default function VenueOnboardingScreen() {
       goBack();
       return true;
     });
+    // Only intercept BACK-type navigation — otherwise the
+    // `router.replace('/(app)/(tabs)/map')` triggered after a successful
+    // submit would also be cancelled and bounce the user back to Step 2.
     const navUnsub = navigation.addListener('beforeRemove', (e) => {
+      const actionType = e.data.action.type;
+      const isBackNavigation =
+        actionType === 'GO_BACK' || actionType === 'POP' || actionType === 'POP_TO_TOP';
+      if (!isBackNavigation) return;
       e.preventDefault();
       goBack();
     });

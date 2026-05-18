@@ -39,6 +39,17 @@ export const getFeed = publicProcedure.input(feedQuerySchema).query(async ({ inp
           // Fetch a large batch so the in-memory ranker has enough signal.
           // 250 is Typesense's per_page ceiling.
           per_page: 250,
+        })
+        // Typesense Cloud outages (ENOTFOUND, connection refused, timeout) used to
+        // fail the entire feed with a 500. Degrade to an empty result set instead
+        // so the rest of the app keeps working; the warning surfaces the cause in
+        // Vercel logs for ops to fix the cluster / env var.
+        .catch((err: unknown) => {
+          console.warn(
+            '[events.getFeed] typesense unreachable, returning empty feed:',
+            err instanceof Error ? `${err.name}: ${err.message}` : err
+          );
+          return { hits: [] };
         }),
       userId
         ? db
