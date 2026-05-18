@@ -16,7 +16,8 @@ export async function getDismissedAdIds(): Promise<string[]> {
 
 export async function dismissAd(id: string): Promise<void> {
   const existing = await getDismissedAdIds();
-  const withId = existing.includes(id) ? existing : [...existing, id];
+  if (existing.includes(id)) return;
+  const withId = [...existing, id];
   const next = withId.length > MAX_DISMISSED ? withId.slice(withId.length - MAX_DISMISSED) : withId;
   await SecureStore.setItemAsync(DISMISSED_ADS_KEY, JSON.stringify(next));
 }

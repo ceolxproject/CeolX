@@ -38,10 +38,10 @@ describe('dismissed-ads storage', () => {
     expect(mockSet).toHaveBeenCalledWith(DISMISSED_ADS_KEY, JSON.stringify(['a', 'b']));
   });
 
-  it('does not duplicate when dismissing an already-dismissed id', async () => {
+  it('does not write to SecureStore when dismissing an already-dismissed id', async () => {
     mockGet.mockResolvedValueOnce(JSON.stringify(['a']));
     await dismissAd('a');
-    expect(mockSet).toHaveBeenCalledWith(DISMISSED_ADS_KEY, JSON.stringify(['a']));
+    expect(mockSet).not.toHaveBeenCalled();
   });
 
   it('drops the oldest id when the cap of 50 is exceeded', async () => {
