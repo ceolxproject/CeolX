@@ -17,6 +17,7 @@ import type { DateRangeOption, EventCategory } from '@CeolX/shared';
 import { DATE_RANGE_LABELS, DATE_RANGE_OPTIONS, EVENT_CATEGORIES } from '@CeolX/shared';
 import { UserRole } from '@CeolX/shared/enums';
 
+import { AdStack } from '@/components/ads/AdStack';
 import { FeedEventCard } from '@/components/FeedEventCard';
 import { FeedHeader } from '@/components/FeedHeader';
 import { FilterSheet } from '@/components/FilterSheet';
@@ -211,6 +212,7 @@ export default function DiscoverScreen() {
               keyExtractor={(item) => item.id}
               style={{ flex: 1, backgroundColor: '#080808' }}
               renderItem={renderEvent}
+              ListHeaderComponent={<AdStack />}
               onEndReached={() => {
                 if (hasNextPage) loadMore();
               }}

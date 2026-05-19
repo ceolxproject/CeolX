@@ -14,6 +14,7 @@ import { EventHeroImage } from './EventHeroImage';
 import { EventInfoRow } from './EventInfoRow';
 import { HostArtistInfoBox } from './HostArtistInfoBox';
 import { LocationMapPreview } from './LocationMapPreview';
+import { OfferBlock } from './OfferBlock';
 import { OwnerActionBar } from './OwnerActionBar';
 import { PerformingArtistCard } from './PerformingArtistCard';
 import { SectionDivider } from './SectionDivider';
@@ -186,6 +187,13 @@ export function EventDetailView({
             />
           </View>
         </View>
+
+        {/* Offers — only this event's own ad, if it has one */}
+        <OfferBlock
+          adTitle={event.adTitle}
+          eventTitle={event.title}
+          coverImage={event.coverImageUrl ?? null}
+        />
 
         {/* Performing Artists */}
         {event.collaborators.length > 0 && (
