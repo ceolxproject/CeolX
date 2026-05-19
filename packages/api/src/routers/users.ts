@@ -163,11 +163,24 @@ export const usersRouter = router({
 
   /**
    * Sets domain fields on the BetterAuth user row after a successful sign-up.
-   * Idempotent: safe to retry — always overwrites with the latest values.
+   * One-shot: no-op once consentAt has been written, so a returning OAuth user
+   * who re-enters the signup flow can't overwrite their existing role.
    */
   completeRegistration: protectedProcedure
     .input(completeRegistrationInput)
     .mutation(async ({ ctx, input }) => {
+      const userId = ctx.session.user.id;
+
+      const [existing] = await db
+        .select({ consentAt: user.consentAt })
+        .from(user)
+        .where(eq(user.id, userId))
+        .limit(1);
+
+      if (!existing || existing.consentAt) {
+        return { ok: true };
+      }
+
       await db
         .update(user)
         .set({
@@ -175,7 +188,7 @@ export const usersRouter = router({
           marketingConsent: input.marketingConsent,
           consentAt: new Date(),
         })
-        .where(eq(user.id, ctx.session.user.id));
+        .where(eq(user.id, userId));
 
       return { ok: true };
     }),
