@@ -73,6 +73,19 @@ export function useCountySearch() {
     setIsDropdownVisible(false);
   }, []);
 
+  // Commit a chosen suggestion: keep the picked name visible in the input,
+  // hide the dropdown, and cancel any pending debounce so a late filter pass
+  // can't re-open the dropdown on top of the selection.
+  const commitSelection = useCallback((name: string) => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+    setQuery(name);
+    setSuggestions([]);
+    setIsDropdownVisible(false);
+  }, []);
+
   return {
     query,
     suggestions,
@@ -80,5 +93,6 @@ export function useCountySearch() {
     onChangeText,
     dismissDropdown,
     clearSearch,
+    commitSelection,
   };
 }

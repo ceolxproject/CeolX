@@ -122,7 +122,7 @@ export default function MapScreen() {
     isDropdownVisible,
     onChangeText: onCountyChangeText,
     dismissDropdown,
-    clearSearch,
+    commitSelection,
   } = useCountySearch();
 
   const handleSearchChangeText = useCallback(
@@ -146,11 +146,11 @@ export default function MapScreen() {
         800
       );
       // Clear Typesense text filter so the viewport query returns all events
+      // in the new region, then keep the picked county name visible in the bar.
       onSearch('');
-      dismissDropdown();
-      clearSearch();
+      commitSelection(result.name);
     },
-    [onSearch, dismissDropdown, clearSearch]
+    [onSearch, commitSelection]
   );
 
   const handleRegionChangeComplete = useCallback(
