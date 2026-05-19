@@ -16,6 +16,7 @@ import { isAllowedOrigin } from './config/cors';
 import { publishJob } from './jobs/publish';
 import { errorHandler } from './middleware/errorHandler';
 import locationRoutes from './routes/location';
+import verifyEmailRoute from './routes/verify-email';
 import webhooksRoutes from './routes/webhooks';
 import { dispatchNotification } from './services/notifications-dispatcher';
 
@@ -71,6 +72,10 @@ export function buildApp() {
   // BetterAuth — sign-up, sign-in, sign-out, email verification, OAuth callbacks
   app.use('/api/auth/*', rateLimiter(RATE_LIMIT_TIERS.authLogin));
   app.on(['POST', 'GET'], '/api/auth/*', (c) => auth.handler(c.req.raw));
+
+  // HTTPS bridge for the verification email button — email clients drop
+  // ceolx:// hrefs, so this page returns an HTML auto-redirect into the app.
+  app.route('/', verifyEmailRoute);
 
   // tRPC — all feature procedures (events, artists, bookings, admin) live in packages/api
   app.use('/trpc/*', rateLimiter(RATE_LIMIT_TIERS.authenticatedGeneral));

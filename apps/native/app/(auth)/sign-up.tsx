@@ -123,8 +123,12 @@ export default function SignUpScreen() {
 
             <SocialLoginButtons
               separator="Or sign up with"
-              onGooglePress={signInWithGoogle}
-              onApplePress={signInWithApple}
+              onGooglePress={() =>
+                signInWithGoogle({ currentRole, marketingConsent: marketingOptIn })
+              }
+              onApplePress={() =>
+                signInWithApple({ currentRole, marketingConsent: marketingOptIn })
+              }
             />
 
             {submitError ? (
