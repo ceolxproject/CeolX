@@ -1,4 +1,4 @@
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import * as SecureStore from 'expo-secure-store';
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 
@@ -10,6 +10,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isGuest: boolean;
   isLoading: boolean;
+  isCompletingRegistration: boolean;
   logout: () => Promise<void>;
 }
 
@@ -19,6 +20,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const { data: session, isPending } = authClient.useSession();
   const [isGuest, setIsGuest] = useState(false);
   const [guestLoaded, setGuestLoaded] = useState(false);
+  // Gates (app)/_layout while we consume pendingRegistration on a fresh OAuth
+  // session — without this, the layout briefly renders spectator UI before
+  // completeRegistration flips currentRole to artist/venue.
+  const [isCompletingRegistration, setIsCompletingRegistration] = useState(false);
 
   useEffect(() => {
     SecureStore.getItemAsync('isGuest')
@@ -33,34 +38,48 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const { mutateAsync: completeRegistration } = useMutation(
     trpc.users.completeRegistration.mutationOptions()
   );
+  const queryClient = useQueryClient();
   const pendingHandled = useRef(false);
 
   useEffect(() => {
     if (!session?.user || pendingHandled.current) return;
     pendingHandled.current = true;
+    // Block child routes until we know whether a role patch is needed. Cheap
+    // (~SecureStore read) for returning sessions; prevents the spectator flash
+    // for fresh OAuth signups.
+    setIsCompletingRegistration(true);
 
     void (async () => {
-      const raw = await SecureStore.getItemAsync('pendingRegistration');
-      if (!raw) return;
-
-      let parsed: { currentRole: 'spectator' | 'artist' | 'venue'; marketingConsent: boolean };
       try {
-        parsed = JSON.parse(raw) as typeof parsed;
-      } catch {
-        // Corrupt SecureStore data — delete it so we don't loop forever
-        await SecureStore.deleteItemAsync('pendingRegistration').catch(() => {});
-        return;
-      }
+        const raw = await SecureStore.getItemAsync('pendingRegistration');
+        if (!raw) return;
 
-      try {
-        await completeRegistration({
-          currentRole: parsed.currentRole,
-          marketingConsent: parsed.marketingConsent,
-        });
-        await SecureStore.deleteItemAsync('pendingRegistration');
-      } catch {
-        // Network / server error — keep pendingRegistration and retry next session
-        pendingHandled.current = false;
+        let parsed: { currentRole: 'spectator' | 'artist' | 'venue'; marketingConsent: boolean };
+        try {
+          parsed = JSON.parse(raw) as typeof parsed;
+        } catch {
+          // Corrupt SecureStore data — delete it so we don't loop forever
+          await SecureStore.deleteItemAsync('pendingRegistration').catch(() => {});
+          return;
+        }
+
+        try {
+          await completeRegistration({
+            currentRole: parsed.currentRole,
+            marketingConsent: parsed.marketingConsent,
+          });
+          // Refetch users.me so (app)/_layout sees the freshly-written role and
+          // routes to artist/venue-onboarding instead of the cached spectator default.
+          await queryClient.invalidateQueries({ queryKey: trpc.users.me.queryKey() });
+          await SecureStore.deleteItemAsync('pendingRegistration');
+        } catch (err) {
+          // Network / server error — keep pendingRegistration and retry next session.
+          // Logging the error makes silent failures visible during testing.
+          console.warn('[auth-context] completeRegistration failed', err);
+          pendingHandled.current = false;
+        }
+      } finally {
+        setIsCompletingRegistration(false);
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -88,6 +107,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isAuthenticated: !!user,
         isGuest,
         isLoading: isPending || !guestLoaded,
+        isCompletingRegistration,
         logout,
       }}
     >
