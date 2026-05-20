@@ -1,7 +1,15 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
-import { Modal, Pressable, Text, TextInput, View } from 'react-native';
+import {
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  Pressable,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 
 import type { ArtistResult } from './ArtistSearchRow';
 import { ArtistSearchRow } from './ArtistSearchRow';
@@ -175,59 +183,68 @@ export function InviteArtistPicker({
         animationType="fade"
         onRequestClose={() => setShowInviteModal(false)}
       >
-        <Pressable
-          className="flex-1 bg-black/60 items-center justify-center px-5"
-          onPress={() => setShowInviteModal(false)}
+        {/* RN Modal creates a native window that ignores the activity's
+            adjustResize softInputMode, so the centered dialog otherwise stays
+            anchored to the full screen with the keyboard covering the email
+            input. Padding behavior works inside the modal on both platforms. */}
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={{ flex: 1 }}
         >
           <Pressable
-            className="w-full rounded-2xl bg-[#1a1a1a] border border-gray-8 p-5 gap-4"
-            onPress={() => {}}
+            className="flex-1 bg-black/60 items-center justify-center px-5"
+            onPress={() => setShowInviteModal(false)}
           >
-            <View className="flex-row items-center justify-between">
-              <Text className="text-base font-bold text-white font-urbanist">Invite Artist</Text>
-              <Pressable onPress={() => setShowInviteModal(false)} hitSlop={8}>
-                <Ionicons name="close" size={20} color="#8d8d8d" />
-              </Pressable>
-            </View>
-
-            <View className="gap-2">
-              <Text className="text-sm font-semibold text-gray-3 font-urbanist">Name *</Text>
-              <TextInput
-                className={`rounded-lg border bg-surface px-4 py-3 text-sm text-white font-urbanist ${inviteErrors.name ? 'border-error' : 'border-gray-8'}`}
-                placeholder="Artist name"
-                placeholderTextColor="#8d8d8d"
-                value={inviteName}
-                onChangeText={setInviteName}
-              />
-              {inviteErrors.name && (
-                <Text className="text-xs text-error font-urbanist">{inviteErrors.name}</Text>
-              )}
-            </View>
-
-            <View className="gap-2">
-              <Text className="text-sm font-semibold text-gray-3 font-urbanist">Email *</Text>
-              <TextInput
-                className={`rounded-lg border bg-surface px-4 py-3 text-sm text-white font-urbanist ${inviteErrors.email ? 'border-error' : 'border-gray-8'}`}
-                placeholder="artist@example.com"
-                placeholderTextColor="#8d8d8d"
-                value={inviteEmail}
-                onChangeText={setInviteEmail}
-                keyboardType="email-address"
-                autoCapitalize="none"
-              />
-              {inviteErrors.email && (
-                <Text className="text-xs text-error font-urbanist">{inviteErrors.email}</Text>
-              )}
-            </View>
-
             <Pressable
-              onPress={handleSendInvite}
-              className="bg-[#6C63FF] rounded-xl py-3.5 items-center"
+              className="w-full rounded-2xl bg-[#1a1a1a] border border-gray-8 p-5 gap-4"
+              onPress={() => {}}
             >
-              <Text className="text-white text-sm font-bold font-urbanist">Send Invite</Text>
+              <View className="flex-row items-center justify-between">
+                <Text className="text-base font-bold text-white font-urbanist">Invite Artist</Text>
+                <Pressable onPress={() => setShowInviteModal(false)} hitSlop={8}>
+                  <Ionicons name="close" size={20} color="#8d8d8d" />
+                </Pressable>
+              </View>
+
+              <View className="gap-2">
+                <Text className="text-sm font-semibold text-gray-3 font-urbanist">Name *</Text>
+                <TextInput
+                  className={`rounded-lg border bg-surface px-4 py-3 text-sm text-white font-urbanist ${inviteErrors.name ? 'border-error' : 'border-gray-8'}`}
+                  placeholder="Artist name"
+                  placeholderTextColor="#8d8d8d"
+                  value={inviteName}
+                  onChangeText={setInviteName}
+                />
+                {inviteErrors.name && (
+                  <Text className="text-xs text-error font-urbanist">{inviteErrors.name}</Text>
+                )}
+              </View>
+
+              <View className="gap-2">
+                <Text className="text-sm font-semibold text-gray-3 font-urbanist">Email *</Text>
+                <TextInput
+                  className={`rounded-lg border bg-surface px-4 py-3 text-sm text-white font-urbanist ${inviteErrors.email ? 'border-error' : 'border-gray-8'}`}
+                  placeholder="artist@example.com"
+                  placeholderTextColor="#8d8d8d"
+                  value={inviteEmail}
+                  onChangeText={setInviteEmail}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                />
+                {inviteErrors.email && (
+                  <Text className="text-xs text-error font-urbanist">{inviteErrors.email}</Text>
+                )}
+              </View>
+
+              <Pressable
+                onPress={handleSendInvite}
+                className="bg-[#6C63FF] rounded-xl py-3.5 items-center"
+              >
+                <Text className="text-white text-sm font-bold font-urbanist">Send Invite</Text>
+              </Pressable>
             </Pressable>
           </Pressable>
-        </Pressable>
+        </KeyboardAvoidingView>
       </Modal>
     </View>
   );
