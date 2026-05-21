@@ -11,7 +11,7 @@ import { useMe } from '@/hooks/use-me';
 import { trpc } from '@/utils/trpc';
 
 export default function AppLayout() {
-  const { user, isGuest, isLoading } = useAuth();
+  const { user, isGuest, isLoading, isCompletingRegistration } = useAuth();
 
   // Register the device with FCM and wire foreground/background/cold-start
   // listeners (M7-T1). The hook is a no-op until the user is authenticated.
@@ -46,7 +46,9 @@ export default function AppLayout() {
     });
   }, [meData?.deletionCancelledNotice, acknowledgeNotice]);
 
-  if (isLoading || (!!user && !isGuest && meLoading)) {
+  // Hold rendering while pendingRegistration is being consumed — otherwise the
+  // spectator default flashes before completeRegistration patches the role.
+  if (isLoading || isCompletingRegistration || (!!user && !isGuest && meLoading)) {
     return null;
   }
 

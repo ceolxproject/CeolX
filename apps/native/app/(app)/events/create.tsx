@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Alert, Pressable, Text, View } from 'react-native';
+import { Alert, KeyboardAvoidingView, Platform, Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { UserRole } from '@CeolX/shared/enums';
@@ -64,7 +64,15 @@ export default function CreateEventScreen() {
       </View>
 
       {/* Form steps */}
-      <View className="flex-1 mt-2">
+      {/* KeyboardAvoidingView matches the onboarding wrapper. Without it,
+          the Invite Artist / Collaborator search inputs sit near the bottom
+          of the form and the dropdown results below them disappear behind
+          the keyboard — the activity's adjustResize alone scrolls the
+          focused input into view but doesn't lift the content below it. */}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={{ flex: 1, marginTop: 8 }}
+      >
         {form.currentStep === 1 && (
           <BasicDetailsStep
             title={form.title}
@@ -136,7 +144,7 @@ export default function CreateEventScreen() {
             isVenue={isVenue}
           />
         )}
-      </View>
+      </KeyboardAvoidingView>
 
       {/* Bottom tab bar — lets users navigate away without losing the back-stack */}
       <AppTabBar

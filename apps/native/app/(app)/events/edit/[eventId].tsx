@@ -1,7 +1,15 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  Text,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { EventCategory } from '@CeolX/shared';
@@ -136,7 +144,13 @@ export default function EditEventScreen() {
       </View>
 
       {/* Form steps */}
-      <View className="flex-1 mt-2">
+      {/* See create.tsx for why this KeyboardAvoidingView matters — the search
+          inputs inside Collaborator/InviteArtist pickers otherwise lose their
+          dropdown results behind the keyboard. */}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={{ flex: 1, marginTop: 8 }}
+      >
         {form.currentStep === 1 && (
           <BasicDetailsStep
             title={form.title}
@@ -209,7 +223,7 @@ export default function EditEventScreen() {
             isVenue={isVenue}
           />
         )}
-      </View>
+      </KeyboardAvoidingView>
 
       {/* Bottom tab bar */}
       <AppTabBar

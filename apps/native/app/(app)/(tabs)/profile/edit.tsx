@@ -202,11 +202,12 @@ export default function EditProfileScreen() {
             {isVenue ? 'Description' : 'Bio'}
           </Text>
           <TextInput
-            className="bg-[#1C1C1E] rounded-lg px-4 py-3 text-base font-medium text-white mb-1 h-[100px]"
+            className="bg-[#1C1C1E] rounded-lg px-4 py-3 text-base font-medium text-white mb-1 min-h-[100px]"
             placeholder={isVenue ? 'Tell people about your venue' : 'Tell people about yourself'}
             placeholderTextColor="#8d8d8d"
             multiline
             numberOfLines={4}
+            // minHeight (not height) lets the box grow as the user adds lines.
             style={{ textAlignVertical: 'top' }}
             value={bio}
             onChangeText={setBio}

@@ -10,6 +10,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { UserRole } from '@CeolX/shared/enums';
 
 import { AppButton } from '@/components/AppButton';
+import { appToast } from '@/components/AppToast';
 import { CeolxLogo } from '@/components/CeolxLogo';
 import { authClient } from '@/lib/auth-client';
 import { trpc } from '@/utils/trpc';
@@ -146,33 +147,44 @@ export default function VerifyEmailScreen() {
   };
 
   const handleOpenEmailApp = async () => {
+    // Inbox-specific URL schemes by platform. We deliberately avoid mailto: —
+    // mailto: is defined as "compose a new message", so falling back to it
+    // does the opposite of what the "Open Email App" button promises.
+    // (The previous implementation's CATEGORY_APP_EMAIL intent fails on many
+    // Android devices because Linking.openURL adds CATEGORY_BROWSABLE during
+    // intent parsing, which doesn't match Gmail's inbox activity filter.)
+    const inboxSchemes =
+      Platform.OS === 'ios'
+        ? ['message://', 'googlegmail://', 'ms-outlook://']
+        : ['googlegmail://', 'ms-outlook://'];
+
+    for (const scheme of inboxSchemes) {
+      try {
+        await Linking.openURL(scheme);
+        return;
+      } catch {
+        // No app handles this scheme — try the next one.
+      }
+    }
+
+    // Last resort on Android: the CATEGORY_APP_EMAIL intent — useful for
+    // less common clients (Samsung Email, Proton Mail) that don't expose a
+    // public URL scheme.
     if (Platform.OS === 'android') {
-      // ACTION_MAIN + CATEGORY_APP_EMAIL resolves to the device's default email
-      // app's launch activity (the inbox), without hardcoding Gmail / Outlook /
-      // etc. Linking.openURL parses `intent:` URIs natively via Intent.parseUri,
-      // so no new dependency is needed.
       try {
         await Linking.openURL(
           'intent:#Intent;action=android.intent.action.MAIN;category=android.intent.category.APP_EMAIL;end'
         );
         return;
       } catch {
-        // No app registered for CATEGORY_APP_EMAIL — fall through to mailto:.
+        // No CATEGORY_APP_EMAIL handler either.
       }
-      await Linking.openURL('mailto:');
-      return;
     }
 
-    // iOS has no system intent for "default mail inbox". Try Apple Mail's
-    // inbox first (most iOS users' default); fall back to mailto:, which
-    // routes to whatever the user set as their default mail app.
-    try {
-      await Linking.openURL('message://');
-      return;
-    } catch {
-      // Apple Mail not installed — fall through.
-    }
-    await Linking.openURL('mailto:');
+    appToast.error(
+      "Couldn't open your email app",
+      'Open it manually and tap the verification link we sent you.'
+    );
   };
 
   if (isVerifying) {
