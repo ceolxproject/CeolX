@@ -17,6 +17,7 @@ import { Stack } from 'expo-router';
 import { HeroUINativeProvider } from 'heroui-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
+import { SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
 import { Uniwind } from 'uniwind';
 
 // CeolX is a dark-only app — force dark theme before any render so Tailwind dark
@@ -77,20 +78,22 @@ function Layout() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <GestureHandlerRootView style={{ flex: 1 }}>
-        <KeyboardProvider>
-          <AppThemeProvider>
-            <HeroUINativeProvider>
-              <AuthProvider>
-                <BottomSheetModalProvider>
-                  <RootStack />
-                  <AppToastProvider />
-                </BottomSheetModalProvider>
-              </AuthProvider>
-            </HeroUINativeProvider>
-          </AppThemeProvider>
-        </KeyboardProvider>
-      </GestureHandlerRootView>
+      <SafeAreaProvider initialMetrics={initialWindowMetrics}>
+        <GestureHandlerRootView style={{ flex: 1 }}>
+          <KeyboardProvider>
+            <AppThemeProvider>
+              <HeroUINativeProvider>
+                <AuthProvider>
+                  <BottomSheetModalProvider>
+                    <RootStack />
+                    <AppToastProvider />
+                  </BottomSheetModalProvider>
+                </AuthProvider>
+              </HeroUINativeProvider>
+            </AppThemeProvider>
+          </KeyboardProvider>
+        </GestureHandlerRootView>
+      </SafeAreaProvider>
     </QueryClientProvider>
   );
 }

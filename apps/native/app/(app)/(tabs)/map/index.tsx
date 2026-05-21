@@ -6,6 +6,7 @@ import MapView from 'react-native-map-clustering';
 import type RNMapView from 'react-native-maps';
 import type { Region } from 'react-native-maps';
 import { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import {
   CATEGORY_ICONS,
@@ -186,7 +187,13 @@ export default function MapScreen() {
   if (promptState === 'show') {
     return (
       <Modal visible animationType="none" statusBarTranslucent>
-        <LocationPermissionScreen onDone={markSeen} />
+        {/* Modal creates a separate native window — wrap in its own
+            SafeAreaProvider so useSafeAreaInsets() reads the modal's insets
+            (not the activity's), which otherwise leaves the priming sheet's
+            bottom buttons drawing under the Android navigation bar. */}
+        <SafeAreaProvider>
+          <LocationPermissionScreen onDone={markSeen} />
+        </SafeAreaProvider>
       </Modal>
     );
   }
