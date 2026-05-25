@@ -60,14 +60,22 @@ const uniwindConfig = withUniwindConfig(wrapWithReanimatedMetroConfig(config), {
 });
 
 // Sentry's metro serializer (@sentry/react-native 7.11) calls
-// `bundleCode.match(...)` on the inner serializer's output. With
-// `expo export:embed` on Metro 0.83 the output isn't the `{code, map}`
-// shape Sentry expects and `bundleCode` is undefined, crashing the
-// embed step. This affects BOTH the EAGER_BUNDLE phase (`--eager`)
-// AND the Gradle `:app:createBundleReleaseJsAndAssets` task which
-// invokes `expo export:embed` without `--eager` as a fallback. Skip
-// the Sentry wrapper for any embed invocation — the dev server and
-// `expo export` (web/standalone) still get debug-id injection.
-const isEmbed = process.argv.some((arg) => arg === 'export:embed' || arg.endsWith('/export:embed'));
+// `bundleCode.match(...)` on the inner serializer's output. With Metro 0.83
+// the export output isn't the `{code, map}` shape Sentry expects, so
+// `bundleCode` is undefined and `determineDebugIdFromBundleSource` crashes.
+// This hits EVERY export path:
+//   - `expo export:embed` — EAGER_BUNDLE phase (`--eager`) and the Gradle
+//     `:app:createBundleReleaseJsAndAssets` fallback during native builds.
+//   - plain `expo export` — run by `eas update` to produce OTA bundles.
+// Skip the Sentry wrapper for any export invocation. The dev server still gets
+// debug-id injection; the trade-off is that exported/OTA bundles carry no
+// Sentry debug IDs, so OTA JS stack traces aren't source-mapped in Sentry.
+const isExport = process.argv.some(
+  (arg) =>
+    arg === 'export' ||
+    arg === 'export:embed' ||
+    arg.endsWith('/export') ||
+    arg.endsWith('/export:embed')
+);
 
-module.exports = isEmbed ? uniwindConfig : withSentryConfig(uniwindConfig);
+module.exports = isExport ? uniwindConfig : withSentryConfig(uniwindConfig);
