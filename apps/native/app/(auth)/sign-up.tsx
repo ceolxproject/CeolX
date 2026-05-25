@@ -11,6 +11,7 @@ import { AppButton } from '@/components/AppButton';
 import { CeolxLogo } from '@/components/CeolxLogo';
 import { CheckboxField } from '@/components/CheckboxField';
 import { SocialLoginButtons } from '@/components/SocialLoginButtons';
+import { useAuth } from '@/contexts/auth-context';
 import { useSocialAuth } from '@/hooks/use-social-auth';
 import { authClient } from '@/lib/auth-client';
 
@@ -29,6 +30,7 @@ export default function SignUpScreen() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
   const { signInWithGoogle, signInWithApple } = useSocialAuth();
+  const { continueAsGuest } = useAuth();
 
   const handleSignUp = async () => {
     setErrors({});
@@ -82,7 +84,7 @@ export default function SignUpScreen() {
   };
 
   const handleSkip = async () => {
-    await SecureStore.setItemAsync('isGuest', 'true');
+    await continueAsGuest();
     router.replace('/(app)/(tabs)/map');
   };
 

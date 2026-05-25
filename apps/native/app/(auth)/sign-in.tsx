@@ -1,6 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Link, router } from 'expo-router';
-import * as SecureStore from 'expo-secure-store';
 import { useState } from 'react';
 import {
   KeyboardAvoidingView,
@@ -16,6 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { AppButton } from '@/components/AppButton';
 import { CeolxLogo } from '@/components/CeolxLogo';
 import { SocialLoginButtons } from '@/components/SocialLoginButtons';
+import { useAuth } from '@/contexts/auth-context';
 import { useSocialAuth } from '@/hooks/use-social-auth';
 import { authClient } from '@/lib/auth-client';
 
@@ -35,6 +35,7 @@ export default function SignInScreen() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorState, setErrorState] = useState<ErrorState>(null);
   const { signInWithGoogle, signInWithApple } = useSocialAuth();
+  const { continueAsGuest } = useAuth();
 
   const handleSignIn = async () => {
     setErrorState(null);
@@ -73,7 +74,7 @@ export default function SignInScreen() {
   };
 
   const handleSkip = async () => {
-    await SecureStore.setItemAsync('isGuest', 'true');
+    await continueAsGuest();
     router.replace('/(app)/(tabs)/map');
   };
 

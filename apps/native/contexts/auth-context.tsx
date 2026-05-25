@@ -11,6 +11,7 @@ interface AuthContextType {
   isGuest: boolean;
   isLoading: boolean;
   isCompletingRegistration: boolean;
+  continueAsGuest: () => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -114,6 +115,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     : null;
 
+  // Skip → browse as guest. Must update the in-memory state, not just
+  // SecureStore: (app)/_layout reads `isGuest` from this context, and the
+  // mount-time SecureStore read has already run, so a bare storage write would
+  // leave the guard at `!user && !isGuest` and bounce the user back to sign-in.
+  const continueAsGuest = async () => {
+    await SecureStore.setItemAsync('isGuest', 'true');
+    setIsGuest(true);
+  };
+
   const logout = async () => {
     await authClient.signOut();
     await SecureStore.deleteItemAsync('isGuest');
@@ -142,6 +152,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isGuest: isGuest && !user,
         isLoading: isPending || !guestLoaded,
         isCompletingRegistration,
+        continueAsGuest,
         logout,
       }}
     >
