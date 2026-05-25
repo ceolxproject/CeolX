@@ -2,11 +2,18 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { useRef, useState } from 'react';
 import { Animated, Dimensions, Pressable, Text, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import type { EdgeInsets } from 'react-native-safe-area-context';
 
 type Props = {
   /** Called after the user makes a location choice. */
   onDone: () => Promise<void>;
+  /**
+   * Safe-area insets, passed from the screen that hosts the Modal. The Modal's
+   * own native window can't measure its insets reliably on Android (bottom
+   * reports 0), so the host reads them inside the root SafeAreaProvider and
+   * forwards them here.
+   */
+  insets: EdgeInsets;
 };
 
 const SCREEN_HEIGHT = Dimensions.get('window').height;
@@ -26,8 +33,7 @@ const SHEET_TOP = SCREEN_HEIGHT * (333 / 812);
  *   "While using the app" / "Only this time" → native permission → onDone.
  *   "Don't allow" → onDone (fallback chain handles location).
  */
-export function LocationPermissionScreen({ onDone }: Props) {
-  const insets = useSafeAreaInsets();
+export function LocationPermissionScreen({ onDone, insets }: Props) {
   const [sheetVisible, setSheetVisible] = useState(false);
   const sheetAnim = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
   const overlayAnim = useRef(new Animated.Value(0)).current;
@@ -115,7 +121,12 @@ export function LocationPermissionScreen({ onDone }: Props) {
           <Animated.View
             className="absolute left-0 right-0 bottom-0 bg-[#333335] items-center px-6"
             style={{
-              top: SHEET_TOP,
+              // Grow with content instead of pinning to a fixed `top`. The Figma
+              // sheet starts ~41% down (SHEET_TOP); use that as a MIN height so
+              // it keeps that look when content fits, but expands upward on
+              // smaller screens where the content would otherwise overflow and
+              // clip the bottom "Don't allow" button.
+              minHeight: SCREEN_HEIGHT - SHEET_TOP,
               transform: [{ translateY: sheetAnim }],
               paddingBottom: Math.max(insets.bottom + 24, 40),
               shadowColor: 'rgba(179,185,208,0.25)',
