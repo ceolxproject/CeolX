@@ -54,6 +54,7 @@ function ProfileHeader({
   currentRole: string;
   artistProfile?: {
     stageName: string;
+    bio: string | null;
     genres: string[] | null;
     profileImageUrl: string | null;
     followerCount: number;
@@ -131,6 +132,11 @@ function ProfileHeader({
         {currentRole === UserRole.ARTIST && genres.length > 0 && (
           <Text className="text-xs font-semibold text-white/80 font-urbanist">
             {genres.join(' | ')}
+          </Text>
+        )}
+        {currentRole === UserRole.ARTIST && artistProfile?.bio && (
+          <Text className="text-xs font-semibold text-white/80 font-urbanist text-center w-[292px]">
+            {artistProfile.bio}
           </Text>
         )}
       </View>
@@ -375,6 +381,7 @@ function CreatorProfile({
         venueAddress: string | null;
         artistProfile?: {
           stageName: string;
+          bio: string | null;
           genres: string[] | null;
           profileImageUrl: string | null;
           followerCount: number;
