@@ -6,7 +6,7 @@ import MapView from 'react-native-map-clustering';
 import type RNMapView from 'react-native-maps';
 import type { Region } from 'react-native-maps';
 import { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
   CATEGORY_ICONS,
@@ -66,6 +66,11 @@ type ClusterObject = {
 export default function MapScreen() {
   const mapRef = useRef<RNMapView>(null);
   const router = useRouter();
+  // Read insets HERE (inside the root SafeAreaProvider), where they're measured
+  // correctly. The permission Modal renders in a separate native window whose
+  // own SafeAreaProvider reports bottom = 0 on Android, so we pass these
+  // known-good values into it rather than letting it re-measure.
+  const insets = useSafeAreaInsets();
   const { promptState, markSeen } = useLocationPermissionPrompt();
   const { initialRegion, gpsPermissionGranted, locationSource, mapKey } = useGpsRegion(
     promptState === 'done'
@@ -185,18 +190,13 @@ export default function MapScreen() {
 
   if (promptState === 'checking') return null;
   if (promptState === 'show') {
+    // navigationBarTranslucent draws the modal window edge-to-edge under the
+    // Android nav bar; the sheet then pads itself by `insets.bottom` (passed in
+    // from the activity above) to clear it. Passing insets avoids the modal's
+    // own SafeAreaProvider, which reports bottom = 0 here.
     return (
       <Modal visible animationType="none" statusBarTranslucent navigationBarTranslucent>
-        {/* Modal creates a separate native window — wrap in its own
-            SafeAreaProvider so useSafeAreaInsets() reads the modal's insets
-            (not the activity's). navigationBarTranslucent makes the window
-            draw under the Android nav bar, which is the condition under which
-            safe-area-context reports a non-zero bottom inset; without it the
-            inset is 0 and the sheet's bottom buttons clip behind the nav bar.
-            (statusBarTranslucent is required alongside it.) */}
-        <SafeAreaProvider>
-          <LocationPermissionScreen onDone={markSeen} />
-        </SafeAreaProvider>
+        <LocationPermissionScreen onDone={markSeen} insets={insets} />
       </Modal>
     );
   }
