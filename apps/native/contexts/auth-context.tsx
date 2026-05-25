@@ -40,6 +40,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   );
   const queryClient = useQueryClient();
   const pendingHandled = useRef(false);
+  // Bumped after a failed completeRegistration to genuinely re-run the consume
+  // effect — flipping a ref alone doesn't re-trigger an effect. Capped so a
+  // persistently-failing server can't loop forever.
+  const [registrationRetry, setRegistrationRetry] = useState(0);
+  const MAX_REGISTRATION_RETRIES = 3;
+
+  // An authenticated user is never a guest. The "isGuest" flag is written when
+  // the user taps "Skip"; it is only otherwise cleared on logout, so without
+  // this reconcile a guest who later signs in would stay flagged on the next
+  // app launch — disabling users.me, the onboarding redirect, FCM, and badges.
+  useEffect(() => {
+    if (!session?.user) return;
+    setIsGuest(false);
+    void SecureStore.deleteItemAsync('isGuest').catch(() => {});
+  }, [session?.user]);
 
   useEffect(() => {
     if (!session?.user || pendingHandled.current) return;
@@ -73,17 +88,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           await queryClient.invalidateQueries({ queryKey: trpc.users.me.queryKey() });
           await SecureStore.deleteItemAsync('pendingRegistration');
         } catch (err) {
-          // Network / server error — keep pendingRegistration and retry next session.
+          // Network / server error — keep pendingRegistration and retry.
           // Logging the error makes silent failures visible during testing.
           console.warn('[auth-context] completeRegistration failed', err);
-          pendingHandled.current = false;
+          if (registrationRetry < MAX_REGISTRATION_RETRIES) {
+            // Reset the guard AND bump the counter so the effect actually
+            // re-runs (the counter is a dependency); the ref alone wouldn't.
+            pendingHandled.current = false;
+            setTimeout(() => setRegistrationRetry((n) => n + 1), 2000);
+          }
         }
       } finally {
         setIsCompletingRegistration(false);
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session?.user]);
+  }, [session?.user, registrationRetry]);
 
   const user = session?.user
     ? {
@@ -97,6 +117,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const logout = async () => {
     await authClient.signOut();
     await SecureStore.deleteItemAsync('isGuest');
+    // AuthProvider is mounted once at the app root and never unmounts on
+    // logout, so this teardown must be explicit. Without it, the next account
+    // signed into during the same app run keeps stale registration state:
+    //   - pendingHandled gates the consume-pendingRegistration effect to run
+    //     once per process, so a second social signup never gets its chosen
+    //     role applied and silently falls back to the `spectator` column
+    //     default (BetterAuth can't set additionalFields via signIn.social).
+    //   - a leftover pendingRegistration could otherwise be applied to the
+    //     wrong account.
+    pendingHandled.current = false;
+    setRegistrationRetry(0);
+    await SecureStore.deleteItemAsync('pendingRegistration');
     setIsGuest(false);
   };
 
@@ -105,7 +137,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       value={{
         user,
         isAuthenticated: !!user,
-        isGuest,
+        // Defensive: an authenticated user is never a guest, regardless of any
+        // not-yet-reconciled stale flag (see the reconcile effect above).
+        isGuest: isGuest && !user,
         isLoading: isPending || !guestLoaded,
         isCompletingRegistration,
         logout,

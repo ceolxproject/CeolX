@@ -8,7 +8,7 @@ import { sendPasswordResetEmail, sendVerificationEmail } from '@CeolX/email';
 import { env } from '@CeolX/env/server';
 
 import { generateAppleClientSecret } from './apple-secret.js';
-import { buildVerificationBridgeUrl } from './email-utils';
+import { buildDeepLinkBridgeUrl, buildVerificationBridgeUrl } from './email-utils';
 import { onSessionCreated } from './login-hook.js';
 
 export const auth = betterAuth({
@@ -27,8 +27,10 @@ export const auth = betterAuth({
     requireEmailVerification: true,
     resetPasswordTokenExpiresIn: 900, // 15 minutes
     sendResetPassword: async ({ user, token }) => {
-      const deepLink = `ceolx://reset-password?token=${token}`;
-      await sendPasswordResetEmail(user.email, deepLink);
+      // Email clients drop custom-scheme links, so point at the HTTPS bridge
+      // on our server which redirects to ceolx://reset-password?token=...
+      const bridgeUrl = buildDeepLinkBridgeUrl('reset-password', token, env.BETTER_AUTH_URL);
+      await sendPasswordResetEmail(user.email, bridgeUrl, user.name ?? '');
     },
   },
   user: {
