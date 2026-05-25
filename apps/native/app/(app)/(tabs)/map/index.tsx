@@ -186,11 +186,14 @@ export default function MapScreen() {
   if (promptState === 'checking') return null;
   if (promptState === 'show') {
     return (
-      <Modal visible animationType="none" statusBarTranslucent>
+      <Modal visible animationType="none" statusBarTranslucent navigationBarTranslucent>
         {/* Modal creates a separate native window — wrap in its own
             SafeAreaProvider so useSafeAreaInsets() reads the modal's insets
-            (not the activity's), which otherwise leaves the priming sheet's
-            bottom buttons drawing under the Android navigation bar. */}
+            (not the activity's). navigationBarTranslucent makes the window
+            draw under the Android nav bar, which is the condition under which
+            safe-area-context reports a non-zero bottom inset; without it the
+            inset is 0 and the sheet's bottom buttons clip behind the nav bar.
+            (statusBarTranslucent is required alongside it.) */}
         <SafeAreaProvider>
           <LocationPermissionScreen onDone={markSeen} />
         </SafeAreaProvider>

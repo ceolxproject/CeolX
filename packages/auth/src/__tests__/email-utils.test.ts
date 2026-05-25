@@ -1,8 +1,29 @@
 import { describe, it, expect } from 'vitest';
 
-import { buildVerificationBridgeUrl } from '../email-utils.js';
+import { buildDeepLinkBridgeUrl, buildVerificationBridgeUrl } from '../email-utils.js';
 
 const BRIDGE_HOST = 'https://staging.example.com';
+
+describe('buildDeepLinkBridgeUrl', () => {
+  it('builds an HTTPS bridge URL for an arbitrary app path and raw token', () => {
+    expect(buildDeepLinkBridgeUrl('reset-password', 'tok123', BRIDGE_HOST)).toBe(
+      `${BRIDGE_HOST}/reset-password?token=tok123`
+    );
+  });
+
+  it('URL-encodes tokens containing special characters', () => {
+    const token = 'eyJhbGciOiJIUzI1NiJ9.somePayload.signature';
+    expect(buildDeepLinkBridgeUrl('reset-password', token, BRIDGE_HOST)).toBe(
+      `${BRIDGE_HOST}/reset-password?token=${encodeURIComponent(token)}`
+    );
+  });
+
+  it('strips trailing slash from baseUrl to avoid double slashes', () => {
+    expect(buildDeepLinkBridgeUrl('reset-password', 'abc', `${BRIDGE_HOST}/`)).toBe(
+      `${BRIDGE_HOST}/reset-password?token=abc`
+    );
+  });
+});
 
 describe('buildVerificationBridgeUrl', () => {
   it('extracts token from a BetterAuth verification URL and returns an HTTPS bridge URL', () => {
