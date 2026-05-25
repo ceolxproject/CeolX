@@ -111,6 +111,7 @@ export default function ArtistProfileScreen() {
             <ProfileHeader
               displayName={profile.displayName}
               subtitle={profile.genres.length > 0 ? profile.genres.join(' | ') : null}
+              secondarySubtitle={profile.bio}
               profileImageUrl={profile.profileImageUrl}
               followerCount={profile.followerCount}
               followingCount={profile.followingCount}
