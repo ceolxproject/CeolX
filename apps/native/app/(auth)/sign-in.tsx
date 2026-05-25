@@ -109,8 +109,11 @@ export default function SignInScreen() {
 
             <SocialLoginButtons
               separator="Or sign in with"
-              onGooglePress={signInWithGoogle}
-              onApplePress={signInWithApple}
+              // Wrap in arrows — Pressable would otherwise pass the press event
+              // as the `signupOptions` argument, writing a corrupt
+              // pendingRegistration. Sign-in has no role to pass.
+              onGooglePress={() => signInWithGoogle()}
+              onApplePress={() => signInWithApple()}
             />
 
             {/* Error / warning banners */}

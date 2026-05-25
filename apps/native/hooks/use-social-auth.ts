@@ -15,11 +15,15 @@ export type SocialSignupOptions = {
   marketingConsent: boolean;
 };
 
+const VALID_ROLES: readonly Role[] = ['spectator', 'artist', 'venue'];
+
 // Persist the chosen role across the OAuth roundtrip. auth-context.tsx picks
 // this up on the next valid session and calls users.completeRegistration —
 // same machinery the email signup already uses.
 async function stashPendingRegistration(opts: SocialSignupOptions | undefined) {
-  if (!opts) return;
+  // Guard against a bad caller (e.g. a Pressable passing its event object as
+  // `opts`): only stash when we actually have a valid role to apply.
+  if (!opts || !VALID_ROLES.includes(opts.currentRole)) return;
   await SecureStore.setItemAsync(
     'pendingRegistration',
     JSON.stringify({ currentRole: opts.currentRole, marketingConsent: opts.marketingConsent })
