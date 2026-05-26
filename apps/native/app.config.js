@@ -43,6 +43,10 @@ export default (_) => ({
     // still routes correctly.
     associatedDomains: ['applinks:ceolx.ie'],
     infoPlist: {
+      // CeolX only uses standard HTTPS/TLS (exempt encryption). Declaring this
+      // skips the per-build "Missing Compliance" prompt in TestFlight/App Store
+      // Connect. Set to true only if you add non-exempt/custom cryptography.
+      ITSAppUsesNonExemptEncryption: false,
       NSLocationWhenInUseUsageDescription:
         'CeolX uses your location to show nearby Irish music events',
       NSCameraUsageDescription: 'Upload videos of your performances',
