@@ -355,10 +355,49 @@ function SpectatorProfile() {
   );
 }
 
+// ─── Guest Profile ────────────────────────────────────────────────────────────
+
+function GuestProfile() {
+  return (
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#080808' }} edges={['top']}>
+      <View className="p-4 border-b border-gray-10">
+        <Text className="text-2xl font-bold text-white">Profile</Text>
+      </View>
+
+      <View className="flex-1 items-center justify-center px-8">
+        <View className="w-20 h-20 rounded-full bg-surface items-center justify-center mb-5">
+          <Ionicons name="person-outline" size={36} color="#8d8d8d" />
+        </View>
+        <Text className="text-lg font-semibold text-white text-center mb-2 font-urbanist">
+          You're browsing as a guest
+        </Text>
+        <Text className="text-sm text-white/60 text-center mb-6 font-urbanist">
+          Log in or create an account to follow artists, save events, and build your profile.
+        </Text>
+        <Pressable
+          onPress={() => router.replace('/(auth)/sign-in')}
+          className="rounded-full bg-[#662FFF] px-8 py-3"
+        >
+          <Text className="text-xs font-bold text-white uppercase tracking-wider font-urbanist">
+            Log In / Sign Up
+          </Text>
+        </Pressable>
+      </View>
+    </SafeAreaView>
+  );
+}
+
 // ─── Main Profile Screen ──────────────────────────────────────────────────────
 
 export default function ProfileScreen() {
+  const { isGuest } = useAuth();
   const { data: me } = useMe();
+
+  // Guests have no session — useMe is disabled for them, so there's no profile
+  // to render. Offer a path back to auth instead of a broken spectator shell.
+  if (isGuest) {
+    return <GuestProfile />;
+  }
 
   const currentRole = me?.currentRole ?? 'spectator';
 

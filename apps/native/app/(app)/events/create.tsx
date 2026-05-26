@@ -81,6 +81,7 @@ export default function CreateEventScreen() {
             onDescriptionChange={form.setDescription}
             coverImageUri={form.coverImageUri}
             onPickImage={form.pickCoverImage}
+            onRemoveImage={() => form.setCoverImageUri(null)}
             category={form.category}
             onCategoryChange={form.setCategory}
             collectionId={form.collectionId}

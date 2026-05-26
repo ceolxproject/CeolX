@@ -44,6 +44,7 @@ interface UseVenueOnboardingReturn {
   submitError: string | null;
   isPending: boolean;
   handlePickImage: () => Promise<void>;
+  handleRemoveImage: () => void;
   handleSubmit: () => Promise<void>;
   currentStep: Step;
   touched: Set<string>;
@@ -179,6 +180,11 @@ export function useVenueOnboarding(): UseVenueOnboardingReturn {
     }
   };
 
+  const handleRemoveImage = () => {
+    setProfileImageUri(null);
+    setImageError(null);
+  };
+
   const handleSubmit = async () => {
     setSubmitError(null);
     setErrors({});
@@ -276,6 +282,7 @@ export function useVenueOnboarding(): UseVenueOnboardingReturn {
     isPending: isPending || isImageUploading,
     // handlers
     handlePickImage,
+    handleRemoveImage,
     handleSubmit,
     // step navigation
     currentStep,

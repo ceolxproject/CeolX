@@ -18,6 +18,7 @@ type Props = {
   onDescriptionChange: (v: string) => void;
   coverImageUri: string | null;
   onPickImage: () => void;
+  onRemoveImage: () => void;
   category: EventCategory | '';
   onCategoryChange: (v: EventCategory) => void;
   collectionId: string;
@@ -44,6 +45,7 @@ export function BasicDetailsStep({
   onDescriptionChange,
   coverImageUri,
   onPickImage,
+  onRemoveImage,
   category,
   onCategoryChange,
   collectionId,
@@ -95,6 +97,15 @@ export function BasicDetailsStep({
                 className="w-full h-44 rounded-xl"
                 resizeMode="cover"
               />
+              {/* Tap the image to replace; tap ✕ to clear. Stops propagation so
+                  removing doesn't also re-open the picker. */}
+              <Pressable
+                onPress={onRemoveImage}
+                hitSlop={10}
+                className="absolute right-2 top-2 h-8 w-8 items-center justify-center rounded-full bg-black/60"
+              >
+                <Ionicons name="close" size={18} color="#fff" />
+              </Pressable>
             </View>
           ) : (
             <View

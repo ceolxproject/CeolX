@@ -153,6 +153,11 @@ export function useArtistOnboarding() {
     }
   };
 
+  const handleRemoveImage = () => {
+    setProfileImageUri(null);
+    setImageError(null);
+  };
+
   const handleSocialLinkChange = (field: keyof SocialLinks, value: string) => {
     setSocialLinks((prev) => ({ ...prev, [field]: value }));
   };
@@ -252,6 +257,7 @@ export function useArtistOnboarding() {
     isPending: isPending || isImageUploading,
     // handlers
     handlePickImage,
+    handleRemoveImage,
     handleSubmit,
     // step navigation
     currentStep,
