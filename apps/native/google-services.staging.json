@@ -7,9 +7,9 @@
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:1057693721951:android:f77979655f9c691f4a02ea",
+        "mobilesdk_app_id": "1:1057693721951:android:5b2c2d485612b9d44a02ea",
         "android_client_info": {
-          "package_name": "ie.ceolx.app.staging"
+          "package_name": "com.raftlabs.ceolx.staging"
         }
       },
       "oauth_client": [],

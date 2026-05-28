@@ -3,17 +3,17 @@
 <plist version="1.0">
 <dict>
 	<key>API_KEY</key>
-	<string>AIzaSyDdMC8pPw3fXb3owDV_40UVVwI1ign-RnY</string>
+	<string>AIzaSyDm0X2bOxOjtTU8h1lH78UVjF-vdq5H1f4</string>
 	<key>GCM_SENDER_ID</key>
-	<string>297835449315</string>
+	<string>1057693721951</string>
 	<key>PLIST_VERSION</key>
 	<string>1</string>
 	<key>BUNDLE_ID</key>
-	<string>ie.ceolx.app</string>
+	<string>com.raftlabs.ceolx.staging</string>
 	<key>PROJECT_ID</key>
-	<string>ceolx-22bf1</string>
+	<string>ceolx-staging</string>
 	<key>STORAGE_BUCKET</key>
-	<string>ceolx-22bf1.firebasestorage.app</string>
+	<string>ceolx-staging.firebasestorage.app</string>
 	<key>IS_ADS_ENABLED</key>
 	<false></false>
 	<key>IS_ANALYTICS_ENABLED</key>
@@ -25,6 +25,6 @@
 	<key>IS_SIGNIN_ENABLED</key>
 	<true></true>
 	<key>GOOGLE_APP_ID</key>
-	<string>1:297835449315:ios:10b17b82d205e057e06ed6</string>
+	<string>1:1057693721951:ios:8f78232dc6d3bc964a02ea</string>
 </dict>
 </plist>

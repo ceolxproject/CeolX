@@ -2,7 +2,7 @@ const VARIANT = process.env.APP_VARIANT ?? 'production';
 const IS_STAGING = VARIANT === 'staging';
 
 const PROD_BUNDLE_ID = 'ie.ceolx.app';
-const STAGING_BUNDLE_ID = 'ie.ceolx.app.staging';
+const STAGING_BUNDLE_ID = 'com.raftlabs.ceolx.staging';
 
 /**
  * @param {import('expo/config').ConfigContext} _ctx
