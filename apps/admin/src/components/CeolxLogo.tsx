@@ -5,35 +5,31 @@ interface CeolxLogoProps {
 }
 
 /**
- * CEOLX wordmark with the purple-to-white vertical gradient. Web version of
- * apps/native/components/CeolxLogo.tsx — same visual, plain SVG instead of
- * react-native-svg.
+ * CEOLX wordmark with the brand purple-to-white vertical gradient. Web
+ * counterpart of apps/native/components/CeolxLogo.tsx — uses HTML + CSS
+ * background-clip instead of SVG <text> so the wordmark stays crisp at any
+ * size and survives missing-font fallbacks.
  */
-export function CeolxLogo({ fontSize = 22, letterSpacing = 3, className }: CeolxLogoProps) {
-  const width = fontSize * 5.6 + letterSpacing * 5;
-  const height = fontSize * 1.5;
-  const gradId = 'ceolx-logo-grad';
-
+export function CeolxLogo({ fontSize = 28, letterSpacing = 3, className }: CeolxLogoProps) {
   return (
-    <svg width={width} height={height} className={className} aria-label="CeolX">
-      <defs>
-        <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#6155F5" />
-          <stop offset="100%" stopColor="#FFFFFF" />
-        </linearGradient>
-      </defs>
-      <text
-        x={width / 2}
-        y={height * 0.82}
-        textAnchor="middle"
-        fontSize={fontSize}
-        fontFamily="Urbanist"
-        fontWeight={900}
-        fill={`url(#${gradId})`}
-        letterSpacing={letterSpacing}
-      >
-        CEOLX
-      </text>
-    </svg>
+    <span
+      role="img"
+      aria-label="CeolX"
+      className={className}
+      style={{
+        display: 'inline-block',
+        fontFamily: "'Urbanist', system-ui, sans-serif",
+        fontWeight: 900,
+        fontSize,
+        lineHeight: 1,
+        letterSpacing: `${letterSpacing}px`,
+        backgroundImage: 'linear-gradient(to bottom, #6155F5 0%, #FFFFFF 100%)',
+        WebkitBackgroundClip: 'text',
+        backgroundClip: 'text',
+        color: 'transparent',
+      }}
+    >
+      CEOLX
+    </span>
   );
 }
