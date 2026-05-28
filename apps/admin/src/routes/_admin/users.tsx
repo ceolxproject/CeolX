@@ -38,7 +38,7 @@ const columns: Array<{ key: SortField | 'role' | 'flagged'; header: string; sort
   ];
 
 function formatDate(iso: string | null): string {
-  if (!iso) return '—';
+  if (!iso) return '-';
   return new Date(iso).toLocaleDateString(undefined, {
     year: 'numeric',
     month: 'short',
@@ -110,26 +110,26 @@ function UsersPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between gap-4 flex-wrap">
-        <h1 className="text-3xl font-bold">Users</h1>
-        <Button onClick={handleExport} disabled={exporting || total === 0} variant="outline">
-          <Download size={16} className="mr-2" />
+      <h1 className="text-3xl font-bold">Users</h1>
+
+      <div className="flex items-center justify-between gap-4 flex-wrap pr-2">
+        <div className="flex-1 max-w-sm">
+          <SearchInput
+            value={search}
+            onChange={(v) => {
+              setSearch(v);
+              setPage(1);
+            }}
+            placeholder="Search by email"
+          />
+        </div>
+        <Button onClick={handleExport} disabled={exporting || total === 0}>
+          <Download size={16} />
           {exporting ? 'Exporting…' : 'Export CSV'}
         </Button>
       </div>
 
-      <div className="flex items-center gap-3 max-w-md">
-        <SearchInput
-          value={search}
-          onChange={(v) => {
-            setSearch(v);
-            setPage(1);
-          }}
-          placeholder="Search by email…"
-        />
-      </div>
-
-      <div className="rounded-md border border-border overflow-hidden">
+      <div className="rounded-lg border border-border bg-card overflow-hidden">
         <Table>
           <TableHeader>
             <TableRow>
@@ -192,11 +192,11 @@ function UsersPage() {
                   </TableCell>
                   <TableCell>
                     {u.flaggedInactive ? (
-                      <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-800">
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-warning/20 text-warning">
                         Inactive
                       </span>
                     ) : (
-                      <span className="text-xs text-muted-foreground">—</span>
+                      <span className="text-xs text-muted-foreground">-</span>
                     )}
                   </TableCell>
                 </TableRow>
