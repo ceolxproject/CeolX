@@ -140,6 +140,9 @@ export const onboardingRouter = router({
             userId,
             venueName: input.venueName,
             address: input.address,
+            // numeric columns are written as strings (matches venues.ts update path)
+            lat: String(input.lat),
+            lng: String(input.lng),
             bio: input.bio ?? null,
             contactEmail: input.contactEmail ?? null,
             subscriptionStatus: SubscriptionStatus.INACTIVE,

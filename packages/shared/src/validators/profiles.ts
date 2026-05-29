@@ -39,6 +39,10 @@ export const venueOnboardingStep1Schema = z.object({
 
 export const venueOnboardingStep2Schema = z.object({
   address: z.string().min(1, 'Venue location is required').max(255).trim(),
+  // lat/lng come from the map pin and are mandatory — the map screen, event
+  // creation and navigation all rely on coordinates, not the address text.
+  lat: z.number({ message: 'Pin your venue on the map' }).min(-90).max(90),
+  lng: z.number({ message: 'Pin your venue on the map' }).min(-180).max(180),
   bio: z.string().max(50, 'Description must be 50 characters or less').trim().optional(),
 });
 

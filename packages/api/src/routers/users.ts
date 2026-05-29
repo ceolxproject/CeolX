@@ -73,6 +73,8 @@ export const usersRouter = router({
       venueName: string;
       bio: string | null;
       address: string;
+      lat: number | null;
+      lng: number | null;
       county: string | null;
       websiteUrl: string | null;
       phone: string | null;
@@ -122,6 +124,8 @@ export const usersRouter = router({
           venueName: venueProfiles.venueName,
           bio: venueProfiles.bio,
           address: venueProfiles.address,
+          lat: venueProfiles.lat,
+          lng: venueProfiles.lng,
           county: venueProfiles.county,
           websiteUrl: venueProfiles.websiteUrl,
           phone: venueProfiles.phone,
@@ -143,6 +147,9 @@ export const usersRouter = router({
 
         venueProfile = {
           ...profile,
+          // numeric columns come back as strings — expose as numbers for the map
+          lat: profile.lat ? Number(profile.lat) : null,
+          lng: profile.lng ? Number(profile.lng) : null,
           followerCount,
           followingCount,
           socialLinks: socialLinksRecord,
