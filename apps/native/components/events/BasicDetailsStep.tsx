@@ -14,8 +14,12 @@ import type { CollaboratorArtist } from '@/hooks/use-event-form';
 type Props = {
   title: string;
   onTitleChange: (v: string) => void;
+  /** Validate the title once the user leaves the field (real-time validation). */
+  onTitleBlur?: () => void;
   description: string;
   onDescriptionChange: (v: string) => void;
+  /** Validate the description once the user leaves the field. */
+  onDescriptionBlur?: () => void;
   coverImageUri: string | null;
   onPickImage: () => void;
   onRemoveImage: () => void;
@@ -41,8 +45,10 @@ const MAX_DESCRIPTION_LENGTH = 2000;
 export function BasicDetailsStep({
   title,
   onTitleChange,
+  onTitleBlur,
   description,
   onDescriptionChange,
+  onDescriptionBlur,
   coverImageUri,
   onPickImage,
   onRemoveImage,
@@ -81,6 +87,7 @@ export function BasicDetailsStep({
           placeholderTextColor="#8d8d8d"
           value={title}
           onChangeText={onTitleChange}
+          onBlur={onTitleBlur}
           maxLength={120}
         />
         {errors.title && <Text className="text-xs text-error font-urbanist">{errors.title}</Text>}
@@ -150,6 +157,7 @@ export function BasicDetailsStep({
               onDescriptionChange(text);
             }
           }}
+          onBlur={onDescriptionBlur}
           multiline
           textAlignVertical="top"
           maxLength={MAX_DESCRIPTION_LENGTH}
