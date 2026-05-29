@@ -79,6 +79,12 @@ export const auth = betterAuth({
           google: {
             clientId: env.GOOGLE_OAUTH_CLIENT_ID,
             clientSecret: env.GOOGLE_OAUTH_CLIENT_SECRET,
+            // Never auto-create an account for an unknown Google identity. A
+            // brand-new user tapping Google on the Login screen must instead go
+            // through Who-are-you → sign-up (role + ToS). The sign-up path opts
+            // back in with `requestSignUp: true`; the sign-in path omits it, so
+            // the server refuses to create a row (Asana 1215188822147991).
+            disableImplicitSignUp: true,
           },
         }
       : {}),
@@ -95,6 +101,10 @@ export const auth = betterAuth({
             apple: async () => ({
               clientId,
               appBundleIdentifier: 'ie.ceolx.app',
+              // Same gate as Google: an unknown Apple identity is not auto-signed
+              // up. The idToken sign-in path returns OAUTH_LINK_ERROR instead of
+              // creating a spectator row (Asana 1215188822147991).
+              disableImplicitSignUp: true,
               clientSecret: await generateAppleClientSecret({
                 clientId,
                 teamId,
