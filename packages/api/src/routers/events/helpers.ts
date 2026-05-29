@@ -1,4 +1,47 @@
+import { TRPCError } from '@trpc/server';
 import { z } from 'zod';
+
+/** Stored venue coordinates (numeric columns surface as strings; either may be
+ *  null for venues saved before coordinates were mandatory). */
+export type VenueCoordsLookup = (
+  venueId: string
+) => Promise<{ lat: string | null; lng: string | null } | null>;
+
+/**
+ * Resolves the coordinates an event will be stored and indexed with.
+ *
+ * Map and feed are coordinate-driven (Typesense geopoint), so every event needs
+ * a real pin. Resolution precedence:
+ *   1. Explicit lat/lng from the client (a dropped pin).
+ *   2. The selected registered venue's stored coordinates (inherited server-side).
+ *
+ * If neither yields coordinates, it throws — it never silently falls back to
+ * (0,0), which previously dumped events into the Atlantic and made them vanish
+ * from Discovery and the Map.
+ *
+ * Returns string coordinates ready for the numeric DB columns.
+ */
+export async function resolveEventCoordinates(
+  input: { lat?: number; lng?: number; venueId?: string },
+  lookupVenueCoords: VenueCoordsLookup
+): Promise<{ lat: string; lng: string }> {
+  if (input.lat !== undefined && input.lng !== undefined) {
+    return { lat: input.lat.toString(), lng: input.lng.toString() };
+  }
+
+  if (input.venueId) {
+    const venue = await lookupVenueCoords(input.venueId);
+    if (venue && venue.lat !== null && venue.lng !== null) {
+      return { lat: venue.lat, lng: venue.lng };
+    }
+  }
+
+  throw new TRPCError({
+    code: 'BAD_REQUEST',
+    message:
+      'Event location is required — drop a pin on the map or pick a registered venue with a saved location.',
+  });
+}
 
 export const MapQueryInput = z.object({
   swLat: z.number(),
