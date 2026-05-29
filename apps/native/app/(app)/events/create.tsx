@@ -77,8 +77,10 @@ export default function CreateEventScreen() {
           <BasicDetailsStep
             title={form.title}
             onTitleChange={form.setTitle}
+            onTitleBlur={() => form.handleBlur('title')}
             description={form.description}
             onDescriptionChange={form.setDescription}
+            onDescriptionBlur={() => form.handleBlur('description')}
             coverImageUri={form.coverImageUri}
             onPickImage={form.pickCoverImage}
             onRemoveImage={() => form.setCoverImageUri(null)}
