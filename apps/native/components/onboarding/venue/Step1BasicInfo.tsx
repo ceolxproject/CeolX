@@ -10,6 +10,7 @@ interface Step1BasicInfoProps {
   profileImageUri: string | null;
   imageError: string | null;
   handlePickImage: () => void;
+  handleRemoveImage: () => void;
   errors: Record<string, string>;
   handleBlur: (field: string) => void;
 }
@@ -22,6 +23,7 @@ export function Step1BasicInfo({
   profileImageUri,
   imageError,
   handlePickImage,
+  handleRemoveImage,
   errors,
   handleBlur,
 }: Step1BasicInfoProps) {
@@ -36,6 +38,7 @@ export function Step1BasicInfo({
           uri={profileImageUri}
           label="Upload Venue Picture / Logo"
           onPress={handlePickImage}
+          onRemove={handleRemoveImage}
         />
         {imageError ? (
           <Text className="mt-2 px-4 text-center text-xs text-error">{imageError}</Text>
