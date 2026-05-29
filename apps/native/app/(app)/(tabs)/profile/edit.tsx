@@ -17,6 +17,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { UserRole } from '@CeolX/shared/enums';
 
 import { appToast } from '@/components/AppToast';
+import { LocationPicker, type PickedLocation } from '@/components/LocationPicker';
 import { SocialLinkInput } from '@/components/profiles';
 import { useMe } from '@/hooks/use-me';
 import { useUpdateArtistProfile } from '@/hooks/use-update-artist-profile';
@@ -42,8 +43,10 @@ export default function EditProfileScreen() {
   const [genre, setGenre] = useState('');
   const [location, setLocation] = useState('');
 
-  // Venue-only fields
+  // Venue-only fields. lat/lng come from the map pin; address is the derived label.
   const [address, setAddress] = useState('');
+  const [venueLat, setVenueLat] = useState<number | null>(null);
+  const [venueLng, setVenueLng] = useState<number | null>(null);
   const [county, setCounty] = useState('');
   const [websiteUrl, setWebsiteUrl] = useState('');
   const [phone, setPhone] = useState('');
@@ -64,6 +67,8 @@ export default function EditProfileScreen() {
       setDisplayName(vp.venueName ?? '');
       setBio(vp.bio ?? '');
       setAddress(vp.address ?? '');
+      setVenueLat(vp.lat ?? null);
+      setVenueLng(vp.lng ?? null);
       setCounty(vp.county ?? '');
       setWebsiteUrl(vp.websiteUrl ?? '');
       setPhone(vp.phone ?? '');
@@ -96,6 +101,8 @@ export default function EditProfileScreen() {
           displayName: displayName.trim(),
           bio: bio.trim() || undefined,
           address: address.trim() || undefined,
+          lat: venueLat ?? undefined,
+          lng: venueLng ?? undefined,
           county: county.trim() || undefined,
           websiteUrl: normalizeOptionalUrl(websiteUrl),
           phone: phone.trim() || undefined,
@@ -247,16 +254,20 @@ export default function EditProfileScreen() {
           {isVenue && (
             <>
               <Text className="text-xs font-semibold text-white/60 uppercase tracking-wide mb-1.5 font-urbanist">
-                Address
+                Venue Location
               </Text>
-              <TextInput
-                className="bg-[#1C1C1E] rounded-lg h-[48px] px-4 text-base font-medium text-white mb-4"
-                placeholder="e.g. 20 Bridge Street Lower, Dublin 8"
-                placeholderTextColor="#8d8d8d"
-                value={address}
-                onChangeText={setAddress}
-                maxLength={255}
-              />
+              <View className="mb-4">
+                <LocationPicker
+                  lat={venueLat}
+                  lng={venueLng}
+                  address={address}
+                  onChange={(loc: PickedLocation) => {
+                    setVenueLat(loc.lat);
+                    setVenueLng(loc.lng);
+                    setAddress(loc.address);
+                  }}
+                />
+              </View>
 
               <Text className="text-xs font-semibold text-white/60 uppercase tracking-wide mb-1.5 font-urbanist">
                 County

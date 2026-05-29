@@ -1,5 +1,6 @@
-import { Ionicons } from '@expo/vector-icons';
 import { Text, TextInput, View } from 'react-native';
+
+import { LocationPicker, type PickedLocation } from '@/components/LocationPicker';
 
 const BIO_MAX = 50;
 
@@ -7,7 +8,9 @@ interface Step2ProfileDetailsProps {
   bio: string;
   setBio: (v: string) => void;
   address: string;
-  setAddress: (v: string) => void;
+  lat: number | null;
+  lng: number | null;
+  setLocation: (loc: PickedLocation) => void;
   errors: Record<string, string>;
   handleBlur: (field: string) => void;
 }
@@ -16,7 +19,9 @@ export function Step2ProfileDetails({
   bio,
   setBio,
   address,
-  setAddress,
+  lat,
+  lng,
+  setLocation,
   errors,
   handleBlur,
 }: Step2ProfileDetailsProps) {
@@ -29,22 +34,13 @@ export function Step2ProfileDetails({
       <View className="gap-4">
         <View className="gap-2">
           <Text className="text-sm font-bold text-white/80">Venue Location</Text>
-          <View
-            className={`h-[52px] flex-row items-center rounded-lg bg-white px-4 ${errors.address ? 'border border-error' : ''}`}
-          >
-            <TextInput
-              className="flex-1 text-base text-black"
-              placeholder="Choose your location"
-              placeholderTextColor="#8d8d8d"
-              value={address}
-              onChangeText={setAddress}
-              onBlur={() => handleBlur('address')}
-              autoCapitalize="words"
-              autoCorrect={false}
-            />
-            <Ionicons name="location-outline" size={20} color="#C8FF2F" />
-          </View>
-          {errors.address ? <Text className="text-xs text-error">{errors.address}</Text> : null}
+          <LocationPicker
+            lat={lat}
+            lng={lng}
+            address={address}
+            onChange={setLocation}
+            error={errors.lat ?? errors.lng ?? errors.address}
+          />
         </View>
 
         <View className="gap-2">
