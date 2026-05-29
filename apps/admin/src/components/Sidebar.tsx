@@ -1,5 +1,5 @@
 import { Link, useNavigate } from '@tanstack/react-router';
-import { BarChart3, LogOut, Menu, Settings, ShieldAlert, User, Users, X } from 'lucide-react';
+import { BarChart3, LogOut, Menu, Settings, ShieldAlert, Users, X } from 'lucide-react';
 import { useState } from 'react';
 
 import { CeolxLogo } from '@/components/CeolxLogo';
@@ -30,14 +30,19 @@ function SidebarFooter() {
 
   return (
     <div className="px-4 py-4 border-t border-sidebar-border">
-      <div className="flex items-center gap-2 px-2 py-1.5 text-sm">
-        <User size={16} className="text-sidebar-foreground/70 shrink-0" />
-        <span className="text-sidebar-foreground/90 truncate">{email}</span>
+      <div className="flex items-center gap-2.5 px-3 py-2">
+        <div className="size-7 rounded-full bg-sidebar-foreground/10 flex items-center justify-center text-xs font-semibold text-sidebar-foreground/80 shrink-0">
+          {email.charAt(0).toUpperCase()}
+        </div>
+        <div className="min-w-0">
+          <div className="text-[11px] text-sidebar-foreground/50">Signed in as</div>
+          <div className="text-sm text-sidebar-foreground truncate">{email}</div>
+        </div>
       </div>
       <button
         onClick={handleLogout}
         disabled={signingOut}
-        className="mt-1 flex items-center gap-2 w-full px-2 py-1.5 rounded-lg text-sm text-sidebar-foreground/70 hover:bg-sidebar-foreground/10 hover:text-sidebar-foreground transition-colors disabled:opacity-50"
+        className="mt-1 flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm text-sidebar-foreground/70 hover:bg-sidebar-foreground/10 hover:text-sidebar-foreground transition-colors disabled:opacity-50"
       >
         <LogOut size={16} />
         <span>{signingOut ? 'Signing out…' : 'Logout'}</span>
@@ -97,7 +102,7 @@ export function Sidebar() {
           mobileOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
-        <div className="relative flex flex-col px-5 pt-6 pb-4">
+        <div className="relative flex flex-col px-7 pt-6 pb-4">
           <button
             onClick={() => setMobileOpen(false)}
             aria-label="Close navigation"
@@ -106,7 +111,9 @@ export function Sidebar() {
             <X size={20} />
           </button>
           <CeolxLogo fontSize={26} />
-          <p className="text-xs text-sidebar-foreground/50 mt-2 tracking-wide">Admin Dashboard</p>
+          <p className="text-[10px] font-medium uppercase tracking-[0.15em] text-sidebar-foreground/40 mt-3">
+            Admin Dashboard
+          </p>
         </div>
         {nav}
         <SidebarFooter />
@@ -114,9 +121,11 @@ export function Sidebar() {
 
       {/* Desktop sidebar */}
       <aside className="hidden md:flex flex-col w-60 h-screen bg-sidebar text-sidebar-foreground border-r border-sidebar-border shrink-0">
-        <div className="flex flex-col px-5 pt-8 pb-6">
+        <div className="flex flex-col px-7 pt-8 pb-6">
           <CeolxLogo fontSize={28} />
-          <p className="text-xs text-sidebar-foreground/50 mt-2 tracking-wide">Admin Dashboard</p>
+          <p className="text-[10px] font-medium uppercase tracking-[0.15em] text-sidebar-foreground/40 mt-3">
+            Admin Dashboard
+          </p>
         </div>
         {nav}
         <SidebarFooter />
