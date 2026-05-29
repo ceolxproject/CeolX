@@ -2,24 +2,13 @@ import { Ionicons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
 import * as Location from 'expo-location';
 import { cn } from 'heroui-native';
-import { useEffect, useRef, useState } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  Pressable,
-  ScrollView,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
-import MapView, { Marker } from 'react-native-maps';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, Alert, Pressable, ScrollView, Text, View } from 'react-native';
 
 import { CalendarPicker } from '@/components/events/CalendarPicker';
 import { TimePickerModal } from '@/components/events/TimePickerModal';
+import { LocationPicker } from '@/components/LocationPicker';
 import { trpc } from '@/utils/trpc';
-
-const IRELAND_CENTER = { latitude: 53.1424, longitude: -7.6921 };
-const IRELAND_DELTA = { latitudeDelta: 4, longitudeDelta: 4 };
 
 type Props = {
   dateStart: Date | null;
@@ -43,6 +32,9 @@ type Props = {
   onBack: () => void;
   /** Registered venue address for "Use my venue" pre-fill (venue creators only) */
   myVenueAddress?: string | null;
+  /** Venue creator's own stored pin — preferred over re-geocoding the address. */
+  myVenueLat?: number | null;
+  myVenueLng?: number | null;
   isVenue?: boolean;
   /** When true, skip auto-pre-fill (user is editing an existing event with its own location) */
   isEditing?: boolean;
@@ -77,18 +69,15 @@ export function DateVenueStep({
   onContinue,
   onBack,
   myVenueAddress,
+  myVenueLat,
+  myVenueLng,
   isVenue,
   isEditing,
 }: Props) {
-  const mapRef = useRef<MapView>(null);
-
   // Picker visibility state
   const [showStartTimePicker, setShowStartTimePicker] = useState(false);
   const [showEndTimePicker, setShowEndTimePicker] = useState(false);
 
-  // Map venue search
-  const [venueSearch, setVenueSearch] = useState('');
-  const [isSearching, setIsSearching] = useState(false);
   const [isPreFilling, setIsPreFilling] = useState(false);
 
   // Artist venue picker
@@ -98,55 +87,15 @@ export function DateVenueStep({
     trpc.venues.list.queryOptions()
   );
 
-  const reverseGeocode = async (latitude: number, longitude: number): Promise<string | null> => {
-    try {
-      const results = await Location.reverseGeocodeAsync({ latitude, longitude });
-      if (results.length > 0) {
-        const r = results[0];
-        const parts = [r.name, r.city ?? r.region, r.country].filter(Boolean);
-        return parts.join(', ') || null;
-      }
-    } catch {
-      // Silently fail — user can still use manual address entry
-    }
-    return null;
-  };
-
-  const handleVenueSearch = async () => {
-    const query = venueSearch.trim();
-    if (!query) return;
-    setIsSearching(true);
-    try {
-      // Bias results to Ireland by appending country hint
-      const results = await Location.geocodeAsync(`${query}, Ireland`);
-      if (results.length > 0) {
-        const { latitude, longitude } = results[0];
-        mapRef.current?.animateToRegion(
-          { latitude, longitude, latitudeDelta: 0.05, longitudeDelta: 0.05 },
-          400
-        );
-        onLocationChange(latitude, longitude);
-        // Use search query as address label; reverse geocode for a cleaner result
-        const resolved = await reverseGeocode(latitude, longitude);
-        onVenueAddressChange(resolved ?? query);
-      } else {
-        Alert.alert('No results', `No location found for "${query}". Try a different search.`);
-      }
-    } catch {
-      Alert.alert('Search failed', 'Could not search for that location. Please try again.');
-    } finally {
-      setIsSearching(false);
-    }
-  };
-
-  const handleMapPress = async (latitude: number, longitude: number) => {
-    onLocationChange(latitude, longitude);
-    const resolved = await reverseGeocode(latitude, longitude);
-    if (resolved) onVenueAddressChange(resolved);
-  };
-
   const handleUseMyVenue = async () => {
     if (!myVenueAddress) return;
+    // Prefer the venue's stored pin (captured at onboarding) — it's the source
+    // of truth and avoids a fragile re-geocode of the address string.
+    if (typeof myVenueLat === 'number' && typeof myVenueLng === 'number') {
+      onLocationChange(myVenueLat, myVenueLng);
+      onVenueAddressChange(myVenueAddress);
+      return;
+    }
     setIsPreFilling(true);
     try {
       const results = await Location.geocodeAsync(`${myVenueAddress}, Ireland`);
@@ -154,10 +103,6 @@ export function DateVenueStep({
         const { latitude, longitude } = results[0];
         onLocationChange(latitude, longitude);
         onVenueAddressChange(myVenueAddress);
-        mapRef.current?.animateToRegion(
-          { latitude, longitude, latitudeDelta: 0.05, longitudeDelta: 0.05 },
-          400
-        );
       } else {
         // Geocoding failed — fall back to just setting the address text
         onVenueAddressChange(myVenueAddress);
@@ -259,72 +204,22 @@ export function DateVenueStep({
           </View>
 
           {showManualAddress ? (
-            /* Map + search mode — user pins a custom location */
-            <View className="gap-2">
-              <View className="flex-row items-center rounded-lg border bg-surface px-3 py-2.5 gap-2 border-gray-8">
-                <Ionicons name="search-outline" size={16} color="#8d8d8d" />
-                <TextInput
-                  className="flex-1 text-sm text-white font-urbanist"
-                  placeholder={
-                    isVenue
-                      ? 'Search city, county or venue name…'
-                      : 'Search for performance location…'
-                  }
-                  placeholderTextColor="#8d8d8d"
-                  value={venueSearch}
-                  onChangeText={setVenueSearch}
-                  returnKeyType="search"
-                  autoCorrect={false}
-                  onSubmitEditing={handleVenueSearch}
-                />
-                {isSearching ? (
-                  <ActivityIndicator size="small" color="#6C63FF" />
-                ) : venueSearch.length > 0 ? (
-                  <Pressable onPress={handleVenueSearch} hitSlop={8}>
-                    <Ionicons name="arrow-forward-circle" size={20} color="#6C63FF" />
-                  </Pressable>
-                ) : null}
-              </View>
-
-              {/* MapView requires explicit style — className alone doesn't
-                  reliably reach the underlying native component. */}
-              <View
-                className={cn(
-                  'h-[220px] rounded-xl overflow-hidden border',
-                  errors.lat ? 'border-error' : 'border-gray-8'
-                )}
-              >
-                <MapView
-                  ref={mapRef}
-                  className="flex-1"
-                  style={{ flex: 1 }}
-                  initialRegion={{ ...IRELAND_CENTER, ...IRELAND_DELTA }}
-                  onPress={(e) => {
-                    const { latitude, longitude } = e.nativeEvent.coordinate;
-                    void handleMapPress(latitude, longitude);
-                  }}
-                >
-                  {lat !== null && lng !== null && (
-                    <Marker
-                      coordinate={{ latitude: lat, longitude: lng }}
-                      draggable
-                      onDragEnd={(e) => {
-                        const { latitude, longitude } = e.nativeEvent.coordinate;
-                        void handleMapPress(latitude, longitude);
-                      }}
-                    />
-                  )}
-                </MapView>
-              </View>
-
-              <Text className="text-xs text-gray-7 font-urbanist">
-                {lat !== null && lng !== null
-                  ? `📍 ${venueAddress || `${lat.toFixed(5)}, ${lng.toFixed(5)}`}`
-                  : 'Tap the map or search above to set a venue location'}
-              </Text>
-
-              {errors.lat && <Text className="text-xs text-error font-urbanist">{errors.lat}</Text>}
-            </View>
+            /* Map + search mode — user pins a custom location via the shared
+               LocationPicker (single source of truth across onboarding,
+               profile edit and event creation). */
+            <LocationPicker
+              lat={lat}
+              lng={lng}
+              address={venueAddress}
+              error={errors.lat}
+              searchPlaceholder={
+                isVenue ? 'Search city, county or venue name…' : 'Search for performance location…'
+              }
+              onChange={({ lat: pickedLat, lng: pickedLng, address }) => {
+                onLocationChange(pickedLat, pickedLng);
+                onVenueAddressChange(address);
+              }}
+            />
           ) : (
             /* Default mode — pick from registered venues (artists) or own venue (venues) */
             <View className="gap-1.5">
@@ -366,22 +261,17 @@ export function DateVenueStep({
                           <Pressable
                             key={v.id}
                             className="px-4 py-3 active:bg-white/5 border-b border-gray-8"
-                            onPress={async () => {
+                            onPress={() => {
                               setShowVenueDropdown(false);
                               setSelectedVenueName(v.name);
                               onVenueAddressChange(v.address);
                               onVenueIdChange(v.id);
-                              // Geocode to populate lat/lng for the event's spatial index
-                              try {
-                                const results = await Location.geocodeAsync(
-                                  `${v.address}, Ireland`
-                                );
-                                if (results.length > 0) {
-                                  const { latitude, longitude } = results[0];
-                                  onLocationChange(latitude, longitude);
-                                }
-                              } catch {
-                                // Geocoding failed — address is still set
+                              // Use the venue's stored pin directly — no fragile
+                              // re-geocode of the address. The server also
+                              // inherits the venue's coordinates from venueId,
+                              // so the event is always correctly located.
+                              if (v.lat !== null && v.lng !== null) {
+                                onLocationChange(v.lat, v.lng);
                               }
                             }}
                           >

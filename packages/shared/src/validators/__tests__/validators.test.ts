@@ -211,7 +211,7 @@ describe('createEventSchema', () => {
     expect(createEventSchema.safeParse({ ...valid, lng: -181 }).success).toBe(false);
   });
 
-  it('rejects when neither coordinates nor venueAddress provided', () => {
+  it('rejects when neither coordinates nor venueId provided', () => {
     const noLocation = {
       title: valid.title,
       description: valid.description,
@@ -221,15 +221,28 @@ describe('createEventSchema', () => {
     expect(createEventSchema.safeParse(noLocation).success).toBe(false);
   });
 
-  it('accepts with venueAddress instead of coordinates', () => {
-    const withAddress = {
+  it('rejects a free-text venueAddress without coordinates or a venueId', () => {
+    // Map and feed are coordinate-driven — an address string alone cannot place
+    // an event, so it must not satisfy the location requirement.
+    const addressOnly = {
       title: valid.title,
       description: valid.description,
       dateStart: valid.dateStart,
       venueAddress: "O'Brien's Pub, Dublin",
       category: valid.category,
     };
-    expect(createEventSchema.safeParse(withAddress).success).toBe(true);
+    expect(createEventSchema.safeParse(addressOnly).success).toBe(false);
+  });
+
+  it('accepts a venueId without coordinates (server inherits the venue pin)', () => {
+    const withVenueId = {
+      title: valid.title,
+      description: valid.description,
+      dateStart: valid.dateStart,
+      venueId: '550e8400-e29b-41d4-a716-446655440000',
+      category: valid.category,
+    };
+    expect(createEventSchema.safeParse(withVenueId).success).toBe(true);
   });
 
   it('rejects dateEnd before dateStart', () => {

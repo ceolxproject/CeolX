@@ -25,7 +25,18 @@ import type { DispatchNotificationInput } from '../../context';
 import { creatorProcedure, protectedProcedure, publicProcedure } from '../../index';
 import { syncEventToTypesense, removeEventFromTypesense } from '../../services/event-sync';
 
+import { resolveEventCoordinates } from './helpers';
 import { recordEventView } from './view-tracking';
+
+/** Look up a registered venue's stored pin so events can inherit it. */
+const lookupVenueCoords = async (venueId: string) => {
+  const [venue] = await db
+    .select({ lat: venueProfiles.lat, lng: venueProfiles.lng })
+    .from(venueProfiles)
+    .where(eq(venueProfiles.id, venueId))
+    .limit(1);
+  return venue ?? null;
+};
 
 export const byId = publicProcedure
   .input(z.object({ id: z.string().uuid() }))
@@ -241,6 +252,11 @@ export const create = creatorProcedure.input(createEventSchema).mutation(async (
     eventData.adDescription = undefined;
   }
 
+  // Resolve real coordinates before persisting — explicit pin first, else the
+  // selected venue's stored pin. Throws if neither resolves, so we never write
+  // the (0,0) fallback that made events vanish from the map and feed.
+  const { lat, lng } = await resolveEventCoordinates(eventData, lookupVenueCoords);
+
   // Collected inside the transaction; fired after commit so a rollback
   // doesn't leave us with phantom notifications. See M7-T1 dispatcher.
   const pendingDispatches: DispatchNotificationInput[] = [];
@@ -254,8 +270,8 @@ export const create = creatorProcedure.input(createEventSchema).mutation(async (
         coverImage: eventData.coverImage ?? null,
         dateStart: new Date(eventData.dateStart),
         dateEnd: eventData.dateEnd ? new Date(eventData.dateEnd) : null,
-        lat: eventData.lat?.toString() ?? '0',
-        lng: eventData.lng?.toString() ?? '0',
+        lat,
+        lng,
         venueId: eventData.venueId ?? null,
         venueAddress: eventData.venueAddress ?? null,
         category: eventData.category,
@@ -475,9 +491,15 @@ export const create = creatorProcedure.input(createEventSchema).mutation(async (
   // would leave us with phantom inbox rows + push notifications otherwise.
   await Promise.all(pendingDispatches.map((d) => ctx.dispatchNotification(d)));
 
-  // Sync to Typesense so event appears on map/feed immediately
-  await syncEventToTypesense(event).catch(() => {
-    // Non-blocking — event is in DB, Typesense sync can be retried
+  // Sync to Typesense so event appears on map/feed immediately. Non-blocking —
+  // the event is in the DB and the sync can be retried — but we must NOT swallow
+  // the error silently: a failed sync means the event is invisible on the map
+  // and feed, so the cause needs to surface in logs for ops to act on.
+  await syncEventToTypesense(event).catch((err: unknown) => {
+    console.warn(
+      `[events.create] Typesense sync failed for event ${event.id} — it will not appear on map/feed until re-synced:`,
+      err instanceof Error ? `${err.name}: ${err.message}` : err
+    );
   });
 
   return event;
@@ -511,6 +533,19 @@ export const update = protectedProcedure
       updateData.adDescription = undefined;
     }
 
+    // Resolve coordinates: an explicit pin always wins; otherwise, if the
+    // creator switches to a different registered venue, inherit that venue's
+    // stored pin so the event's location stays consistent. Never write (0,0).
+    let resolvedCoords: { lat: string; lng: string } | null = null;
+    if (updateData.lat !== undefined && updateData.lng !== undefined) {
+      resolvedCoords = { lat: updateData.lat.toString(), lng: updateData.lng.toString() };
+    } else if (updateData.venueId !== undefined && updateData.venueId !== event.venueId) {
+      const venue = await lookupVenueCoords(updateData.venueId);
+      if (venue && venue.lat !== null && venue.lng !== null) {
+        resolvedCoords = { lat: venue.lat, lng: venue.lng };
+      }
+    }
+
     // Collected inside the transaction; fired after commit so a rollback
     // doesn't leave us with phantom notifications.
     const pendingDispatches: DispatchNotificationInput[] = [];
@@ -523,8 +558,10 @@ export const update = protectedProcedure
       if (updateData.coverImage !== undefined) setValues.coverImage = updateData.coverImage;
       if (updateData.dateStart !== undefined) setValues.dateStart = new Date(updateData.dateStart);
       if (updateData.dateEnd !== undefined) setValues.dateEnd = new Date(updateData.dateEnd);
-      if (updateData.lat !== undefined) setValues.lat = updateData.lat.toString();
-      if (updateData.lng !== undefined) setValues.lng = updateData.lng.toString();
+      if (resolvedCoords) {
+        setValues.lat = resolvedCoords.lat;
+        setValues.lng = resolvedCoords.lng;
+      }
       if (updateData.venueId !== undefined) setValues.venueId = updateData.venueId;
       if (updateData.venueAddress !== undefined) setValues.venueAddress = updateData.venueAddress;
       if (updateData.category !== undefined) setValues.category = updateData.category;
@@ -759,11 +796,22 @@ export const update = protectedProcedure
       return result;
     });
 
-    // Sync to Typesense if event is active
+    // Sync to Typesense if event is active. Non-blocking, but log failures —
+    // a silently failed sync leaves the event out of the map/feed.
     if (updated.status === EventStatus.ACTIVE) {
-      await syncEventToTypesense(updated).catch(() => {});
+      await syncEventToTypesense(updated).catch((err: unknown) => {
+        console.warn(
+          `[events.update] Typesense sync failed for event ${updated.id}:`,
+          err instanceof Error ? `${err.name}: ${err.message}` : err
+        );
+      });
     } else {
-      await removeEventFromTypesense(updated.id).catch(() => {});
+      await removeEventFromTypesense(updated.id).catch((err: unknown) => {
+        console.warn(
+          `[events.update] Typesense removal failed for event ${updated.id}:`,
+          err instanceof Error ? `${err.name}: ${err.message}` : err
+        );
+      });
     }
 
     // Fire collected dispatches after the transaction commits.

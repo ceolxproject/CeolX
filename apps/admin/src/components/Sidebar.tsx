@@ -1,5 +1,5 @@
 import { Link, useNavigate } from '@tanstack/react-router';
-import { BarChart3, LogOut, Menu, Settings, ShieldAlert, Users, X } from 'lucide-react';
+import { BarChart3, LogOut, Menu, Settings, ShieldAlert, Users, Wrench, X } from 'lucide-react';
 import { useState } from 'react';
 
 import { CeolxLogo } from '@/components/CeolxLogo';
@@ -9,6 +9,7 @@ const navItems = [
   { name: 'Dashboard', to: '/dashboard', icon: BarChart3 },
   { name: 'Users', to: '/users', icon: Users },
   { name: 'Event Moderation', to: '/events/moderation', icon: ShieldAlert },
+  { name: 'Maintenance', to: '/maintenance', icon: Wrench },
   { name: 'Account', to: '/account', icon: Settings },
 ] as const;
 

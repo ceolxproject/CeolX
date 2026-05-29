@@ -24,10 +24,19 @@ export const venuesRouter = router({
         id: venueProfiles.id,
         name: venueProfiles.venueName,
         address: venueProfiles.address,
+        lat: venueProfiles.lat,
+        lng: venueProfiles.lng,
       })
       .from(venueProfiles)
       .orderBy(venueProfiles.venueName);
-    return rows;
+    // numeric columns come back as strings — expose coordinates as numbers so
+    // the event form can pin the map from the venue's stored location directly
+    // (no client-side geocoding of the address string).
+    return rows.map((v) => ({
+      ...v,
+      lat: v.lat !== null ? Number(v.lat) : null,
+      lng: v.lng !== null ? Number(v.lng) : null,
+    }));
   }),
 
   // Fetch venue public profile by id (user ID). Subscription-gated:
