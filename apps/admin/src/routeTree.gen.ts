@@ -13,6 +13,7 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as AdminRouteImport } from './routes/_admin'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminUsersRouteImport } from './routes/_admin/users'
+import { Route as AdminMaintenanceRouteImport } from './routes/_admin/maintenance'
 import { Route as AdminDashboardRouteImport } from './routes/_admin/dashboard'
 import { Route as AdminAccountRouteImport } from './routes/_admin/account'
 import { Route as AdminEventsModerationRouteImport } from './routes/_admin/events/moderation'
@@ -36,6 +37,11 @@ const AdminUsersRoute = AdminUsersRouteImport.update({
   path: '/users',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminMaintenanceRoute = AdminMaintenanceRouteImport.update({
+  id: '/maintenance',
+  path: '/maintenance',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminDashboardRoute = AdminDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
@@ -57,6 +63,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/account': typeof AdminAccountRoute
   '/dashboard': typeof AdminDashboardRoute
+  '/maintenance': typeof AdminMaintenanceRoute
   '/users': typeof AdminUsersRoute
   '/events/moderation': typeof AdminEventsModerationRoute
 }
@@ -65,6 +72,7 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/account': typeof AdminAccountRoute
   '/dashboard': typeof AdminDashboardRoute
+  '/maintenance': typeof AdminMaintenanceRoute
   '/users': typeof AdminUsersRoute
   '/events/moderation': typeof AdminEventsModerationRoute
 }
@@ -75,6 +83,7 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/_admin/account': typeof AdminAccountRoute
   '/_admin/dashboard': typeof AdminDashboardRoute
+  '/_admin/maintenance': typeof AdminMaintenanceRoute
   '/_admin/users': typeof AdminUsersRoute
   '/_admin/events/moderation': typeof AdminEventsModerationRoute
 }
@@ -85,6 +94,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/account'
     | '/dashboard'
+    | '/maintenance'
     | '/users'
     | '/events/moderation'
   fileRoutesByTo: FileRoutesByTo
@@ -93,6 +103,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/account'
     | '/dashboard'
+    | '/maintenance'
     | '/users'
     | '/events/moderation'
   id:
@@ -102,6 +113,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/_admin/account'
     | '/_admin/dashboard'
+    | '/_admin/maintenance'
     | '/_admin/users'
     | '/_admin/events/moderation'
   fileRoutesById: FileRoutesById
@@ -142,6 +154,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminUsersRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/_admin/maintenance': {
+      id: '/_admin/maintenance'
+      path: '/maintenance'
+      fullPath: '/maintenance'
+      preLoaderRoute: typeof AdminMaintenanceRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/_admin/dashboard': {
       id: '/_admin/dashboard'
       path: '/dashboard'
@@ -169,6 +188,7 @@ declare module '@tanstack/react-router' {
 interface AdminRouteChildren {
   AdminAccountRoute: typeof AdminAccountRoute
   AdminDashboardRoute: typeof AdminDashboardRoute
+  AdminMaintenanceRoute: typeof AdminMaintenanceRoute
   AdminUsersRoute: typeof AdminUsersRoute
   AdminEventsModerationRoute: typeof AdminEventsModerationRoute
 }
@@ -176,6 +196,7 @@ interface AdminRouteChildren {
 const AdminRouteChildren: AdminRouteChildren = {
   AdminAccountRoute: AdminAccountRoute,
   AdminDashboardRoute: AdminDashboardRoute,
+  AdminMaintenanceRoute: AdminMaintenanceRoute,
   AdminUsersRoute: AdminUsersRoute,
   AdminEventsModerationRoute: AdminEventsModerationRoute,
 }
