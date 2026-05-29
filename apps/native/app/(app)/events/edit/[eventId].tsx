@@ -204,6 +204,8 @@ export default function EditEventScreen() {
             onBack={form.goBack}
             isVenue={isVenue}
             myVenueAddress={me?.venueAddress}
+            myVenueLat={me?.venueProfile?.lat ?? null}
+            myVenueLng={me?.venueProfile?.lng ?? null}
             isEditing
           />
         )}

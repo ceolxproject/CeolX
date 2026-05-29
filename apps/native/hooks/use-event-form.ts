@@ -262,25 +262,17 @@ export function useEventForm(options?: UseEventFormOptions) {
         case 'startTime':
           return startTime ? undefined : 'Start time is required';
         case 'lat':
-          return (lat === null || lng === null) && !venueAddress.trim()
-            ? 'Either a location pin or venue address is required'
+          // Map and feed are coordinate-driven, so an event needs a real pin.
+          // A free-text address alone is not enough — the user must drop a pin
+          // or pick a registered venue (whose stored pin the server inherits).
+          return (lat === null || lng === null) && !venueId
+            ? 'A location pin or a registered venue is required'
             : undefined;
         default:
           return undefined;
       }
     },
-    [
-      title,
-      description,
-      category,
-      isVenue,
-      collaborators,
-      dateStart,
-      startTime,
-      lat,
-      lng,
-      venueAddress,
-    ]
+    [title, description, category, isVenue, collaborators, dateStart, startTime, lat, lng, venueId]
   );
 
   // Re-validate every already-touched field whenever any value changes, so an
