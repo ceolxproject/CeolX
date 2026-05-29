@@ -88,6 +88,24 @@ export default function SignUpScreen() {
     router.replace('/(app)/(tabs)/map');
   };
 
+  // Social sign-up must accept Terms & Privacy first, exactly like the email
+  // button above — otherwise an account could be created without consent, which
+  // breaks the GDPR "ToS accepted at sign-up" requirement (Asana 1215188822147991).
+  const handleSocialSignUp = (provider: 'google' | 'apple') => {
+    setErrors({});
+    setSubmitError(null);
+    if (!tosAccepted) {
+      setSubmitError('You must accept the Terms of Service and Privacy Policy');
+      return;
+    }
+    const opts = { currentRole, marketingConsent: marketingOptIn };
+    if (provider === 'google') {
+      void signInWithGoogle(opts);
+    } else {
+      void signInWithApple(opts);
+    }
+  };
+
   return (
     <View style={{ flex: 1, backgroundColor: '#080808' }}>
       <SafeAreaView style={{ flex: 1 }}>
@@ -125,12 +143,8 @@ export default function SignUpScreen() {
 
             <SocialLoginButtons
               separator="Or sign up with"
-              onGooglePress={() =>
-                signInWithGoogle({ currentRole, marketingConsent: marketingOptIn })
-              }
-              onApplePress={() =>
-                signInWithApple({ currentRole, marketingConsent: marketingOptIn })
-              }
+              onGooglePress={() => handleSocialSignUp('google')}
+              onApplePress={() => handleSocialSignUp('apple')}
             />
 
             {submitError ? (
