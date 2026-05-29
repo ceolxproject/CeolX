@@ -34,10 +34,15 @@ const eventBaseShape = {
 
 export const createEventSchema = z
   .object(eventBaseShape)
+  // Map and feed are coordinate-driven (Typesense geopoint), so every event
+  // needs a real pin. Either the client supplies lat/lng directly, or it picks
+  // a registered venue (venueId) whose stored coordinates the server inherits.
+  // A free-text venueAddress alone is only a display label — it cannot place an
+  // event on the map, so it no longer satisfies this requirement.
   .refine(
-    (data) => (data.lat !== undefined && data.lng !== undefined) || data.venueAddress !== undefined,
+    (data) => (data.lat !== undefined && data.lng !== undefined) || data.venueId !== undefined,
     {
-      message: 'Either coordinates or venue address is required',
+      message: 'A location pin or a registered venue is required',
       path: ['lat'],
     }
   )
