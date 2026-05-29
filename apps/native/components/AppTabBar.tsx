@@ -7,6 +7,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { UserRole } from '@CeolX/shared/enums';
 
+import { getTabPressActions } from './app-tab-bar.utils';
+
 import { useMe } from '@/hooks/use-me';
 
 // Nested stack routes inside (tabs) that render full-screen and must hide the tab bar.
@@ -60,8 +62,23 @@ export function AppTabBar({ state, navigation, onFabPress }: AppTabBarProps) {
         target: route?.key ?? '',
         canPreventDefault: true,
       });
-      if (!isFocused && !event.defaultPrevented) {
-        navigation.navigate(tab.name);
+
+      // A tab hosts a nested Stack whose history survives tab switches. Reset that
+      // stack to its root list view on press so the tab never reopens a previously
+      // visited detail screen (discover/event/[id], bookings/[bookingId], …).
+      const actions = getTabPressActions({
+        isFocused,
+        defaultPrevented: event.defaultPrevented,
+        tabName: tab.name,
+        nestedStackKey: route?.state?.key,
+      });
+
+      for (const action of actions) {
+        if (action.type === 'popToTop') {
+          navigation.dispatch({ type: 'POP_TO_TOP', target: action.target });
+        } else {
+          navigation.navigate(action.tab);
+        }
       }
     };
 
