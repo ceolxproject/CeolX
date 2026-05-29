@@ -1,11 +1,41 @@
 @import '@CeolX/ui/globals.css';
 
-/* CeolX brand tokens — mirrors apps/native/global.css */
 :root {
-  --ceolx-blue: #662fff;
-  --ceolx-green: #c8ff2f;
-  --ceolx-surface-dark: #080808;
-  --ceolx-surface: #363636;
+  /* Admin shell uses a light main content area with a dark sidebar.
+     The sidebar keeps the design-system dark tokens (--sidebar-*).
+     Everything else is flipped here to a light palette so the
+     dashboard reads well during long moderation sessions. */
+  color-scheme: light;
+
+  /* Surfaces — Linear-style elevation. Cards are pure white and
+     "lift" off a very faint cool-grey page via a layered shadow
+     (applied below). The colour difference is intentionally small;
+     the shadow does the work of separating panels from the page. */
+  --background: oklch(0.985 0.003 250); /* ~#f7f8fa — very faint cool grey */
+  --foreground: oklch(0.21 0 0); /* ~#1f1f23 zinc-900 */
+  --card: oklch(1 0 0); /* #ffffff — pure white card */
+  --card-foreground: oklch(0.21 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.21 0 0);
+
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.21 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.5 0 0); /* ~zinc-500 */
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.21 0 0);
+
+  --border: oklch(0.92 0 0); /* subtle on white cards */
+  --input: oklch(0.9 0 0);
+
+  /* Primary still matches the sidebar active pill so focus rings,
+     buttons, and links share one brand colour across the shell. */
+  --primary: #7c6fff;
+  --ring: #7c6fff;
+
+  /* Darker success green so "Live" badges stay readable on white
+     cards (the spec lime #c8ff2f is too pale on a light surface). */
+  --color-success: #16a34a;
 }
 
 /* Heading font: Urbanist; body: Inter (loaded in index.html). */
@@ -27,4 +57,19 @@ h6 {
   font-family: 'Urbanist', 'Inter', system-ui, sans-serif;
   font-weight: 700;
   letter-spacing: -0.01em;
+}
+
+/* Card elevation — every card-surface in the admin (shadcn Card +
+   the table containers in moderation/users/DataTable) lifts off the
+   page via a soft layered shadow instead of relying on colour. */
+.bg-card {
+  box-shadow:
+    0 1px 2px 0 rgb(15 23 42 / 0.04),
+    0 4px 12px -4px rgb(15 23 42 / 0.06);
+}
+
+/* Table header row — subtle off-white tint so the head visually
+   anchors above the body without needing a hard border. */
+[data-slot='table-header'] {
+  background-color: oklch(0.975 0.003 250);
 }

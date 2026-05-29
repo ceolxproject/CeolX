@@ -33,12 +33,12 @@ describe('StatusBadge', () => {
   it('applies destructive colour class for rejected status', () => {
     render(<StatusBadge status="rejected" />);
     const badge = screen.getByText('Rejected');
-    expect(badge.className).toMatch(/destructive/);
+    expect(badge.className).toMatch(/red/);
   });
 
   it('applies success colour class for active status', () => {
     render(<StatusBadge status="active" />);
     const badge = screen.getByText('Live');
-    expect(badge.className).toMatch(/success/);
+    expect(badge.className).toMatch(/emerald/);
   });
 });
