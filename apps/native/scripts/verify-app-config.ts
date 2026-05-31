@@ -30,8 +30,8 @@ function loadConfig(variant: 'staging' | 'production'): AppConfigShape {
 }
 
 const staging = loadConfig('staging');
-assert.equal(staging.android.package, 'ie.ceolx.app.staging');
-assert.equal(staging.ios.bundleIdentifier, 'ie.ceolx.app.staging');
+assert.equal(staging.android.package, 'com.raftlabs.ceolx.staging');
+assert.equal(staging.ios.bundleIdentifier, 'com.raftlabs.ceolx.staging');
 assert.equal(staging.name, 'CeolX (Staging)');
 assert.equal(staging.extra.appVariant, 'staging');
 

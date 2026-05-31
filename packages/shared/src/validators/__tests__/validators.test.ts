@@ -211,7 +211,14 @@ describe('createEventSchema', () => {
     expect(createEventSchema.safeParse({ ...valid, lng: -181 }).success).toBe(false);
   });
 
-  it('rejects when neither coordinates nor venueAddress provided', () => {
+  it('rejects null-island (0,0) coordinates — the failed-geocode sentinel', () => {
+    // 0,0 used to slip through (it's "in range") and produced events that
+    // saved fine but never appeared on the map/feed. It must be rejected unless
+    // a registered venueId supplies real coordinates.
+    expect(createEventSchema.safeParse({ ...valid, lat: 0, lng: 0 }).success).toBe(false);
+  });
+
+  it('rejects when neither coordinates nor venueId provided', () => {
     const noLocation = {
       title: valid.title,
       description: valid.description,
@@ -221,15 +228,28 @@ describe('createEventSchema', () => {
     expect(createEventSchema.safeParse(noLocation).success).toBe(false);
   });
 
-  it('accepts with venueAddress instead of coordinates', () => {
-    const withAddress = {
+  it('rejects a free-text venueAddress without coordinates or a venueId', () => {
+    // Map and feed are coordinate-driven — an address string alone cannot place
+    // an event, so it must not satisfy the location requirement.
+    const addressOnly = {
       title: valid.title,
       description: valid.description,
       dateStart: valid.dateStart,
       venueAddress: "O'Brien's Pub, Dublin",
       category: valid.category,
     };
-    expect(createEventSchema.safeParse(withAddress).success).toBe(true);
+    expect(createEventSchema.safeParse(addressOnly).success).toBe(false);
+  });
+
+  it('accepts a venueId without coordinates (server inherits the venue pin)', () => {
+    const withVenueId = {
+      title: valid.title,
+      description: valid.description,
+      dateStart: valid.dateStart,
+      venueId: '550e8400-e29b-41d4-a716-446655440000',
+      category: valid.category,
+    };
+    expect(createEventSchema.safeParse(withVenueId).success).toBe(true);
   });
 
   it('rejects dateEnd before dateStart', () => {
@@ -241,21 +261,21 @@ describe('createEventSchema', () => {
     ).toBe(false);
   });
 
-  it('accepts new fields (ticketPrice, collaborators, etc.)', () => {
+  it('accepts new fields (ticketPrice, platformInvites, etc.)', () => {
     expect(
       createEventSchema.safeParse({
         ...valid,
         ticketPrice: 1500,
         adTitle: 'Special offer',
         adDescription: 'Early bird discount',
-        collaborators: ['550e8400-e29b-41d4-a716-446655440000'],
+        platformInvites: ['550e8400-e29b-41d4-a716-446655440000'],
       }).success
     ).toBe(true);
   });
 
-  it('rejects more than 10 collaborators', () => {
+  it('rejects more than 10 platform invites', () => {
     const tooMany = Array.from({ length: 11 }, (_, i) => `550e8400-e29b-41d4-a716-44665544000${i}`);
-    expect(createEventSchema.safeParse({ ...valid, collaborators: tooMany }).success).toBe(false);
+    expect(createEventSchema.safeParse({ ...valid, platformInvites: tooMany }).success).toBe(false);
   });
 });
 
@@ -473,19 +493,38 @@ describe('venueOnboardingStep1Schema', () => {
 });
 
 describe('venueOnboardingStep2Schema', () => {
-  it('accepts address + bio', () => {
+  it('accepts address + coordinates + bio', () => {
     expect(
-      venueOnboardingStep2Schema.safeParse({ address: 'Galway', bio: 'Trad sessions nightly' })
+      venueOnboardingStep2Schema.safeParse({
+        address: 'Galway',
+        lat: 53.2707,
+        lng: -9.0568,
+        bio: 'Trad sessions nightly',
+      }).success
+    ).toBe(true);
+  });
+
+  it('accepts address + coordinates only (bio optional)', () => {
+    expect(
+      venueOnboardingStep2Schema.safeParse({ address: 'Galway', lat: 53.2707, lng: -9.0568 })
         .success
     ).toBe(true);
   });
 
-  it('accepts address only (bio optional)', () => {
-    expect(venueOnboardingStep2Schema.safeParse({ address: 'Galway' }).success).toBe(true);
+  it('rejects empty address', () => {
+    expect(
+      venueOnboardingStep2Schema.safeParse({ address: '', lat: 53.2707, lng: -9.0568 }).success
+    ).toBe(false);
   });
 
-  it('rejects empty address', () => {
-    expect(venueOnboardingStep2Schema.safeParse({ address: '' }).success).toBe(false);
+  it('rejects missing coordinates (map pin required)', () => {
+    expect(venueOnboardingStep2Schema.safeParse({ address: 'Galway' }).success).toBe(false);
+  });
+
+  it('rejects out-of-range coordinates', () => {
+    expect(
+      venueOnboardingStep2Schema.safeParse({ address: 'Galway', lat: 91, lng: -9.0568 }).success
+    ).toBe(false);
   });
 
   it('rejects missing address entirely', () => {
@@ -494,7 +533,12 @@ describe('venueOnboardingStep2Schema', () => {
 
   it('rejects bio longer than 50 characters', () => {
     expect(
-      venueOnboardingStep2Schema.safeParse({ address: 'Galway', bio: 'a'.repeat(51) }).success
+      venueOnboardingStep2Schema.safeParse({
+        address: 'Galway',
+        lat: 53.2707,
+        lng: -9.0568,
+        bio: 'a'.repeat(51),
+      }).success
     ).toBe(false);
   });
 });
@@ -578,6 +622,8 @@ describe('Onboarding schema equivalence (server contract)', () => {
     const result = createVenueOnboardingSchema.safeParse({
       venueName: '  The Cobblestone  ',
       address: '  77 King St N, Smithfield, Dublin  ',
+      lat: 53.3498,
+      lng: -6.2603,
       bio: '  Trad sessions nightly  ',
       contactEmail: 'hello@cobblestone.ie',
       venueLinks: {
@@ -592,6 +638,8 @@ describe('Onboarding schema equivalence (server contract)', () => {
       expect(result.data).toEqual({
         venueName: 'The Cobblestone',
         address: '77 King St N, Smithfield, Dublin',
+        lat: 53.3498,
+        lng: -6.2603,
         bio: 'Trad sessions nightly',
         contactEmail: 'hello@cobblestone.ie',
         venueLinks: {
@@ -604,20 +652,29 @@ describe('Onboarding schema equivalence (server contract)', () => {
     }
   });
 
-  it('venue — minimal payload parses to {venueName, address}', () => {
+  it('venue — minimal payload parses to {venueName, address, lat, lng}', () => {
     const result = createVenueOnboardingSchema.safeParse({
       venueName: 'The Cobblestone',
       address: 'Dublin',
+      lat: 53.3498,
+      lng: -6.2603,
     });
     expect(result.success).toBe(true);
     if (result.success)
-      expect(result.data).toEqual({ venueName: 'The Cobblestone', address: 'Dublin' });
+      expect(result.data).toEqual({
+        venueName: 'The Cobblestone',
+        address: 'Dublin',
+        lat: 53.3498,
+        lng: -6.2603,
+      });
   });
 
   it('venue — profileImageUrl is silently stripped (M10 deferral preserved)', () => {
     const result = createVenueOnboardingSchema.safeParse({
       venueName: 'The Cobblestone',
       address: 'Dublin',
+      lat: 53.3498,
+      lng: -6.2603,
       profileImageUrl: 'https://cdn.ceolx.ie/x.jpg',
     });
     expect(result.success).toBe(true);

@@ -25,7 +25,18 @@ import type { DispatchNotificationInput } from '../../context';
 import { creatorProcedure, protectedProcedure, publicProcedure } from '../../index';
 import { syncEventToTypesense, removeEventFromTypesense } from '../../services/event-sync';
 
+import { resolveEventCoordinates } from './helpers';
 import { recordEventView } from './view-tracking';
+
+/** Look up a registered venue's stored pin so events can inherit it. */
+const lookupVenueCoords = async (venueId: string) => {
+  const [venue] = await db
+    .select({ lat: venueProfiles.lat, lng: venueProfiles.lng })
+    .from(venueProfiles)
+    .where(eq(venueProfiles.id, venueId))
+    .limit(1);
+  return venue ?? null;
+};
 
 export const byId = publicProcedure
   .input(z.object({ id: z.string().uuid() }))
@@ -223,23 +234,20 @@ export const byId = publicProcedure
   });
 
 export const create = creatorProcedure.input(createEventSchema).mutation(async ({ input, ctx }) => {
-  const { collaborators, platformInvites, unregisteredCollaborators, ...eventData } = input;
+  const { platformInvites, unregisteredCollaborators, ...eventData } = input;
 
   const isVenue = ctx.session.user.currentRole === UserRole.VENUE;
-
-  // Venue events must have at least one confirmed platform collaborator
-  if (isVenue && (!collaborators || collaborators.length === 0)) {
-    throw new TRPCError({
-      code: 'BAD_REQUEST',
-      message: 'Venue events must have at least one confirmed collaborator',
-    });
-  }
 
   // Ad fields are venue-only — strip them for non-venue creators
   if (!isVenue) {
     eventData.adTitle = undefined;
     eventData.adDescription = undefined;
   }
+
+  // Resolve real coordinates before persisting — explicit pin first, else the
+  // selected venue's stored pin. Throws if neither resolves, so we never write
+  // the (0,0) fallback that made events vanish from the map and feed.
+  const { lat, lng } = await resolveEventCoordinates(eventData, lookupVenueCoords);
 
   // Collected inside the transaction; fired after commit so a rollback
   // doesn't leave us with phantom notifications. See M7-T1 dispatcher.
@@ -254,8 +262,8 @@ export const create = creatorProcedure.input(createEventSchema).mutation(async (
         coverImage: eventData.coverImage ?? null,
         dateStart: new Date(eventData.dateStart),
         dateEnd: eventData.dateEnd ? new Date(eventData.dateEnd) : null,
-        lat: eventData.lat?.toString() ?? '0',
-        lng: eventData.lng?.toString() ?? '0',
+        lat,
+        lng,
         venueId: eventData.venueId ?? null,
         venueAddress: eventData.venueAddress ?? null,
         category: eventData.category,
@@ -272,77 +280,6 @@ export const create = creatorProcedure.input(createEventSchema).mutation(async (
     const inserted = rows[0];
     if (!inserted) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Insert failed' });
 
-    // For venue events: create bookings + collaborator rows in the same transaction
-    // For artist events: insert collaborators directly (no booking needed for own performance)
-    if (collaborators && collaborators.length > 0) {
-      if (isVenue) {
-        // Look up venue profile for booking FK
-        const venueProfile = await tx.query.venueProfiles.findFirst({
-          where: eq(venueProfiles.userId, ctx.userId),
-          columns: { id: true, venueName: true },
-        });
-
-        // Look up artist profiles by userId (collaborators array contains user IDs from artists.search)
-        const artistProfileRows = await tx
-          .select({
-            id: artistProfiles.id,
-            userId: artistProfiles.userId,
-            stageName: artistProfiles.stageName,
-          })
-          .from(artistProfiles)
-          .where(inArray(artistProfiles.userId, collaborators));
-
-        if (!venueProfile)
-          throw new TRPCError({ code: 'NOT_FOUND', message: 'Venue profile not found' });
-
-        for (const ap of artistProfileRows) {
-          // Collaborators are confirmed performers — booking is auto-accepted
-          const [booking] = await tx
-            .insert(bookings)
-            .values({
-              artistId: ap.id,
-              venueId: venueProfile.id,
-              eventId: inserted.id,
-              status: BookingStatus.ACCEPTED,
-              direction: BookingDirection.VENUE_TO_ARTIST,
-            })
-            .returning();
-
-          if (!booking)
-            throw new TRPCError({
-              code: 'INTERNAL_SERVER_ERROR',
-              message: 'Booking insert failed',
-            });
-
-          await tx.insert(eventCollaborators).values({
-            eventId: inserted.id,
-            artistProfileId: ap.userId,
-            bookingId: booking.id,
-          });
-
-          // Matrix A-13 — Artist auto-confirmed as a Venue's collaborator.
-          pendingDispatches.push({
-            trigger: NotificationTrigger.ADDED_AS_COLLABORATOR_TO_ARTIST,
-            recipientUserId: ap.userId,
-            vars: {
-              eventId: inserted.id,
-              eventTitle: inserted.title,
-              venueName: venueProfile.venueName,
-              date: formatNotificationDate(inserted.dateStart),
-            },
-          });
-        }
-      } else {
-        // Artist adding collaborators to own event — no booking, direct insert
-        await tx.insert(eventCollaborators).values(
-          collaborators.map((artistId) => ({
-            eventId: inserted.id,
-            artistProfileId: artistId,
-          }))
-        );
-      }
-    }
-
     // Insert non-platform (invited) artists as eventCollaborators rows
     if (unregisteredCollaborators && unregisteredCollaborators.length > 0) {
       await tx.insert(eventCollaborators).values(
@@ -356,8 +293,7 @@ export const create = creatorProcedure.input(createEventSchema).mutation(async (
 
     // Platform invites (venue only) — create pending bookings for invited artists
     if (platformInvites && platformInvites.length > 0 && isVenue) {
-      const confirmedSet = new Set(collaborators ?? []);
-      const inviteUserIds = platformInvites.filter((id) => !confirmedSet.has(id));
+      const inviteUserIds = platformInvites;
 
       if (inviteUserIds.length > 0) {
         const venueProfile = await tx.query.venueProfiles.findFirst({
@@ -475,9 +411,15 @@ export const create = creatorProcedure.input(createEventSchema).mutation(async (
   // would leave us with phantom inbox rows + push notifications otherwise.
   await Promise.all(pendingDispatches.map((d) => ctx.dispatchNotification(d)));
 
-  // Sync to Typesense so event appears on map/feed immediately
-  await syncEventToTypesense(event).catch(() => {
-    // Non-blocking — event is in DB, Typesense sync can be retried
+  // Sync to Typesense so event appears on map/feed immediately. Non-blocking —
+  // the event is in the DB and the sync can be retried — but we must NOT swallow
+  // the error silently: a failed sync means the event is invisible on the map
+  // and feed, so the cause needs to surface in logs for ops to act on.
+  await syncEventToTypesense(event).catch((err: unknown) => {
+    console.warn(
+      `[events.create] Typesense sync failed for event ${event.id} — it will not appear on map/feed until re-synced:`,
+      err instanceof Error ? `${err.name}: ${err.message}` : err
+    );
   });
 
   return event;
@@ -502,13 +444,26 @@ export const update = protectedProcedure
       throw new TRPCError({ code: 'FORBIDDEN', message: 'Cannot edit an archived event' });
     }
 
-    const { collaborators, platformInvites, unregisteredCollaborators, ...updateData } = input.data;
+    const { platformInvites, unregisteredCollaborators, ...updateData } = input.data;
     const isVenue = ctx.session.user.currentRole === UserRole.VENUE;
 
     // Ad fields are venue-only — strip them for non-venue creators
     if (!isVenue) {
       updateData.adTitle = undefined;
       updateData.adDescription = undefined;
+    }
+
+    // Resolve coordinates: an explicit pin always wins; otherwise, if the
+    // creator switches to a different registered venue, inherit that venue's
+    // stored pin so the event's location stays consistent. Never write (0,0).
+    let resolvedCoords: { lat: string; lng: string } | null = null;
+    if (updateData.lat !== undefined && updateData.lng !== undefined) {
+      resolvedCoords = { lat: updateData.lat.toString(), lng: updateData.lng.toString() };
+    } else if (updateData.venueId !== undefined && updateData.venueId !== event.venueId) {
+      const venue = await lookupVenueCoords(updateData.venueId);
+      if (venue && venue.lat !== null && venue.lng !== null) {
+        resolvedCoords = { lat: venue.lat, lng: venue.lng };
+      }
     }
 
     // Collected inside the transaction; fired after commit so a rollback
@@ -523,8 +478,10 @@ export const update = protectedProcedure
       if (updateData.coverImage !== undefined) setValues.coverImage = updateData.coverImage;
       if (updateData.dateStart !== undefined) setValues.dateStart = new Date(updateData.dateStart);
       if (updateData.dateEnd !== undefined) setValues.dateEnd = new Date(updateData.dateEnd);
-      if (updateData.lat !== undefined) setValues.lat = updateData.lat.toString();
-      if (updateData.lng !== undefined) setValues.lng = updateData.lng.toString();
+      if (resolvedCoords) {
+        setValues.lat = resolvedCoords.lat;
+        setValues.lng = resolvedCoords.lng;
+      }
       if (updateData.venueId !== undefined) setValues.venueId = updateData.venueId;
       if (updateData.venueAddress !== undefined) setValues.venueAddress = updateData.venueAddress;
       if (updateData.category !== undefined) setValues.category = updateData.category;
@@ -566,100 +523,11 @@ export const update = protectedProcedure
         });
       }
 
-      // Update collaborators if provided — for venues, create bookings for new additions
-      // Removal is handled through the booking flow (reject/withdraw/cancel), not event edit
-      if (collaborators !== undefined) {
-        if (isVenue) {
-          // Get existing collaborator artist profile IDs (via their booking artist IDs)
-          const existingCollabs = await tx.query.eventCollaborators.findMany({
-            where: eq(eventCollaborators.eventId, input.id),
-            columns: { artistProfileId: true, bookingId: true },
-          });
-
-          // Find which artist profile IDs already have collaborator rows
-          // artistProfileId is user.id; collaborators array has artistProfiles.id
-          // Look up artist profiles to map between the two
-          const existingArtistUserIds = new Set(
-            existingCollabs.map((c) => c.artistProfileId).filter((id): id is string => id !== null)
-          );
-
-          // Look up all requested artist profiles by userId (collaborators array contains user IDs)
-          const requestedProfiles =
-            collaborators.length > 0
-              ? await tx
-                  .select({
-                    id: artistProfiles.id,
-                    userId: artistProfiles.userId,
-                    stageName: artistProfiles.stageName,
-                  })
-                  .from(artistProfiles)
-                  .where(inArray(artistProfiles.userId, collaborators))
-              : [];
-
-          // Only create bookings for truly new collaborators
-          const newProfiles = requestedProfiles.filter(
-            (ap) => !existingArtistUserIds.has(ap.userId)
-          );
-
-          if (newProfiles.length > 0) {
-            const venueProfile = await tx.query.venueProfiles.findFirst({
-              where: eq(venueProfiles.userId, ctx.userId),
-              columns: { id: true, venueName: true },
-            });
-            if (!venueProfile)
-              throw new TRPCError({ code: 'NOT_FOUND', message: 'Venue profile not found' });
-
-            for (const ap of newProfiles) {
-              // Collaborators are confirmed performers — booking is auto-accepted
-              const [booking] = await tx
-                .insert(bookings)
-                .values({
-                  artistId: ap.id,
-                  venueId: venueProfile.id,
-                  eventId: input.id,
-                  status: BookingStatus.ACCEPTED,
-                  direction: BookingDirection.VENUE_TO_ARTIST,
-                })
-                .returning();
-
-              if (!booking)
-                throw new TRPCError({
-                  code: 'INTERNAL_SERVER_ERROR',
-                  message: 'Booking insert failed',
-                });
-
-              await tx.insert(eventCollaborators).values({
-                eventId: input.id,
-                artistProfileId: ap.userId,
-                bookingId: booking.id,
-              });
-
-              // Matrix A-13 — Artist auto-confirmed as a Venue's collaborator.
-              pendingDispatches.push({
-                trigger: NotificationTrigger.ADDED_AS_COLLABORATOR_TO_ARTIST,
-                recipientUserId: ap.userId,
-                vars: {
-                  eventId: input.id,
-                  eventTitle: result.title,
-                  venueName: venueProfile.venueName,
-                  date: formatNotificationDate(result.dateStart),
-                },
-              });
-            }
-          }
-        } else {
-          // Artist editing own event — simple replace (no booking flow)
-          await tx.delete(eventCollaborators).where(eq(eventCollaborators.eventId, input.id));
-          if (collaborators.length > 0) {
-            await tx.insert(eventCollaborators).values(
-              collaborators.map((artistId) => ({
-                eventId: input.id,
-                artistProfileId: artistId,
-              }))
-            );
-          }
-        }
-      }
+      // Confirmed collaborators are no longer set from the event form — a venue
+      // performer becomes confirmed only by accepting a pending invite through
+      // the booking flow. Edits therefore never touch confirmed collaborator
+      // rows; existing ones (incl. legacy auto-confirmed performers) are left
+      // intact. Only the invite paths below are managed here.
 
       // Update non-platform (invited) collaborators — replace all on edit
       if (unregisteredCollaborators !== undefined) {
@@ -759,11 +627,22 @@ export const update = protectedProcedure
       return result;
     });
 
-    // Sync to Typesense if event is active
+    // Sync to Typesense if event is active. Non-blocking, but log failures —
+    // a silently failed sync leaves the event out of the map/feed.
     if (updated.status === EventStatus.ACTIVE) {
-      await syncEventToTypesense(updated).catch(() => {});
+      await syncEventToTypesense(updated).catch((err: unknown) => {
+        console.warn(
+          `[events.update] Typesense sync failed for event ${updated.id}:`,
+          err instanceof Error ? `${err.name}: ${err.message}` : err
+        );
+      });
     } else {
-      await removeEventFromTypesense(updated.id).catch(() => {});
+      await removeEventFromTypesense(updated.id).catch((err: unknown) => {
+        console.warn(
+          `[events.update] Typesense removal failed for event ${updated.id}:`,
+          err instanceof Error ? `${err.name}: ${err.message}` : err
+        );
+      });
     }
 
     // Fire collected dispatches after the transaction commits.

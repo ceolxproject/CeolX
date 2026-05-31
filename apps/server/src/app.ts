@@ -7,6 +7,7 @@ import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
 
 import { createContext } from '@CeolX/api/context';
+import { ensureEventsCollection } from '@CeolX/api/lib/typesense-collections';
 import { appRouter } from '@CeolX/api/routers/index';
 import { auth } from '@CeolX/auth';
 import { rateLimiter, RATE_LIMIT_TIERS } from '@CeolX/cache';
@@ -127,3 +128,18 @@ export function buildApp() {
 }
 
 export const app = buildApp();
+
+// Ensure the Typesense `events` collection exists once per server instance.
+// Fire-and-forget and idempotent (no-op when the collection is already there),
+// so a freshly provisioned or swapped Typesense cluster self-heals on the first
+// cold start instead of requiring a manual collection-create. Failures are
+// logged, never thrown — a Typesense hiccup must not stop the app from booting.
+// Skipped under test (no real Typesense, and tests import this module).
+if (process.env.NODE_ENV !== 'test') {
+  void ensureEventsCollection().catch((err: unknown) => {
+    console.warn(
+      '[startup] ensureEventsCollection failed — events search may be unavailable until a resync:',
+      err instanceof Error ? `${err.name}: ${err.message}` : err
+    );
+  });
+}

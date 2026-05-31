@@ -22,7 +22,7 @@ type Step = 1 | 2 | 3;
 
 const FIELDS_BY_STEP: Record<Step, readonly string[]> = {
   1: ['venueName', 'contactEmail'],
-  2: ['address', 'bio'],
+  2: ['address', 'lat', 'lng', 'bio'],
   3: ['venueLinks.WEBSITE', 'venueLinks.INSTAGRAM', 'venueLinks.FACEBOOK', 'venueLinks.TWITTER'],
 };
 
@@ -33,7 +33,10 @@ interface UseVenueOnboardingReturn {
   setBio: (v: string) => void;
   BIO_MAX: number;
   address: string;
-  setAddress: (v: string) => void;
+  lat: number | null;
+  lng: number | null;
+  /** Set venue location from the map pin (lat/lng mandatory; address derived). */
+  setLocation: (loc: { lat: number; lng: number; address: string }) => void;
   contactEmail: string;
   setContactEmail: (v: string) => void;
   venueLinks: VenueLinks;
@@ -44,6 +47,7 @@ interface UseVenueOnboardingReturn {
   submitError: string | null;
   isPending: boolean;
   handlePickImage: () => Promise<void>;
+  handleRemoveImage: () => void;
   handleSubmit: () => Promise<void>;
   currentStep: Step;
   touched: Set<string>;
@@ -59,6 +63,8 @@ export function useVenueOnboarding(): UseVenueOnboardingReturn {
   const [venueName, setVenueName] = useState('');
   const [bio, setBio] = useState('');
   const [address, setAddress] = useState('');
+  const [lat, setLat] = useState<number | null>(null);
+  const [lng, setLng] = useState<number | null>(null);
   const [contactEmail, setContactEmail] = useState(user?.email ?? '');
   const [venueLinks, setVenueLinks] = useState<VenueLinks>({
     WEBSITE: '',
@@ -83,7 +89,8 @@ export function useVenueOnboarding(): UseVenueOnboardingReturn {
 
   const buildStepValues = (step: Step) => {
     if (step === 1) return { venueName, contactEmail: contactEmail || undefined };
-    if (step === 2) return { address, bio: bio || undefined };
+    if (step === 2)
+      return { address, lat: lat ?? undefined, lng: lng ?? undefined, bio: bio || undefined };
     return {
       venueLinks: {
         WEBSITE: venueLinks.WEBSITE || undefined,
@@ -129,6 +136,31 @@ export function useVenueOnboarding(): UseVenueOnboardingReturn {
     const next = touched.has(field) ? touched : new Set(touched).add(field);
     if (next !== touched) setTouched(next);
     validateStep(currentStep, next);
+  };
+
+  // Set the venue location from the map pin. A pin always yields valid
+  // coordinates and a non-empty address, so clear the location errors directly
+  // rather than re-running validateStep against not-yet-committed state.
+  const setLocation = ({
+    lat: newLat,
+    lng: newLng,
+    address: newAddress,
+  }: {
+    lat: number;
+    lng: number;
+    address: string;
+  }) => {
+    setLat(newLat);
+    setLng(newLng);
+    setAddress(newAddress);
+    setTouched((prev) => new Set(prev).add('lat').add('lng').add('address'));
+    setErrors((prev) => {
+      const next = { ...prev };
+      delete next.lat;
+      delete next.lng;
+      delete next.address;
+      return next;
+    });
   };
 
   const goNext = async () => {
@@ -179,6 +211,11 @@ export function useVenueOnboarding(): UseVenueOnboardingReturn {
     }
   };
 
+  const handleRemoveImage = () => {
+    setProfileImageUri(null);
+    setImageError(null);
+  };
+
   const handleSubmit = async () => {
     setSubmitError(null);
     setErrors({});
@@ -201,6 +238,8 @@ export function useVenueOnboarding(): UseVenueOnboardingReturn {
     const parsed = createVenueOnboardingSchema.safeParse({
       venueName,
       address,
+      lat: lat ?? undefined,
+      lng: lng ?? undefined,
       bio: bio || undefined,
       contactEmail: contactEmail || undefined,
       venueLinks: {
@@ -263,7 +302,9 @@ export function useVenueOnboarding(): UseVenueOnboardingReturn {
     setBio,
     BIO_MAX,
     address,
-    setAddress,
+    lat,
+    lng,
+    setLocation,
     contactEmail,
     setContactEmail,
     venueLinks,
@@ -276,6 +317,7 @@ export function useVenueOnboarding(): UseVenueOnboardingReturn {
     isPending: isPending || isImageUploading,
     // handlers
     handlePickImage,
+    handleRemoveImage,
     handleSubmit,
     // step navigation
     currentStep,

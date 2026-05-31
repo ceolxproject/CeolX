@@ -5,27 +5,25 @@ import { Image, Pressable, ScrollView, Text, TextInput, View } from 'react-nativ
 import type { EventCategory } from '@CeolX/shared';
 
 import { CategoryPicker } from './CategoryPicker';
-import { CollaboratorPicker } from './CollaboratorPicker';
 import { CollectionPicker } from './CollectionPicker';
 import { InviteArtistPicker } from './InviteArtistPicker';
-
-import type { CollaboratorArtist } from '@/hooks/use-event-form';
 
 type Props = {
   title: string;
   onTitleChange: (v: string) => void;
+  /** Validate the title once the user leaves the field (real-time validation). */
+  onTitleBlur?: () => void;
   description: string;
   onDescriptionChange: (v: string) => void;
+  /** Validate the description once the user leaves the field. */
+  onDescriptionBlur?: () => void;
   coverImageUri: string | null;
   onPickImage: () => void;
+  onRemoveImage: () => void;
   category: EventCategory | '';
   onCategoryChange: (v: EventCategory) => void;
   collectionId: string;
   onCollectionIdChange: (v: string) => void;
-  collaborators: string[];
-  onCollaboratorsChange: (ids: string[]) => void;
-  collaboratorArtists: CollaboratorArtist[];
-  onCollaboratorArtistsChange: (artists: CollaboratorArtist[]) => void;
   platformInvites: string[];
   onPlatformInvitesChange: (ids: string[]) => void;
   unregisteredCollaborators: Array<{ name: string; email: string }>;
@@ -40,18 +38,17 @@ const MAX_DESCRIPTION_LENGTH = 2000;
 export function BasicDetailsStep({
   title,
   onTitleChange,
+  onTitleBlur,
   description,
   onDescriptionChange,
+  onDescriptionBlur,
   coverImageUri,
   onPickImage,
+  onRemoveImage,
   category,
   onCategoryChange,
   collectionId,
   onCollectionIdChange,
-  collaborators,
-  onCollaboratorsChange,
-  collaboratorArtists,
-  onCollaboratorArtistsChange,
   platformInvites,
   onPlatformInvitesChange,
   unregisteredCollaborators,
@@ -79,6 +76,7 @@ export function BasicDetailsStep({
           placeholderTextColor="#8d8d8d"
           value={title}
           onChangeText={onTitleChange}
+          onBlur={onTitleBlur}
           maxLength={120}
         />
         {errors.title && <Text className="text-xs text-error font-urbanist">{errors.title}</Text>}
@@ -95,6 +93,15 @@ export function BasicDetailsStep({
                 className="w-full h-44 rounded-xl"
                 resizeMode="cover"
               />
+              {/* Tap the image to replace; tap ✕ to clear. Stops propagation so
+                  removing doesn't also re-open the picker. */}
+              <Pressable
+                onPress={onRemoveImage}
+                hitSlop={10}
+                className="absolute right-2 top-2 h-8 w-8 items-center justify-center rounded-full bg-black/60"
+              >
+                <Ionicons name="close" size={18} color="#fff" />
+              </Pressable>
             </View>
           ) : (
             <View
@@ -139,6 +146,7 @@ export function BasicDetailsStep({
               onDescriptionChange(text);
             }
           }}
+          onBlur={onDescriptionBlur}
           multiline
           textAlignVertical="top"
           maxLength={MAX_DESCRIPTION_LENGTH}
@@ -159,25 +167,14 @@ export function BasicDetailsStep({
         <CollectionPicker collectionId={collectionId} onCollectionIdChange={onCollectionIdChange} />
       )}
 
-      {/* ── Collaborators + Invite Artists — Venues only ── */}
+      {/* ── Invite Artists — Venues only ── */}
       {isVenue && (
-        <>
-          <CollaboratorPicker
-            collaborators={collaborators}
-            onCollaboratorsChange={onCollaboratorsChange}
-            initialSelectedArtists={collaboratorArtists}
-            onCollaboratorObjectsChange={onCollaboratorArtistsChange}
-            isRequired
-            error={errors.collaborators}
-          />
-
-          <InviteArtistPicker
-            platformInvites={platformInvites}
-            onPlatformInvitesChange={onPlatformInvitesChange}
-            unregisteredInvites={unregisteredCollaborators}
-            onUnregisteredInvitesChange={onUnregisteredCollaboratorsChange}
-          />
-        </>
+        <InviteArtistPicker
+          platformInvites={platformInvites}
+          onPlatformInvitesChange={onPlatformInvitesChange}
+          unregisteredInvites={unregisteredCollaborators}
+          onUnregisteredInvitesChange={onUnregisteredCollaboratorsChange}
+        />
       )}
 
       {/* ── Continue Button ── */}

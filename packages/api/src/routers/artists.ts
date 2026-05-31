@@ -14,7 +14,7 @@ import { artistProcedure, protectedProcedure, publicProcedure, router } from '..
 import { getFollowerCounts, getSocialLinksRecord, upsertSocialLinks } from './_profile-helpers';
 
 export const artistsRouter = router({
-  // Search active artist profiles by stage name — used by CollaboratorPicker / InviteArtistPicker
+  // Search active artist profiles by stage name — used by InviteArtistPicker
   search: publicProcedure
     .input(z.object({ q: z.string().min(1).max(100) }))
     .query(async ({ input }) => {

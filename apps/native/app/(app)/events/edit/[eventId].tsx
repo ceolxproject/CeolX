@@ -23,76 +23,14 @@ import { StepIndicator } from '@/components/events/StepIndicator';
 import { TicketAdsStep } from '@/components/events/TicketAdsStep';
 import { useEventById } from '@/hooks/use-event-by-id';
 import { useEventForm } from '@/hooks/use-event-form';
-import type { CollaboratorArtist } from '@/hooks/use-event-form';
 import { useMe } from '@/hooks/use-me';
+
+/** The fully-loaded event — the form is only mounted once this exists. */
+type LoadedEvent = NonNullable<ReturnType<typeof useEventById>['data']>;
 
 export default function EditEventScreen() {
   const { eventId } = useLocalSearchParams<{ eventId: string }>();
-  const router = useRouter();
-  const insets = useSafeAreaInsets();
-  const { data: me } = useMe();
-  const isVenue = me?.currentRole === UserRole.VENUE;
-  const [showManualAddress, setShowManualAddress] = useState(false);
-
   const { data: event, isLoading } = useEventById({ id: eventId });
-
-  const form = useEventForm({
-    eventId,
-    initialData: event
-      ? {
-          title: event.title,
-          description: event.description,
-          coverImageUri: event.coverImage ?? null,
-          category: event.category as EventCategory,
-          collectionId: event.collectionId ?? '',
-          collaborators: event.collaborators.map((c) => c.id),
-          collaboratorArtists: event.collaborators.map(
-            (c): CollaboratorArtist => ({
-              id: c.id,
-              stageName: c.stageName,
-              genre: c.genre,
-              image: c.profileImageUrl ?? null,
-            })
-          ),
-          platformInvites: [],
-          unregisteredCollaborators: event.unregisteredCollaborators ?? [],
-          dateStart: new Date(event.dateStart),
-          dateEnd: event.dateEnd ? new Date(event.dateEnd) : null,
-          startTime: new Date(event.dateStart),
-          endTime: event.dateEnd ? new Date(event.dateEnd) : null,
-          lat: event.lat,
-          lng: event.lng,
-          venueAddress: event.venueAddress ?? '',
-          venueId: event.venueId ?? '',
-          ticketPrice: event.ticketPrice ? String(event.ticketPrice / 100) : '',
-          ticketLink: event.ticketLink ?? '',
-          ticketQuantity: '',
-          adTitle: event.adTitle ?? '',
-          adDescription: event.adDescription ?? '',
-        }
-      : undefined,
-    onSuccess: () => {
-      appToast.success('Event updated', 'Your changes are saved.');
-      router.back();
-    },
-    isVenue,
-  });
-
-  const handleBackPress = () => {
-    Alert.alert('Leave without saving?', 'Your unsaved changes will be lost.', [
-      { text: 'Stay', style: 'cancel' },
-      { text: 'Leave', style: 'destructive', onPress: () => router.back() },
-    ]);
-  };
-
-  const tabBarState = {
-    index: -1,
-    routes: TAB_CONFIG.map((t) => ({ key: t.name, name: t.name })),
-  };
-  const tabBarNavigation = {
-    emit: () => ({ defaultPrevented: false }),
-    navigate: (name: string) => router.replace(`/(app)/(tabs)/${name}`),
-  };
 
   if (isLoading) {
     return (
@@ -117,6 +55,67 @@ export default function EditEventScreen() {
       </View>
     );
   }
+
+  // The form reads `initialData` exactly once, at mount, via useState
+  // initializers. Mounting it only here — after the event has loaded — is what
+  // guarantees those initializers see real values. (Rendering the form while
+  // the query was still loading seeded every field from `undefined`, so the
+  // form stayed empty until the cache made a reopen resolve synchronously.)
+  return <EditEventForm event={event} eventId={eventId} />;
+}
+
+function EditEventForm({ event, eventId }: { event: LoadedEvent; eventId: string }) {
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const { data: me } = useMe();
+  const isVenue = me?.currentRole === UserRole.VENUE;
+  const [showManualAddress, setShowManualAddress] = useState(false);
+
+  const form = useEventForm({
+    eventId,
+    initialData: {
+      title: event.title,
+      description: event.description,
+      coverImageUri: event.coverImage ?? null,
+      category: event.category as EventCategory,
+      collectionId: event.collectionId ?? '',
+      platformInvites: [],
+      unregisteredCollaborators: event.unregisteredCollaborators ?? [],
+      dateStart: new Date(event.dateStart),
+      dateEnd: event.dateEnd ? new Date(event.dateEnd) : null,
+      startTime: new Date(event.dateStart),
+      endTime: event.dateEnd ? new Date(event.dateEnd) : null,
+      lat: event.lat,
+      lng: event.lng,
+      venueAddress: event.venueAddress ?? '',
+      venueId: event.venueId ?? '',
+      ticketPrice: event.ticketPrice ? String(event.ticketPrice / 100) : '',
+      ticketLink: event.ticketLink ?? '',
+      ticketQuantity: '',
+      adTitle: event.adTitle ?? '',
+      adDescription: event.adDescription ?? '',
+    },
+    onSuccess: () => {
+      appToast.success('Event updated', 'Your changes are saved.');
+      router.back();
+    },
+  });
+
+  const handleBackPress = () => {
+    Alert.alert('Leave without saving?', 'Your unsaved changes will be lost.', [
+      { text: 'Stay', style: 'cancel' },
+      { text: 'Leave', style: 'destructive', onPress: () => router.back() },
+    ]);
+  };
+
+  const tabBarState = {
+    index: -1,
+    routes: TAB_CONFIG.map((t) => ({ key: t.name, name: t.name })),
+  };
+  const tabBarNavigation = {
+    emit: () => ({ defaultPrevented: false }),
+    navigate: (name: string) => router.replace(`/(app)/(tabs)/${name}`),
+  };
 
   return (
     <View className="flex-1 bg-background" style={{ paddingTop: insets.top }}>
@@ -155,18 +154,17 @@ export default function EditEventScreen() {
           <BasicDetailsStep
             title={form.title}
             onTitleChange={form.setTitle}
+            onTitleBlur={() => form.handleBlur('title')}
             description={form.description}
             onDescriptionChange={form.setDescription}
+            onDescriptionBlur={() => form.handleBlur('description')}
             coverImageUri={form.coverImageUri}
             onPickImage={form.pickCoverImage}
+            onRemoveImage={() => form.setCoverImageUri(null)}
             category={form.category}
             onCategoryChange={form.setCategory}
             collectionId={form.collectionId}
             onCollectionIdChange={form.setCollectionId}
-            collaborators={form.collaborators}
-            onCollaboratorsChange={form.setCollaborators}
-            collaboratorArtists={form.collaboratorArtists}
-            onCollaboratorArtistsChange={form.setCollaboratorArtists}
             platformInvites={form.platformInvites}
             onPlatformInvitesChange={form.setPlatformInvites}
             unregisteredCollaborators={form.unregisteredCollaborators}
@@ -201,6 +199,8 @@ export default function EditEventScreen() {
             onBack={form.goBack}
             isVenue={isVenue}
             myVenueAddress={me?.venueAddress}
+            myVenueLat={me?.venueProfile?.lat ?? null}
+            myVenueLng={me?.venueProfile?.lng ?? null}
             isEditing
           />
         )}

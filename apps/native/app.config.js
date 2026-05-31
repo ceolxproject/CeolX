@@ -2,7 +2,7 @@ const VARIANT = process.env.APP_VARIANT ?? 'production';
 const IS_STAGING = VARIANT === 'staging';
 
 const PROD_BUNDLE_ID = 'ie.ceolx.app';
-const STAGING_BUNDLE_ID = 'ie.ceolx.app.staging';
+const STAGING_BUNDLE_ID = 'com.raftlabs.ceolx.staging';
 
 /**
  * @param {import('expo/config').ConfigContext} _ctx
@@ -43,6 +43,10 @@ export default (_) => ({
     // still routes correctly.
     associatedDomains: ['applinks:ceolx.ie'],
     infoPlist: {
+      // CeolX only uses standard HTTPS/TLS (exempt encryption). Declaring this
+      // skips the per-build "Missing Compliance" prompt in TestFlight/App Store
+      // Connect. Set to true only if you add non-exempt/custom cryptography.
+      ITSAppUsesNonExemptEncryption: false,
       NSLocationWhenInUseUsageDescription:
         'CeolX uses your location to show nearby Irish music events',
       NSCameraUsageDescription: 'Upload videos of your performances',

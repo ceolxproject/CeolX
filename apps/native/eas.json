@@ -27,12 +27,25 @@
         "buildType": "apk"
       }
     },
+    "staging-testflight": {
+      "extends": "staging",
+      "distribution": "store",
+      "autoIncrement": true,
+      "ios": {
+        "resourceClass": "m-medium"
+      }
+    },
     "production": {
       "distribution": "store",
       "channel": "production",
       "env": {
         "APP_VARIANT": "production"
       }
+    }
+  },
+  "submit": {
+    "staging-testflight": {
+      "ios": {}
     }
   }
 }

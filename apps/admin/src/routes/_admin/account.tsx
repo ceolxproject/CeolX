@@ -22,23 +22,25 @@ function AccountPage() {
 
   return (
     <div className="space-y-8 max-w-lg">
-      <h1 className="text-3xl font-bold text-gray-900">Account</h1>
+      <h1 className="text-3xl font-bold text-foreground">Account</h1>
 
       {/* Profile */}
-      <div className="bg-white rounded-lg border border-gray-200 p-6 space-y-4">
-        <h2 className="text-lg font-semibold text-gray-900">Profile</h2>
+      <div className="bg-card text-card-foreground rounded-lg border border-border p-6 space-y-4">
+        <h2 className="text-lg font-semibold text-foreground">Profile</h2>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-          <Input type="email" value="admin@ceolx.ie" readOnly className="bg-gray-50" />
+          <label className="block text-sm font-medium text-foreground mb-1">Email</label>
+          <Input type="email" value="admin@ceolx.ie" disabled />
         </div>
       </div>
 
       {/* Change Password */}
-      <div className="bg-white rounded-lg border border-gray-200 p-6 space-y-4">
-        <h2 className="text-lg font-semibold text-gray-900">Change Password</h2>
+      <div className="bg-card text-card-foreground rounded-lg border border-border p-6 space-y-4">
+        <h2 className="text-lg font-semibold text-foreground">Change Password</h2>
         <form onSubmit={handlePasswordSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Current Password</label>
+            <label className="block text-sm font-medium text-foreground mb-1">
+              Current Password
+            </label>
             <Input
               type="password"
               value={currentPassword}
@@ -47,7 +49,7 @@ function AccountPage() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">New Password</label>
+            <label className="block text-sm font-medium text-foreground mb-1">New Password</label>
             <Input
               type="password"
               value={newPassword}
@@ -56,7 +58,7 @@ function AccountPage() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-foreground mb-1">
               Confirm New Password
             </label>
             <Input

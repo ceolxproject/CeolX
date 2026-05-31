@@ -27,7 +27,6 @@ export default function CreateEventScreen() {
       appToast.success('Event created', 'Your event is now live.');
       router.replace('/(app)/(tabs)/discover');
     },
-    isVenue,
   });
 
   const handleBackPress = () => {
@@ -77,18 +76,17 @@ export default function CreateEventScreen() {
           <BasicDetailsStep
             title={form.title}
             onTitleChange={form.setTitle}
+            onTitleBlur={() => form.handleBlur('title')}
             description={form.description}
             onDescriptionChange={form.setDescription}
+            onDescriptionBlur={() => form.handleBlur('description')}
             coverImageUri={form.coverImageUri}
             onPickImage={form.pickCoverImage}
+            onRemoveImage={() => form.setCoverImageUri(null)}
             category={form.category}
             onCategoryChange={form.setCategory}
             collectionId={form.collectionId}
             onCollectionIdChange={form.setCollectionId}
-            collaborators={form.collaborators}
-            onCollaboratorsChange={form.setCollaborators}
-            collaboratorArtists={form.collaboratorArtists}
-            onCollaboratorArtistsChange={form.setCollaboratorArtists}
             platformInvites={form.platformInvites}
             onPlatformInvitesChange={form.setPlatformInvites}
             unregisteredCollaborators={form.unregisteredCollaborators}
@@ -123,6 +121,8 @@ export default function CreateEventScreen() {
             onBack={form.goBack}
             isVenue={isVenue}
             myVenueAddress={me?.venueAddress}
+            myVenueLat={me?.venueProfile?.lat ?? null}
+            myVenueLng={me?.venueProfile?.lng ?? null}
           />
         )}
 
