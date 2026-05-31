@@ -1,6 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
-import * as Location from 'expo-location';
 import { cn } from 'heroui-native';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, Text, View } from 'react-native';
@@ -8,6 +7,7 @@ import { ActivityIndicator, Alert, Pressable, ScrollView, Text, View } from 'rea
 import { CalendarPicker } from '@/components/events/CalendarPicker';
 import { TimePickerModal } from '@/components/events/TimePickerModal';
 import { LocationPicker } from '@/components/LocationPicker';
+import { geocodeAddress } from '@/utils/geocode';
 import { trpc } from '@/utils/trpc';
 
 type Props = {
@@ -98,10 +98,10 @@ export function DateVenueStep({
     }
     setIsPreFilling(true);
     try {
-      const results = await Location.geocodeAsync(`${myVenueAddress}, Ireland`);
+      const results = await geocodeAddress(myVenueAddress);
       if (results.length > 0) {
-        const { latitude, longitude } = results[0];
-        onLocationChange(latitude, longitude);
+        const { lat, lng } = results[0];
+        onLocationChange(lat, lng);
         onVenueAddressChange(myVenueAddress);
       } else {
         // Geocoding failed — fall back to just setting the address text

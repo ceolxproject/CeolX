@@ -1,9 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
-import * as Location from 'expo-location';
 import { cn } from 'heroui-native';
 import { useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, Text, TextInput, View } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
+
+import { geocodeAddress, reverseGeocode } from '@/utils/geocode';
 
 const IRELAND_CENTER = { latitude: 53.1424, longitude: -7.6921 };
 const IRELAND_DELTA = { latitudeDelta: 4, longitudeDelta: 4 };
@@ -44,18 +45,11 @@ export function LocationPicker({
 
   // Reverse geocode to a readable label, falling back to the raw coordinates so
   // the address is never empty once a pin exists (the DB column is NOT NULL).
+  // Goes through the server (Google) rather than the native geocoder, which
+  // fails when device location services are off.
   const resolveAddress = async (latitude: number, longitude: number): Promise<string> => {
-    try {
-      const results = await Location.reverseGeocodeAsync({ latitude, longitude });
-      const r = results[0];
-      if (r) {
-        const label = [r.name, r.city ?? r.region, r.country].filter(Boolean).join(', ');
-        if (label) return label;
-      }
-    } catch {
-      // Reverse geocoding is best-effort — fall back to coordinates below.
-    }
-    return `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`;
+    const label = await reverseGeocode(latitude, longitude);
+    return label ?? `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`;
   };
 
   const commit = async (latitude: number, longitude: number, label?: string) => {
@@ -68,13 +62,18 @@ export function LocationPicker({
     if (!query) return;
     setIsSearching(true);
     try {
-      // Bias to Ireland — the app is Irish-music only.
-      const results = await Location.geocodeAsync(`${query}, Ireland`);
+      // Server-proxied Google geocoding (biased to Ireland). Works regardless
+      // of whether the device has location services enabled.
+      const results = await geocodeAddress(query);
       const first = results[0];
       if (first) {
-        mapRef.current?.animateToRegion({ ...first, ...PIN_DELTA }, 400);
-        const resolved = await resolveAddress(first.latitude, first.longitude);
-        await commit(first.latitude, first.longitude, resolved || query);
+        mapRef.current?.animateToRegion(
+          { latitude: first.lat, longitude: first.lng, ...PIN_DELTA },
+          400
+        );
+        // The geocoder already returns a formatted address — use it directly
+        // rather than making a second reverse-geocode round-trip.
+        await commit(first.lat, first.lng, first.address || query);
       } else {
         Alert.alert('No results', `No location found for "${query}". Try a different search.`);
       }

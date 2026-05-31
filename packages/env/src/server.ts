@@ -19,6 +19,13 @@ export const env = createEnv({
     RATE_LIMIT_IP_ALLOWLIST: z.string().optional(),
     GOOGLE_OAUTH_CLIENT_ID: z.string().optional(),
     GOOGLE_OAUTH_CLIENT_SECRET: z.string().optional(),
+    // Google Geocoding API key — server-side only. The app's geocoding search
+    // (LocationPicker) proxies through /location/geocode so this key is never
+    // shipped in the bundle and can be IP-restricted. NOT the same as the
+    // Android Maps SDK key (which is app-restricted and rejected by the HTTP
+    // Geocoding API). Optional so the server boots without it; the route then
+    // returns a clear "geocoding not configured" error instead of crashing.
+    GOOGLE_MAPS_API_KEY: z.string().optional(),
     APPLE_OAUTH_CLIENT_ID: z.string().optional(),
     APPLE_OAUTH_TEAM_ID: z.string().optional(),
     APPLE_OAUTH_KEY_ID: z.string().optional(),
