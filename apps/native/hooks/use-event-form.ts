@@ -14,15 +14,6 @@ import { trpc } from '@/utils/trpc';
 // Types
 // ---------------------------------------------------------------------------
 
-/** Full artist object stored alongside collaborator IDs so the picker can
- *  re-hydrate its chip display after the component remounts (step navigation). */
-export type CollaboratorArtist = {
-  id: string;
-  stageName: string;
-  genre: string | null;
-  image: string | null;
-};
-
 export interface EventFormData {
   // Step 1 — Basic Details
   title: string;
@@ -30,8 +21,6 @@ export interface EventFormData {
   coverImageUri: string | null;
   category: EventCategory | '';
   collectionId: string;
-  collaborators: string[];
-  collaboratorArtists: CollaboratorArtist[];
   platformInvites: string[];
   unregisteredCollaborators: Array<{ name: string; email: string }>;
 
@@ -62,8 +51,6 @@ interface UseEventFormOptions {
   initialData?: EventFormData;
   /** Called after a successful create or update. */
   onSuccess?: () => void;
-  /** Current user role — used to enforce persona-specific mandatory fields. */
-  isVenue?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -77,8 +64,6 @@ function defaults(initial?: EventFormData): EventFormData {
     coverImageUri: initial?.coverImageUri ?? null,
     category: initial?.category ?? '',
     collectionId: initial?.collectionId ?? '',
-    collaborators: initial?.collaborators ?? [],
-    collaboratorArtists: initial?.collaboratorArtists ?? [],
     platformInvites: initial?.platformInvites ?? [],
     unregisteredCollaborators: initial?.unregisteredCollaborators ?? [],
 
@@ -139,7 +124,6 @@ function parseQuantity(value: string): number | undefined {
 
 export function useEventForm(options?: UseEventFormOptions) {
   const isEditing = !!options?.eventId;
-  const isVenue = options?.isVenue ?? false;
   const queryClient = useQueryClient();
 
   const init = defaults(options?.initialData);
@@ -153,10 +137,6 @@ export function useEventForm(options?: UseEventFormOptions) {
   const [coverImageUri, setCoverImageUri] = useState<string | null>(init.coverImageUri);
   const [category, setCategory] = useState<EventCategory | ''>(init.category);
   const [collectionId, setCollectionId] = useState(init.collectionId);
-  const [collaborators, setCollaborators] = useState<string[]>(init.collaborators);
-  const [collaboratorArtists, setCollaboratorArtists] = useState<CollaboratorArtist[]>(
-    init.collaboratorArtists
-  );
   const [platformInvites, setPlatformInvites] = useState<string[]>(init.platformInvites);
   const [unregisteredCollaborators, setUnregisteredCollaborators] = useState<
     Array<{ name: string; email: string }>
@@ -253,10 +233,6 @@ export function useEventForm(options?: UseEventFormOptions) {
         }
         case 'category':
           return category ? undefined : 'Category is required';
-        case 'collaborators':
-          return isVenue && collaborators.length === 0
-            ? 'At least one confirmed collaborator is required for venue events'
-            : undefined;
         case 'dateStart':
           return dateStart ? undefined : 'Start date is required';
         case 'startTime':
@@ -272,7 +248,7 @@ export function useEventForm(options?: UseEventFormOptions) {
           return undefined;
       }
     },
-    [title, description, category, isVenue, collaborators, dateStart, startTime, lat, lng, venueId]
+    [title, description, category, dateStart, startTime, lat, lng, venueId]
   );
 
   // Re-validate every already-touched field whenever any value changes, so an
@@ -334,9 +310,8 @@ export function useEventForm(options?: UseEventFormOptions) {
   );
 
   const validateStep1 = useCallback(
-    (): boolean =>
-      validateFields(['title', 'description', 'category', ...(isVenue ? ['collaborators'] : [])]),
-    [validateFields, isVenue]
+    (): boolean => validateFields(['title', 'description', 'category']),
+    [validateFields]
   );
 
   const validateStep2 = useCallback(
@@ -369,14 +344,6 @@ export function useEventForm(options?: UseEventFormOptions) {
     (value: EventCategory) => {
       setCategory(value);
       markTouched('category');
-    },
-    [markTouched]
-  );
-
-  const handleCollaboratorsChange = useCallback(
-    (ids: string[]) => {
-      setCollaborators(ids);
-      markTouched('collaborators');
     },
     [markTouched]
   );
@@ -497,7 +464,6 @@ export function useEventForm(options?: UseEventFormOptions) {
       ticketPrice: priceToCents(ticketPrice),
       ticketQuantity: parseQuantity(ticketQuantity),
       collectionId: collectionId || undefined,
-      collaborators: collaborators.length > 0 ? collaborators : undefined,
       platformInvites: platformInvites.length > 0 ? platformInvites : undefined,
       unregisteredCollaborators:
         unregisteredCollaborators.length > 0 ? unregisteredCollaborators : undefined,
@@ -578,7 +544,7 @@ export function useEventForm(options?: UseEventFormOptions) {
     ticketPrice,
     ticketQuantity,
     collectionId,
-    collaborators,
+    platformInvites,
     unregisteredCollaborators,
     adTitle,
     adDescription,
@@ -607,10 +573,6 @@ export function useEventForm(options?: UseEventFormOptions) {
     setCategory: handleCategoryChange,
     collectionId,
     setCollectionId,
-    collaborators,
-    setCollaborators: handleCollaboratorsChange,
-    collaboratorArtists,
-    setCollaboratorArtists,
     platformInvites,
     setPlatformInvites,
     unregisteredCollaborators,

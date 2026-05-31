@@ -23,7 +23,6 @@ import { StepIndicator } from '@/components/events/StepIndicator';
 import { TicketAdsStep } from '@/components/events/TicketAdsStep';
 import { useEventById } from '@/hooks/use-event-by-id';
 import { useEventForm } from '@/hooks/use-event-form';
-import type { CollaboratorArtist } from '@/hooks/use-event-form';
 import { useMe } from '@/hooks/use-me';
 
 export default function EditEventScreen() {
@@ -45,15 +44,6 @@ export default function EditEventScreen() {
           coverImageUri: event.coverImage ?? null,
           category: event.category as EventCategory,
           collectionId: event.collectionId ?? '',
-          collaborators: event.collaborators.map((c) => c.id),
-          collaboratorArtists: event.collaborators.map(
-            (c): CollaboratorArtist => ({
-              id: c.id,
-              stageName: c.stageName,
-              genre: c.genre,
-              image: c.profileImageUrl ?? null,
-            })
-          ),
           platformInvites: [],
           unregisteredCollaborators: event.unregisteredCollaborators ?? [],
           dateStart: new Date(event.dateStart),
@@ -75,7 +65,6 @@ export default function EditEventScreen() {
       appToast.success('Event updated', 'Your changes are saved.');
       router.back();
     },
-    isVenue,
   });
 
   const handleBackPress = () => {
@@ -166,10 +155,6 @@ export default function EditEventScreen() {
             onCategoryChange={form.setCategory}
             collectionId={form.collectionId}
             onCollectionIdChange={form.setCollectionId}
-            collaborators={form.collaborators}
-            onCollaboratorsChange={form.setCollaborators}
-            collaboratorArtists={form.collaboratorArtists}
-            onCollaboratorArtistsChange={form.setCollaboratorArtists}
             platformInvites={form.platformInvites}
             onPlatformInvitesChange={form.setPlatformInvites}
             unregisteredCollaborators={form.unregisteredCollaborators}

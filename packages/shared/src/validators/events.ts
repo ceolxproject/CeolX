@@ -17,7 +17,9 @@ const eventBaseShape = {
   ticketLink: z.string().url().optional(),
   ticketPrice: z.number().int().min(0).optional(),
   collectionId: z.string().uuid().optional(),
-  collaborators: z.array(z.string().min(1)).max(10).optional(),
+  // Confirmed collaborators are no longer set at create/edit time. A venue
+  // performer becomes confirmed only by accepting a pending invite (see
+  // platformInvites) through the booking flow — there is no direct collaborator.
   platformInvites: z.array(z.string().min(1)).max(10).optional(),
   unregisteredCollaborators: z
     .array(

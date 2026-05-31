@@ -234,17 +234,9 @@ export const byId = publicProcedure
   });
 
 export const create = creatorProcedure.input(createEventSchema).mutation(async ({ input, ctx }) => {
-  const { collaborators, platformInvites, unregisteredCollaborators, ...eventData } = input;
+  const { platformInvites, unregisteredCollaborators, ...eventData } = input;
 
   const isVenue = ctx.session.user.currentRole === UserRole.VENUE;
-
-  // Venue events must have at least one confirmed platform collaborator
-  if (isVenue && (!collaborators || collaborators.length === 0)) {
-    throw new TRPCError({
-      code: 'BAD_REQUEST',
-      message: 'Venue events must have at least one confirmed collaborator',
-    });
-  }
 
   // Ad fields are venue-only — strip them for non-venue creators
   if (!isVenue) {
@@ -288,77 +280,6 @@ export const create = creatorProcedure.input(createEventSchema).mutation(async (
     const inserted = rows[0];
     if (!inserted) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Insert failed' });
 
-    // For venue events: create bookings + collaborator rows in the same transaction
-    // For artist events: insert collaborators directly (no booking needed for own performance)
-    if (collaborators && collaborators.length > 0) {
-      if (isVenue) {
-        // Look up venue profile for booking FK
-        const venueProfile = await tx.query.venueProfiles.findFirst({
-          where: eq(venueProfiles.userId, ctx.userId),
-          columns: { id: true, venueName: true },
-        });
-
-        // Look up artist profiles by userId (collaborators array contains user IDs from artists.search)
-        const artistProfileRows = await tx
-          .select({
-            id: artistProfiles.id,
-            userId: artistProfiles.userId,
-            stageName: artistProfiles.stageName,
-          })
-          .from(artistProfiles)
-          .where(inArray(artistProfiles.userId, collaborators));
-
-        if (!venueProfile)
-          throw new TRPCError({ code: 'NOT_FOUND', message: 'Venue profile not found' });
-
-        for (const ap of artistProfileRows) {
-          // Collaborators are confirmed performers — booking is auto-accepted
-          const [booking] = await tx
-            .insert(bookings)
-            .values({
-              artistId: ap.id,
-              venueId: venueProfile.id,
-              eventId: inserted.id,
-              status: BookingStatus.ACCEPTED,
-              direction: BookingDirection.VENUE_TO_ARTIST,
-            })
-            .returning();
-
-          if (!booking)
-            throw new TRPCError({
-              code: 'INTERNAL_SERVER_ERROR',
-              message: 'Booking insert failed',
-            });
-
-          await tx.insert(eventCollaborators).values({
-            eventId: inserted.id,
-            artistProfileId: ap.userId,
-            bookingId: booking.id,
-          });
-
-          // Matrix A-13 — Artist auto-confirmed as a Venue's collaborator.
-          pendingDispatches.push({
-            trigger: NotificationTrigger.ADDED_AS_COLLABORATOR_TO_ARTIST,
-            recipientUserId: ap.userId,
-            vars: {
-              eventId: inserted.id,
-              eventTitle: inserted.title,
-              venueName: venueProfile.venueName,
-              date: formatNotificationDate(inserted.dateStart),
-            },
-          });
-        }
-      } else {
-        // Artist adding collaborators to own event — no booking, direct insert
-        await tx.insert(eventCollaborators).values(
-          collaborators.map((artistId) => ({
-            eventId: inserted.id,
-            artistProfileId: artistId,
-          }))
-        );
-      }
-    }
-
     // Insert non-platform (invited) artists as eventCollaborators rows
     if (unregisteredCollaborators && unregisteredCollaborators.length > 0) {
       await tx.insert(eventCollaborators).values(
@@ -372,8 +293,7 @@ export const create = creatorProcedure.input(createEventSchema).mutation(async (
 
     // Platform invites (venue only) — create pending bookings for invited artists
     if (platformInvites && platformInvites.length > 0 && isVenue) {
-      const confirmedSet = new Set(collaborators ?? []);
-      const inviteUserIds = platformInvites.filter((id) => !confirmedSet.has(id));
+      const inviteUserIds = platformInvites;
 
       if (inviteUserIds.length > 0) {
         const venueProfile = await tx.query.venueProfiles.findFirst({
@@ -524,7 +444,7 @@ export const update = protectedProcedure
       throw new TRPCError({ code: 'FORBIDDEN', message: 'Cannot edit an archived event' });
     }
 
-    const { collaborators, platformInvites, unregisteredCollaborators, ...updateData } = input.data;
+    const { platformInvites, unregisteredCollaborators, ...updateData } = input.data;
     const isVenue = ctx.session.user.currentRole === UserRole.VENUE;
 
     // Ad fields are venue-only — strip them for non-venue creators
@@ -603,100 +523,11 @@ export const update = protectedProcedure
         });
       }
 
-      // Update collaborators if provided — for venues, create bookings for new additions
-      // Removal is handled through the booking flow (reject/withdraw/cancel), not event edit
-      if (collaborators !== undefined) {
-        if (isVenue) {
-          // Get existing collaborator artist profile IDs (via their booking artist IDs)
-          const existingCollabs = await tx.query.eventCollaborators.findMany({
-            where: eq(eventCollaborators.eventId, input.id),
-            columns: { artistProfileId: true, bookingId: true },
-          });
-
-          // Find which artist profile IDs already have collaborator rows
-          // artistProfileId is user.id; collaborators array has artistProfiles.id
-          // Look up artist profiles to map between the two
-          const existingArtistUserIds = new Set(
-            existingCollabs.map((c) => c.artistProfileId).filter((id): id is string => id !== null)
-          );
-
-          // Look up all requested artist profiles by userId (collaborators array contains user IDs)
-          const requestedProfiles =
-            collaborators.length > 0
-              ? await tx
-                  .select({
-                    id: artistProfiles.id,
-                    userId: artistProfiles.userId,
-                    stageName: artistProfiles.stageName,
-                  })
-                  .from(artistProfiles)
-                  .where(inArray(artistProfiles.userId, collaborators))
-              : [];
-
-          // Only create bookings for truly new collaborators
-          const newProfiles = requestedProfiles.filter(
-            (ap) => !existingArtistUserIds.has(ap.userId)
-          );
-
-          if (newProfiles.length > 0) {
-            const venueProfile = await tx.query.venueProfiles.findFirst({
-              where: eq(venueProfiles.userId, ctx.userId),
-              columns: { id: true, venueName: true },
-            });
-            if (!venueProfile)
-              throw new TRPCError({ code: 'NOT_FOUND', message: 'Venue profile not found' });
-
-            for (const ap of newProfiles) {
-              // Collaborators are confirmed performers — booking is auto-accepted
-              const [booking] = await tx
-                .insert(bookings)
-                .values({
-                  artistId: ap.id,
-                  venueId: venueProfile.id,
-                  eventId: input.id,
-                  status: BookingStatus.ACCEPTED,
-                  direction: BookingDirection.VENUE_TO_ARTIST,
-                })
-                .returning();
-
-              if (!booking)
-                throw new TRPCError({
-                  code: 'INTERNAL_SERVER_ERROR',
-                  message: 'Booking insert failed',
-                });
-
-              await tx.insert(eventCollaborators).values({
-                eventId: input.id,
-                artistProfileId: ap.userId,
-                bookingId: booking.id,
-              });
-
-              // Matrix A-13 — Artist auto-confirmed as a Venue's collaborator.
-              pendingDispatches.push({
-                trigger: NotificationTrigger.ADDED_AS_COLLABORATOR_TO_ARTIST,
-                recipientUserId: ap.userId,
-                vars: {
-                  eventId: input.id,
-                  eventTitle: result.title,
-                  venueName: venueProfile.venueName,
-                  date: formatNotificationDate(result.dateStart),
-                },
-              });
-            }
-          }
-        } else {
-          // Artist editing own event — simple replace (no booking flow)
-          await tx.delete(eventCollaborators).where(eq(eventCollaborators.eventId, input.id));
-          if (collaborators.length > 0) {
-            await tx.insert(eventCollaborators).values(
-              collaborators.map((artistId) => ({
-                eventId: input.id,
-                artistProfileId: artistId,
-              }))
-            );
-          }
-        }
-      }
+      // Confirmed collaborators are no longer set from the event form — a venue
+      // performer becomes confirmed only by accepting a pending invite through
+      // the booking flow. Edits therefore never touch confirmed collaborator
+      // rows; existing ones (incl. legacy auto-confirmed performers) are left
+      // intact. Only the invite paths below are managed here.
 
       // Update non-platform (invited) collaborators — replace all on edit
       if (unregisteredCollaborators !== undefined) {
