@@ -133,6 +133,13 @@ describe('isValidCoordinate', () => {
     expect(isValidCoordinate(53.35, 181)).toBe(false);
     expect(isValidCoordinate(53.35, -181)).toBe(false);
   });
+
+  it('rejects null-island (0, 0) — the unset-coordinate sentinel', () => {
+    // 0,0 is in the Atlantic off Africa; it's never a real location and is the
+    // value events ended up with when geocoding silently failed (they then
+    // vanished from the map/feed). Treat it as invalid, not "just in range".
+    expect(isValidCoordinate(0, 0)).toBe(false);
+  });
 });
 
 describe('filterValidMapEvents', () => {

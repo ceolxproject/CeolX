@@ -211,6 +211,13 @@ describe('createEventSchema', () => {
     expect(createEventSchema.safeParse({ ...valid, lng: -181 }).success).toBe(false);
   });
 
+  it('rejects null-island (0,0) coordinates — the failed-geocode sentinel', () => {
+    // 0,0 used to slip through (it's "in range") and produced events that
+    // saved fine but never appeared on the map/feed. It must be rejected unless
+    // a registered venueId supplies real coordinates.
+    expect(createEventSchema.safeParse({ ...valid, lat: 0, lng: 0 }).success).toBe(false);
+  });
+
   it('rejects when neither coordinates nor venueId provided', () => {
     const noLocation = {
       title: valid.title,

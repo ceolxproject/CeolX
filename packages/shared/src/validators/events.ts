@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 import { EVENT_CATEGORIES } from '../enums.js';
+import { isValidCoordinate } from '../utils/geo.js';
 
 // Base shape — used for both create and update schemas
 const eventBaseShape = {
@@ -37,17 +38,16 @@ const eventBaseShape = {
 export const createEventSchema = z
   .object(eventBaseShape)
   // Map and feed are coordinate-driven (Typesense geopoint), so every event
-  // needs a real pin. Either the client supplies lat/lng directly, or it picks
-  // a registered venue (venueId) whose stored coordinates the server inherits.
-  // A free-text venueAddress alone is only a display label — it cannot place an
-  // event on the map, so it no longer satisfies this requirement.
-  .refine(
-    (data) => (data.lat !== undefined && data.lng !== undefined) || data.venueId !== undefined,
-    {
-      message: 'A location pin or a registered venue is required',
-      path: ['lat'],
-    }
-  )
+  // needs a real pin. Either the client supplies valid lat/lng directly, or it
+  // picks a registered venue (venueId) whose stored coordinates the server
+  // inherits. A free-text venueAddress alone is only a display label — it
+  // cannot place an event on the map, so it does not satisfy this requirement.
+  // isValidCoordinate rejects null-island (0,0) — the value a failed geocode
+  // used to leave behind, which produced saved-but-invisible events.
+  .refine((data) => isValidCoordinate(data.lat, data.lng) || data.venueId !== undefined, {
+    message: 'A location pin or a registered venue is required',
+    path: ['lat'],
+  })
   .refine((data) => !data.dateEnd || data.dateEnd >= data.dateStart, {
     message: 'End date must be after start date',
     path: ['dateEnd'],

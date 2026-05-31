@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Alert } from 'react-native';
 
 import type { EventCategory } from '@CeolX/shared';
+import { isValidCoordinate } from '@CeolX/shared';
 import { createEventSchema } from '@CeolX/shared/validators';
 
 import { keyFromCdnUrl, useMediaDelete } from '@/hooks/use-media-delete';
@@ -241,7 +242,9 @@ export function useEventForm(options?: UseEventFormOptions) {
           // Map and feed are coordinate-driven, so an event needs a real pin.
           // A free-text address alone is not enough — the user must drop a pin
           // or pick a registered venue (whose stored pin the server inherits).
-          return (lat === null || lng === null) && !venueId
+          // isValidCoordinate also rejects null-island (0,0), so a failed
+          // geocode can no longer slip through as a "valid" location.
+          return !isValidCoordinate(lat, lng) && !venueId
             ? 'A location pin or a registered venue is required'
             : undefined;
         default:
