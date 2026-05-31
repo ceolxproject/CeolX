@@ -254,21 +254,21 @@ describe('createEventSchema', () => {
     ).toBe(false);
   });
 
-  it('accepts new fields (ticketPrice, collaborators, etc.)', () => {
+  it('accepts new fields (ticketPrice, platformInvites, etc.)', () => {
     expect(
       createEventSchema.safeParse({
         ...valid,
         ticketPrice: 1500,
         adTitle: 'Special offer',
         adDescription: 'Early bird discount',
-        collaborators: ['550e8400-e29b-41d4-a716-446655440000'],
+        platformInvites: ['550e8400-e29b-41d4-a716-446655440000'],
       }).success
     ).toBe(true);
   });
 
-  it('rejects more than 10 collaborators', () => {
+  it('rejects more than 10 platform invites', () => {
     const tooMany = Array.from({ length: 11 }, (_, i) => `550e8400-e29b-41d4-a716-44665544000${i}`);
-    expect(createEventSchema.safeParse({ ...valid, collaborators: tooMany }).success).toBe(false);
+    expect(createEventSchema.safeParse({ ...valid, platformInvites: tooMany }).success).toBe(false);
   });
 });
 

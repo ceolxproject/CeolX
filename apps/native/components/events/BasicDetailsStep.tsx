@@ -5,11 +5,8 @@ import { Image, Pressable, ScrollView, Text, TextInput, View } from 'react-nativ
 import type { EventCategory } from '@CeolX/shared';
 
 import { CategoryPicker } from './CategoryPicker';
-import { CollaboratorPicker } from './CollaboratorPicker';
 import { CollectionPicker } from './CollectionPicker';
 import { InviteArtistPicker } from './InviteArtistPicker';
-
-import type { CollaboratorArtist } from '@/hooks/use-event-form';
 
 type Props = {
   title: string;
@@ -27,10 +24,6 @@ type Props = {
   onCategoryChange: (v: EventCategory) => void;
   collectionId: string;
   onCollectionIdChange: (v: string) => void;
-  collaborators: string[];
-  onCollaboratorsChange: (ids: string[]) => void;
-  collaboratorArtists: CollaboratorArtist[];
-  onCollaboratorArtistsChange: (artists: CollaboratorArtist[]) => void;
   platformInvites: string[];
   onPlatformInvitesChange: (ids: string[]) => void;
   unregisteredCollaborators: Array<{ name: string; email: string }>;
@@ -56,10 +49,6 @@ export function BasicDetailsStep({
   onCategoryChange,
   collectionId,
   onCollectionIdChange,
-  collaborators,
-  onCollaboratorsChange,
-  collaboratorArtists,
-  onCollaboratorArtistsChange,
   platformInvites,
   onPlatformInvitesChange,
   unregisteredCollaborators,
@@ -178,25 +167,14 @@ export function BasicDetailsStep({
         <CollectionPicker collectionId={collectionId} onCollectionIdChange={onCollectionIdChange} />
       )}
 
-      {/* ── Collaborators + Invite Artists — Venues only ── */}
+      {/* ── Invite Artists — Venues only ── */}
       {isVenue && (
-        <>
-          <CollaboratorPicker
-            collaborators={collaborators}
-            onCollaboratorsChange={onCollaboratorsChange}
-            initialSelectedArtists={collaboratorArtists}
-            onCollaboratorObjectsChange={onCollaboratorArtistsChange}
-            isRequired
-            error={errors.collaborators}
-          />
-
-          <InviteArtistPicker
-            platformInvites={platformInvites}
-            onPlatformInvitesChange={onPlatformInvitesChange}
-            unregisteredInvites={unregisteredCollaborators}
-            onUnregisteredInvitesChange={onUnregisteredCollaboratorsChange}
-          />
-        </>
+        <InviteArtistPicker
+          platformInvites={platformInvites}
+          onPlatformInvitesChange={onPlatformInvitesChange}
+          unregisteredInvites={unregisteredCollaborators}
+          onUnregisteredInvitesChange={onUnregisteredCollaboratorsChange}
+        />
       )}
 
       {/* ── Continue Button ── */}

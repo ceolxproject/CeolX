@@ -257,18 +257,21 @@ events
   rejection_reason                  -- nullable; populated by admin on rejection
 ```
 
-### Event form field distinctions
+### Event form field distinctions (Updated 31/05/2026 — Asana 1215188774775403)
 
-Two separate fields exist on the event creation/edit form (M4-T1):
+> **Change:** The **Collaborator** field (direct, auto-confirmed performer) was **removed** from the event form. A venue can no longer add a confirmed performer without consent. Every venue→artist link now flows through **Invite Artist** → pending booking → the artist accepts via the M5 booking flow. "Artist is always invited — no direct collaborator." Collaborators/artists are **optional** when creating an event.
 
-| Field             | Purpose             | Who can be added                                    | Confirmation                                             |
-| ----------------- | ------------------- | --------------------------------------------------- | -------------------------------------------------------- |
-| **Collaborator**  | Confirmed performer | Platform artists only (from `artist_profiles`)      | Auto-confirmed — no accept/reject                        |
-| **Invite Artist** | Pending invitation  | Platform artists OR outside-platform (name + email) | Platform: M5 booking flow; Outside: email invite (M7-T3) |
+Only **one** artist-linking field exists on the event creation/edit form now:
+
+| Field             | Purpose            | Who can be added                                    | Confirmation                                             |
+| ----------------- | ------------------ | --------------------------------------------------- | -------------------------------------------------------- |
+| **Invite Artist** | Pending invitation | Platform artists OR outside-platform (name + email) | Platform: M5 booking flow; Outside: email invite (M7-T3) |
+
+A performer only becomes a **confirmed collaborator** (`eventCollaborators` row with an `ACCEPTED` booking) once they accept the invite. Legacy events created before this change keep their auto-confirmed collaborator rows untouched, and the event-detail page still displays confirmed performers. The `ADDED_AS_COLLABORATOR_TO_ARTIST` notification trigger is now unused (kept in `shared` for the notification matrix; flag for Pratiksha).
 
 ### Mandatory fields by persona
 
-- **Venue creating event** — must add at least 1 Collaborator (confirmed platform artist)
+- **Venue creating event** — no mandatory collaborator. Inviting artists is optional.
 - **Artist creating event** — must specify a Venue (registered venue profile OR free-text address)
 
 ---
@@ -326,7 +329,7 @@ packages/
 - Location permission is mandatory for the app to function (fallback chain exists — see Map section)
 - **Artist ↔ Venue switching is not supported** — separate accounts required (MoM 3rd Apr 2026)
 - `is_gig_opportunity` is deprecated — no longer written; any event can receive artist performance requests (M5)
-- **Venue must add at least 1 confirmed collaborator** (platform artist) when creating an event
+- **Collaborators/artists are optional on event creation** — the direct "Collaborator" field was removed (Asana 1215188774775403, 31/05/2026). Venues link artists only via **Invite Artist** (pending → artist accepts). No auto-confirmed direct collaborator.
 - **Artist must specify a venue** (registered profile or free-text address) when creating an event
 - **Both Artist and Venue require paid subscriptions** — Artist pricing lower than Venue (MoM 3rd Apr 2026)
 - Artist profile is not visible until subscription is active

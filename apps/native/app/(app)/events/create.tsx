@@ -27,7 +27,6 @@ export default function CreateEventScreen() {
       appToast.success('Event created', 'Your event is now live.');
       router.replace('/(app)/(tabs)/discover');
     },
-    isVenue,
   });
 
   const handleBackPress = () => {
@@ -88,10 +87,6 @@ export default function CreateEventScreen() {
             onCategoryChange={form.setCategory}
             collectionId={form.collectionId}
             onCollectionIdChange={form.setCollectionId}
-            collaborators={form.collaborators}
-            onCollaboratorsChange={form.setCollaborators}
-            collaboratorArtists={form.collaboratorArtists}
-            onCollaboratorArtistsChange={form.setCollaboratorArtists}
             platformInvites={form.platformInvites}
             onPlatformInvitesChange={form.setPlatformInvites}
             unregisteredCollaborators={form.unregisteredCollaborators}
