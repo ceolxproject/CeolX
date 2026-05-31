@@ -19,7 +19,7 @@
     "build:dev:android": "eas build --platform android --profile staging",
     "build:preview": "eas build --platform all --profile preview",
     "build:prod": "eas build --platform all --profile production",
-    "submit": "eas submit --platform all",
+    "submit": "APP_VARIANT=staging eas submit --profile staging-testflight --platform ios --latest",
     "check-types": "tsc --noEmit",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix"
