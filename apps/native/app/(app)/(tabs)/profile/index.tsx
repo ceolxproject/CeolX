@@ -323,8 +323,10 @@ function SpectatorProfile() {
 
   const handleLogout = async () => {
     settingsRef.current?.dismiss();
+    // Navigation is handled declaratively by (app)/_layout, which redirects to
+    // sign-in the moment the session clears. A second imperative router.replace
+    // here raced that redirect and caused the logout shake. (Asana 1215040939202645)
     await logout();
-    router.replace('/(auth)/sign-in');
   };
 
   return (
@@ -452,8 +454,9 @@ function CreatorProfile({
 
   const handleSignOut = useCallback(async () => {
     settingsRef.current?.dismiss();
+    // See handleLogout — (app)/_layout redirects declaratively once the session
+    // clears; a second imperative replace here caused the logout shake.
     await logout();
-    router.replace('/(auth)/sign-in');
   }, [logout]);
 
   const renderTabContent = () => {

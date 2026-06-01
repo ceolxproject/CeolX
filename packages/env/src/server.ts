@@ -30,6 +30,7 @@ export const env = createEnv({
     APPLE_OAUTH_TEAM_ID: z.string().optional(),
     APPLE_OAUTH_KEY_ID: z.string().optional(),
     APPLE_OAUTH_PRIVATE_KEY: z.string().optional(),
+    APPLE_APP_BUNDLE_IDENTIFIER: z.string().optional(),
     SENTRY_DSN_API: z.url().optional(),
     SENTRY_ENVIRONMENT: z.string().optional(),
     QSTASH_TOKEN: z.string().optional(),

@@ -146,6 +146,11 @@ vi.mock('@CeolX/db/schema/users', () => ({
   },
 }));
 
+vi.mock('../services/event-sync', () => ({
+  syncEventToTypesense: vi.fn(async () => {}),
+  removeEventFromTypesense: vi.fn(async () => {}),
+}));
+
 import type { Context } from '../context';
 import { t, router } from '../index';
 import { bookingsRouter } from '../routers/bookings';

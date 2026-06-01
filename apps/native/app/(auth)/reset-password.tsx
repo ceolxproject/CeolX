@@ -1,14 +1,26 @@
+import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { ActivityIndicator, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import {
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { AppButton } from '@/components/AppButton';
+import { CeolxLogo } from '@/components/CeolxLogo';
 import { authClient } from '@/lib/auth-client';
 
 export default function ResetPasswordScreen() {
   const { token } = useLocalSearchParams<{ token: string }>();
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [passwordVisible, setPasswordVisible] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -44,7 +56,6 @@ export default function ResetPasswordScreen() {
     setLoading(false);
 
     if (apiError) {
-      // TODO (M2-T3): Map BetterAuth error codes to user-friendly messages
       setError(mapResetError(apiError));
       return;
     }
@@ -56,47 +67,93 @@ export default function ResetPasswordScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-white">
-      <View className="flex-1 p-6 pt-12">
-        <Text className="text-[28px] font-bold mb-2">Create New Password</Text>
-        <Text className="text-[15px] text-[#666] mb-7 leading-[22px]">
-          Your new password must be at least 8 characters.
-        </Text>
-
-        <TextInput
-          className="border border-[#e5e5e5] rounded-lg p-3 text-[16px] bg-[#fafafa] mb-3"
-          placeholder="New password"
-          placeholderTextColor="#999"
-          secureTextEntry
-          value={newPassword}
-          onChangeText={setNewPassword}
-        />
-
-        <TextInput
-          className="border border-[#e5e5e5] rounded-lg p-3 text-[16px] bg-[#fafafa] mb-2"
-          placeholder="Confirm password"
-          placeholderTextColor="#999"
-          secureTextEntry
-          value={confirmPassword}
-          onChangeText={setConfirmPassword}
-        />
-
-        {error ? <Text className="text-[#dc2626] text-[14px] mb-2">{error}</Text> : null}
-
-        <TouchableOpacity
-          className="bg-[#16a34a] rounded-lg p-[14px] items-center mt-2 disabled:opacity-60"
-          onPress={handleReset}
-          disabled={loading}
-          style={loading ? { opacity: 0.6 } : undefined}
+    <View style={{ flex: 1, backgroundColor: '#0d0c0f' }}>
+      <SafeAreaView style={{ flex: 1 }}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={{ flex: 1 }}
         >
-          {loading ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text className="text-white text-[16px] font-semibold">Reset Password</Text>
-          )}
-        </TouchableOpacity>
-      </View>
-    </SafeAreaView>
+          {/* Header — brand logo, matches sign-in */}
+          <View className="flex-row justify-between items-center p-5 bg-surface-dark">
+            <CeolxLogo />
+          </View>
+
+          <ScrollView
+            contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 24, paddingBottom: 40 }}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+          >
+            {/* Heading — Urbanist Bold 36/40 */}
+            <Text className="text-[36px] font-bold text-white leading-10 font-sans mb-2">
+              Create new password
+            </Text>
+            <Text className="text-[15px] text-gray-10 leading-[22px] font-inter mb-8">
+              Your new password must be at least 8 characters.
+            </Text>
+
+            {/* New password */}
+            <View className="gap-2 mb-4">
+              <Text className="text-sm font-medium font-inter text-white/80 leading-5">
+                New Password
+              </Text>
+              <View className="flex-row items-center">
+                <TextInput
+                  className="flex-1 bg-white rounded-lg h-[52px] px-4 text-base font-sans font-medium text-black leading-5"
+                  placeholder="Enter new password"
+                  placeholderTextColor="#8d8d8d"
+                  secureTextEntry={!passwordVisible}
+                  autoComplete="new-password"
+                  value={newPassword}
+                  onChangeText={setNewPassword}
+                />
+                <Pressable
+                  className="absolute right-4 h-[52px] justify-center"
+                  onPress={() => setPasswordVisible((v) => !v)}
+                >
+                  <Ionicons
+                    name={passwordVisible ? 'eye-outline' : 'eye-off-outline'}
+                    size={20}
+                    color="#8d8d8d"
+                  />
+                </Pressable>
+              </View>
+            </View>
+
+            {/* Confirm password */}
+            <View className="gap-2 mb-4">
+              <Text className="text-sm font-medium font-inter text-white/80 leading-5">
+                Confirm Password
+              </Text>
+              <TextInput
+                className="bg-white rounded-lg h-[52px] px-4 text-base font-sans font-medium text-black leading-5"
+                placeholder="Re-enter new password"
+                placeholderTextColor="#8d8d8d"
+                secureTextEntry={!passwordVisible}
+                autoComplete="new-password"
+                value={confirmPassword}
+                onChangeText={setConfirmPassword}
+              />
+            </View>
+
+            {error ? (
+              <View className="bg-error/15 rounded-lg p-3 mb-4">
+                <Text className="text-error text-sm font-inter font-medium">{error}</Text>
+              </View>
+            ) : null}
+
+            {/* Reset — Urbanist Bold 17/20 */}
+            <AppButton
+              variant="primary"
+              isLoading={loading}
+              onPress={handleReset}
+              className="w-full rounded-full py-4 mt-2"
+            >
+              RESET PASSWORD
+            </AppButton>
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+    </View>
   );
 }
 

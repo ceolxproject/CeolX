@@ -27,14 +27,24 @@ afterEach(() => {
 });
 
 describe('getTransport', () => {
-  it('uses SMTP in development', async () => {
+  it('uses SMTP in development when no token is set', async () => {
     vi.stubEnv('APP_ENV', '');
     vi.stubEnv('NODE_ENV', 'development');
-    vi.stubEnv('POSTMARK_API_TOKEN', 'unused-in-dev');
+    vi.stubEnv('POSTMARK_API_TOKEN', '');
     const { getTransport } = await import('../client.js');
     getTransport();
     expect(createTransportMock).toHaveBeenCalledOnce();
     expect(postmarkConstructorMock).not.toHaveBeenCalled();
+  });
+
+  it('uses Postmark whenever a token is set, even in development', async () => {
+    vi.stubEnv('APP_ENV', '');
+    vi.stubEnv('NODE_ENV', 'development');
+    vi.stubEnv('POSTMARK_API_TOKEN', 'pm-token-dev');
+    const { getTransport } = await import('../client.js');
+    getTransport();
+    expect(postmarkConstructorMock).toHaveBeenCalledWith('pm-token-dev');
+    expect(createTransportMock).not.toHaveBeenCalled();
   });
 
   it('uses SMTP when APP_ENV=staging even if NODE_ENV=production', async () => {

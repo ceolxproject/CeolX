@@ -87,12 +87,11 @@ export function BasicDetailsStep({
         <Text className="text-sm font-semibold text-gray-3 font-urbanist">Event Banner/Image</Text>
         <Pressable onPress={onPickImage}>
           {coverImageUri ? (
-            <View className="rounded-xl overflow-hidden">
-              <Image
-                source={{ uri: coverImageUri }}
-                className="w-full h-44 rounded-xl"
-                resizeMode="cover"
-              />
+            <View className="h-44 rounded-xl overflow-hidden">
+              {/* Height lives on the wrapper View (uniwind sizes Views reliably);
+                  the image fills it with h-full. Sizing the Image directly with
+                  h-44 collapsed the preview to 0px on device. (Asana 1215040939202669) */}
+              <Image source={{ uri: coverImageUri }} className="w-full h-full" resizeMode="cover" />
               {/* Tap the image to replace; tap ✕ to clear. Stops propagation so
                   removing doesn't also re-open the picker. */}
               <Pressable
