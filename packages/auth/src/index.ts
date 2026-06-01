@@ -57,6 +57,11 @@ export const auth = betterAuth({
   emailVerification: {
     sendOnSignUp: true,
     expiresIn: 60 * 60 * 24, // 24 hours
+    // Create a session the moment the email is verified. The mobile app makes
+    // the verifyEmail call itself, so the Set-Cookie lands in the app's cookie
+    // store — letting verify-email.tsx route straight into onboarding/the app
+    // instead of bouncing to sign-in for a fresh signup. (Asana 1215273331307886)
+    autoSignInAfterVerification: true,
     sendVerificationEmail: async ({ user, url }) => {
       // Email clients drop custom-scheme links, so point at the HTTPS bridge
       // on our server which redirects to ceolx://verify-email?token=...
