@@ -33,8 +33,9 @@ export default function SwitchAccountScreen() {
   };
 
   const handleLogout = async () => {
+    // (app)/_layout redirects to sign-in declaratively when the session clears;
+    // removing the imperative replace avoids the double-nav flicker on logout.
     await logout();
-    router.replace('/(auth)/sign-in');
   };
 
   return (
