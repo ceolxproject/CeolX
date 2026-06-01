@@ -1,4 +1,4 @@
-import { router } from 'expo-router';
+import { router, useIsFocused } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import { useEffect } from 'react';
 import { Dimensions, StyleSheet, View } from 'react-native';
@@ -46,9 +46,15 @@ function sparkPath(cx: number, cy: number, r: number): string {
  */
 export default function SplashScreen() {
   const { user, isLoading } = useAuth();
+  // This screen is the (auth) group anchor, so a deep-link cold-start (e.g.
+  // ceolx://reset-password?token=…) mounts it *underneath* the linked screen.
+  // Without this guard its auto-redirect timer below would fire while
+  // reset-password is on top and replace it with sign-in, dropping the token.
+  // Only navigate when the splash is the screen actually in focus.
+  const isFocused = useIsFocused();
 
   useEffect(() => {
-    if (isLoading) return;
+    if (isLoading || !isFocused) return;
 
     const navigate = async () => {
       if (user) {
@@ -67,7 +73,7 @@ export default function SplashScreen() {
     };
 
     void navigate();
-  }, [isLoading, user]);
+  }, [isLoading, user, isFocused]);
 
   return (
     <View className="flex-1 bg-[#0d0c0f] items-center justify-center">
