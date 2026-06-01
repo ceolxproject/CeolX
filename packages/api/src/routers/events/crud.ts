@@ -28,6 +28,29 @@ import { syncEventToTypesense, removeEventFromTypesense } from '../../services/e
 import { resolveEventCoordinates } from './helpers';
 import { recordEventView } from './view-tracking';
 
+type DbTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+/**
+ * Withdraw the current pending artist→venue request for an event (if any) and
+ * detach its collaborator rows. Used when an artist switches or drops the
+ * registered venue on edit, so a stale request can't linger. (Asana 1215189395180422)
+ */
+async function cancelPendingVenueRequest(tx: DbTransaction, eventId: string, userId: string) {
+  const prior = await tx.query.bookings.findFirst({
+    where: and(
+      eq(bookings.eventId, eventId),
+      eq(bookings.direction, BookingDirection.ARTIST_TO_VENUE),
+      eq(bookings.status, BookingStatus.PENDING)
+    ),
+  });
+  if (!prior) return;
+  await tx
+    .update(bookings)
+    .set({ status: BookingStatus.CANCELLED, cancelledBy: userId, updatedAt: new Date() })
+    .where(eq(bookings.id, prior.id));
+  await tx.delete(eventCollaborators).where(eq(eventCollaborators.bookingId, prior.id));
+}
+
 /** Look up a registered venue's stored pin so events can inherit it. */
 const lookupVenueCoords = async (venueId: string) => {
   const [venue] = await db
@@ -244,6 +267,12 @@ export const create = creatorProcedure.input(createEventSchema).mutation(async (
     eventData.adDescription = undefined;
   }
 
+  // An artist tagging a registered venue must get the venue's consent first: the
+  // event is held at pending_review (off map/feed) until the venue accepts the
+  // request. A venue creating its own event, or an artist using a free-text
+  // address (no profile to consent), goes live immediately. (Asana 1215189395180422)
+  const heldForVenueApproval = !isVenue && !!eventData.venueId;
+
   // Resolve real coordinates before persisting — explicit pin first, else the
   // selected venue's stored pin. Throws if neither resolves, so we never write
   // the (0,0) fallback that made events vanish from the map and feed.
@@ -273,7 +302,7 @@ export const create = creatorProcedure.input(createEventSchema).mutation(async (
         adTitle: eventData.adTitle ?? null,
         adDescription: eventData.adDescription ?? null,
         createdBy: ctx.userId,
-        status: EventStatus.ACTIVE,
+        status: heldForVenueApproval ? EventStatus.PENDING_REVIEW : EventStatus.ACTIVE,
       })
       .returning();
 
@@ -348,7 +377,10 @@ export const create = creatorProcedure.input(createEventSchema).mutation(async (
       }
     }
 
-    // Artist creates event with a venue → auto-create confirmed booking
+    // Artist tags a registered venue → create a PENDING request the venue must
+    // accept. The event stays pending_review until then; the venue sees the
+    // request under Requests, and accepting it (bookings.update) flips the event
+    // live. Mirrors the venue→artist invite rule. (Asana 1215189395180422)
     if (!isVenue && eventData.venueId) {
       const venueProfile = await tx.query.venueProfiles.findFirst({
         where: eq(venueProfiles.id, eventData.venueId),
@@ -367,13 +399,15 @@ export const create = creatorProcedure.input(createEventSchema).mutation(async (
             artistId: artistProfile.id,
             venueId: venueProfile.id,
             eventId: inserted.id,
-            status: BookingStatus.ACCEPTED,
+            status: BookingStatus.PENDING,
             direction: BookingDirection.ARTIST_TO_VENUE,
           })
           .returning();
 
         if (booking) {
-          // Add artist as collaborator with booking link (for confirmedEvents query)
+          // Link both participants to the pending booking. confirmedEvents only
+          // surfaces rows whose booking is accepted, so neither side shows this
+          // as confirmed until the venue accepts.
           await tx.insert(eventCollaborators).values([
             {
               eventId: inserted.id,
@@ -387,16 +421,15 @@ export const create = creatorProcedure.input(createEventSchema).mutation(async (
             },
           ]);
 
-          // Off-matrix — Artist creating an event at this Venue's space
-          // auto-confirms the booking. Flag for Pratiksha's matrix audit.
+          // V-09 — Venue received a booking request from the artist.
           pendingDispatches.push({
-            trigger: NotificationTrigger.EVENT_HOSTED_AT_VENUE_TO_VENUE,
+            trigger: NotificationTrigger.BOOKING_REQUEST_TO_VENUE,
             recipientUserId: venueProfile.userId,
             vars: {
-              eventId: inserted.id,
-              eventTitle: inserted.title,
-              artistName: artistProfile.stageName,
+              bookingId: booking.id,
               venueName: venueProfile.venueName,
+              artistName: artistProfile.stageName,
+              eventTitle: inserted.title,
               date: formatNotificationDate(inserted.dateStart),
             },
           });
@@ -411,16 +444,19 @@ export const create = creatorProcedure.input(createEventSchema).mutation(async (
   // would leave us with phantom inbox rows + push notifications otherwise.
   await Promise.all(pendingDispatches.map((d) => ctx.dispatchNotification(d)));
 
-  // Sync to Typesense so event appears on map/feed immediately. Non-blocking —
-  // the event is in the DB and the sync can be retried — but we must NOT swallow
-  // the error silently: a failed sync means the event is invisible on the map
-  // and feed, so the cause needs to surface in logs for ops to act on.
-  await syncEventToTypesense(event).catch((err: unknown) => {
-    console.warn(
-      `[events.create] Typesense sync failed for event ${event.id} — it will not appear on map/feed until re-synced:`,
-      err instanceof Error ? `${err.name}: ${err.message}` : err
-    );
-  });
+  // Sync to Typesense so the event appears on map/feed immediately. Skip while
+  // held for venue approval — a pending_review event must stay off the map/feed
+  // until the venue accepts (bookings.update syncs it then). Non-blocking, but
+  // we must NOT swallow the error silently: a failed sync means a live event is
+  // invisible, so the cause needs to surface in logs for ops to act on.
+  if (event.status === EventStatus.ACTIVE) {
+    await syncEventToTypesense(event).catch((err: unknown) => {
+      console.warn(
+        `[events.create] Typesense sync failed for event ${event.id} — it will not appear on map/feed until re-synced:`,
+        err instanceof Error ? `${err.name}: ${err.message}` : err
+      );
+    });
+  }
 
   return event;
 });
@@ -452,6 +488,22 @@ export const update = protectedProcedure
       updateData.adTitle = undefined;
       updateData.adDescription = undefined;
     }
+
+    // An artist adding/switching to a registered venue on edit must get that
+    // venue's consent, exactly like create: hold the event at pending_review and
+    // raise a pending request. Dropping the venue from a held event releases it
+    // back to active. (Asana 1215189395180422)
+    const addsRegisteredVenue =
+      !isVenue &&
+      updateData.venueId !== undefined &&
+      updateData.venueId !== null &&
+      updateData.venueId !== event.venueId;
+    const releasesHeldVenue =
+      !isVenue &&
+      !addsRegisteredVenue &&
+      event.status === EventStatus.PENDING_REVIEW &&
+      updateData.venueId !== undefined &&
+      updateData.venueId !== event.venueId;
 
     // Resolve coordinates: an explicit pin always wins; otherwise, if the
     // creator switches to a different registered venue, inherit that venue's
@@ -499,6 +551,13 @@ export const update = protectedProcedure
         setValues.removalReason = null;
       }
 
+      // Hold for venue approval / release back to live based on the venue change.
+      if (addsRegisteredVenue) {
+        setValues.status = EventStatus.PENDING_REVIEW;
+      } else if (releasesHeldVenue) {
+        setValues.status = EventStatus.ACTIVE;
+      }
+
       const rows = await tx
         .update(events)
         .set(setValues)
@@ -521,6 +580,58 @@ export const update = protectedProcedure
             eventTitle: result.title,
           },
         });
+      }
+
+      // Artist added/switched a registered venue → cancel any prior pending venue
+      // request and raise a fresh one. The event is already held at pending_review
+      // (setValues above); accepting the request later flips it live.
+      if (addsRegisteredVenue && updateData.venueId) {
+        const venueProfile = await tx.query.venueProfiles.findFirst({
+          where: eq(venueProfiles.id, updateData.venueId),
+          columns: { id: true, userId: true, venueName: true },
+        });
+        const artistProfile = await tx.query.artistProfiles.findFirst({
+          where: eq(artistProfiles.userId, ctx.userId),
+          columns: { id: true, stageName: true },
+        });
+
+        if (venueProfile && artistProfile) {
+          await cancelPendingVenueRequest(tx, input.id, ctx.userId);
+
+          const [booking] = await tx
+            .insert(bookings)
+            .values({
+              artistId: artistProfile.id,
+              venueId: venueProfile.id,
+              eventId: input.id,
+              status: BookingStatus.PENDING,
+              direction: BookingDirection.ARTIST_TO_VENUE,
+            })
+            .returning();
+
+          if (booking) {
+            await tx.insert(eventCollaborators).values([
+              { eventId: input.id, artistProfileId: ctx.userId, bookingId: booking.id },
+              { eventId: input.id, venueProfileId: venueProfile.id, bookingId: booking.id },
+            ]);
+
+            pendingDispatches.push({
+              trigger: NotificationTrigger.BOOKING_REQUEST_TO_VENUE,
+              recipientUserId: venueProfile.userId,
+              vars: {
+                bookingId: booking.id,
+                venueName: venueProfile.venueName,
+                artistName: artistProfile.stageName,
+                eventTitle: result.title,
+                date: formatNotificationDate(result.dateStart),
+              },
+            });
+          }
+        }
+      } else if (releasesHeldVenue) {
+        // Venue dropped from a held event → withdraw the pending request; the
+        // event is released to active by setValues above + Typesense sync below.
+        await cancelPendingVenueRequest(tx, input.id, ctx.userId);
       }
 
       // Confirmed collaborators are no longer set from the event form — a venue
