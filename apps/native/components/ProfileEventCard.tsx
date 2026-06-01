@@ -65,11 +65,13 @@ export function ProfileEventCard({
               'rounded-lg px-2 py-1',
               status === EventStatus.ARCHIVED && 'bg-[rgba(141,141,141,0.8)]',
               status === EventStatus.REMOVED && 'bg-red-600',
-              status === EventStatus.DRAFT && 'bg-[#6155F5]'
+              status === EventStatus.DRAFT && 'bg-[#6155F5]',
+              // Artist event awaiting the tagged venue's approval before going live.
+              status === EventStatus.PENDING_REVIEW && 'bg-[#b8860b]'
             )}
           >
             <Text className="text-[10px] font-semibold text-white font-urbanist capitalize">
-              {status}
+              {status === EventStatus.PENDING_REVIEW ? 'Awaiting venue' : status}
             </Text>
           </View>
         ) : undefined

@@ -10,6 +10,7 @@ import {
   BookingDirection,
   BookingStatus,
   type BookingStatus as BookingStatusType,
+  EventStatus,
   formatNotificationDate,
   NotificationTrigger,
   UserRole,
@@ -31,6 +32,7 @@ import {
   router,
   venueProcedure,
 } from '../index';
+import { syncEventToTypesense } from '../services/event-sync';
 
 // ─── Valid state transitions (enforced at application layer) ──────────────────
 //   pending  → accepted  (artist only)
@@ -430,6 +432,32 @@ export const bookingsRouter = router({
     // 5. Side effect: on rejected/cancelled → remove eventCollaborator row
     if (newStatus === BookingStatus.REJECTED || newStatus === BookingStatus.CANCELLED) {
       await db.delete(eventCollaborators).where(eq(eventCollaborators.bookingId, input.id));
+    }
+
+    // 5b. Venue accepted an artist→venue request → the event was held at
+    // pending_review when the artist created it. Flip it live and put it on the
+    // map/feed now. Guarded on pending_review so an accept on an already-active
+    // event (the requestToPerform flow) leaves the event untouched.
+    // (Asana 1215189395180422)
+    if (
+      newStatus === BookingStatus.ACCEPTED &&
+      booking.direction === BookingDirection.ARTIST_TO_VENUE &&
+      booking.eventId &&
+      booking.event?.status === EventStatus.PENDING_REVIEW
+    ) {
+      await db
+        .update(events)
+        .set({ status: EventStatus.ACTIVE, updatedAt: new Date() })
+        .where(eq(events.id, booking.eventId));
+
+      await syncEventToTypesense({ ...booking.event, status: EventStatus.ACTIVE }).catch(
+        (err: unknown) => {
+          console.warn(
+            `[bookings.update] Typesense sync failed for event ${booking.eventId} after venue acceptance:`,
+            err instanceof Error ? `${err.name}: ${err.message}` : err
+          );
+        }
+      );
     }
 
     // 6. Notify the counter-party. Matrix rows: A-10/V-10 (accepted),
