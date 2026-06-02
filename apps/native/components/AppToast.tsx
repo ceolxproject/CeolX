@@ -89,9 +89,13 @@ const toastConfig: ToastConfig = {
   ),
 };
 
+/** How long a toast stays on screen, in ms. Long enough to read comfortably
+ * even when a screen transition (e.g. onboarding → map) happens right after. */
+const TOAST_VISIBILITY_MS = 4500;
+
 /** Mount once at the top of your root layout. */
 export function AppToastProvider() {
-  return <Toast config={toastConfig} visibilityTime={3000} />;
+  return <Toast config={toastConfig} visibilityTime={TOAST_VISIBILITY_MS} />;
 }
 
 /** Programmatic toast API */
