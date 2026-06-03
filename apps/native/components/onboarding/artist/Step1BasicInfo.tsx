@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { Text, TextInput, View } from 'react-native';
 
 import { ProfilePicture } from '@/components/onboarding/ProfilePicture';
@@ -5,8 +6,8 @@ import { ProfilePicture } from '@/components/onboarding/ProfilePicture';
 interface Step1BasicInfoProps {
   stageName: string;
   setStageName: (v: string) => void;
+  /** Locked to the account email — shown read-only, never edited here. */
   contactEmail: string;
-  setContactEmail: (v: string) => void;
   profileImageUri: string | null;
   imageError: string | null;
   handlePickImage: () => void;
@@ -19,7 +20,6 @@ export function Step1BasicInfo({
   stageName,
   setStageName,
   contactEmail,
-  setContactEmail,
   profileImageUri,
   imageError,
   handlePickImage,
@@ -66,26 +66,19 @@ export function Step1BasicInfo({
 
         <View className="gap-2">
           <Text className="text-sm font-bold text-white/80">Contact Email</Text>
-          <View
-            className={`h-[52px] justify-center rounded-lg bg-white px-4 ${errors.contactEmail ? 'border border-error' : ''}`}
-          >
+          {/* Locked to the verified account email — venues reach you here, and
+              it can't be changed during onboarding. */}
+          <View className="h-[52px] flex-row items-center justify-between rounded-lg bg-[#e4e4e4] px-4">
             <TextInput
-              className="text-base text-black"
-              placeholder="you@example.com"
+              className="flex-1 text-base text-black/50"
               value={contactEmail}
-              onChangeText={setContactEmail}
-              onBlur={() => handleBlur('contactEmail')}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoCorrect={false}
-              placeholderTextColor="#8d8d8d"
+              editable={false}
+              selectTextOnFocus={false}
             />
+            <Ionicons name="lock-closed" size={16} color="#8d8d8d" />
           </View>
-          {errors.contactEmail ? (
-            <Text className="text-xs text-error">{errors.contactEmail}</Text>
-          ) : null}
           <Text className="text-xs font-semibold text-gray-10">
-            Venue/businesses can contact you on this email
+            Your account email — venues/businesses contact you here. It can't be changed.
           </Text>
         </View>
       </View>
