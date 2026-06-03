@@ -231,7 +231,9 @@ export const byId = publicProcedure
         return {
           id: c.artistProfileId,
           stageName: profile?.stageName ?? 'Unknown Artist',
-          genre: profile?.genre ?? null,
+          // `genres` (text[]) is the live field; fall back to the deprecated
+          // singular `genre` column for legacy profiles.
+          genre: profile?.genres?.[0] ?? profile?.genre ?? null,
           profileImageUrl: userImageById.get(c.artistProfileId) ?? null,
           eventCount: countByUserId.get(c.artistProfileId) ?? 0,
           isExternal: false,
