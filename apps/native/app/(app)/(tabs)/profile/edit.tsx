@@ -3,7 +3,6 @@ import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
-  Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -18,11 +17,14 @@ import { UserRole } from '@CeolX/shared/enums';
 
 import { appToast } from '@/components/AppToast';
 import { LocationPicker, type PickedLocation } from '@/components/LocationPicker';
+import { ProfilePicture } from '@/components/onboarding/ProfilePicture';
 import { SocialLinkInput } from '@/components/profiles';
 import { useMe } from '@/hooks/use-me';
+import { keyFromCdnUrl, useMediaDelete } from '@/hooks/use-media-delete';
+import { useMediaUpload } from '@/hooks/use-media-upload';
 import { useUpdateArtistProfile } from '@/hooks/use-update-artist-profile';
 import { useUpdateVenueProfile } from '@/hooks/use-update-venue-profile';
-import { MOCK_PROFILE_IMAGE } from '@/utils/mock-images';
+import { pickSquarePhoto, requestPhotoLibraryPermission } from '@/utils/image-picker';
 import { normalizeOptionalUrl } from '@/utils/normalize-url';
 import { getTRPCErrorMessage } from '@/utils/trpc-error';
 
@@ -30,14 +32,26 @@ export default function EditProfileScreen() {
   const { data: me } = useMe();
   const updateArtist = useUpdateArtistProfile();
   const updateVenue = useUpdateVenueProfile();
+  const { uploadMedia, isUploading: isImageUploading } = useMediaUpload('profile_image');
+  const { deleteS3Object } = useMediaDelete();
 
   const currentRole = me?.currentRole;
   const isVenue = currentRole === UserRole.VENUE;
-  const isPending = updateArtist.isPending || updateVenue.isPending;
+  const isPending = updateArtist.isPending || updateVenue.isPending || isImageUploading;
 
   // Shared fields
   const [displayName, setDisplayName] = useState('');
   const [bio, setBio] = useState('');
+
+  // Profile image. `imageUri` is what's shown — either the existing CDN url or
+  // a freshly-picked local file uri. `originalImageUrl` is the persisted url we
+  // diff against to decide upload vs. remove vs. no-change, and to clean up the
+  // old S3 object on replace. `imageTouched` gates all three so an untouched
+  // image is left exactly as-is on save.
+  const [imageUri, setImageUri] = useState<string | null>(null);
+  const [originalImageUrl, setOriginalImageUrl] = useState<string | null>(null);
+  const [imageTouched, setImageTouched] = useState(false);
+  const [imageError, setImageError] = useState<string | null>(null);
 
   // Artist-only fields
   const [genre, setGenre] = useState('');
@@ -66,6 +80,8 @@ export default function EditProfileScreen() {
       const vp = me.venueProfile;
       setDisplayName(vp.venueName ?? '');
       setBio(vp.bio ?? '');
+      setOriginalImageUrl(vp.profileImageUrl ?? null);
+      setImageUri(vp.profileImageUrl ?? null);
       setAddress(vp.address ?? '');
       setVenueLat(vp.lat ?? null);
       setVenueLng(vp.lng ?? null);
@@ -80,6 +96,8 @@ export default function EditProfileScreen() {
       const ap = me.artistProfile;
       setDisplayName(ap.stageName ?? '');
       setBio(ap.bio ?? '');
+      setOriginalImageUrl(ap.profileImageUrl ?? null);
+      setImageUri(ap.profileImageUrl ?? null);
       setGenre(ap.genres?.join(', ') ?? '');
       setLocation(ap.location ?? '');
       setInstagram(ap.socialLinks?.INSTAGRAM ?? '');
@@ -89,10 +107,56 @@ export default function EditProfileScreen() {
     }
   }, [me?.artistProfile, me?.venueProfile, isVenue]);
 
+  const handlePickImage = async () => {
+    setImageError(null);
+    try {
+      const permission = await requestPhotoLibraryPermission();
+      if (!permission.granted) {
+        setImageError(
+          permission.canAskAgain
+            ? 'Photo library access is required to change your picture.'
+            : 'Photo access is disabled. Enable it in Settings > CeolX.'
+        );
+        return;
+      }
+      const uri = await pickSquarePhoto();
+      if (uri) {
+        setImageUri(uri);
+        setImageTouched(true);
+      }
+    } catch {
+      setImageError("Couldn't open the photo library. Please try again.");
+    }
+  };
+
+  const handleRemoveImage = () => {
+    setImageUri(null);
+    setImageTouched(true);
+    setImageError(null);
+  };
+
   const handleSave = async () => {
     if (!displayName.trim()) {
       appToast.warning('Required', `${isVenue ? 'Venue name' : 'Display name'} is required.`);
       return;
+    }
+
+    // Resolve the image change first so a failed upload aborts before we write
+    // the rest of the profile. undefined => leave unchanged; null => clear;
+    // string => the new CDN url to persist.
+    let profileImageUrl: string | null | undefined;
+    if (imageTouched) {
+      if (imageUri && imageUri !== originalImageUrl) {
+        try {
+          const { cdnUrl } = await uploadMedia({ uri: imageUri });
+          profileImageUrl = cdnUrl;
+        } catch (err) {
+          setImageError(err instanceof Error ? err.message : 'Image upload failed');
+          return;
+        }
+      } else if (!imageUri) {
+        profileImageUrl = null;
+      }
     }
 
     try {
@@ -106,6 +170,7 @@ export default function EditProfileScreen() {
           county: county.trim() || undefined,
           websiteUrl: normalizeOptionalUrl(websiteUrl),
           phone: phone.trim() || undefined,
+          profileImageUrl,
           socialLinks: {
             WEBSITE: normalizeOptionalUrl(website),
             INSTAGRAM: normalizeOptionalUrl(instagram),
@@ -124,6 +189,7 @@ export default function EditProfileScreen() {
           bio: bio.trim() || undefined,
           genres: genres.length > 0 ? genres : undefined,
           location: location.trim() || undefined,
+          profileImageUrl,
           socialLinks: {
             INSTAGRAM: normalizeOptionalUrl(instagram),
             FACEBOOK: normalizeOptionalUrl(facebook),
@@ -131,6 +197,20 @@ export default function EditProfileScreen() {
             YOUTUBE: normalizeOptionalUrl(youtube),
           },
         });
+      }
+
+      // Best-effort: drop the previous S3 object once the new url (or the
+      // cleared state) is persisted. Orphan cleanup only — never block the
+      // save on it, and only when the image actually changed.
+      if (imageTouched && originalImageUrl && originalImageUrl !== imageUri) {
+        const key = keyFromCdnUrl(originalImageUrl);
+        if (key) {
+          try {
+            await deleteS3Object(key);
+          } catch {
+            // S3 lifecycle expiry is the safety net; ignore delete failures.
+          }
+        }
       }
 
       appToast.success('Profile updated', 'Your changes are saved.');
@@ -173,22 +253,19 @@ export default function EditProfileScreen() {
         </View>
 
         <ScrollView className="flex-1 px-4" showsVerticalScrollIndicator={false}>
-          {/* Profile Image (disabled until M10-T1) */}
+          {/* Profile Image */}
           <View className="items-center mb-6">
-            <Image
-              source={MOCK_PROFILE_IMAGE}
-              className="w-[86px] h-[86px] rounded-full bg-surface"
+            <ProfilePicture
+              uri={imageUri}
+              label={imageUri ? 'Change Photo' : 'Upload Profile Picture'}
+              onPress={handlePickImage}
+              onRemove={handleRemoveImage}
             />
-            <Pressable
-              className="mt-2"
-              onPress={() =>
-                appToast.info('Coming soon', 'Image upload will be available in a future update.')
-              }
-            >
-              <Text className="text-xs text-[#662FFF] font-semibold font-urbanist">
-                Change Photo
+            {imageError ? (
+              <Text className="mt-2 text-xs text-red-400 font-urbanist text-center">
+                {imageError}
               </Text>
-            </Pressable>
+            ) : null}
           </View>
 
           {/* Display Name / Venue Name */}
