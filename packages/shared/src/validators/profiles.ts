@@ -35,6 +35,7 @@ export const venueLinksSchema = z.object({
 export const venueOnboardingStep1Schema = z.object({
   venueName: z.string().min(1, 'Venue name is required').max(255).trim(),
   contactEmail: z.string().email('Invalid email address').optional(),
+  profileImageUrl: z.string().url().optional(),
 });
 
 export const venueOnboardingStep2Schema = z.object({
@@ -53,7 +54,7 @@ export const venueOnboardingStep3Schema = z.object({
 export const createVenueOnboardingSchema = venueOnboardingStep1Schema
   .merge(venueOnboardingStep2Schema)
   .merge(venueOnboardingStep3Schema);
-// profileImageUrl omitted — S3/CDN upload deferred to M10.
+// profileImageUrl carries the CloudFront URL from the Step 1 photo upload (optional — users may skip the photo).
 
 export type CreateVenueOnboardingInput = z.infer<typeof createVenueOnboardingSchema>;
 
@@ -62,6 +63,7 @@ export type CreateVenueOnboardingInput = z.infer<typeof createVenueOnboardingSch
 export const artistOnboardingStep1Schema = z.object({
   stageName: z.string().min(1, 'Stage name is required').max(100).trim(),
   contactEmail: z.string().email('Invalid email address').optional(),
+  profileImageUrl: z.string().url().optional(),
 });
 
 export const artistOnboardingStep2Schema = z.object({
@@ -75,7 +77,7 @@ export const artistOnboardingStep3Schema = z.object({
 export const createArtistOnboardingSchema = artistOnboardingStep1Schema
   .merge(artistOnboardingStep2Schema)
   .merge(artistOnboardingStep3Schema);
-// profileImageUrl omitted — S3/CDN upload deferred to M10. Add here when upload flow is ready.
+// profileImageUrl carries the CloudFront URL from the Step 1 photo upload (optional — users may skip the photo).
 
 export type CreateArtistOnboardingInput = z.infer<typeof createArtistOnboardingSchema>;
 export type SocialLinks = z.infer<typeof socialLinksSchema>;
