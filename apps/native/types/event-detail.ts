@@ -10,6 +10,8 @@ export interface EventDetailArtist {
   genre?: string | null;
   profileImageUrl?: string | null;
   eventCount: number;
+  /** True for unregistered/external performers (invited by name + email, no platform profile). */
+  isExternal?: boolean;
 }
 
 export interface EventDetailCreator {
