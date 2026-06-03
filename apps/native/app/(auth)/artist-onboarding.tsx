@@ -17,10 +17,13 @@ export default function ArtistOnboardingScreen() {
   const { logout } = useAuth();
   const navigation = useNavigation();
   const onboarding = useArtistOnboarding();
-  const { currentStep, goBack, goToStep, goNext, isPending } = onboarding;
+  const { currentStep, goBack, goToStep, goNext, isPending, clearDraft } = onboarding;
 
   const handleLogoutAndExit = () => {
     void (async () => {
+      // Discarding onboarding is a deliberate abandon — drop the saved draft so
+      // it doesn't silently restore on the next sign-up for this account.
+      clearDraft();
       await logout();
       router.replace('/(auth)/sign-in');
     })();
