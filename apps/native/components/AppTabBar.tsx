@@ -26,7 +26,7 @@ type TabConfig = {
 export const TAB_CONFIG: TabConfig[] = [
   { name: 'map', label: 'Map', activeIcon: 'location', inactiveIcon: 'location-outline' },
   { name: 'discover', label: 'Discover', activeIcon: 'home', inactiveIcon: 'home-outline' },
-  { name: 'bookings', label: 'Requests', activeIcon: 'mail', inactiveIcon: 'mail-outline' },
+  { name: 'bookings', label: 'My Events', activeIcon: 'mail', inactiveIcon: 'mail-outline' },
   { name: 'profile', label: 'Profile', activeIcon: 'person', inactiveIcon: 'person-outline' },
 ];
 
@@ -47,7 +47,7 @@ export function AppTabBar({ state, navigation, onFabPress }: AppTabBarProps) {
 
   const getTabLabel = (tab: TabConfig) => {
     if (tab.name === 'bookings') {
-      return currentRole === UserRole.SPECTATOR ? 'Bookings' : 'Requests';
+      return currentRole === UserRole.SPECTATOR ? 'Bookings' : 'My Events';
     }
     return tab.label;
   };
