@@ -67,17 +67,18 @@ export function Step1BasicInfo({
         <View className="gap-2">
           <Text className="text-sm font-bold text-white/80">Contact Email</Text>
           <View
-            className={`h-[52px] justify-center rounded-lg bg-white/60 px-4 ${errors.contactEmail ? 'border border-error' : ''}`}
+            className={`h-[52px] justify-center rounded-lg bg-white px-4 ${errors.contactEmail ? 'border border-error' : ''}`}
           >
             <TextInput
-              className="text-base text-black/80"
+              className="text-base text-black"
+              placeholder="you@example.com"
               value={contactEmail}
               onChangeText={setContactEmail}
               onBlur={() => handleBlur('contactEmail')}
               keyboardType="email-address"
               autoCapitalize="none"
               autoCorrect={false}
-              placeholderTextColor="rgba(0,0,0,0.4)"
+              placeholderTextColor="#8d8d8d"
             />
           </View>
           {errors.contactEmail ? (
