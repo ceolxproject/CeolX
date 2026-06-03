@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import type { BottomSheetModal } from '@gorhom/bottom-sheet';
 import { router } from 'expo-router';
+import { cn } from 'heroui-native';
 import { useCallback, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -13,16 +14,20 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { UserRole } from '@CeolX/shared/enums';
+import type { BookingSummary } from '@CeolX/shared';
+import { BookingStatus, UserRole } from '@CeolX/shared/enums';
 
 import { ConfirmedBookingCard } from '@/components/bookings/ConfirmedBookingCard';
 import { BellWithBadge } from '@/components/notifications/BellWithBadge';
 import { PostsList } from '@/components/posts/PostsList';
 import { ProfileEventCard } from '@/components/ProfileEventCard';
 import { SegmentControl } from '@/components/profiles';
+import { EmptyRequests } from '@/components/requests/EmptyRequests';
+import { RequestCard } from '@/components/requests/RequestCard';
 import { SettingsBottomSheet } from '@/components/SettingsBottomSheet';
 import { useAuth } from '@/contexts/auth-context';
 import { useArchiveEvent } from '@/hooks/use-archive-event';
+import { useBookings } from '@/hooks/use-bookings';
 import { useConfirmedEvents } from '@/hooks/use-confirmed-events';
 import { useMe } from '@/hooks/use-me';
 import { useMyEvents } from '@/hooks/use-my-events';
@@ -37,7 +42,7 @@ type SegmentTab = 'events' | 'posts' | 'bookings';
 const SEGMENT_LABELS: Record<SegmentTab, string> = {
   events: 'Events',
   posts: 'Posts',
-  bookings: 'Bookings',
+  bookings: 'Collaboration',
 };
 
 // ─── Profile Header ───────────────────────────────────────────────────────────
@@ -186,9 +191,17 @@ function EmptyState({
 
 function MyEventsTab() {
   const { events, isLoading, loadMore, isFetchingNextPage, refresh } = useMyEvents();
+  const confirmed = useConfirmedEvents();
   const archive = useArchiveEvent({ onSuccess: () => void refresh() });
+  const updateBooking = useUpdateBooking();
 
-  if (isLoading) {
+  const handleCancelBooking = async (bookingId: string) => {
+    await updateBooking.mutateAsync({ id: bookingId, status: 'cancelled' });
+    await confirmed.refresh();
+  };
+
+  // Wait for both queries on the very first load before deciding layout.
+  if (isLoading && confirmed.isLoading) {
     return (
       <View className="py-12 items-center">
         <ActivityIndicator color="#C8FF2F" />
@@ -196,7 +209,10 @@ function MyEventsTab() {
     );
   }
 
-  if (events.length === 0) {
+  const hasCreated = events.length > 0;
+  const hasConfirmed = confirmed.events.length > 0;
+
+  if (!hasCreated && !hasConfirmed) {
     return (
       <EmptyState
         message="You haven't created any events yet"
@@ -210,6 +226,7 @@ function MyEventsTab() {
 
   return (
     <View className="px-5 gap-4 pb-4">
+      {/* Created events — events this profile owns (with manage actions). */}
       {events.map((event) => (
         <ProfileEventCard
           key={event.id}
@@ -235,63 +252,176 @@ function MyEventsTab() {
           <ActivityIndicator color="#C8FF2F" />
         </View>
       )}
-      {events.length > 0 && !isFetchingNextPage && (
+      {hasCreated && !isFetchingNextPage && (
         <Pressable onPress={loadMore} className="py-2 items-center">
           <Text className="text-xs text-white/40">Load more</Text>
         </Pressable>
+      )}
+
+      {/* Confirmed events — events this profile is booked into (ACCEPTED). */}
+      {hasConfirmed && (
+        <>
+          <Text className="text-xs font-bold uppercase tracking-wider text-white/50 font-urbanist mt-2">
+            Confirmed
+          </Text>
+          {confirmed.events.map((event) => (
+            <ConfirmedBookingCard
+              key={event.id}
+              title={event.title}
+              coverImage={event.coverImage}
+              dateStart={event.dateStart}
+              dateEnd={event.dateEnd}
+              category={event.category}
+              venueAddress={event.venueAddress}
+              bookingId={event.bookingId}
+              onCancel={handleCancelBooking}
+              onPress={() => router.push(`/(app)/(tabs)/discover/event/${event.id}`)}
+            />
+          ))}
+          {confirmed.isFetchingNextPage && (
+            <View className="py-4 items-center">
+              <ActivityIndicator color="#C8FF2F" />
+            </View>
+          )}
+          {confirmed.hasNextPage && !confirmed.isFetchingNextPage && (
+            <Pressable onPress={confirmed.loadMore} className="py-2 items-center">
+              <Text className="text-xs text-white/40">Load more</Text>
+            </Pressable>
+          )}
+        </>
       )}
     </View>
   );
 }
 
-// ─── Bookings Tab (confirmed events for both artist & venue) ─────────────────
+// ─── Collaboration Tab (sent & received booking requests) ────────────────────
 
-function BookingsTab() {
-  const { events, isLoading, loadMore, isFetchingNextPage, refresh } = useConfirmedEvents();
+const COLLAB_SEGMENTS: { key: 'sent' | 'received'; label: string }[] = [
+  { key: 'sent', label: 'Sent' },
+  { key: 'received', label: 'Received' },
+];
+
+// Compact count chips — left-aligned, auto-width pills with a request count.
+// Lighter than a full-width segment row so it reads as a filter within the
+// Collaboration tab rather than competing with the top segment control.
+function CollabChips({
+  active,
+  onChange,
+  counts,
+}: {
+  active: 'sent' | 'received';
+  onChange: (key: 'sent' | 'received') => void;
+  counts: Record<'sent' | 'received', number>;
+}) {
+  return (
+    <View className="flex-row gap-2 mb-4">
+      {COLLAB_SEGMENTS.map(({ key, label }) => {
+        const isActive = key === active;
+        const count = counts[key];
+        return (
+          <Pressable
+            key={key}
+            onPress={() => onChange(key)}
+            hitSlop={6}
+            className={cn(
+              'flex-row items-center rounded-full px-4 h-9',
+              isActive ? 'bg-[#C8FF2F]' : 'bg-white/10'
+            )}
+          >
+            <Text
+              className={cn(
+                'text-sm font-urbanist font-bold',
+                isActive ? 'text-black' : 'text-white/70'
+              )}
+            >
+              {label}
+            </Text>
+            {count > 0 && (
+              <Text
+                className={cn(
+                  'text-sm font-urbanist font-bold ml-1.5',
+                  isActive ? 'text-black/50' : 'text-white/40'
+                )}
+              >
+                {count}
+              </Text>
+            )}
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
+function CollaborationTab({ currentRole }: { currentRole: string }) {
+  const userRole = currentRole as 'artist' | 'venue';
+  const [tab, setTab] = useState<'sent' | 'received'>('sent');
+
+  // Load both directions so the chip counts are accurate and switching is
+  // instant (no refetch on toggle).
+  const sent = useBookings({ tab: 'sent' });
+  const received = useBookings({ tab: 'received' });
+  const active = tab === 'sent' ? sent : received;
+  const counts = { sent: sent.total, received: received.total };
+
   const updateBooking = useUpdateBooking();
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
 
-  const handleCancel = async (bookingId: string) => {
-    await updateBooking.mutateAsync({ id: bookingId, status: 'cancelled' });
-    await refresh();
+  const handleUpdate = async (id: string, status: 'accepted' | 'rejected' | 'cancelled') => {
+    setUpdatingId(id);
+    try {
+      await updateBooking.mutateAsync({ id, status });
+      // Refresh both directions so counts and lists stay in sync.
+      await Promise.all([sent.refresh(), received.refresh()]);
+    } finally {
+      setUpdatingId(null);
+    }
   };
 
-  if (isLoading) {
-    return (
-      <View className="py-12 items-center">
-        <ActivityIndicator color="#C8FF2F" />
-      </View>
-    );
-  }
-
-  if (events.length === 0) {
-    return <EmptyState message="No confirmed bookings yet" />;
-  }
-
   return (
-    <View className="px-5 gap-4 pb-4">
-      {events.map((event) => (
-        <ConfirmedBookingCard
-          key={event.id}
-          title={event.title}
-          coverImage={event.coverImage}
-          dateStart={event.dateStart}
-          dateEnd={event.dateEnd}
-          category={event.category}
-          venueAddress={event.venueAddress}
-          bookingId={event.bookingId}
-          onCancel={handleCancel}
-          onPress={() => router.push(`/(app)/(tabs)/discover/event/${event.id}`)}
-        />
-      ))}
-      {isFetchingNextPage && (
-        <View className="py-4 items-center">
+    <View className="px-5 pb-4">
+      <CollabChips active={tab} onChange={setTab} counts={counts} />
+
+      {active.isLoading ? (
+        <View className="py-12 items-center">
           <ActivityIndicator color="#C8FF2F" />
         </View>
-      )}
-      {events.length > 0 && !isFetchingNextPage && (
-        <Pressable onPress={loadMore} className="py-2 items-center">
-          <Text className="text-xs text-white/40">Load more</Text>
-        </Pressable>
+      ) : active.isError ? (
+        <View className="py-12 items-center px-8">
+          <Text className="text-white/60 text-center text-sm font-urbanist">
+            Something went wrong loading requests.
+          </Text>
+          <Pressable onPress={active.refresh} className="mt-4 bg-[#C8FF2F] rounded-full px-6 py-2">
+            <Text className="text-black font-semibold text-sm font-urbanist">Retry</Text>
+          </Pressable>
+        </View>
+      ) : active.bookings.length === 0 ? (
+        <EmptyRequests tab={tab} />
+      ) : (
+        <View className="gap-4">
+          {active.bookings.map((booking: BookingSummary) => (
+            <RequestCard
+              key={booking.id}
+              booking={booking}
+              userRole={userRole}
+              onAccept={() => handleUpdate(booking.id, BookingStatus.ACCEPTED)}
+              onReject={() => handleUpdate(booking.id, BookingStatus.REJECTED)}
+              onWithdraw={() => handleUpdate(booking.id, BookingStatus.CANCELLED)}
+              onCancel={() => handleUpdate(booking.id, BookingStatus.CANCELLED)}
+              isUpdating={updatingId === booking.id}
+            />
+          ))}
+          {active.isFetchingNextPage && (
+            <View className="py-4 items-center">
+              <ActivityIndicator color="#C8FF2F" />
+            </View>
+          )}
+          {active.hasNextPage && !active.isFetchingNextPage && (
+            <Pressable onPress={active.loadMore} className="py-2 items-center">
+              <Text className="text-xs text-white/40">Load more</Text>
+            </Pressable>
+          )}
+        </View>
       )}
     </View>
   );
@@ -466,7 +596,7 @@ function CreatorProfile({
       case 'posts':
         return <PostsTab />;
       case 'bookings':
-        return <BookingsTab />;
+        return <CollaborationTab currentRole={currentRole} />;
     }
   };
 

@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, Text, View } from 'react-native';
 
@@ -67,6 +68,14 @@ export function ConfirmedBookingCard({
         <View className="bg-[#080808] rounded-xl px-2 py-1.5">
           <Text className="text-[12px] text-[#C8FF2F] font-semibold tracking-wide uppercase">
             {categoryLabel}
+          </Text>
+        </View>
+      }
+      topRightBadge={
+        <View className="flex-row items-center gap-1 bg-[#C8FF2F] rounded-xl px-2 py-1.5">
+          <Ionicons name="checkmark-circle" size={13} color="#080808" />
+          <Text className="text-[12px] text-[#080808] font-bold tracking-wide uppercase">
+            Confirmed
           </Text>
         </View>
       }
