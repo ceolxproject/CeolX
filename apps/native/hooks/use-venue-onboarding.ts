@@ -13,6 +13,7 @@ import { appToast } from '@/components/AppToast';
 import type { VenueLinks } from '@/components/onboarding/VenueLinksSection';
 import { useAuth } from '@/contexts/auth-context';
 import { useMediaUpload } from '@/hooks/use-media-upload';
+import { useOnboardingDraft } from '@/hooks/use-onboarding-draft';
 import { pickSquarePhoto, requestPhotoLibraryPermission } from '@/utils/image-picker';
 import { trpc, type RouterOutputs } from '@/utils/trpc';
 import { getTRPCErrorCode, getTRPCErrorMessage } from '@/utils/trpc-error';
@@ -20,6 +21,21 @@ import { getTRPCErrorCode, getTRPCErrorMessage } from '@/utils/trpc-error';
 const BIO_MAX = 50;
 
 type Step = 1 | 2 | 3;
+
+// The slice of onboarding state worth surviving an app kill. Validation/UI
+// state (errors, touched, submitError) is intentionally excluded — it is
+// re-derived from the restored values on the next interaction.
+interface VenueOnboardingDraft {
+  venueName: string;
+  bio: string;
+  address: string;
+  lat: number | null;
+  lng: number | null;
+  contactEmail: string;
+  venueLinks: VenueLinks;
+  profileImageUri: string | null;
+  currentStep: Step;
+}
 
 const FIELDS_BY_STEP: Record<Step, readonly string[]> = {
   1: ['venueName', 'contactEmail'],
@@ -50,6 +66,7 @@ interface UseVenueOnboardingReturn {
   handlePickImage: () => Promise<void>;
   handleRemoveImage: () => void;
   handleSubmit: () => Promise<void>;
+  clearDraft: () => void;
   currentStep: Step;
   touched: Set<string>;
   goNext: () => Promise<void>;
@@ -85,6 +102,41 @@ export function useVenueOnboarding(): UseVenueOnboardingReturn {
     trpc.onboarding.createVenueProfile.mutationOptions()
   );
   const { uploadMedia, isUploading: isImageUploading } = useMediaUpload('profile_image');
+
+  // ── Draft persistence (survives app kill / background) ───────────────────
+
+  const { clearDraft } = useOnboardingDraft<VenueOnboardingDraft>({
+    role: 'venue',
+    userId: user?.id,
+    draft: {
+      venueName,
+      bio,
+      address,
+      lat,
+      lng,
+      contactEmail,
+      venueLinks,
+      profileImageUri,
+      currentStep,
+    },
+    onHydrate: (saved) => {
+      setVenueName(saved.venueName ?? '');
+      setBio(saved.bio ?? '');
+      setAddress(saved.address ?? '');
+      setLat(saved.lat ?? null);
+      setLng(saved.lng ?? null);
+      if (saved.contactEmail) setContactEmail(saved.contactEmail);
+      setVenueLinks({
+        WEBSITE: '',
+        INSTAGRAM: '',
+        FACEBOOK: '',
+        TWITTER: '',
+        ...(saved.venueLinks as Partial<VenueLinks>),
+      });
+      setProfileImageUri(saved.profileImageUri ?? null);
+      if (saved.currentStep) setCurrentStep(saved.currentStep);
+    },
+  });
 
   // ── Step navigation ─────────────────────────────────────────────────────
 
@@ -267,6 +319,9 @@ export function useVenueOnboarding(): UseVenueOnboardingReturn {
 
     try {
       await createVenueProfile(parsed.data);
+      // Onboarding succeeded — the draft has served its purpose and must not
+      // resurrect on a future sign-up for this account.
+      clearDraft();
       // Optimistically flip onboardingComplete so (app)/_layout's redirect
       // guard doesn't bounce us back on the next mount. invalidate runs in
       // the background to reconcile the rest of the me payload.
@@ -281,6 +336,7 @@ export function useVenueOnboarding(): UseVenueOnboardingReturn {
       // onboarding (possibly from a half-failed prior submit). Route them
       // forward instead of dead-ending on the form.
       if (getTRPCErrorCode(err) === 'CONFLICT') {
+        clearDraft();
         queryClient.setQueryData<RouterOutputs['users']['me']>(trpc.users.me.queryKey(), (old) =>
           old ? { ...old, onboardingComplete: true } : old
         );
@@ -321,6 +377,8 @@ export function useVenueOnboarding(): UseVenueOnboardingReturn {
     handlePickImage,
     handleRemoveImage,
     handleSubmit,
+    // draft persistence
+    clearDraft,
     // step navigation
     currentStep,
     touched,

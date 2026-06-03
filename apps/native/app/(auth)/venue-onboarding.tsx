@@ -12,15 +12,19 @@ import { Step3SocialMedia } from '@/components/onboarding/venue/Step3SocialMedia
 import { useAuth } from '@/contexts/auth-context';
 import { useDiscardOnboardingBackHandler } from '@/hooks/use-discard-onboarding-back-handler';
 import { useVenueOnboarding } from '@/hooks/use-venue-onboarding';
+import { isBackNavigationAction } from '@/lib/onboarding-navigation';
 
 export default function VenueOnboardingScreen() {
   const { logout } = useAuth();
   const navigation = useNavigation();
   const onboarding = useVenueOnboarding();
-  const { currentStep, goBack, goToStep, goNext, isPending } = onboarding;
+  const { currentStep, goBack, goToStep, goNext, isPending, clearDraft } = onboarding;
 
   const handleLogoutAndExit = () => {
     void (async () => {
+      // Discarding onboarding is a deliberate abandon — drop the saved draft so
+      // it doesn't silently restore on the next sign-up for this account.
+      clearDraft();
       await logout();
       router.replace('/(auth)/sign-in');
     })();
@@ -41,10 +45,7 @@ export default function VenueOnboardingScreen() {
     // `router.replace('/(app)/(tabs)/map')` triggered after a successful
     // submit would also be cancelled and bounce the user back to Step 2.
     const navUnsub = navigation.addListener('beforeRemove', (e) => {
-      const actionType = e.data.action.type;
-      const isBackNavigation =
-        actionType === 'GO_BACK' || actionType === 'POP' || actionType === 'POP_TO_TOP';
-      if (!isBackNavigation) return;
+      if (!isBackNavigationAction(e.data.action.type)) return;
       e.preventDefault();
       goBack();
     });

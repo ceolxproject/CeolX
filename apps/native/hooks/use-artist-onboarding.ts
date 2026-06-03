@@ -12,12 +12,26 @@ import {
 import { appToast } from '@/components/AppToast';
 import type { SocialLinks } from '@/components/onboarding/SocialLinksSection';
 import { useAuth } from '@/contexts/auth-context';
+import { initialStageName } from '@/hooks/use-artist-onboarding.utils';
 import { useMediaUpload } from '@/hooks/use-media-upload';
+import { useOnboardingDraft } from '@/hooks/use-onboarding-draft';
 import { pickSquarePhoto, requestPhotoLibraryPermission } from '@/utils/image-picker';
 import { trpc, type RouterOutputs } from '@/utils/trpc';
 import { getTRPCErrorCode, getTRPCErrorMessage } from '@/utils/trpc-error';
 
 type Step = 1 | 2 | 3;
+
+// The slice of onboarding state worth surviving an app kill. Validation/UI
+// state (errors, touched, submitError) is intentionally excluded — it is
+// re-derived from the restored values on the next interaction.
+interface ArtistOnboardingDraft {
+  stageName: string;
+  bio: string;
+  contactEmail: string;
+  socialLinks: SocialLinks;
+  profileImageUri: string | null;
+  currentStep: Step;
+}
 
 // Field paths driving the per-step touched-set policy. On Next-press, every
 // field for the current step is marked touched so validation errors render
@@ -32,7 +46,9 @@ const FIELDS_BY_STEP: Record<Step, readonly string[]> = {
 export function useArtistOnboarding() {
   const { user } = useAuth();
 
-  const [stageName, setStageName] = useState('');
+  // Pre-fill from the registration name so registration → onboarding → profile
+  // start consistent; the artist can still override it (band name).
+  const [stageName, setStageName] = useState(() => initialStageName(user?.name));
   const [bio, setBio] = useState('');
   const [contactEmail, setContactEmail] = useState(user?.email ?? '');
   const [socialLinks, setSocialLinks] = useState<SocialLinks>({
@@ -53,6 +69,28 @@ export function useArtistOnboarding() {
     trpc.onboarding.createArtistProfile.mutationOptions()
   );
   const { uploadMedia, isUploading: isImageUploading } = useMediaUpload('profile_image');
+
+  // ── Draft persistence (survives app kill / background) ───────────────────
+
+  const { clearDraft } = useOnboardingDraft<ArtistOnboardingDraft>({
+    role: 'artist',
+    userId: user?.id,
+    draft: { stageName, bio, contactEmail, socialLinks, profileImageUri, currentStep },
+    onHydrate: (saved) => {
+      setStageName(saved.stageName ?? '');
+      setBio(saved.bio ?? '');
+      if (saved.contactEmail) setContactEmail(saved.contactEmail);
+      setSocialLinks({
+        INSTAGRAM: '',
+        FACEBOOK: '',
+        TIKTOK: '',
+        YOUTUBE: '',
+        ...(saved.socialLinks as Partial<SocialLinks>),
+      });
+      setProfileImageUri(saved.profileImageUri ?? null);
+      if (saved.currentStep) setCurrentStep(saved.currentStep);
+    },
+  });
 
   // ── Step navigation ─────────────────────────────────────────────────────
 
@@ -210,6 +248,9 @@ export function useArtistOnboarding() {
 
     try {
       await createArtistProfile(parsed.data);
+      // Onboarding succeeded — the draft has served its purpose and must not
+      // resurrect on a future sign-up for this account.
+      clearDraft();
       // Optimistically flip onboardingComplete so (app)/_layout's redirect
       // guard doesn't bounce us back on the next mount. invalidate runs in
       // the background to reconcile the rest of the me payload.
@@ -224,6 +265,7 @@ export function useArtistOnboarding() {
       // onboarding (possibly from a half-failed prior submit). Route them
       // forward instead of dead-ending on the form.
       if (getTRPCErrorCode(err) === 'CONFLICT') {
+        clearDraft();
         queryClient.setQueryData<RouterOutputs['users']['me']>(trpc.users.me.queryKey(), (old) =>
           old ? { ...old, onboardingComplete: true } : old
         );
@@ -259,6 +301,8 @@ export function useArtistOnboarding() {
     handlePickImage,
     handleRemoveImage,
     handleSubmit,
+    // draft persistence
+    clearDraft,
     // step navigation
     currentStep,
     touched,

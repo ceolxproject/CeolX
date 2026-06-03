@@ -1,11 +1,15 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image, Pressable, Text, View } from 'react-native';
 
+import { getArtistRowSubtitle } from './ArtistSearchRow.utils';
+
 export type ArtistResult = {
   id: string;
   stageName: string;
   genre: string | null;
   image: string | null;
+  /** Account/login name — shown beside the stage name when the two differ. */
+  name: string | null;
 };
 
 interface ArtistSearchRowProps {
@@ -36,7 +40,12 @@ export function ArtistSearchRow({
       )}
       <View className="flex-1">
         <Text className="text-sm text-white font-urbanist">{artist.stageName}</Text>
-        {artist.genre && <Text className="text-xs text-gray-7 font-urbanist">{artist.genre}</Text>}
+        {(() => {
+          const subtitle = getArtistRowSubtitle(artist);
+          return subtitle ? (
+            <Text className="text-xs text-gray-7 font-urbanist">{subtitle}</Text>
+          ) : null;
+        })()}
       </View>
       <Ionicons name={actionIcon} size={20} color={actionIconColor} />
     </Pressable>
