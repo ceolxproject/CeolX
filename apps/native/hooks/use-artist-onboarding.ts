@@ -12,6 +12,7 @@ import {
 import { appToast } from '@/components/AppToast';
 import type { SocialLinks } from '@/components/onboarding/SocialLinksSection';
 import { useAuth } from '@/contexts/auth-context';
+import { initialStageName } from '@/hooks/use-artist-onboarding.utils';
 import { useMediaUpload } from '@/hooks/use-media-upload';
 import { useOnboardingDraft } from '@/hooks/use-onboarding-draft';
 import { pickSquarePhoto, requestPhotoLibraryPermission } from '@/utils/image-picker';
@@ -45,7 +46,9 @@ const FIELDS_BY_STEP: Record<Step, readonly string[]> = {
 export function useArtistOnboarding() {
   const { user } = useAuth();
 
-  const [stageName, setStageName] = useState('');
+  // Pre-fill from the registration name so registration → onboarding → profile
+  // start consistent; the artist can still override it (band name).
+  const [stageName, setStageName] = useState(() => initialStageName(user?.name));
   const [bio, setBio] = useState('');
   const [contactEmail, setContactEmail] = useState(user?.email ?? '');
   const [socialLinks, setSocialLinks] = useState<SocialLinks>({
