@@ -47,8 +47,8 @@ describe('sendEmail', () => {
       text: 'Verify your account',
     });
     expect(call.from).toContain('CeolX');
-    // R1.3 + AC-10: branded sender hello@ceolx.ie (not noreply — users may reply).
-    expect(call.from).toContain('hello@ceolx.ie');
+    // R1.3 + AC-10: branded sender admin@ceolx.com (not noreply — users may reply).
+    expect(call.from).toContain('admin@ceolx.com');
   });
 
   it('re-throws transport errors after the R8.6 retry also fails', async () => {
