@@ -606,16 +606,21 @@ describe('Onboarding schema equivalence (server contract)', () => {
     if (result.success) expect(result.data).toEqual({ stageName: 'Seán' });
   });
 
-  it('artist — profileImageUrl is silently stripped (M10 deferral preserved)', () => {
+  it('artist — profileImageUrl is retained when provided', () => {
     const result = createArtistOnboardingSchema.safeParse({
       stageName: 'Seán',
       profileImageUrl: 'https://cdn.ceolx.ie/x.jpg',
     });
     expect(result.success).toBe(true);
     if (result.success) {
-      expect(result.data).toEqual({ stageName: 'Seán' });
-      expect('profileImageUrl' in result.data).toBe(false);
+      expect(result.data.profileImageUrl).toBe('https://cdn.ceolx.ie/x.jpg');
     }
+  });
+
+  it('artist — profileImageUrl is optional (minimal payload still parses)', () => {
+    const result = createArtistOnboardingSchema.safeParse({ stageName: 'Seán' });
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.profileImageUrl).toBeUndefined();
   });
 
   it('venue — full payload parses to expected shape', () => {
@@ -669,7 +674,7 @@ describe('Onboarding schema equivalence (server contract)', () => {
       });
   });
 
-  it('venue — profileImageUrl is silently stripped (M10 deferral preserved)', () => {
+  it('venue — profileImageUrl is retained when provided', () => {
     const result = createVenueOnboardingSchema.safeParse({
       venueName: 'The Cobblestone',
       address: 'Dublin',
@@ -678,7 +683,7 @@ describe('Onboarding schema equivalence (server contract)', () => {
       profileImageUrl: 'https://cdn.ceolx.ie/x.jpg',
     });
     expect(result.success).toBe(true);
-    if (result.success) expect('profileImageUrl' in result.data).toBe(false);
+    if (result.success) expect(result.data.profileImageUrl).toBe('https://cdn.ceolx.ie/x.jpg');
   });
 });
 

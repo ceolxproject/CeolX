@@ -66,6 +66,7 @@ export const onboardingRouter = router({
             stageName: input.stageName,
             bio: input.bio ?? null,
             contactEmail: input.contactEmail ?? null,
+            profileImageUrl: input.profileImageUrl ?? null,
             genre: null,
             isActive: true,
           });
@@ -145,6 +146,7 @@ export const onboardingRouter = router({
             lng: String(input.lng),
             bio: input.bio ?? null,
             contactEmail: input.contactEmail ?? null,
+            profileImageUrl: input.profileImageUrl ?? null,
             subscriptionStatus: SubscriptionStatus.INACTIVE,
             isActive: false,
           });
