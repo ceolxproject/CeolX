@@ -95,7 +95,8 @@ export const updateArtistProfileSchema = z.object({
   bio: z.string().max(2000).trim().optional(),
   genres: z.array(z.string().max(50)).max(10).optional(),
   location: z.string().max(255).trim().optional(),
-  profileImageUrl: z.string().url().optional(),
+  // null clears the stored image (remove photo); undefined leaves it unchanged.
+  profileImageUrl: z.string().url().nullable().optional(),
   coverImageUrl: z.string().url().optional(),
   socialLinks: socialLinksSchema.optional(),
 });
@@ -115,7 +116,8 @@ export const updateVenueProfileSchema = z.object({
   county: z.string().max(100).trim().optional(),
   lat: z.number().min(-90).max(90).optional(),
   lng: z.number().min(-180).max(180).optional(),
-  profileImageUrl: z.string().url().optional(),
+  // null clears the stored image (remove photo); undefined leaves it unchanged.
+  profileImageUrl: z.string().url().nullable().optional(),
   coverImageUrl: z.string().url().optional(),
   websiteUrl: z.string().url().optional(),
   phone: z.string().max(30).trim().optional(),

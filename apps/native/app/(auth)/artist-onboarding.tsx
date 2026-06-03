@@ -12,6 +12,7 @@ import { StepNavButtons } from '@/components/onboarding/shared/StepNavButtons';
 import { useAuth } from '@/contexts/auth-context';
 import { useArtistOnboarding } from '@/hooks/use-artist-onboarding';
 import { useDiscardOnboardingBackHandler } from '@/hooks/use-discard-onboarding-back-handler';
+import { isBackNavigationAction } from '@/lib/onboarding-navigation';
 
 export default function ArtistOnboardingScreen() {
   const { logout } = useAuth();
@@ -45,10 +46,7 @@ export default function ArtistOnboardingScreen() {
       return true;
     });
     const navUnsub = navigation.addListener('beforeRemove', (e) => {
-      const actionType = e.data.action.type;
-      const isBackNavigation =
-        actionType === 'GO_BACK' || actionType === 'POP' || actionType === 'POP_TO_TOP';
-      if (!isBackNavigation) return;
+      if (!isBackNavigationAction(e.data.action.type)) return;
       e.preventDefault();
       goBack();
     });
