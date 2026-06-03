@@ -41,7 +41,19 @@ const ALLOWED_PREFIXES = new Set(Object.values(UPLOAD_CONFIG).map((c) => c.prefi
 let cachedClient: S3Client | null = null;
 
 function getClient(region: string): S3Client {
-  if (!cachedClient) cachedClient = new S3Client({ region });
+  if (!cachedClient)
+    cachedClient = new S3Client({
+      region,
+      // AWS SDK ≥ 3.729 defaults requestChecksumCalculation to 'WHEN_SUPPORTED',
+      // which bakes an empty-body x-amz-checksum-crc32 (AAAAAA==) into presigned
+      // PUT URLs. The client PUTs the real bytes directly to S3 (see
+      // use-media-upload.ts putWithProgress) without that header, so S3 computes
+      // the actual body checksum, finds it != the signed empty-body value, and
+      // rejects with 403. 'WHEN_REQUIRED' restores the pre-3.729 behaviour so
+      // direct-to-S3 uploads work for every upload type.
+      requestChecksumCalculation: 'WHEN_REQUIRED',
+      responseChecksumValidation: 'WHEN_REQUIRED',
+    });
   return cachedClient;
 }
 
