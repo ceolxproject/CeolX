@@ -182,12 +182,17 @@ export function useSocialAuth() {
       const isSignup = isSignupAttempt(signupOptions);
       if (isSignup) await stashPendingRegistration(signupOptions);
 
+      // No callbackURL: the idToken flow has no browser redirect, so the expo
+      // client forwards callbackURL to the server untouched. Passing the
+      // expo-router path POST_AUTH_ROUTE ('/(app)/(tabs)/map') makes BetterAuth
+      // reject it with 403 INVALID_CALLBACK_URL (the parens are not URL-safe).
+      // The session comes back in the response and navigation is handled
+      // client-side via router.replace below — so no server callback is needed.
       const result = await authClient.signIn.social({
         provider: 'apple',
         idToken: {
           token: credential.identityToken,
         },
-        callbackURL: POST_AUTH_ROUTE,
         ...(isSignup ? { requestSignUp: true } : {}),
       });
 
