@@ -112,7 +112,7 @@ describe('dispatchNotification — push fan-out', () => {
       // push variant — no "Respond before it expires."
       body: 'The Temple Bar invited you to play "Trad Night" on Fri 1 May.',
       persona: 'artist',
-      route: '/bookings/b-abc',
+      route: '/(app)/(tabs)/bookings/b-abc',
     });
   });
 

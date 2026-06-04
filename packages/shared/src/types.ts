@@ -155,6 +155,6 @@ export interface NotificationPayload {
   title: string;
   body: string;
   persona: string; // artist | venue | spectator
-  route: string; // deep link route e.g. /events/123
+  route: string; // deep link route e.g. /(app)/(tabs)/discover/event/123
   data?: Record<string, string>;
 }
