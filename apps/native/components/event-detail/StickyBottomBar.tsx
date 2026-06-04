@@ -1,7 +1,9 @@
+import * as WebBrowser from 'expo-web-browser';
 import { cn } from 'heroui-native';
-import { ActivityIndicator, Linking, Pressable, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, Text, View } from 'react-native';
 
 import { useTrackTicketClick } from '@/hooks/use-track-ticket-click';
+import { normalizeOptionalUrl } from '@/utils/normalize-url';
 
 interface StickyBottomBarProps {
   eventId: string;
@@ -34,19 +36,43 @@ export function StickyBottomBar({
 
   const showRequestToPerform =
     isArtist && isVenueEvent && !isOwner && !isCollaborator && !hasExistingRequest;
+  const showRequestSent =
+    isArtist && isVenueEvent && !isOwner && !isCollaborator && !!hasExistingRequest;
+
+  // A "Book Ticket" CTA only makes sense when there's actually a link to open.
+  // Gate the button on the link (not the price) so we never render a dead
+  // button. normalizeOptionalUrl prepends https:// for scheme-less links that
+  // may arrive from non-app sources (admin web, seed, API), which would
+  // otherwise make Linking/WebBrowser fail to open.
+  const bookableUrl = normalizeOptionalUrl(ticketLink ?? undefined);
+  const showBookTicket = !!bookableUrl;
 
   const ticketLabel =
     ticketPrice !== null && ticketPrice !== undefined && ticketPrice > 0
       ? `Book Ticket FOR €${(ticketPrice / 100).toFixed(0)}`
       : 'Book Ticket';
 
-  const handleBookTicket = () => {
-    if (!ticketLink) return;
+  const handleBookTicket = async () => {
+    if (!bookableUrl) return;
     // Fire-and-forget click tracking before opening the external URL.
     // Failures are silent — analytics must not block the user from buying tickets.
     trackClick.mutate({ id: eventId });
-    void Linking.openURL(ticketLink);
+    try {
+      // In-app browser keeps the user inside CeolX during the purchase flow.
+      await WebBrowser.openBrowserAsync(bookableUrl);
+    } catch {
+      // Surface failures instead of silently swallowing them (the original bug).
+      Alert.alert(
+        'Unable to open ticket link',
+        "We couldn't open the ticket page. Please try again later."
+      );
+    }
   };
+
+  // Nothing actionable for this viewer — don't render an empty bar.
+  if (!showBookTicket && !showRequestToPerform && !showRequestSent) {
+    return null;
+  }
 
   return (
     <View
@@ -60,18 +86,20 @@ export function StickyBottomBar({
       }}
     >
       <View className="flex-row items-center gap-3">
-        {/* Book Ticket — purple filled */}
-        <Pressable
-          onPress={handleBookTicket}
-          className="flex-1 items-center justify-center rounded-full py-3 bg-blue-10 active:opacity-80"
-        >
-          <Text
-            className="text-xs font-bold text-white font-urbanist tracking-widest uppercase"
-            numberOfLines={1}
+        {/* Book Ticket — purple filled. Only shown when there's a link to open. */}
+        {showBookTicket && (
+          <Pressable
+            onPress={handleBookTicket}
+            className="flex-1 items-center justify-center rounded-full py-3 bg-blue-10 active:opacity-80"
           >
-            {ticketLabel}
-          </Text>
-        </Pressable>
+            <Text
+              className="text-xs font-bold text-white font-urbanist tracking-widest uppercase"
+              numberOfLines={1}
+            >
+              {ticketLabel}
+            </Text>
+          </Pressable>
+        )}
 
         {/* Request to Perform — outlined, artists on venue events only */}
         {showRequestToPerform && (
@@ -97,7 +125,7 @@ export function StickyBottomBar({
         )}
 
         {/* Request already sent — disabled state */}
-        {isArtist && isVenueEvent && !isOwner && !isCollaborator && hasExistingRequest && (
+        {showRequestSent && (
           <View className="flex-1 items-center justify-center rounded-full py-3 border border-white/30">
             <Text
               className="text-xs font-bold text-white/50 font-urbanist tracking-widest uppercase"
