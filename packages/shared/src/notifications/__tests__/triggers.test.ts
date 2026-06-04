@@ -239,6 +239,41 @@ describe('buildNotification — placeholder safety', () => {
   });
 });
 
+// ─── Artist↔artist booking triggers ─────────────────────────────────────────
+
+describe('artist↔artist booking triggers', () => {
+  const vars = {
+    bookingId: 'b1',
+    coArtistName: 'Tune Bomb',
+    eventTitle: 'Trad Night',
+    date: 'Fri 6 Jun',
+  };
+
+  it('builds the co-artist invite push with the inviter name', () => {
+    const n = buildNotification(
+      NotificationTrigger.BOOKING_INVITE_TO_COARTIST,
+      NotificationSurface.PUSH,
+      vars
+    );
+    expect(n.body).toContain('Tune Bomb');
+    expect(n.route).toBe('/(app)/(tabs)/bookings/b1');
+    expect(n.persona).toBe('artist');
+  });
+
+  it('builds accepted / rejected / withdrawn / cancelled to-artist copy', () => {
+    for (const trigger of [
+      NotificationTrigger.BOOKING_COARTIST_ACCEPTED_TO_INVITER,
+      NotificationTrigger.BOOKING_COARTIST_REJECTED_TO_INVITER,
+      NotificationTrigger.BOOKING_COARTIST_WITHDRAWN_TO_INVITEE,
+      NotificationTrigger.BOOKING_COARTIST_CANCELLED,
+    ]) {
+      const n = buildNotification(trigger, NotificationSurface.IN_APP, vars);
+      expect(n.body).toContain('Tune Bomb');
+      expect(n.persona).toBe('artist');
+    }
+  });
+});
+
 // ─── Date formatter ──────────────────────────────────────────────────────────
 
 describe('formatNotificationDate', () => {
