@@ -8,6 +8,12 @@ type SinglePinProps = {
   category?: string;
   categoryIcon?: string;
   isSelected?: boolean;
+  /**
+   * Fires once the pin image has painted. The map marker uses this to stop
+   * `tracksViewChanges` (native re-rasterization) so the cover image is
+   * captured in the snapshot without re-rendering every frame.
+   */
+  onImageLoad?: () => void;
 };
 
 type ClusterPinProps = {
@@ -26,7 +32,7 @@ export function MapEventPin(props: MapEventPinProps) {
     );
   }
 
-  const { coverImageUrl, category, categoryIcon, isSelected } = props;
+  const { coverImageUrl, category, categoryIcon, isSelected, onImageLoad } = props;
 
   const pinSize = isSelected ? 56 : 44;
   const pinRadius = isSelected ? 28 : 22;
@@ -38,6 +44,7 @@ export function MapEventPin(props: MapEventPinProps) {
         source={coverImageUrl ? { uri: coverImageUrl } : getMockEventImage(category ?? 'pin')}
         style={pinStyle}
         resizeMode="cover"
+        onLoad={onImageLoad}
       />
     </View>
   );

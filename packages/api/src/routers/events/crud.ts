@@ -25,7 +25,7 @@ import type { DispatchNotificationInput } from '../../context';
 import { creatorProcedure, protectedProcedure, publicProcedure } from '../../index';
 import { syncEventToTypesense, removeEventFromTypesense } from '../../services/event-sync';
 
-import { resolveEventCoordinates } from './helpers';
+import { resolveEventCoordinates, resolveProfileImageUrl } from './helpers';
 import { recordEventView } from './view-tracking';
 
 type DbTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -115,7 +115,9 @@ export const byId = publicProcedure
             .where(inArray(artistProfiles.userId, collaboratorUserIds))
         : Promise.resolve([]),
 
-      // profile image (user.image) for each collaborator
+      // user.image for each collaborator — only a fallback; the uploaded
+      // profile picture in artist_profiles.profileImageUrl takes precedence
+      // (see resolveProfileImageUrl). Asana 1215429148917917
       collaboratorUserIds.length > 0
         ? db
             .select({ id: user.id, image: user.image })
@@ -212,7 +214,10 @@ export const byId = publicProcedure
           creatorVenueProfile?.venueName ??
           event.creator?.name ??
           'Unknown',
-        imageUrl: event.creator?.image ?? null,
+        imageUrl: resolveProfileImageUrl(
+          creatorArtistProfile ?? creatorVenueProfile,
+          event.creator?.image
+        ),
         type: creatorArtistProfile ? UserRole.ARTIST : UserRole.VENUE,
       },
       collaborators: event.collaborators.map((c) => {
@@ -234,7 +239,7 @@ export const byId = publicProcedure
           // `genres` (text[]) is the live field; fall back to the deprecated
           // singular `genre` column for legacy profiles.
           genre: profile?.genres?.[0] ?? profile?.genre ?? null,
-          profileImageUrl: userImageById.get(c.artistProfileId) ?? null,
+          profileImageUrl: resolveProfileImageUrl(profile, userImageById.get(c.artistProfileId)),
           eventCount: countByUserId.get(c.artistProfileId) ?? 0,
           isExternal: false,
         };
