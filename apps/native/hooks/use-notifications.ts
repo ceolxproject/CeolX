@@ -7,6 +7,15 @@ import { trpc } from '@/utils/trpc';
 
 const PAGE_SIZE = 20;
 
+// True when a freshly fetched page differs from what we already hold for it —
+// either the set/order of items changed, or a field flipped in place. A plain
+// id/length check misses in-place updates (mark-as-read flipping `isRead`),
+// which left the inbox showing stale "unread" rows until a manual refresh.
+function pageContentChanged(prev: NotificationDto[], next: NotificationDto[]) {
+  if (prev.length !== next.length) return true;
+  return next.some((n, i) => prev[i]?.id !== n.id || prev[i]?.isRead !== n.isRead);
+}
+
 export function useNotifications() {
   const queryClient = useQueryClient();
 
@@ -26,19 +35,36 @@ export function useNotifications() {
   useEffect(() => {
     if (!data || isFetching) return;
     const incoming = data.notifications;
-    if (page === 1) {
-      // First page — replace and reset state
-      const headChanged =
-        accumulated.length !== incoming.length ||
-        (incoming.length > 0 && accumulated[0]?.id !== incoming[0]?.id);
-      if (headChanged) {
-        setAccumulated(incoming);
+    const start = (page - 1) * PAGE_SIZE;
+
+    // This page hasn't been loaded into the list yet — append it.
+    if (accumulated.length <= start) {
+      if (incoming.length > 0) {
+        setAccumulated((prev) => [...prev, ...incoming]);
         setHasNextPage(data.hasMore);
         setTotal(data.total);
       }
-    } else if (accumulated.length < (page - 1) * PAGE_SIZE + incoming.length) {
-      // Append next page
-      setAccumulated((prev) => [...prev, ...incoming]);
+      return;
+    }
+
+    // On page 1, a new notification arriving at the top resets the feed to the
+    // fresh first page (older scrolled pages are now stale and dropped).
+    if (page === 1 && accumulated[0]?.id !== incoming[0]?.id) {
+      setAccumulated(incoming);
+      setHasNextPage(data.hasMore);
+      setTotal(data.total);
+      return;
+    }
+
+    // The page is already in the list — reconcile its slice so in-place changes
+    // (e.g. mark-as-read flipping `isRead`) show without a manual refresh.
+    const slice = accumulated.slice(start, start + incoming.length);
+    if (pageContentChanged(slice, incoming)) {
+      setAccumulated((prev) => [
+        ...prev.slice(0, start),
+        ...incoming,
+        ...prev.slice(start + incoming.length),
+      ]);
       setHasNextPage(data.hasMore);
       setTotal(data.total);
     }
