@@ -13,6 +13,7 @@ import {
 
 import type { ArtistResult } from './ArtistSearchRow';
 import { ArtistSearchRow } from './ArtistSearchRow';
+import { FieldLabel } from './FieldLabel';
 import type { ChipItem } from './SelectedChips';
 import { SelectedChips } from './SelectedChips';
 
@@ -119,9 +120,10 @@ export function InviteArtistPicker({
   return (
     <View className="gap-2">
       <View className="flex-row items-center justify-between">
-        <Text className="text-sm font-semibold text-gray-3 font-urbanist">
-          Invite Artists (optional)
-        </Text>
+        <FieldLabel
+          label="Invite Artists (optional)"
+          hint="Send a performance invite to platform artists or someone outside the platform (by name + email). They appear once they accept."
+        />
         <Text className="text-xs text-gray-7 font-urbanist">Platform or outside</Text>
       </View>
 
