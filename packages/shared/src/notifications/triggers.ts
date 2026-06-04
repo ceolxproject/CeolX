@@ -234,17 +234,23 @@ export const NOTIFICATION_TRIGGERS: Record<NotificationTrigger, TriggerDefinitio
     },
     email: null,
   },
+  // Artist↔artist booking triggers (A-09a…A-13a). The single {coArtistName}
+  // placeholder is always "the OTHER co-artist, from the recipient's
+  // perspective": the inviter's name when notifying the invitee
+  // (BOOKING_INVITE_TO_COARTIST), and the invitee's name when notifying the
+  // inviter (accepted/rejected/cancelled). The bookings.update dispatcher sets
+  // it accordingly, so callers never decide which name to pass.
   [NotificationTrigger.BOOKING_INVITE_TO_COARTIST]: {
     matrixRef: 'A-09a',
     type: 'booking_invitation',
     persona: 'artist',
     routeTemplate: '/(app)/(tabs)/bookings/{bookingId}',
     push: {
-      title: 'New collab invite',
+      title: 'New Collab Invite',
       body: '{coArtistName} invited you to play "{eventTitle}" on {date}.',
     },
     inApp: {
-      title: 'New collab invite',
+      title: 'New Collab Invite',
       body: '{coArtistName} invited you to play "{eventTitle}" on {date}. Respond before it expires.',
     },
     email: null,
@@ -285,11 +291,11 @@ export const NOTIFICATION_TRIGGERS: Record<NotificationTrigger, TriggerDefinitio
     persona: 'artist',
     routeTemplate: '/(app)/(tabs)/bookings/{bookingId}',
     push: {
-      title: 'Invite withdrawn',
+      title: 'Invite Withdrawn',
       body: '{coArtistName} withdrew the invite for "{eventTitle}".',
     },
     inApp: {
-      title: 'Invite withdrawn',
+      title: 'Invite Withdrawn',
       body: '{coArtistName} withdrew the invite for "{eventTitle}" on {date}.',
     },
     email: null,
@@ -300,11 +306,11 @@ export const NOTIFICATION_TRIGGERS: Record<NotificationTrigger, TriggerDefinitio
     persona: 'artist',
     routeTemplate: '/(app)/(tabs)/bookings/{bookingId}',
     push: {
-      title: 'Collab cancelled',
-      body: '{coArtistName} cancelled the collab for "{eventTitle}".',
+      title: 'Collab Cancelled',
+      body: '{coArtistName} cancelled the collab for "{eventTitle}" on {date}.',
     },
     inApp: {
-      title: 'Collab cancelled',
+      title: 'Collab Cancelled',
       body: '{coArtistName} cancelled the collab for "{eventTitle}" on {date}.',
     },
     email: null,

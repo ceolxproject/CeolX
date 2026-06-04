@@ -205,6 +205,11 @@ describe('buildNotification — placeholder safety', () => {
     NotificationTrigger.BOOKING_WITHDRAWN_TO_ARTIST,
     NotificationTrigger.BOOKING_CANCELLED_TO_ARTIST,
     NotificationTrigger.BOOKING_CANCELLED_TO_VENUE,
+    NotificationTrigger.BOOKING_INVITE_TO_COARTIST,
+    NotificationTrigger.BOOKING_COARTIST_ACCEPTED_TO_INVITER,
+    NotificationTrigger.BOOKING_COARTIST_REJECTED_TO_INVITER,
+    NotificationTrigger.BOOKING_COARTIST_WITHDRAWN_TO_INVITEE,
+    NotificationTrigger.BOOKING_COARTIST_CANCELLED,
   ];
 
   it('every booking-flow trigger has a {bookingId}-bearing route', () => {
