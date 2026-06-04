@@ -38,11 +38,16 @@ export const BookingStatus = {
 } as const satisfies Record<string, BookingStatus>;
 
 // Booking direction — imported by packages/db to build pgEnum("booking_direction")
-export const BOOKING_DIRECTIONS = ['venue_to_artist', 'artist_to_venue'] as const;
+export const BOOKING_DIRECTIONS = [
+  'venue_to_artist',
+  'artist_to_venue',
+  'artist_to_artist',
+] as const;
 export type BookingDirection = (typeof BOOKING_DIRECTIONS)[number];
 export const BookingDirection = {
   VENUE_TO_ARTIST: 'venue_to_artist',
   ARTIST_TO_VENUE: 'artist_to_venue',
+  ARTIST_TO_ARTIST: 'artist_to_artist',
 } as const satisfies Record<string, BookingDirection>;
 
 // Venue subscription via Stripe — imported by packages/db to build pgEnum("subscription_status")
