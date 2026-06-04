@@ -1,0 +1,113 @@
+// Hoisted Drizzle mocks — vi.mock is lifted above imports.
+//
+// The sweep does ONE predicate SELECT of due users (no .limit), then runs the
+// anonymisation transaction once per returned row. So the select chain ends at
+// .where() returning an array, and db.transaction is invoked per due user.
+
+const mockSelectWhere = vi.hoisted(() => vi.fn());
+const mockSelectFrom = vi.hoisted(() => vi.fn(() => ({ where: mockSelectWhere })));
+const mockSelect = vi.hoisted(() => vi.fn(() => ({ from: mockSelectFrom })));
+
+const mockTxUpdateWhere = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
+const mockTxUpdateSet = vi.hoisted(() =>
+  vi.fn((_args: Record<string, unknown>) => ({ where: mockTxUpdateWhere }))
+);
+const mockTxUpdate = vi.hoisted(() => vi.fn((_table: unknown) => ({ set: mockTxUpdateSet })));
+const mockTxDeleteWhere = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
+const mockTxDelete = vi.hoisted(() => vi.fn((_table: unknown) => ({ where: mockTxDeleteWhere })));
+
+const mockTransaction = vi.hoisted(() =>
+  vi.fn(async (cb: (tx: unknown) => Promise<void>) => {
+    await cb({ update: mockTxUpdate, delete: mockTxDelete });
+  })
+);
+
+vi.mock('@CeolX/db', () => ({
+  db: { select: mockSelect, transaction: mockTransaction },
+}));
+
+vi.mock('@CeolX/db/schema/auth', () => ({
+  user: { id: 'id', deletionScheduledFor: 'deletion_scheduled_for', isAnonymized: 'is_anonymized' },
+  session: { userId: 'user_id' },
+}));
+
+vi.mock('@CeolX/db/schema/users', () => ({
+  artistProfiles: { userId: 'user_id' },
+  venueProfiles: { userId: 'user_id' },
+  profileSocialLinks: { userId: 'user_id' },
+}));
+
+vi.mock('@CeolX/db/schema/notifications', () => ({
+  deviceTokens: { userId: 'user_id' },
+}));
+
+vi.mock('drizzle-orm', () => ({
+  and: (...args: unknown[]) => ({ kind: 'and', args }),
+  eq: (col: unknown, val: unknown) => ({ kind: 'eq', col, val }),
+  isNotNull: (col: unknown) => ({ kind: 'isNotNull', col }),
+  lte: (col: unknown, val: unknown) => ({ kind: 'lte', col, val }),
+}));
+
+import { afterEach, describe, expect, it, vi } from 'vitest';
+
+import { handleAccountAnonymizeSweep } from '../../jobs/handlers/account.js';
+
+afterEach(() => {
+  vi.clearAllMocks();
+});
+
+describe('handleAccountAnonymizeSweep — due-row selection', () => {
+  it('selects users whose deletion is due and not yet anonymised', async () => {
+    mockSelectWhere.mockResolvedValueOnce([]);
+
+    const before = Date.now();
+    await handleAccountAnonymizeSweep({});
+    const after = Date.now();
+
+    expect(mockSelect).toHaveBeenCalledTimes(1);
+    expect(mockSelectWhere).toHaveBeenCalledTimes(1);
+
+    // The composed predicate is and(isNotNull(scheduledFor), lte(scheduledFor, now), eq(isAnonymized,false))
+    const predicate = mockSelectWhere.mock.calls[0]?.[0] as { kind: string; args: unknown[] };
+    expect(predicate.kind).toBe('and');
+    const parts = predicate.args as { kind: string; val?: unknown }[];
+    expect(parts.find((p) => p.kind === 'isNotNull')).toBeDefined();
+    const lte = parts.find((p) => p.kind === 'lte') as { val: Date };
+    expect(lte).toBeDefined();
+    expect(lte.val).toBeInstanceOf(Date);
+    expect(lte.val.getTime()).toBeGreaterThanOrEqual(before);
+    expect(lte.val.getTime()).toBeLessThanOrEqual(after);
+    const eqFalse = parts.find((p) => p.kind === 'eq') as { val: unknown };
+    expect(eqFalse.val).toBe(false);
+  });
+
+  it('is a no-op (no transactions) when nothing is due', async () => {
+    mockSelectWhere.mockResolvedValueOnce([]);
+
+    await handleAccountAnonymizeSweep({});
+
+    expect(mockTransaction).not.toHaveBeenCalled();
+  });
+});
+
+describe('handleAccountAnonymizeSweep — anonymisation per due user', () => {
+  it('runs one anonymisation transaction per due user', async () => {
+    mockSelectWhere.mockResolvedValueOnce([{ id: 'user-a' }, { id: 'user-b' }, { id: 'user-c' }]);
+
+    await handleAccountAnonymizeSweep({});
+
+    expect(mockTransaction).toHaveBeenCalledTimes(3);
+  });
+
+  it('overwrites each due user with anonymous identifiers', async () => {
+    mockSelectWhere.mockResolvedValueOnce([{ id: 'user-a' }]);
+
+    await handleAccountAnonymizeSweep({});
+
+    const userSet = mockTxUpdateSet.mock.calls[0]?.[0] as Record<string, unknown>;
+    expect(userSet.name).toBe('Deleted User');
+    expect(userSet.email).toBe('user-a@deleted.ceolx.ie');
+    expect(userSet.isAnonymized).toBe(true);
+    expect(userSet.anonymizedAt).toBeInstanceOf(Date);
+  });
+});

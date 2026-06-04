@@ -14,30 +14,12 @@ import { rateLimiter, RATE_LIMIT_TIERS } from '@CeolX/cache';
 import '@CeolX/env/server'; // validates required env vars at startup
 
 import { isAllowedOrigin } from './config/cors';
-import { publishJob } from './jobs/publish';
 import { errorHandler } from './middleware/errorHandler';
 import locationRoutes from './routes/location';
 import resetPasswordRoute from './routes/reset-password';
 import verifyEmailRoute from './routes/verify-email';
 import webhooksRoutes from './routes/webhooks';
 import { dispatchNotification } from './services/notifications-dispatcher';
-
-// Inline scheduler for the M11-T1 30-day account-anonymise job.
-// publishJob is server-only (depends on QStash + env), so we inject it
-// through ctx instead of letting packages/api depend on apps/server.
-const scheduleAccountAnonymize = async ({
-  userId,
-  requestedAt,
-}: {
-  userId: string;
-  requestedAt: Date;
-}) => {
-  await publishJob(
-    'account.anonymize',
-    { userId, requestedAt: requestedAt.toISOString() },
-    { delay: '30d' }
-  );
-};
 
 export function buildApp() {
   const app = new Hono();
@@ -86,8 +68,7 @@ export function buildApp() {
     '/trpc/*',
     trpcServer({
       router: appRouter,
-      createContext: (_opts, context) =>
-        createContext({ context, dispatchNotification, scheduleAccountAnonymize }),
+      createContext: (_opts, context) => createContext({ context, dispatchNotification }),
       onError: ({ error, path }) => {
         if (error.code === 'INTERNAL_SERVER_ERROR') {
           Sentry.captureException(error, {

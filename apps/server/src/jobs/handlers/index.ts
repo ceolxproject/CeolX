@@ -2,7 +2,11 @@ import { z } from 'zod';
 
 import { jobPayloadSchemas, type JobType } from '../types.js';
 
-import { handleAccountAnonymize, handleAccountCleanup } from './account.js';
+import {
+  handleAccountAnonymize,
+  handleAccountAnonymizeSweep,
+  handleAccountCleanup,
+} from './account.js';
 import { handleDataExportNotify, handleDataExportProcess } from './dataExport.js';
 import { handleEmailSend } from './email.js';
 import { handleAccountFlagInactive } from './inactive.js';
@@ -23,6 +27,8 @@ const handlers: Record<JobType, (payload: unknown) => Promise<void>> = {
   'account.cleanup': (p) => handleAccountCleanup(jobPayloadSchemas['account.cleanup'].parse(p)),
   'account.flag-inactive': (p) =>
     handleAccountFlagInactive(jobPayloadSchemas['account.flag-inactive'].parse(p)),
+  'account.anonymize-sweep': (p) =>
+    handleAccountAnonymizeSweep(jobPayloadSchemas['account.anonymize-sweep'].parse(p)),
   'ip.anonymize': (p) => handleIpAnonymize(jobPayloadSchemas['ip.anonymize'].parse(p)),
   'notification.push': (p) =>
     handleNotificationPush(jobPayloadSchemas['notification.push'].parse(p)),
