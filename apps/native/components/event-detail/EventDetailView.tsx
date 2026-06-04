@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { FlatList, Linking, Platform, ScrollView, Text, View } from 'react-native';
+import { FlatList, Linking, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { distanceBetween } from '@CeolX/shared';
@@ -238,9 +238,18 @@ export function EventDetailView({
               <Text className="text-xl font-bold text-white font-urbanist">
                 Explore the collection
               </Text>
-              <Text className="text-xs font-bold text-green-10 tracking-wider uppercase font-urbanist">
-                see all
-              </Text>
+              {event.collectionId ? (
+                <Pressable
+                  onPress={() =>
+                    router.push(`/(app)/(tabs)/discover/collection/${event.collectionId}`)
+                  }
+                  hitSlop={8}
+                >
+                  <Text className="text-xs font-bold text-green-10 tracking-wider uppercase font-urbanist">
+                    see all
+                  </Text>
+                </Pressable>
+              ) : null}
             </View>
             <FlatList
               horizontal

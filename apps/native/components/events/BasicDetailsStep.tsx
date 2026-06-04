@@ -88,10 +88,18 @@ export function BasicDetailsStep({
         <Pressable onPress={onPickImage}>
           {coverImageUri ? (
             <View className="h-44 rounded-xl overflow-hidden">
-              {/* Height lives on the wrapper View (uniwind sizes Views reliably);
-                  the image fills it with h-full. Sizing the Image directly with
-                  h-44 collapsed the preview to 0px on device. (Asana 1215040939202669) */}
-              <Image source={{ uri: coverImageUri }} className="w-full h-full" resizeMode="cover" />
+              {/* Height lives on the wrapper View (uniwind sizes Views reliably).
+                  The image MUST be absolute inset-0, not a plain percentage h-full:
+                  on Android, RN <Image> sized only by height:'100%' lays out a box
+                  but never paints the bitmap (Fresco needs resolved pixel bounds),
+                  so the picked image showed blank on Android while fine on iOS.
+                  inset-0 pins it to the wrapper's resolved frame — same pattern as
+                  EventHeroImage / BaseEventCard. (Asana 1215040939202669) */}
+              <Image
+                source={{ uri: coverImageUri }}
+                className="absolute inset-0 w-full h-full"
+                resizeMode="cover"
+              />
               {/* Tap the image to replace; tap ✕ to clear. Stops propagation so
                   removing doesn't also re-open the picker. */}
               <Pressable

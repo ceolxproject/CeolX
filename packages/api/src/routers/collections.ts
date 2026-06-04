@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { db } from '@CeolX/db';
 import { collections } from '@CeolX/db/schema/events';
 import { venueProfiles } from '@CeolX/db/schema/users';
+import { EventStatus } from '@CeolX/shared/enums';
 import { createCollectionSchema, updateCollectionSchema } from '@CeolX/shared/validators';
 
 import { protectedProcedure, router, venueProcedure } from '../index';
@@ -20,6 +21,17 @@ async function getVenueProfileId(userId: string): Promise<string> {
     throw new TRPCError({ code: 'PRECONDITION_FAILED', message: 'Venue profile not found' });
   }
   return profile.id;
+}
+
+// Non-throwing variant for read paths where the caller may not be a venue at all
+// (spectators/artists). Returns null instead of erroring so callers can treat
+// "not a venue" as simply "not the owner".
+async function findVenueProfileId(userId: string): Promise<string | null> {
+  const profile = await db.query.venueProfiles.findFirst({
+    where: eq(venueProfiles.userId, userId),
+    columns: { id: true },
+  });
+  return profile?.id ?? null;
 }
 
 // ─── Router ──────────────────────────────────────────────────────────────────
@@ -67,47 +79,60 @@ export const collectionsRouter = router({
     }));
   }),
 
-  byId: protectedProcedure.input(z.object({ id: z.string().uuid() })).query(async ({ input }) => {
-    const collection = await db.query.collections.findFirst({
-      where: eq(collections.id, input.id),
-      with: {
-        events: {
-          columns: {
-            id: true,
-            title: true,
-            dateStart: true,
-            coverImage: true,
-            status: true,
-            category: true,
-            venueAddress: true,
+  byId: protectedProcedure
+    .input(z.object({ id: z.string().uuid() }))
+    .query(async ({ input, ctx }) => {
+      const collection = await db.query.collections.findFirst({
+        where: eq(collections.id, input.id),
+        with: {
+          events: {
+            columns: {
+              id: true,
+              title: true,
+              dateStart: true,
+              coverImage: true,
+              status: true,
+              category: true,
+              venueAddress: true,
+            },
           },
         },
-      },
-    });
+      });
 
-    if (!collection) {
-      throw new TRPCError({ code: 'NOT_FOUND', message: 'Collection not found' });
-    }
+      if (!collection) {
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Collection not found' });
+      }
 
-    return {
-      id: collection.id,
-      name: collection.name,
-      description: collection.description ?? null,
-      logo: collection.logo ?? null,
-      createdBy: collection.createdBy,
-      createdAt: collection.createdAt.toISOString(),
-      eventCount: collection.events.length,
-      events: collection.events.map((e) => ({
-        id: e.id,
-        title: e.title,
-        dateStart: e.dateStart.toISOString(),
-        coverImage: e.coverImage ?? null,
-        status: e.status,
-        category: e.category,
-        venueAddress: e.venueAddress ?? null,
-      })),
-    };
-  }),
+      // byId is callable by any signed-in user (owner management screen + the public
+      // discover/collection view). Only the venue that owns the collection may see
+      // non-active events (draft/removed/archived); everyone else gets the ACTIVE-only
+      // public view. Enforced here because the screen-side filter is presentation, not
+      // access control — a direct tRPC call would otherwise leak unpublished events.
+      const callerVenueProfileId = await findVenueProfileId(ctx.userId);
+      const isOwner = !!callerVenueProfileId && callerVenueProfileId === collection.createdBy;
+      const visibleEvents = isOwner
+        ? collection.events
+        : collection.events.filter((e) => e.status === EventStatus.ACTIVE);
+
+      return {
+        id: collection.id,
+        name: collection.name,
+        description: collection.description ?? null,
+        logo: collection.logo ?? null,
+        createdBy: collection.createdBy,
+        createdAt: collection.createdAt.toISOString(),
+        eventCount: visibleEvents.length,
+        events: visibleEvents.map((e) => ({
+          id: e.id,
+          title: e.title,
+          dateStart: e.dateStart.toISOString(),
+          coverImage: e.coverImage ?? null,
+          status: e.status,
+          category: e.category,
+          venueAddress: e.venueAddress ?? null,
+        })),
+      };
+    }),
 
   update: venueProcedure.input(updateCollectionSchema).mutation(async ({ input, ctx }) => {
     const venueProfileId = await getVenueProfileId(ctx.userId);

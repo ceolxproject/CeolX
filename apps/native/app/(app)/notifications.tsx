@@ -10,6 +10,7 @@ import { EmptyState } from '@/components/EmptyState';
 import { NotificationListItem } from '@/components/notifications/NotificationListItem';
 import { useMarkAllAsRead, useMarkAsRead } from '@/hooks/use-mark-notifications';
 import { useNotifications } from '@/hooks/use-notifications';
+import { resolveNotificationRoute } from '@/lib/notification-route';
 
 export default function NotificationsScreen() {
   const { notifications, isLoading, isFetchingNextPage, hasNextPage, total, loadMore, refresh } =
@@ -26,7 +27,9 @@ export default function NotificationsScreen() {
       if (!notification.isRead) {
         markAsRead.mutate({ id: notification.id });
       }
-      router.push(notification.route);
+      // Normalise the stored route to a real screen — legacy/bare routes would
+      // otherwise hit +not-found ("Page Not Found"). Asana 1215279003641211.
+      router.push(resolveNotificationRoute(notification.route));
     },
     [markAsRead]
   );

@@ -1,11 +1,12 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import * as Notifications from 'expo-notifications';
-import { router, type Href } from 'expo-router';
+import { router } from 'expo-router';
 import { useEffect, useRef } from 'react';
 import { Platform } from 'react-native';
 
 import { useAuth } from '@/contexts/auth-context';
 import { requestNotificationPermission } from '@/lib/fcm-permission';
+import { resolveNotificationRoute } from '@/lib/notification-route';
 import { trpc } from '@/utils/trpc';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -43,10 +44,9 @@ function navigateFromRemoteData(data: unknown): void {
   if (typeof data !== 'object' || data === null) return;
   const route = (data as Record<string, unknown>)[FCM_DATA_ROUTE_KEY];
   if (typeof route === 'string' && route.startsWith('/')) {
-    // typed routes only know about routes we've authored; FCM `route` strings
-    // are decided server-side, so we cast through Href and trust the runtime
-    // value (server validates against the trigger registry).
-    router.push(route as Href);
+    // Normalise to a real screen — legacy/bare server routes would otherwise
+    // hit +not-found ("Page Not Found"). Asana 1215279003641211.
+    router.push(resolveNotificationRoute(route));
   }
 }
 

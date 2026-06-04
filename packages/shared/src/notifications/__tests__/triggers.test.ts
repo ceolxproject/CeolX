@@ -31,7 +31,7 @@ describe('buildNotification — push surface (matrix copy)', () => {
       persona: 'artist',
       title: 'New booking invite',
       body: 'The Temple Bar invited you to play "Friday Night Trad Session" on Fri 1 May.',
-      route: '/bookings/b-123',
+      route: '/(app)/(tabs)/bookings/b-123',
     });
   });
 
@@ -145,7 +145,7 @@ describe('buildNotification — inApp surface diverges from push', () => {
       { eventId: 'e-1', eventTitle: 'Friday Night Trad' }
     );
     expect(built.persona).toBe('spectator');
-    expect(built.route).toBe('/feed');
+    expect(built.route).toBe('/(app)/(tabs)/discover');
     expect(built.title).toBe('A saved event was removed');
     expect(built.body).toBe(
       '"Friday Night Trad" was removed by moderation and is no longer on CeolX.'
@@ -214,19 +214,19 @@ describe('buildNotification — placeholder safety', () => {
     }
   });
 
-  it('event-scoped triggers (collaborator add, hosted-at-venue, moderation) route to /events/:id', () => {
+  it('event-scoped triggers (collaborator add, hosted-at-venue, moderation) route to the discover event screen', () => {
     expect(
       NOTIFICATION_TRIGGERS[NotificationTrigger.ADDED_AS_COLLABORATOR_TO_ARTIST].routeTemplate
-    ).toBe('/events/{eventId}');
+    ).toBe('/(app)/(tabs)/discover/event/{eventId}');
     expect(
       NOTIFICATION_TRIGGERS[NotificationTrigger.EVENT_HOSTED_AT_VENUE_TO_VENUE].routeTemplate
-    ).toBe('/events/{eventId}');
+    ).toBe('/(app)/(tabs)/discover/event/{eventId}');
     expect(
       NOTIFICATION_TRIGGERS[NotificationTrigger.EVENT_REMOVED_BY_ADMIN_TO_ARTIST].routeTemplate
-    ).toBe('/events/{eventId}');
+    ).toBe('/(app)/(tabs)/discover/event/{eventId}');
     expect(
       NOTIFICATION_TRIGGERS[NotificationTrigger.EVENT_RESUBMITTED_TO_VENUE].routeTemplate
-    ).toBe('/events/{eventId}');
+    ).toBe('/(app)/(tabs)/discover/event/{eventId}');
   });
 
   it('throws with the missing key name when vars are incomplete', () => {
