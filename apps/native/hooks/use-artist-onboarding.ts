@@ -15,6 +15,7 @@ import { useAuth } from '@/contexts/auth-context';
 import { initialStageName } from '@/hooks/use-artist-onboarding.utils';
 import { useMediaUpload } from '@/hooks/use-media-upload';
 import { useOnboardingDraft } from '@/hooks/use-onboarding-draft';
+import { computeStepErrors } from '@/lib/onboarding-validation';
 import { pickSquarePhoto, requestPhotoLibraryPermission } from '@/utils/image-picker';
 import { trpc, type RouterOutputs } from '@/utils/trpc';
 import { getTRPCErrorCode, getTRPCErrorMessage } from '@/utils/trpc-error';
@@ -94,9 +95,12 @@ export function useArtistOnboarding() {
 
   // ── Step navigation ─────────────────────────────────────────────────────
 
-  const buildStepValues = (step: Step) => {
-    if (step === 1) return { stageName, contactEmail: contactEmail || undefined };
-    if (step === 2) return { bio: bio || undefined };
+  // `overrides` carries a just-changed value so validation runs against it
+  // immediately: React batches state, so reading `stageName` etc. right after
+  // its setter would still see the previous value.
+  const buildStepValues = (step: Step, overrides: Record<string, unknown> = {}) => {
+    if (step === 1) return { stageName, contactEmail: contactEmail || undefined, ...overrides };
+    if (step === 2) return { bio: bio || undefined, ...overrides };
     return {
       socialLinks: {
         INSTAGRAM: socialLinks.INSTAGRAM || undefined,
@@ -104,32 +108,34 @@ export function useArtistOnboarding() {
         TIKTOK: socialLinks.TIKTOK || undefined,
         YOUTUBE: socialLinks.YOUTUBE || undefined,
       },
+      ...overrides,
     };
   };
 
   // Pass an explicit `currentTouched` Set when the caller has just computed a
   // new value; React batches setState so reading `touched` after setTouched in
   // the same handler would return the stale snapshot.
-  const validateStep = (step: Step, currentTouched: Set<string> = touched): boolean => {
+  const validateStep = (
+    step: Step,
+    currentTouched: Set<string> = touched,
+    overrides: Record<string, unknown> = {}
+  ): boolean => {
     const schema =
       step === 1
         ? artistOnboardingStep1Schema
         : step === 2
           ? artistOnboardingStep2Schema
           : artistOnboardingStep3Schema;
-    const result = schema.safeParse(buildStepValues(step));
+    const result = schema.safeParse(buildStepValues(step, overrides));
 
-    setErrors((prev) => {
-      const next = { ...prev };
-      for (const f of FIELDS_BY_STEP[step]) delete next[f];
-      if (!result.success) {
-        for (const issue of result.error.issues) {
-          const field = issue.path.join('.');
-          if (currentTouched.has(field)) next[field] = issue.message;
-        }
-      }
-      return next;
-    });
+    setErrors((prev) =>
+      computeStepErrors({
+        result,
+        stepFields: FIELDS_BY_STEP[step],
+        touched: currentTouched,
+        prevErrors: prev,
+      })
+    );
 
     return result.success;
   };
@@ -196,8 +202,33 @@ export function useArtistOnboarding() {
     setImageError(null);
   };
 
+  // Once a field has been touched (e.g. a failed Next surfaced its error),
+  // re-validate it on every change so the error clears the instant the value
+  // becomes valid — not only on the next blur or Next-press. The new value is
+  // passed through to validateStep because setState is batched.
+  const handleStageNameChange = (value: string) => {
+    setStageName(value);
+    if (touched.has('stageName')) validateStep(1, touched, { stageName: value });
+  };
+
+  const handleBioChange = (value: string) => {
+    setBio(value);
+    if (touched.has('bio')) validateStep(2, touched, { bio: value || undefined });
+  };
+
   const handleSocialLinkChange = (field: keyof SocialLinks, value: string) => {
-    setSocialLinks((prev) => ({ ...prev, [field]: value }));
+    const nextLinks = { ...socialLinks, [field]: value };
+    setSocialLinks(nextLinks);
+    if (touched.has(`socialLinks.${field}`)) {
+      validateStep(3, touched, {
+        socialLinks: {
+          INSTAGRAM: nextLinks.INSTAGRAM || undefined,
+          FACEBOOK: nextLinks.FACEBOOK || undefined,
+          TIKTOK: nextLinks.TIKTOK || undefined,
+          YOUTUBE: nextLinks.YOUTUBE || undefined,
+        },
+      });
+    }
   };
 
   const handleSubmit = async () => {
@@ -284,9 +315,9 @@ export function useArtistOnboarding() {
   return {
     // fields
     stageName,
-    setStageName,
+    setStageName: handleStageNameChange,
     bio,
-    setBio,
+    setBio: handleBioChange,
     contactEmail,
     setContactEmail,
     socialLinks,
