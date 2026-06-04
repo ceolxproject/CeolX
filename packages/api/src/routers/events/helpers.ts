@@ -43,6 +43,22 @@ export async function resolveEventCoordinates(
   });
 }
 
+/**
+ * Resolve the avatar URL to show for an event's creator or a collaborator.
+ *
+ * Uploaded profile pictures live in `artist_profiles`/`venue_profiles`
+ * (`profileImageUrl`); the BetterAuth `user.image` column is only populated for
+ * Google/Apple social logins. So the profile picture must win, with `user.image`
+ * as a fallback for social-login accounts that never uploaded one. This mirrors
+ * the precedence `hydrateAuthors` uses for posts. (Asana 1215429148917917)
+ */
+export function resolveProfileImageUrl(
+  profile: { profileImageUrl: string | null } | null | undefined,
+  fallbackUserImage: string | null | undefined
+): string | null {
+  return profile?.profileImageUrl ?? fallbackUserImage ?? null;
+}
+
 export const MapQueryInput = z.object({
   swLat: z.number(),
   swLng: z.number(),
