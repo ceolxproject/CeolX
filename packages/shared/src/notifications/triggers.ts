@@ -81,7 +81,7 @@ export const NOTIFICATION_TRIGGERS: Record<NotificationTrigger, TriggerDefinitio
     matrixRef: 'A-09',
     type: 'booking_invitation',
     persona: 'artist',
-    routeTemplate: '/bookings/{bookingId}',
+    routeTemplate: '/(app)/(tabs)/bookings/{bookingId}',
     push: {
       title: 'New booking invite',
       body: '{venueName} invited you to play "{eventTitle}" on {date}.',
@@ -96,7 +96,7 @@ export const NOTIFICATION_TRIGGERS: Record<NotificationTrigger, TriggerDefinitio
     matrixRef: 'V-09',
     type: 'booking_request',
     persona: 'venue',
-    routeTemplate: '/bookings/{bookingId}',
+    routeTemplate: '/(app)/(tabs)/bookings/{bookingId}',
     push: {
       title: 'New booking request',
       body: '{artistName} applied for "{eventTitle}" on {date}.',
@@ -111,7 +111,7 @@ export const NOTIFICATION_TRIGGERS: Record<NotificationTrigger, TriggerDefinitio
     matrixRef: 'A-10',
     type: 'booking_accepted',
     persona: 'artist',
-    routeTemplate: '/bookings/{bookingId}',
+    routeTemplate: '/(app)/(tabs)/bookings/{bookingId}',
     push: {
       title: 'Booking Accepted ✓',
       body: '{venueName} accepted your application for "{eventTitle}" on {date}.',
@@ -126,7 +126,7 @@ export const NOTIFICATION_TRIGGERS: Record<NotificationTrigger, TriggerDefinitio
     matrixRef: 'V-10',
     type: 'booking_accepted',
     persona: 'venue',
-    routeTemplate: '/bookings/{bookingId}',
+    routeTemplate: '/(app)/(tabs)/bookings/{bookingId}',
     push: {
       title: 'Booking Accepted ✓',
       body: '{artistName} accepted your invite for "{eventTitle}" on {date}.',
@@ -141,7 +141,7 @@ export const NOTIFICATION_TRIGGERS: Record<NotificationTrigger, TriggerDefinitio
     matrixRef: 'A-11',
     type: 'booking_rejected',
     persona: 'artist',
-    routeTemplate: '/bookings/{bookingId}',
+    routeTemplate: '/(app)/(tabs)/bookings/{bookingId}',
     push: {
       title: 'Booking Not Accepted',
       body: '{venueName} has passed on your application for "{eventTitle}".',
@@ -156,7 +156,7 @@ export const NOTIFICATION_TRIGGERS: Record<NotificationTrigger, TriggerDefinitio
     matrixRef: 'V-11',
     type: 'booking_rejected',
     persona: 'venue',
-    routeTemplate: '/bookings/{bookingId}',
+    routeTemplate: '/(app)/(tabs)/bookings/{bookingId}',
     push: {
       title: 'Invitation Declined',
       body: '{artistName} can\'t make "{eventTitle}" on {date}.',
@@ -171,7 +171,7 @@ export const NOTIFICATION_TRIGGERS: Record<NotificationTrigger, TriggerDefinitio
     matrixRef: 'V-13',
     type: 'booking_withdrawn',
     persona: 'venue',
-    routeTemplate: '/bookings/{bookingId}',
+    routeTemplate: '/(app)/(tabs)/bookings/{bookingId}',
     push: {
       title: 'Application Withdrawn',
       body: '{artistName} withdrew their application for "{eventTitle}".',
@@ -188,7 +188,7 @@ export const NOTIFICATION_TRIGGERS: Record<NotificationTrigger, TriggerDefinitio
     matrixRef: 'V-13-mirror',
     type: 'booking_withdrawn',
     persona: 'artist',
-    routeTemplate: '/bookings/{bookingId}',
+    routeTemplate: '/(app)/(tabs)/bookings/{bookingId}',
     push: {
       title: 'Invitation Withdrawn',
       body: '{venueName} withdrew the invitation for "{eventTitle}".',
@@ -203,7 +203,7 @@ export const NOTIFICATION_TRIGGERS: Record<NotificationTrigger, TriggerDefinitio
     matrixRef: 'A-12',
     type: 'booking_cancelled',
     persona: 'artist',
-    routeTemplate: '/bookings/{bookingId}',
+    routeTemplate: '/(app)/(tabs)/bookings/{bookingId}',
     push: {
       title: 'Booking Cancelled',
       body: '{venueName} cancelled "{eventTitle}" on {date}.',
@@ -218,7 +218,7 @@ export const NOTIFICATION_TRIGGERS: Record<NotificationTrigger, TriggerDefinitio
     matrixRef: 'V-12',
     type: 'booking_cancelled',
     persona: 'venue',
-    routeTemplate: '/bookings/{bookingId}',
+    routeTemplate: '/(app)/(tabs)/bookings/{bookingId}',
     push: {
       title: 'Booking Cancelled',
       body: '{artistName} cancelled "{eventTitle}" on {date}.',
@@ -235,7 +235,7 @@ export const NOTIFICATION_TRIGGERS: Record<NotificationTrigger, TriggerDefinitio
     matrixRef: 'A-13',
     type: 'collaborator_added',
     persona: 'artist',
-    routeTemplate: '/events/{eventId}',
+    routeTemplate: '/(app)/(tabs)/discover/event/{eventId}',
     push: {
       title: 'Added as collaborator',
       body: '{venueName} added you as a collaborator on "{eventTitle}".',
@@ -253,7 +253,7 @@ export const NOTIFICATION_TRIGGERS: Record<NotificationTrigger, TriggerDefinitio
     matrixRef: 'off-matrix-event-hosted',
     type: 'event_hosted_at_venue',
     persona: 'venue',
-    routeTemplate: '/events/{eventId}',
+    routeTemplate: '/(app)/(tabs)/discover/event/{eventId}',
     push: {
       title: 'New event at your venue',
       body: '{artistName} created "{eventTitle}" at your venue on {date}.',
@@ -270,7 +270,7 @@ export const NOTIFICATION_TRIGGERS: Record<NotificationTrigger, TriggerDefinitio
     matrixRef: 'A-15',
     type: 'event_removed',
     persona: 'artist',
-    routeTemplate: '/events/{eventId}',
+    routeTemplate: '/(app)/(tabs)/discover/event/{eventId}',
     push: {
       title: 'Your event needs revision',
       body: 'Moderation removed "{eventTitle}". Reason: {reason}.',
@@ -287,7 +287,7 @@ export const NOTIFICATION_TRIGGERS: Record<NotificationTrigger, TriggerDefinitio
     matrixRef: 'V-14',
     type: 'event_removed',
     persona: 'venue',
-    routeTemplate: '/events/{eventId}',
+    routeTemplate: '/(app)/(tabs)/discover/event/{eventId}',
     push: {
       title: 'Your event needs revision',
       body: 'Moderation removed "{eventTitle}". Reason: {reason}.',
@@ -303,7 +303,7 @@ export const NOTIFICATION_TRIGGERS: Record<NotificationTrigger, TriggerDefinitio
     matrixRef: 'A-16',
     type: 'event_resubmitted',
     persona: 'artist',
-    routeTemplate: '/events/{eventId}',
+    routeTemplate: '/(app)/(tabs)/discover/event/{eventId}',
     push: {
       title: 'Event Resubmitted ✓',
       body: '"{eventTitle}" is back live after your edits.',
@@ -319,7 +319,7 @@ export const NOTIFICATION_TRIGGERS: Record<NotificationTrigger, TriggerDefinitio
     matrixRef: 'V-15',
     type: 'event_resubmitted',
     persona: 'venue',
-    routeTemplate: '/events/{eventId}',
+    routeTemplate: '/(app)/(tabs)/discover/event/{eventId}',
     push: {
       title: 'Event Resubmitted ✓',
       body: '"{eventTitle}" is back live after your edits.',
@@ -332,12 +332,13 @@ export const NOTIFICATION_TRIGGERS: Record<NotificationTrigger, TriggerDefinitio
   },
   // U-03 — Universal: every user who saved an event is told when an admin
   // removes it. Fans out per-saver from the admin.removeEvent mutation.
-  // Routes to /feed because the original event link is a dead end once removed.
+  // Routes to the discover feed because the original event link is a dead end
+  // once removed.
   [NotificationTrigger.SAVED_EVENT_REMOVED_TO_SAVERS]: {
     matrixRef: 'U-03',
     type: 'saved_event_removed',
     persona: 'spectator',
-    routeTemplate: '/feed',
+    routeTemplate: '/(app)/(tabs)/discover',
     push: {
       title: 'A saved event was removed',
       body: '"{eventTitle}" was removed by moderation and is no longer on CeolX.',

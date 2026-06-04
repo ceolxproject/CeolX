@@ -37,6 +37,8 @@ export const accountCleanupSchema = z.object({
 
 export const accountFlagInactiveSchema = z.object({});
 
+export const accountAnonymizeSweepSchema = z.object({});
+
 export const ipAnonymizeSchema = z.object({
   olderThanDays: z.number().int().positive().default(30),
 });
@@ -81,6 +83,7 @@ export type JobType =
   | 'account.anonymize'
   | 'account.cleanup'
   | 'account.flag-inactive'
+  | 'account.anonymize-sweep'
   | 'ip.anonymize'
   | 'notification.push'
   | 'notification.batch'
@@ -93,6 +96,7 @@ export const jobPayloadSchemas = {
   'account.anonymize': accountAnonymizeSchema,
   'account.cleanup': accountCleanupSchema,
   'account.flag-inactive': accountFlagInactiveSchema,
+  'account.anonymize-sweep': accountAnonymizeSweepSchema,
   'ip.anonymize': ipAnonymizeSchema,
   'notification.push': notificationPushSchema,
   'notification.batch': notificationBatchSchema,

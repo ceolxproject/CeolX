@@ -7,7 +7,8 @@
  * via a `jobs:setup-crons` script that runs `tsx src/jobs/setup-crons.ts`.
  *
  * Schedules registered here:
- *   - account.flag-inactive — daily at 02:00 UTC (M11-T1 R6)
+ *   - account.flag-inactive   — daily at 02:00 UTC (M11-T1 R6)
+ *   - account.anonymize-sweep — daily at 03:00 UTC (M11-T1 GDPR erasure)
  */
 
 import { publishCron } from './publish.js';
@@ -15,6 +16,9 @@ import { publishCron } from './publish.js';
 async function main() {
   await publishCron('account.flag-inactive', '0 2 * * *', {});
   console.warn('[crons] account.flag-inactive registered (daily 02:00 UTC)');
+
+  await publishCron('account.anonymize-sweep', '0 3 * * *', {});
+  console.warn('[crons] account.anonymize-sweep registered (daily 03:00 UTC)');
 }
 
 void main().catch((err) => {

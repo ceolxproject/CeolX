@@ -56,23 +56,34 @@ export default function SplashScreen() {
   useEffect(() => {
     if (isLoading || !isFocused) return;
 
-    const navigate = async () => {
-      if (user) {
-        router.replace('/(app)/(tabs)/map');
-        return;
-      }
+    // Authenticated users skip the splash hold and go straight to the app.
+    if (user) {
+      router.replace('/(app)/(tabs)/map');
+      return;
+    }
 
-      const hasSeen = await SecureStore.getItemAsync('hasSeenOnboarding');
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+    // The unauthenticated redirect is deferred (~1.5s splash hold). It MUST stay
+    // cancellable: a deep-link cold-start (e.g. ceolx://reset-password?token=…)
+    // mounts the linked screen on top of this splash, so this screen loses focus,
+    // the effect re-runs, and the cleanup below cancels the pending redirect
+    // *before* it can router.replace the deep-linked screen and drop the token.
+    // The earlier isFocused-only guard checked focus at effect entry but could
+    // not stop an already-scheduled timer, so a fast session-resolve race still
+    // bounced reset-password to sign-in. (Asana 1215040939202673)
+    let cancelled = false;
 
-      if (hasSeen === 'true') {
-        router.replace('/(auth)/sign-in');
-      } else {
-        router.replace('/(auth)/get-started');
-      }
+    const timer = setTimeout(() => {
+      void (async () => {
+        const hasSeen = await SecureStore.getItemAsync('hasSeenOnboarding');
+        if (cancelled) return;
+        router.replace(hasSeen === 'true' ? '/(auth)/sign-in' : '/(auth)/get-started');
+      })();
+    }, 1500);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
     };
-
-    void navigate();
   }, [isLoading, user, isFocused]);
 
   return (
