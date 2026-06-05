@@ -15,6 +15,8 @@ export function PerformingArtistCard({ artist, onPress, className }: PerformingA
   return (
     <Pressable
       onPress={onPress}
+      // No handler (external invitee) → non-interactive, no press feedback.
+      disabled={!onPress}
       className={cn(
         'w-[138px] h-[177px] rounded-lg border border-[#3a3a3a] bg-[rgba(141,141,141,0.3)] overflow-hidden items-center',
         className

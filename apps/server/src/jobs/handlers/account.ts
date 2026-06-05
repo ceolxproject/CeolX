@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm';
+import { and, eq, isNotNull, lte } from 'drizzle-orm';
 
 import { db } from '@CeolX/db';
 import { session, user } from '@CeolX/db/schema/auth';
@@ -8,41 +8,13 @@ import { artistProfiles, profileSocialLinks, venueProfiles } from '@CeolX/db/sch
 import type { JobPayload } from '../types.js';
 
 /**
- * GDPR Right-to-Erasure (M11-T1).
+ * Core erasure transaction for a single user. Single source of truth for "what
+ * anonymisation does" — shared by the per-user handler and the daily sweep.
  *
- * Fired by QStash 30 days after a user requests account deletion. Idempotent:
- * if the user logged back in (clearing `deletionScheduledFor`) or the row is
- * already anonymised, the handler is a no-op. This means we never need to
- * cancel the QStash message itself when a user re-activates their account.
- *
- * Anonymisation strategy:
- *   - `user`, `artist_profiles`, `venue_profiles` — PII overwritten in place
- *     so historical references (events, bookings, comments) keep referential
- *     integrity. The row is kept; `isAnonymized = true` blocks future logins.
- *   - `profile_social_links`, `device_tokens`, `session` — hard-deleted
- *     (purely external/auth state, no historical value).
- *
- * S3 media: profile image URLs are nulled here; orphaned objects are caught
- * by the bucket's lifecycle rule (out of scope for this PR).
+ * Callers MUST have already confirmed the row is due (not anonymised, deletion
+ * still scheduled) before invoking this.
  */
-export async function handleAccountAnonymize(
-  payload: JobPayload<'account.anonymize'>
-): Promise<void> {
-  const { userId } = payload;
-
-  const [row] = await db
-    .select({
-      isAnonymized: user.isAnonymized,
-      deletionScheduledFor: user.deletionScheduledFor,
-    })
-    .from(user)
-    .where(eq(user.id, userId))
-    .limit(1);
-
-  if (!row || row.isAnonymized || !row.deletionScheduledFor) {
-    return;
-  }
-
+async function applyAnonymization(userId: string): Promise<void> {
   const now = new Date();
 
   await db.transaction(async (tx) => {
@@ -103,6 +75,78 @@ export async function handleAccountAnonymize(
     await tx.delete(deviceTokens).where(eq(deviceTokens.userId, userId));
     await tx.delete(session).where(eq(session.userId, userId));
   });
+}
+
+/**
+ * GDPR Right-to-Erasure (M11-T1) — single-user entry point.
+ *
+ * Retained for backwards-compatibility with any in-flight `account.anonymize`
+ * messages. V1 no longer publishes this per-request (a 30-day QStash delay
+ * exceeds the free-plan cap and made the delete request fail on first attempt
+ * — Asana 1215276188230541); the daily `handleAccountAnonymizeSweep` cron now
+ * drives erasure. Idempotent: a missing row, an already-anonymised row, or one
+ * whose `deletionScheduledFor` was cleared (user logged back in) is a no-op.
+ */
+export async function handleAccountAnonymize(
+  payload: JobPayload<'account.anonymize'>
+): Promise<void> {
+  const { userId } = payload;
+
+  const [row] = await db
+    .select({
+      isAnonymized: user.isAnonymized,
+      deletionScheduledFor: user.deletionScheduledFor,
+    })
+    .from(user)
+    .where(eq(user.id, userId))
+    .limit(1);
+
+  if (!row || row.isAnonymized || !row.deletionScheduledFor) {
+    return;
+  }
+
+  await applyAnonymization(userId);
+}
+
+/**
+ * GDPR Right-to-Erasure (M11-T1) — daily sweep (the V1 driver).
+ *
+ * Registered as a QStash cron (see setup-crons.ts). Selects every account whose
+ * 30-day cooling-off has elapsed (`deletionScheduledFor <= now`) and that is not
+ * already anonymised, then anonymises each. Decoupling erasure from a per-request
+ * delayed job means the delete request itself does no external call — so it
+ * succeeds on the first attempt and never depends on QStash being reachable or on
+ * a plan that allows 30-day delays.
+ *
+ * Anonymisation strategy (per user, in a single transaction):
+ *   - `user`, `artist_profiles`, `venue_profiles` — PII overwritten in place
+ *     so historical references (events, bookings, comments) keep referential
+ *     integrity. The row is kept; `isAnonymized = true` blocks future logins.
+ *   - `profile_social_links`, `device_tokens`, `session` — hard-deleted
+ *     (purely external/auth state, no historical value).
+ *
+ * S3 media: profile image URLs are nulled; orphaned objects are caught by the
+ * bucket's lifecycle rule (out of scope for this PR).
+ */
+export async function handleAccountAnonymizeSweep(
+  _payload: JobPayload<'account.anonymize-sweep'>
+): Promise<void> {
+  const now = new Date();
+
+  const due = await db
+    .select({ id: user.id })
+    .from(user)
+    .where(
+      and(
+        isNotNull(user.deletionScheduledFor),
+        lte(user.deletionScheduledFor, now),
+        eq(user.isAnonymized, false)
+      )
+    );
+
+  for (const { id } of due) {
+    await applyAnonymization(id);
+  }
 }
 
 /**

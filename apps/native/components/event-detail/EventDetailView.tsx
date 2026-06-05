@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
-import { useMemo, useState } from 'react';
-import { FlatList, Linking, Platform, ScrollView, Text, View } from 'react-native';
+import { useMemo, useRef, useState } from 'react';
+import { FlatList, Linking, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { distanceBetween } from '@CeolX/shared';
@@ -47,6 +47,10 @@ export function EventDetailView({
   onArchive,
 }: EventDetailViewProps) {
   const insets = useSafeAreaInsets();
+  const scrollRef = useRef<ScrollView>(null);
+  // Y offset of the "Performing Artist" section within the scroll content, so
+  // the Host/Artist box's "VIEW ALL" can jump straight to the per-artist cards.
+  const [artistSectionY, setArtistSectionY] = useState(0);
   const [isSaved, setIsSaved] = useState(event.isSaved);
   const { initialRegion, locationSource } = useGpsRegion();
   const { mutate: saveEvent } = useSaveEvent();
@@ -99,6 +103,7 @@ export function EventDetailView({
   return (
     <View className="flex-1 bg-background" style={{ paddingTop: insets.top }}>
       <ScrollView
+        ref={scrollRef}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 16 }}
       >
@@ -138,7 +143,11 @@ export function EventDetailView({
           <HostArtistInfoBox
             creator={event.creator}
             collaborators={event.collaborators}
-            onViewAll={event.collaborators.length > 3 ? () => {} : undefined}
+            onViewAll={
+              event.collaborators.length > 3
+                ? () => scrollRef.current?.scrollTo({ y: artistSectionY, animated: true })
+                : undefined
+            }
             onPressCreator={(creator) => {
               if (creator.type === UserRole.ARTIST) {
                 router.push(`/(app)/artist/${creator.id}`);
@@ -197,7 +206,7 @@ export function EventDetailView({
 
         {/* Performing Artists */}
         {event.collaborators.length > 0 && (
-          <>
+          <View onLayout={(e) => setArtistSectionY(e.nativeEvent.layout.y)}>
             <SectionDivider className="mx-4" />
             <Text className="text-xl font-bold text-white font-urbanist px-4 mb-4">
               Performing Artist
@@ -209,14 +218,18 @@ export function EventDetailView({
               renderItem={({ item }) => (
                 <PerformingArtistCard
                   artist={item}
-                  onPress={() => router.push(`/(app)/artist/${item.id}`)}
+                  // External invitees have no profile to open — render a
+                  // non-tappable card by leaving onPress undefined.
+                  onPress={
+                    item.isExternal ? undefined : () => router.push(`/(app)/artist/${item.id}`)
+                  }
                 />
               )}
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={{ paddingHorizontal: 16, gap: 12 }}
               scrollEnabled={event.collaborators.length > 2}
             />
-          </>
+          </View>
         )}
 
         {/* Location Map */}
@@ -238,9 +251,18 @@ export function EventDetailView({
               <Text className="text-xl font-bold text-white font-urbanist">
                 Explore the collection
               </Text>
-              <Text className="text-xs font-bold text-green-10 tracking-wider uppercase font-urbanist">
-                see all
-              </Text>
+              {event.collectionId ? (
+                <Pressable
+                  onPress={() =>
+                    router.push(`/(app)/(tabs)/discover/collection/${event.collectionId}`)
+                  }
+                  hitSlop={8}
+                >
+                  <Text className="text-xs font-bold text-green-10 tracking-wider uppercase font-urbanist">
+                    see all
+                  </Text>
+                </Pressable>
+              ) : null}
             </View>
             <FlatList
               horizontal

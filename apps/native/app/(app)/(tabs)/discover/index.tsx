@@ -123,7 +123,6 @@ export default function DiscoverScreen() {
     >
       <FeedHeader
         locationText={locationText}
-        onCalendarPress={() => setFilterSheetVisible(true)}
         onFilterPress={() => setFilterSheetVisible(true)}
         onNotificationPress={() => router.push('/notifications')}
       />

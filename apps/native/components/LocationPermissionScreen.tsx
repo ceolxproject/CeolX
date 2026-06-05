@@ -1,5 +1,6 @@
 import * as Location from 'expo-location';
-import { Pressable, Text, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { Linking, Pressable, Text, View } from 'react-native';
 import type { EdgeInsets } from 'react-native-safe-area-context';
 
 import { CeolxLogo } from './CeolxLogo';
@@ -25,8 +26,33 @@ type Props = {
  * "SELECT LOCATION MANUALLY" skips GPS entirely (fallback chain handles it).
  */
 export function LocationPermissionScreen({ onDone, insets }: Props) {
+  // When permission was hard-denied (denied + cannot ask again), the OS will not
+  // show its dialog anymore, so the only way to grant is via Settings. Reflect
+  // that on the CTA so the button doesn't promise something it can't do.
+  const [settingsOnly, setSettingsOnly] = useState(false);
+
+  useEffect(() => {
+    Location.getForegroundPermissionsAsync()
+      .then((p) => setSettingsOnly(p.status === Location.PermissionStatus.DENIED && !p.canAskAgain))
+      .catch(() => {});
+  }, []);
+
   async function handleDetectPress() {
-    await Location.requestForegroundPermissionsAsync();
+    const current = await Location.getForegroundPermissionsAsync();
+
+    if (current.status === Location.PermissionStatus.GRANTED) {
+      await onDone();
+      return;
+    }
+
+    if (current.canAskAgain) {
+      // First ask, or OS still allows a re-prompt → show the native dialog.
+      await Location.requestForegroundPermissionsAsync();
+    } else {
+      // Hard-denied → the OS won't prompt again; Settings is the only path.
+      await Linking.openSettings();
+    }
+
     await onDone();
   }
 
@@ -48,16 +74,18 @@ export function LocationPermissionScreen({ onDone, insets }: Props) {
 
         {/* Subtitle */}
         <Text className="text-[#dadada] text-base text-center leading-5 mb-10 w-full">
-          Set your location to start exploring events, artists and venues around you!
+          {settingsOnly
+            ? 'Location access is turned off. Enable it in Settings to detect your location — or pick it manually below.'
+            : 'Set your location to start exploring events, artists and venues around you!'}
         </Text>
 
-        {/* DETECT MY LOCATION pill button */}
+        {/* DETECT MY LOCATION / OPEN SETTINGS pill button */}
         <Pressable
           onPress={handleDetectPress}
           className="bg-[#6155F5] h-14 rounded-full items-center justify-center w-full mb-6"
         >
           <Text className="text-white text-base font-semibold tracking-widest uppercase">
-            Detect my location
+            {settingsOnly ? 'Open settings' : 'Detect my location'}
           </Text>
         </Pressable>
 

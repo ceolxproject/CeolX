@@ -14,6 +14,7 @@ import type { VenueLinks } from '@/components/onboarding/VenueLinksSection';
 import { useAuth } from '@/contexts/auth-context';
 import { useMediaUpload } from '@/hooks/use-media-upload';
 import { useOnboardingDraft } from '@/hooks/use-onboarding-draft';
+import { computeStepErrors } from '@/lib/onboarding-validation';
 import { pickSquarePhoto, requestPhotoLibraryPermission } from '@/utils/image-picker';
 import { normalizeOptionalUrl } from '@/utils/normalize-url';
 import { trpc, type RouterOutputs } from '@/utils/trpc';
@@ -158,26 +159,27 @@ export function useVenueOnboarding(): UseVenueOnboardingReturn {
     return { venueLinks: normalizedVenueLinks() };
   };
 
-  const validateStep = (step: Step, currentTouched: Set<string> = touched): boolean => {
+  const validateStep = (
+    step: Step,
+    currentTouched: Set<string> = touched,
+    overrides: Record<string, unknown> = {}
+  ): boolean => {
     const schema =
       step === 1
         ? venueOnboardingStep1Schema
         : step === 2
           ? venueOnboardingStep2Schema
           : venueOnboardingStep3Schema;
-    const result = schema.safeParse(buildStepValues(step));
+    const result = schema.safeParse(buildStepValues(step, overrides));
 
-    setErrors((prev) => {
-      const next = { ...prev };
-      for (const f of FIELDS_BY_STEP[step]) delete next[f];
-      if (!result.success) {
-        for (const issue of result.error.issues) {
-          const field = issue.path.join('.');
-          if (currentTouched.has(field)) next[field] = issue.message;
-        }
-      }
-      return next;
-    });
+    setErrors((prev) =>
+      computeStepErrors({
+        result,
+        stepFields: FIELDS_BY_STEP[step],
+        touched: currentTouched,
+        prevErrors: prev,
+      })
+    );
 
     return result.success;
   };
@@ -245,8 +247,33 @@ export function useVenueOnboarding(): UseVenueOnboardingReturn {
 
   // ── Existing handlers ───────────────────────────────────────────────────
 
+  // Once a field has been touched (e.g. a failed Next surfaced its error),
+  // re-validate it on every change so the error clears the instant the value
+  // becomes valid — not only on the next blur or Next-press. The new value is
+  // passed through to validateStep because setState is batched.
+  const handleVenueNameChange = (value: string) => {
+    setVenueName(value);
+    if (touched.has('venueName')) validateStep(1, touched, { venueName: value });
+  };
+
+  const handleBioChange = (value: string) => {
+    setBio(value);
+    if (touched.has('bio')) validateStep(2, touched, { bio: value || undefined });
+  };
+
   const handleVenueLinkChange = (field: keyof VenueLinks, value: string) => {
-    setVenueLinks((prev) => ({ ...prev, [field]: value }));
+    const nextLinks = { ...venueLinks, [field]: value };
+    setVenueLinks(nextLinks);
+    if (touched.has(`venueLinks.${field}`)) {
+      validateStep(3, touched, {
+        venueLinks: {
+          WEBSITE: nextLinks.WEBSITE || undefined,
+          INSTAGRAM: nextLinks.INSTAGRAM || undefined,
+          FACEBOOK: nextLinks.FACEBOOK || undefined,
+          TWITTER: nextLinks.TWITTER || undefined,
+        },
+      });
+    }
   };
 
   const handlePickImage = async () => {
@@ -354,9 +381,9 @@ export function useVenueOnboarding(): UseVenueOnboardingReturn {
   return {
     // fields
     venueName,
-    setVenueName,
+    setVenueName: handleVenueNameChange,
     bio,
-    setBio,
+    setBio: handleBioChange,
     BIO_MAX,
     address,
     lat,
