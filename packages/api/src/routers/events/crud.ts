@@ -79,6 +79,26 @@ export function isConfirmedPerformer(
   return collaborator.bookingId === null || acceptedBookingIds.has(collaborator.bookingId);
 }
 
+/**
+ * An *external invitee* is an outside-platform performer added by name/email:
+ * `artistProfileId` is null (no account), `venueProfileId` is null (not a venue
+ * participant row), and an `invitedName` was supplied. These can't accept an
+ * invite in-app, so we surface them as confirmed-looking, **non-tappable** cards
+ * (placeholder image, no /artist/:id link). Excludes venue-participant rows,
+ * which are also account-less but carry a `venueProfileId`.
+ */
+export function isExternalInvitee(collaborator: {
+  artistProfileId: string | null;
+  venueProfileId: string | null;
+  invitedName: string | null;
+}): boolean {
+  return (
+    collaborator.artistProfileId === null &&
+    collaborator.venueProfileId === null &&
+    collaborator.invitedName !== null
+  );
+}
+
 export const byId = publicProcedure
   .input(z.object({ id: z.string().uuid() }))
   .query(async ({ input, ctx }) => {
@@ -223,12 +243,13 @@ export const byId = publicProcedure
 
     const acceptedBookingIds = new Set(acceptedBookings.map((b) => b.id));
 
-    // Only confirmed performers reach the UI: accepted bookings + legacy
-    // auto-confirmed direct-adds. Excludes pending invites, external email
-    // invites, and venue-participant rows. (Asana — event detail showed
-    // "Invited Artist" cards that broke navigation.)
-    const confirmedCollaborators = event.collaborators.filter((c) =>
-      isConfirmedPerformer(c, acceptedBookingIds)
+    // Rows the UI may show: confirmed performers (accepted bookings + legacy
+    // auto-confirmed direct-adds) and outside-platform invitees (shown as
+    // non-tappable name cards). Excludes pending platform invites and
+    // venue-participant rows. (Asana — event detail showed broken "Invited
+    // Artist" cards that navigated nowhere.)
+    const displayCollaborators = event.collaborators.filter(
+      (c) => isConfirmedPerformer(c, acceptedBookingIds) || isExternalInvitee(c)
     );
 
     return {
@@ -262,11 +283,23 @@ export const byId = publicProcedure
         imageUrl: event.creator?.image ?? null,
         type: creatorArtistProfile ? UserRole.ARTIST : UserRole.VENUE,
       },
-      // Confirmed performers only. Every row here has an artistProfileId (the
-      // artist's user id) — external/venue/pending rows were filtered out above —
-      // so `id` is always a valid /artist/:id navigation target.
-      collaborators: confirmedCollaborators.map((c) => {
-        const artistUserId = c.artistProfileId as string;
+      // Confirmed performers + external invitees. Platform rows carry the
+      // artist's user id as `id` (a valid /artist/:id target); external rows
+      // carry the collaborator row id and `isExternal: true` so the client
+      // renders a non-tappable placeholder card.
+      collaborators: displayCollaborators.map((c) => {
+        if (!c.artistProfileId) {
+          // Outside-platform invitee — name only, no account/profile to link to.
+          return {
+            id: c.id,
+            stageName: c.invitedName ?? 'Invited Artist',
+            genre: null,
+            profileImageUrl: null,
+            eventCount: 0,
+            isExternal: true,
+          };
+        }
+        const artistUserId = c.artistProfileId;
         const profile = profileByUserId.get(artistUserId);
         return {
           id: artistUserId,

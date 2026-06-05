@@ -16,7 +16,7 @@ vi.mock('../services/event-sync', () => ({
   removeEventFromTypesense: vi.fn(),
 }));
 
-import { isConfirmedPerformer } from '../routers/events/crud';
+import { isConfirmedPerformer, isExternalInvitee } from '../routers/events/crud';
 
 const ACCEPTED = new Set(['booking-accepted']);
 
@@ -46,6 +46,32 @@ describe('isConfirmedPerformer', () => {
   it('hides a venue-participant row (no artistProfileId, has booking)', () => {
     expect(
       isConfirmedPerformer({ artistProfileId: null, bookingId: 'booking-accepted' }, ACCEPTED)
+    ).toBe(false);
+  });
+});
+
+describe('isExternalInvitee', () => {
+  it('counts an outside-platform invitee (name, no account, no venue)', () => {
+    expect(
+      isExternalInvitee({ artistProfileId: null, venueProfileId: null, invitedName: 'The Dubs' })
+    ).toBe(true);
+  });
+
+  it('excludes a platform artist (has artistProfileId)', () => {
+    expect(
+      isExternalInvitee({ artistProfileId: 'user-1', venueProfileId: null, invitedName: null })
+    ).toBe(false);
+  });
+
+  it('excludes a venue-participant row (has venueProfileId)', () => {
+    expect(
+      isExternalInvitee({ artistProfileId: null, venueProfileId: 'venue-1', invitedName: null })
+    ).toBe(false);
+  });
+
+  it('excludes a row with no name (nothing to display)', () => {
+    expect(
+      isExternalInvitee({ artistProfileId: null, venueProfileId: null, invitedName: null })
     ).toBe(false);
   });
 });

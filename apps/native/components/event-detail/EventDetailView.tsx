@@ -218,7 +218,11 @@ export function EventDetailView({
               renderItem={({ item }) => (
                 <PerformingArtistCard
                   artist={item}
-                  onPress={() => router.push(`/(app)/artist/${item.id}`)}
+                  // External invitees have no profile to open — render a
+                  // non-tappable card by leaving onPress undefined.
+                  onPress={
+                    item.isExternal ? undefined : () => router.push(`/(app)/artist/${item.id}`)
+                  }
                 />
               )}
               showsHorizontalScrollIndicator={false}

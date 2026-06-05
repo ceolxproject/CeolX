@@ -23,6 +23,10 @@ export function HostArtistInfoBox({
 }: HostArtistInfoBoxProps) {
   const displayedCollaborators = collaborators.slice(0, 3);
   const remainingCount = collaborators.length - displayedCollaborators.length;
+  // The summary row links to the first artist — but external invitees have no
+  // profile, so the row is non-tappable when the lead artist is external.
+  const leadArtist = displayedCollaborators[0];
+  const leadIsTappable = !!leadArtist && !leadArtist.isExternal;
 
   return (
     <View
@@ -55,9 +59,8 @@ export function HostArtistInfoBox({
           <Text className="text-sm font-bold text-white font-sans w-[52px]">Artist</Text>
           <Pressable
             className="flex-row items-center gap-1 flex-1 active:opacity-70"
-            onPress={() =>
-              displayedCollaborators[0] && onPressArtist?.(displayedCollaborators[0].id)
-            }
+            onPress={leadIsTappable ? () => onPressArtist?.(leadArtist.id) : undefined}
+            disabled={!leadIsTappable}
             hitSlop={4}
           >
             {/* Stacked avatars */}
