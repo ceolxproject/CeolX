@@ -8,13 +8,7 @@ import type { Region } from 'react-native-maps';
 import { PROVIDER_GOOGLE } from 'react-native-maps';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import {
-  DATE_RANGE_LABELS,
-  DATE_RANGE_OPTIONS,
-  EVENT_CATEGORIES,
-  IRISH_COUNTIES,
-  filterValidMapEvents,
-} from '@CeolX/shared';
+import { EVENT_CATEGORIES, IRISH_COUNTIES, filterValidMapEvents } from '@CeolX/shared';
 
 import { CountySuggestionsDropdown } from '@/components/CountySuggestionsDropdown';
 import { EventPreviewCard } from '@/components/EventPreviewCard';
@@ -38,7 +32,6 @@ import { useMapEvents } from '@/hooks/use-map-events';
 import { usePanelAnimation } from '@/hooks/use-panel-animation';
 
 const MAP_FILTER_SECTIONS: FilterSection[] = [
-  { key: 'dateRange', label: 'When', options: DATE_RANGE_OPTIONS, labels: DATE_RANGE_LABELS },
   { key: 'category', label: 'Category', options: EVENT_CATEGORIES },
   { key: 'county', label: 'County', options: IRISH_COUNTIES },
 ];

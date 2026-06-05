@@ -2,7 +2,7 @@ import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-quer
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Region } from 'react-native-maps';
 
-import type { BoundingBox, DateRangeOption } from '@CeolX/shared';
+import type { BoundingBox } from '@CeolX/shared';
 import {
   MAP_DEBOUNCE_MS,
   MAP_EXPAND_RADIUS_KM,
@@ -15,7 +15,6 @@ import { trpc } from '@/utils/trpc';
 export type MapFilters = {
   category?: string;
   county?: string;
-  dateRange?: DateRangeOption;
 };
 
 // Ireland-wide bbox as initial/fallback (covers all of Ireland)
@@ -101,7 +100,6 @@ export function useMapEvents(opts?: UseMapEventsOpts) {
     ...(searchQuery.trim() ? { query: searchQuery.trim() } : {}),
     ...(filters.category ? { category: filters.category } : {}),
     ...(filters.county ? { county: filters.county } : {}),
-    ...(filters.dateRange ? { dateRange: filters.dateRange } : {}),
   };
 
   const queryOptions = trpc.events.getMap.queryOptions(queryInput);
@@ -184,8 +182,7 @@ export function useMapEvents(opts?: UseMapEventsOpts) {
     }, MAP_DEBOUNCE_MS);
   }, []);
 
-  const activeFilterCount =
-    (filters.category ? 1 : 0) + (filters.county ? 1 : 0) + (filters.dateRange ? 1 : 0);
+  const activeFilterCount = (filters.category ? 1 : 0) + (filters.county ? 1 : 0);
 
   // Use expanded events if primary is empty and expansion found results
   const events = primaryEvents.length > 0 ? primaryEvents : (expandedEvents ?? primaryEvents);
