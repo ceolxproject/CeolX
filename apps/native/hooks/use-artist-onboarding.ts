@@ -17,6 +17,7 @@ import { useMediaUpload } from '@/hooks/use-media-upload';
 import { useOnboardingDraft } from '@/hooks/use-onboarding-draft';
 import { computeStepErrors } from '@/lib/onboarding-validation';
 import { pickSquarePhoto, requestPhotoLibraryPermission } from '@/utils/image-picker';
+import { normalizeOptionalUrl } from '@/utils/normalize-url';
 import { trpc, type RouterOutputs } from '@/utils/trpc';
 import { getTRPCErrorCode, getTRPCErrorMessage } from '@/utils/trpc-error';
 
@@ -95,21 +96,20 @@ export function useArtistOnboarding() {
 
   // ── Step navigation ─────────────────────────────────────────────────────
 
-  // `overrides` carries a just-changed value so validation runs against it
-  // immediately: React batches state, so reading `stageName` etc. right after
-  // its setter would still see the previous value.
-  const buildStepValues = (step: Step, overrides: Record<string, unknown> = {}) => {
-    if (step === 1) return { stageName, contactEmail: contactEmail || undefined, ...overrides };
-    if (step === 2) return { bio: bio || undefined, ...overrides };
-    return {
-      socialLinks: {
-        INSTAGRAM: socialLinks.INSTAGRAM || undefined,
-        FACEBOOK: socialLinks.FACEBOOK || undefined,
-        TIKTOK: socialLinks.TIKTOK || undefined,
-        YOUTUBE: socialLinks.YOUTUBE || undefined,
-      },
-      ...overrides,
-    };
+  // Normalize bare domains (e.g. `instagram.com/me`) to `https://…` before
+  // validating, so users aren't forced to type the scheme. Empty fields become
+  // undefined (omitted). Mirrors the edit-profile screen's submit boundary.
+  const normalizedSocialLinks = () => ({
+    INSTAGRAM: normalizeOptionalUrl(socialLinks.INSTAGRAM),
+    FACEBOOK: normalizeOptionalUrl(socialLinks.FACEBOOK),
+    TIKTOK: normalizeOptionalUrl(socialLinks.TIKTOK),
+    YOUTUBE: normalizeOptionalUrl(socialLinks.YOUTUBE),
+  });
+
+  const buildStepValues = (step: Step) => {
+    if (step === 1) return { stageName, contactEmail: contactEmail || undefined };
+    if (step === 2) return { bio: bio || undefined };
+    return { socialLinks: normalizedSocialLinks() };
   };
 
   // Pass an explicit `currentTouched` Set when the caller has just computed a
@@ -254,12 +254,7 @@ export function useArtistOnboarding() {
       stageName,
       bio: bio || undefined,
       contactEmail: contactEmail || undefined,
-      socialLinks: {
-        INSTAGRAM: socialLinks.INSTAGRAM || undefined,
-        FACEBOOK: socialLinks.FACEBOOK || undefined,
-        TIKTOK: socialLinks.TIKTOK || undefined,
-        YOUTUBE: socialLinks.YOUTUBE || undefined,
-      },
+      socialLinks: normalizedSocialLinks(),
       profileImageUrl,
     });
 

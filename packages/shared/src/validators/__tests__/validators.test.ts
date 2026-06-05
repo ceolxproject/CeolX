@@ -349,6 +349,87 @@ describe('createArtistOnboardingSchema', () => {
     ).toBe(false);
   });
 
+  // The mobile clients prepend https:// to bare input, so single-word junk
+  // arrives here as `https://dhjdjddk` — a syntactically valid URL whose host
+  // is not a real domain. The domain refinement must reject it.
+  it('rejects a schemed URL whose host is not a real domain', () => {
+    for (const bad of ['https://dhjdjddk', 'https://xyz', 'https://localhost']) {
+      expect(
+        createArtistOnboardingSchema.safeParse({
+          stageName: 'Seán',
+          socialLinks: { INSTAGRAM: bad },
+        }).success
+      ).toBe(false);
+    }
+  });
+
+  it('accepts Instagram hosts (incl. www and instagr.am) in the INSTAGRAM field', () => {
+    for (const ok of [
+      'https://instagram.com/me',
+      'https://www.instagram.com/me',
+      'https://instagr.am/me',
+    ]) {
+      expect(
+        createArtistOnboardingSchema.safeParse({
+          stageName: 'Seán',
+          socialLinks: { INSTAGRAM: ok },
+        }).success
+      ).toBe(true);
+    }
+  });
+
+  it('rejects a non-Instagram domain in the INSTAGRAM field', () => {
+    for (const wrong of ['https://facebook.com/me', 'https://myband.ie', 'https://youtu.be/x']) {
+      expect(
+        createArtistOnboardingSchema.safeParse({
+          stageName: 'Seán',
+          socialLinks: { INSTAGRAM: wrong },
+        }).success
+      ).toBe(false);
+    }
+  });
+
+  it('enforces the matching platform per artist field', () => {
+    expect(
+      createArtistOnboardingSchema.safeParse({
+        stageName: 'Seán',
+        socialLinks: {
+          INSTAGRAM: 'https://instagram.com/x',
+          FACEBOOK: 'https://fb.me/x',
+          TIKTOK: 'https://tiktok.com/@x',
+          YOUTUBE: 'https://youtu.be/x',
+        },
+      }).success
+    ).toBe(true);
+
+    // Twitter link in the Facebook slot is rejected.
+    expect(
+      createArtistOnboardingSchema.safeParse({
+        stageName: 'Seán',
+        socialLinks: { FACEBOOK: 'https://x.com/x' },
+      }).success
+    ).toBe(false);
+  });
+
+  it('accepts x.com and twitter.com in the venue TWITTER field, rejects others', () => {
+    for (const ok of ['https://x.com/v', 'https://twitter.com/v']) {
+      expect(venueOnboardingStep3Schema.safeParse({ venueLinks: { TWITTER: ok } }).success).toBe(
+        true
+      );
+    }
+    expect(
+      venueOnboardingStep3Schema.safeParse({ venueLinks: { TWITTER: 'https://instagram.com/v' } })
+        .success
+    ).toBe(false);
+  });
+
+  it('accepts any real domain in the venue WEBSITE field', () => {
+    expect(
+      venueOnboardingStep3Schema.safeParse({ venueLinks: { WEBSITE: 'https://thecobblestone.ie' } })
+        .success
+    ).toBe(true);
+  });
+
   it('accepts empty string in socialLinks to clear a field', () => {
     expect(
       createArtistOnboardingSchema.safeParse({

@@ -5,7 +5,6 @@ import {
   ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
-  Platform,
   Pressable,
   Text,
   View,
@@ -146,10 +145,7 @@ function EditEventForm({ event, eventId }: { event: LoadedEvent; eventId: string
       {/* See create.tsx for why this KeyboardAvoidingView matters — the search
           inputs inside Collaborator/InviteArtist pickers otherwise lose their
           dropdown results behind the keyboard. */}
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={{ flex: 1, marginTop: 8 }}
-      >
+      <KeyboardAvoidingView behavior="padding" style={{ flex: 1, marginTop: 8 }}>
         {form.currentStep === 1 && (
           <BasicDetailsStep
             title={form.title}
