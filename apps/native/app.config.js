@@ -60,7 +60,10 @@ export default (_) => ({
   android: {
     adaptiveIcon: {
       foregroundImage: './assets/images/android-icon-foreground.png',
-      backgroundImage: './assets/images/android-icon-background.png',
+      // Solid brand purple behind the logo. A flat color (vs a background PNG)
+      // can't drift out of registration with the foreground and is what the
+      // app-icon design in Figma specifies (#662FFE).
+      backgroundColor: '#662FFE',
       monochromeImage: './assets/images/android-icon-monochrome.png',
     },
     package: IS_STAGING ? STAGING_BUNDLE_ID : PROD_BUNDLE_ID,
