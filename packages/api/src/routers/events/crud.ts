@@ -99,6 +99,30 @@ export function isExternalInvitee(collaborator: {
   );
 }
 
+/**
+ * The outside-platform invitees of an event, shaped for the edit form's
+ * `unregisteredCollaborators` field. Uses the same `isExternalInvitee`
+ * definition as the display list, so only genuine name/email invites qualify.
+ *
+ * This deliberately excludes account-less *venue-participant* rows (which carry
+ * a `venueProfileId` and no `invitedName`). The previous loose
+ * `!c.artistProfileId` filter let those through as `{ name: '', email: '' }`,
+ * which the edit form then re-submitted — failing the create/edit schema's
+ * `name.min(1)` rule with "Too small expected string to have >=1".
+ */
+export function toUnregisteredCollaborators(
+  collaborators: Array<{
+    artistProfileId: string | null;
+    venueProfileId: string | null;
+    invitedName: string | null;
+    invitedEmail: string | null;
+  }>
+): Array<{ name: string; email: string }> {
+  return collaborators
+    .filter(isExternalInvitee)
+    .map((c) => ({ name: c.invitedName ?? '', email: c.invitedEmail ?? '' }));
+}
+
 export const byId = publicProcedure
   .input(z.object({ id: z.string().uuid() }))
   .query(async ({ input, ctx }) => {
@@ -317,9 +341,7 @@ export const byId = publicProcedure
           isExternal: false,
         };
       }),
-      unregisteredCollaborators: event.collaborators
-        .filter((c) => !c.artistProfileId)
-        .map((c) => ({ name: c.invitedName ?? '', email: c.invitedEmail ?? '' })),
+      unregisteredCollaborators: toUnregisteredCollaborators(event.collaborators),
       collection: event.collection
         ? { id: event.collection.id, name: event.collection.name }
         : null,
