@@ -6,6 +6,7 @@ import type { EventCategory } from '@CeolX/shared';
 
 import { CategoryPicker } from './CategoryPicker';
 import { CollectionPicker } from './CollectionPicker';
+import { FieldLabel } from './FieldLabel';
 import { InviteArtistPicker } from './InviteArtistPicker';
 
 type Props = {
@@ -66,7 +67,10 @@ export function BasicDetailsStep({
     >
       {/* ── Event Title ── */}
       <View className="gap-2">
-        <Text className="text-sm font-semibold text-gray-3 font-urbanist">Event Title</Text>
+        <FieldLabel
+          label="Event Title"
+          hint="The name of your event as it appears on the map, feed and event page. Keep it short and descriptive."
+        />
         <TextInput
           className={cn(
             'rounded-lg border bg-surface px-4 py-3 text-sm text-white font-urbanist',
@@ -84,7 +88,10 @@ export function BasicDetailsStep({
 
       {/* ── Event Banner / Image ── */}
       <View className="gap-2">
-        <Text className="text-sm font-semibold text-gray-3 font-urbanist">Event Banner/Image</Text>
+        <FieldLabel
+          label="Event Banner/Image"
+          hint="The cover image shown on your event card and detail page. PNG or JPEG, max 100kb."
+        />
         <Pressable onPress={onPickImage}>
           {coverImageUri ? (
             <View className="h-44 rounded-xl overflow-hidden">
@@ -135,7 +142,10 @@ export function BasicDetailsStep({
       {/* ── Event Description ── */}
       <View className="gap-2">
         <View className="flex-row items-center justify-between">
-          <Text className="text-sm font-semibold text-gray-3 font-urbanist">Event Description</Text>
+          <FieldLabel
+            label="Event Description"
+            hint="Tell fans what to expect — the acts, the vibe, and any details they should know before they go."
+          />
           <Text className="text-xs text-gray-7 font-urbanist">
             {description.length}/{MAX_DESCRIPTION_LENGTH}
           </Text>
@@ -165,7 +175,10 @@ export function BasicDetailsStep({
 
       {/* ── Category ── */}
       <View className="gap-2">
-        <Text className="text-sm font-semibold text-gray-3 font-urbanist">Category</Text>
+        <FieldLabel
+          label="Category"
+          hint="Pick the type of event so the right audience can discover it when filtering the map and feed."
+        />
         <CategoryPicker value={category} onChange={onCategoryChange} error={errors.category} />
       </View>
 

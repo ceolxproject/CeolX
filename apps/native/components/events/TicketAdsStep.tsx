@@ -1,6 +1,8 @@
 import { cn } from 'heroui-native';
 import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 
+import { FieldLabel } from './FieldLabel';
+
 type Props = {
   ticketPrice: string;
   onTicketPriceChange: (v: string) => void;
@@ -45,7 +47,10 @@ export function TicketAdsStep({
     >
       {/* ── Ticket Price ── */}
       <View className="gap-1.5">
-        <Text className="text-sm font-medium text-gray-3">Ticket Price</Text>
+        <FieldLabel
+          label="Ticket Price"
+          hint="Entry price per ticket in euro. Leave blank or 0 if your event is free."
+        />
         <View
           className={cn(
             'flex-row items-center rounded-lg border bg-surface px-3 py-2.5',
@@ -67,7 +72,10 @@ export function TicketAdsStep({
 
       {/* ── Ticket Link ── */}
       <View className="gap-1.5">
-        <Text className="text-sm font-medium text-gray-3">Ticket Link</Text>
+        <FieldLabel
+          label="Ticket Link"
+          hint="External link where fans buy tickets. It opens in an in-app browser from your event page."
+        />
         <View
           className={cn(
             'rounded-lg border bg-surface px-3 py-2.5',
@@ -91,7 +99,10 @@ export function TicketAdsStep({
       {isVenue && (
         <>
           <View className="gap-1.5">
-            <Text className="text-sm font-medium text-gray-3">Ad Title (optional)</Text>
+            <FieldLabel
+              label="Ad Title (optional)"
+              hint="Headline for a promotional pop-up shown to people within 5–15 km of your event."
+            />
             <View
               className={cn(
                 'rounded-lg border bg-surface px-3 py-2.5',
@@ -113,7 +124,10 @@ export function TicketAdsStep({
           </View>
 
           <View className="gap-1.5">
-            <Text className="text-sm font-medium text-gray-3">Ad Description (optional)</Text>
+            <FieldLabel
+              label="Ad Description (optional)"
+              hint="Short detail for your promotional pop-up. Limited to 50 characters."
+            />
             <View
               className={cn(
                 'rounded-lg border bg-surface px-3 py-2.5',
@@ -125,9 +139,12 @@ export function TicketAdsStep({
                 placeholder="Describe your ad"
                 placeholderTextColor="#8d8d8d"
                 value={adDescription}
-                onChangeText={(text) => {
-                  if (text.length <= AD_DESC_MAX) onAdDescriptionChange(text);
-                }}
+                // Enforce the cap natively so it also applies to paste (not just
+                // keystrokes), and slice defensively so an over-long paste can
+                // never reach state and stretch the multiline box / break the
+                // layout. (Asana 1215419517221432)
+                onChangeText={(text) => onAdDescriptionChange(text.slice(0, AD_DESC_MAX))}
+                maxLength={AD_DESC_MAX}
                 multiline
               />
             </View>

@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, Text, View } from 'react-native';
 
 import { CalendarPicker } from '@/components/events/CalendarPicker';
+import { FieldLabel } from '@/components/events/FieldLabel';
 import { TimePickerModal } from '@/components/events/TimePickerModal';
 import { LocationPicker } from '@/components/LocationPicker';
 import { geocodeAddress } from '@/utils/geocode';
@@ -135,7 +136,10 @@ export function DateVenueStep({
       >
         {/* ── Date ── */}
         <View className="gap-1.5">
-          <Text className="text-sm font-semibold text-gray-3 font-urbanist">Date</Text>
+          <FieldLabel
+            label="Date"
+            hint="The day your event takes place. Past dates can't be selected."
+          />
           <CalendarPicker
             value={dateStart}
             onChange={onDateStartChange}
@@ -146,7 +150,10 @@ export function DateVenueStep({
 
         {/* ── Time ── */}
         <View className="gap-1.5">
-          <Text className="text-sm font-semibold text-gray-3 font-urbanist">Time</Text>
+          <FieldLabel
+            label="Time"
+            hint="When the event starts and (optionally) ends. The end time can't be before the start time."
+          />
           <View className="flex-row gap-3">
             {/* Start Time */}
             <View className="flex-1 gap-1">
@@ -195,7 +202,10 @@ export function DateVenueStep({
         {/* ── Venue ── */}
         <View className="gap-1.5">
           <View className="flex-row items-center justify-between">
-            <Text className="text-sm font-semibold text-gray-3 font-urbanist">Choose Venue</Text>
+            <FieldLabel
+              label="Choose Venue"
+              hint="Where the event happens. Pick a registered venue or tap “Enter manually” to drop a pin on the map."
+            />
             <Pressable onPress={onToggleManualAddress}>
               <Text className="text-xs font-bold text-[#C8FF2F] font-urbanist tracking-wide">
                 {showManualAddress ? 'SELECT VENUE' : 'ENTER MANUALLY'}
