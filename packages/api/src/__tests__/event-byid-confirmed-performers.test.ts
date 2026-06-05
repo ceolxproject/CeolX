@@ -16,7 +16,11 @@ vi.mock('../services/event-sync', () => ({
   removeEventFromTypesense: vi.fn(),
 }));
 
-import { isConfirmedPerformer, isExternalInvitee } from '../routers/events/crud';
+import {
+  isConfirmedPerformer,
+  isExternalInvitee,
+  toUnregisteredCollaborators,
+} from '../routers/events/crud';
 
 const ACCEPTED = new Set(['booking-accepted']);
 
@@ -73,5 +77,65 @@ describe('isExternalInvitee', () => {
     expect(
       isExternalInvitee({ artistProfileId: null, venueProfileId: null, invitedName: null })
     ).toBe(false);
+  });
+});
+
+describe('toUnregisteredCollaborators', () => {
+  it('returns name/email for genuine outside-platform invitees', () => {
+    expect(
+      toUnregisteredCollaborators([
+        {
+          artistProfileId: null,
+          venueProfileId: null,
+          invitedName: 'The Dubs',
+          invitedEmail: 'dubs@example.com',
+        },
+      ])
+    ).toEqual([{ name: 'The Dubs', email: 'dubs@example.com' }]);
+  });
+
+  it('excludes account-less venue-participant rows (no invitedName) so no empty entries leak', () => {
+    // A venue-created event inserts a participant row: artistProfileId null,
+    // venueProfileId set, invitedName/invitedEmail null. The loose `!artistProfileId`
+    // filter used to map this to { name: '', email: '' }, which failed the edit
+    // form's `name.min(1)` rule → "Too small expected string to have >=1".
+    expect(
+      toUnregisteredCollaborators([
+        {
+          artistProfileId: null,
+          venueProfileId: 'venue-1',
+          invitedName: null,
+          invitedEmail: null,
+        },
+      ])
+    ).toEqual([]);
+  });
+
+  it('excludes platform artists (have an artistProfileId)', () => {
+    expect(
+      toUnregisteredCollaborators([
+        {
+          artistProfileId: 'user-1',
+          venueProfileId: null,
+          invitedName: null,
+          invitedEmail: null,
+        },
+      ])
+    ).toEqual([]);
+  });
+
+  it('keeps only the external invitees from a mixed row set', () => {
+    expect(
+      toUnregisteredCollaborators([
+        { artistProfileId: 'user-1', venueProfileId: null, invitedName: null, invitedEmail: null },
+        { artistProfileId: null, venueProfileId: 'venue-1', invitedName: null, invitedEmail: null },
+        {
+          artistProfileId: null,
+          venueProfileId: null,
+          invitedName: 'Mary Black',
+          invitedEmail: 'mary@example.com',
+        },
+      ])
+    ).toEqual([{ name: 'Mary Black', email: 'mary@example.com' }]);
   });
 });

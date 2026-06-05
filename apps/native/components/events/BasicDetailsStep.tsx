@@ -95,18 +95,16 @@ export function BasicDetailsStep({
         <Pressable onPress={onPickImage}>
           {coverImageUri ? (
             <View className="h-44 rounded-xl overflow-hidden">
-              {/* Height lives on the wrapper View (uniwind sizes Views reliably).
-                  The image MUST be absolute inset-0, not a plain percentage h-full:
-                  on Android, RN <Image> sized only by height:'100%' lays out a box
-                  but never paints the bitmap (Fresco needs resolved pixel bounds),
-                  so the picked image showed blank on Android while fine on iOS.
-                  inset-0 pins it to the wrapper's resolved frame — same pattern as
-                  EventHeroImage / BaseEventCard. (Asana 1215040939202669) */}
-              <Image
-                source={{ uri: coverImageUri }}
-                className="absolute inset-0 w-full h-full"
-                resizeMode="cover"
-              />
+              {/* The image must be a normal flow child (h-full w-full), NOT
+                  absolute inset-0. On Android, an absolutely-positioned <Image>
+                  contributes nothing to layout, so when it's revealed inside an
+                  already-mounted step (after picking) it attaches before its
+                  frame resolves — Fresco requests a 0-sized bitmap and never
+                  repaints, so the picked image stayed blank until a full remount
+                  (going to step 2 and back). A flow child is measured on
+                  insertion, so Fresco gets real bounds immediately. Same pattern
+                  as the post MediaPickerField preview. (Asana 1215040939202669) */}
+              <Image source={{ uri: coverImageUri }} className="h-full w-full" resizeMode="cover" />
               {/* Tap the image to replace; tap ✕ to clear. Stops propagation so
                   removing doesn't also re-open the picker. */}
               <Pressable
