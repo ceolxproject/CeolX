@@ -23,6 +23,9 @@ type Props = {
   onLocationChange: (lat: number, lng: number) => void;
   venueAddress: string;
   onVenueAddressChange: (v: string) => void;
+  /** The currently selected registered venue's ID (drives the dropdown's
+   *  selected label, so an event being edited shows its venue pre-selected). */
+  venueId?: string;
   /** Called with the selected registered venue's ID (empty string to clear). */
   onVenueIdChange: (id: string) => void;
   /** When true, show map+search instead of the registered venue dropdown. */
@@ -63,6 +66,7 @@ export function DateVenueStep({
   onLocationChange,
   venueAddress,
   onVenueAddressChange,
+  venueId,
   onVenueIdChange,
   showManualAddress,
   onToggleManualAddress,
@@ -83,10 +87,14 @@ export function DateVenueStep({
 
   // Artist venue picker
   const [showVenueDropdown, setShowVenueDropdown] = useState(false);
-  const [selectedVenueName, setSelectedVenueName] = useState('');
   const { data: registeredVenues = [], isLoading: isLoadingVenues } = useQuery(
     trpc.venues.list.queryOptions()
   );
+
+  // Selected venue label is derived from the chosen venueId + the loaded venue
+  // list — not held in separate state — so editing an event with a venue
+  // already set shows it pre-selected once the list resolves.
+  const selectedVenueName = registeredVenues.find((v) => v.id === venueId)?.name ?? '';
 
   const handleUseMyVenue = async () => {
     if (!myVenueAddress) return;
@@ -273,7 +281,6 @@ export function DateVenueStep({
                             className="px-4 py-3 active:bg-white/5 border-b border-gray-8"
                             onPress={() => {
                               setShowVenueDropdown(false);
-                              setSelectedVenueName(v.name);
                               onVenueAddressChange(v.address);
                               onVenueIdChange(v.id);
                               // Use the venue's stored pin directly — no fragile
