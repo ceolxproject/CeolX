@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
-  Platform,
   Pressable,
   ScrollView,
   Text,
@@ -14,6 +13,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { UserRole } from '@CeolX/shared/enums';
+import { isRealDomain, socialLinksSchema, venueLinksSchema } from '@CeolX/shared/validators';
 
 import { appToast } from '@/components/AppToast';
 import { LocationPicker, type PickedLocation } from '@/components/LocationPicker';
@@ -52,6 +52,12 @@ export default function EditProfileScreen() {
   const [originalImageUrl, setOriginalImageUrl] = useState<string | null>(null);
   const [imageTouched, setImageTouched] = useState(false);
   const [imageError, setImageError] = useState<string | null>(null);
+
+  // Per-field URL validation errors, keyed by `socialLinks.<PLATFORM>` and
+  // `websiteUrl` so they line up with the inputs below. Mirrors the inline
+  // errors the onboarding wizard shows; the actual save is still guarded by the
+  // shared schema on the server.
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   // Artist-only fields
   const [genre, setGenre] = useState('');
@@ -140,6 +146,44 @@ export default function EditProfileScreen() {
       appToast.warning('Required', `${isVenue ? 'Venue name' : 'Display name'} is required.`);
       return;
     }
+
+    // Validate the URL fields up front so an invalid link shows inline (and we
+    // don't upload an image only to have the save bounce). Reuses the shared
+    // social-link schema for the rule and messages; the venue Website field is
+    // checked with the same real-domain rule.
+    const fieldErrors: Record<string, string> = {};
+    const linksResult = (isVenue ? venueLinksSchema : socialLinksSchema).safeParse(
+      isVenue
+        ? {
+            WEBSITE: normalizeOptionalUrl(website),
+            INSTAGRAM: normalizeOptionalUrl(instagram),
+            FACEBOOK: normalizeOptionalUrl(facebook),
+            TWITTER: normalizeOptionalUrl(twitter),
+          }
+        : {
+            INSTAGRAM: normalizeOptionalUrl(instagram),
+            FACEBOOK: normalizeOptionalUrl(facebook),
+            TIKTOK: normalizeOptionalUrl(tiktok),
+            YOUTUBE: normalizeOptionalUrl(youtube),
+          }
+    );
+    if (!linksResult.success) {
+      for (const issue of linksResult.error.issues) {
+        fieldErrors[`socialLinks.${issue.path.join('.')}`] = issue.message;
+      }
+    }
+    if (isVenue) {
+      const normalizedWebsite = normalizeOptionalUrl(websiteUrl);
+      if (normalizedWebsite && !isRealDomain(normalizedWebsite)) {
+        fieldErrors.websiteUrl = 'Enter a valid link (e.g. yourvenue.com)';
+      }
+    }
+    if (Object.keys(fieldErrors).length > 0) {
+      setErrors(fieldErrors);
+      appToast.warning('Check your links', 'Please fix the highlighted fields and try again.');
+      return;
+    }
+    setErrors({});
 
     // Resolve the image change first so a failed upload aborts before we write
     // the rest of the profile. undefined => leave unchanged; null => clear;
@@ -233,10 +277,7 @@ export default function EditProfileScreen() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#080808' }}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        className="flex-1"
-      >
+      <KeyboardAvoidingView behavior="padding" className="flex-1">
         {/* Header */}
         <View className="flex-row items-center justify-between px-4 py-3">
           <Pressable onPress={() => router.back()}>
@@ -362,7 +403,7 @@ export default function EditProfileScreen() {
                 Website
               </Text>
               <TextInput
-                className="bg-[#1C1C1E] rounded-lg h-[48px] px-4 text-base font-medium text-white mb-4"
+                className={`bg-[#1C1C1E] rounded-lg h-[48px] px-4 text-base font-medium text-white ${errors.websiteUrl ? 'mb-1' : 'mb-4'}`}
                 placeholder="https://yourvenue.com"
                 placeholderTextColor="#8d8d8d"
                 value={websiteUrl}
@@ -370,6 +411,9 @@ export default function EditProfileScreen() {
                 autoCapitalize="none"
                 keyboardType="url"
               />
+              {errors.websiteUrl ? (
+                <Text className="text-xs text-red-400 mb-4 font-urbanist">{errors.websiteUrl}</Text>
+              ) : null}
 
               <Text className="text-xs font-semibold text-white/60 uppercase tracking-wide mb-1.5 font-urbanist">
                 Phone
@@ -398,24 +442,28 @@ export default function EditProfileScreen() {
                 value={website}
                 onChange={setWebsite}
                 placeholder="https://yourvenue.com"
+                error={errors['socialLinks.WEBSITE']}
               />
               <SocialLinkInput
                 icon="logo-instagram"
                 value={instagram}
                 onChange={setInstagram}
                 placeholder="https://instagram.com/..."
+                error={errors['socialLinks.INSTAGRAM']}
               />
               <SocialLinkInput
                 icon="logo-facebook"
                 value={facebook}
                 onChange={setFacebook}
                 placeholder="https://facebook.com/..."
+                error={errors['socialLinks.FACEBOOK']}
               />
               <SocialLinkInput
                 icon="logo-twitter"
                 value={twitter}
                 onChange={setTwitter}
                 placeholder="https://twitter.com/..."
+                error={errors['socialLinks.TWITTER']}
               />
             </>
           ) : (
@@ -425,24 +473,28 @@ export default function EditProfileScreen() {
                 value={instagram}
                 onChange={setInstagram}
                 placeholder="https://instagram.com/..."
+                error={errors['socialLinks.INSTAGRAM']}
               />
               <SocialLinkInput
                 icon="logo-facebook"
                 value={facebook}
                 onChange={setFacebook}
                 placeholder="https://facebook.com/..."
+                error={errors['socialLinks.FACEBOOK']}
               />
               <SocialLinkInput
                 icon="logo-tiktok"
                 value={tiktok}
                 onChange={setTiktok}
                 placeholder="https://tiktok.com/@..."
+                error={errors['socialLinks.TIKTOK']}
               />
               <SocialLinkInput
                 icon="logo-youtube"
                 value={youtube}
                 onChange={setYoutube}
                 placeholder="https://youtube.com/..."
+                error={errors['socialLinks.YOUTUBE']}
               />
             </>
           )}

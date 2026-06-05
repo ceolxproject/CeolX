@@ -87,6 +87,12 @@ export const feedQuerySchema = z.object({
   category: z.enum(EVENT_CATEGORIES).optional(),
   query: z.string().max(100).optional(),
   dateRange: z.enum(['today', 'this_week', 'this_weekend', 'this_month']).optional(),
+  // A specific calendar day picked from the feed's calendar button (YYYY-MM-DD,
+  // device-local). Takes precedence over dateRange when both are present.
+  date: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, 'date must be YYYY-MM-DD')
+    .optional(),
 });
 
 export type CreateEventInput = z.infer<typeof createEventSchema>;

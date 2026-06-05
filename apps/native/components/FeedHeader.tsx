@@ -7,8 +7,10 @@ import { BellWithBadge } from './notifications/BellWithBadge';
 
 interface FeedHeaderProps {
   locationText?: string;
+  onBookmarkPress?: () => void;
   onNotificationPress?: () => void;
   onLocationPress?: () => void;
+  onCalendarPress?: () => void;
   onFilterPress?: () => void;
   className?: string;
 }
@@ -17,6 +19,7 @@ export function FeedHeader({
   locationText = 'Ireland',
   onNotificationPress,
   onLocationPress,
+  onCalendarPress,
   onFilterPress,
   className,
 }: FeedHeaderProps) {
@@ -25,9 +28,13 @@ export function FeedHeader({
       {/* Row 1: Logo + action icons */}
       <View className="flex-row items-center justify-between">
         <CeolxLogo fontSize={18} letterSpacing={2} />
+
+        <View className="flex-row items-center gap-4">
+          {onNotificationPress && <BellWithBadge onPress={onNotificationPress} />}
+        </View>
       </View>
 
-      {/* Row 2: Location */}
+      {/* Row 2: Location + filter/sort buttons */}
       <View className="flex-row items-center justify-between">
         <Pressable onPress={onLocationPress} className="flex-row items-center gap-1">
           <View className="flex-col">
@@ -39,12 +46,20 @@ export function FeedHeader({
               <Text className="text-[15px] font-medium text-white font-urbanist">
                 {locationText}
               </Text>
+              <Ionicons name="chevron-down" size={12} color="#FFFFFF" />
             </View>
           </View>
         </Pressable>
 
-        {/* Filter sliders + notification bell */}
+        {/* Left: calendar — Right: filter sliders (matches Figma node 1:3349) */}
         <View className="flex-row items-center gap-2">
+          <Pressable
+            onPress={onCalendarPress}
+            hitSlop={8}
+            className="w-10 h-10 rounded-full bg-[#1d1d1d] items-center justify-center"
+          >
+            <Ionicons name="calendar-outline" size={20} color="#FFFFFF" />
+          </Pressable>
           <Pressable
             onPress={onFilterPress}
             hitSlop={8}
@@ -52,7 +67,6 @@ export function FeedHeader({
           >
             <Ionicons name="options-outline" size={20} color="#FFFFFF" />
           </Pressable>
-          {onNotificationPress && <BellWithBadge onPress={onNotificationPress} />}
         </View>
       </View>
     </View>

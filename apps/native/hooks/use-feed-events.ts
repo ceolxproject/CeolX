@@ -19,6 +19,9 @@ export function useFeedEvents({ lat, lng, enabled = true }: UseFeedEventsOpts) {
 
   const [category, setCategory] = useState<EventCategory | undefined>();
   const [dateRange, setDateRange] = useState<FeedQueryInput['dateRange']>(undefined);
+  // A specific calendar day (YYYY-MM-DD) picked from the header's calendar
+  // button. Mutually exclusive with the dateRange presets.
+  const [date, setDate] = useState<FeedQueryInput['date']>(undefined);
   const [searchQuery, setSearchQuery] = useState('');
   const [offset, setOffset] = useState(0);
   const [accumulatedEvents, setAccumulatedEvents] = useState<FeedEvent[]>([]);
@@ -33,6 +36,7 @@ export function useFeedEvents({ lat, lng, enabled = true }: UseFeedEventsOpts) {
     offset,
     category,
     dateRange,
+    date,
     query: searchQuery.trim() || undefined,
   };
 
@@ -97,6 +101,16 @@ export function useFeedEvents({ lat, lng, enabled = true }: UseFeedEventsOpts) {
 
   const onDateRangeChange = useCallback((range: FeedQueryInput['dateRange']) => {
     setDateRange(range);
+    // A preset and a specific day are competing date filters — picking one
+    // clears the other so the feed only ever applies a single date window.
+    if (range) setDate(undefined);
+    setOffset(0);
+    setAccumulatedEvents([]);
+  }, []);
+
+  const onDateChange = useCallback((next: FeedQueryInput['date']) => {
+    setDate(next);
+    if (next) setDateRange(undefined);
     setOffset(0);
     setAccumulatedEvents([]);
   }, []);
@@ -114,6 +128,8 @@ export function useFeedEvents({ lat, lng, enabled = true }: UseFeedEventsOpts) {
     setCategory: onCategoryChange,
     dateRange,
     setDateRange: onDateRangeChange,
+    date,
+    setDate: onDateChange,
     searchQuery,
     onSearch,
   };
