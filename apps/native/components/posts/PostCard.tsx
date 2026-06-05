@@ -32,11 +32,16 @@ type Props = {
   currentUserId: string | null;
   /** Hide the author header row (used on profile Posts tab). */
   hideAuthorHeader?: boolean;
+  /**
+   * Detail-screen mode: render the full caption (no truncation / read-more)
+   * and make the card non-tappable so it can't navigate to itself.
+   */
+  expanded?: boolean;
 };
 
 const CAPTION_PREVIEW_LIMIT = 120;
 
-export function PostCard({ post, currentUserId, hideAuthorHeader }: Props) {
+export function PostCard({ post, currentUserId, hideAuthorHeader, expanded }: Props) {
   const isOwner = currentUserId === post.createdBy;
   const [liked, setLiked] = useState(post.likedByMe);
   const [likeCount, setLikeCount] = useState(post.likeCount ?? 0);
@@ -69,16 +74,14 @@ export function PostCard({ post, currentUserId, hideAuthorHeader }: Props) {
     router.push({ pathname: '/(app)/post/[postId]', params: { postId: post.id } });
   };
 
-  const truncated =
-    post.caption.length > CAPTION_PREVIEW_LIMIT
-      ? post.caption.slice(0, CAPTION_PREVIEW_LIMIT) + '…'
-      : post.caption;
-
-  const showReadMore = post.caption.length > CAPTION_PREVIEW_LIMIT;
+  // In expanded (detail) mode show the whole caption; in preview mode truncate
+  // and offer a read-more affordance that opens the detail screen.
+  const showReadMore = !expanded && post.caption.length > CAPTION_PREVIEW_LIMIT;
+  const caption = showReadMore ? post.caption.slice(0, CAPTION_PREVIEW_LIMIT) + '…' : post.caption;
 
   return (
     <Pressable
-      onPress={openDetail}
+      onPress={expanded ? undefined : openDetail}
       className="mb-4 rounded-2xl border border-white/10 bg-[#2a2a2a] p-4"
     >
       {/* Author header */}
@@ -135,7 +138,7 @@ export function PostCard({ post, currentUserId, hideAuthorHeader }: Props) {
         {!hideAuthorHeader && (
           <Text className="font-bold text-white">{post.author.displayName} </Text>
         )}
-        <Text className="font-light">{truncated}</Text>
+        <Text className="font-light">{caption}</Text>
         {showReadMore && <Text className="font-medium text-[#6155F5]"> …read more</Text>}
       </Text>
     </Pressable>
