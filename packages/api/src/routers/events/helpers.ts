@@ -73,12 +73,29 @@ export const MapQueryInput = z.object({
 
 /**
  * Builds a Typesense date_start filter string.
- * When no dateRange is given, returns everything from now onwards.
+ *
+ * Precedence:
+ *   1. `specificDate` (YYYY-MM-DD) — a single calendar day picked from the
+ *      feed's calendar button. Overrides `dateRange` when both are present.
+ *   2. `dateRange` — one of the named presets.
+ *   3. Neither — everything from now onwards.
  */
 export function buildDateFilter(
   dateRange: 'today' | 'this_week' | 'this_weekend' | 'this_month' | undefined,
-  nowUnix: number
+  nowUnix: number,
+  specificDate?: string
 ): string {
+  if (specificDate) {
+    // A single picked day, built server-local like the presets above so the
+    // boundary behaviour stays uniform across both date filters.
+    const [year, month, day] = specificDate.split('-').map(Number);
+    const rangeStart = new Date(year, month - 1, day);
+    const rangeEnd = new Date(year, month - 1, day + 1);
+    const startUnix = Math.max(Math.floor(rangeStart.getTime() / 1000), nowUnix);
+    const endUnix = Math.floor(rangeEnd.getTime() / 1000);
+    return ` && date_start:>=${startUnix} && date_start:<${endUnix}`;
+  }
+
   if (!dateRange) return ` && date_start:>=${nowUnix}`;
 
   const now = new Date();

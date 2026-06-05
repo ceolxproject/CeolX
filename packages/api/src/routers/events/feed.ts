@@ -13,13 +13,13 @@ import { typesenseClient } from '../../lib/typesense';
 import { buildDateFilter } from './helpers';
 
 export const getFeed = publicProcedure.input(feedQuerySchema).query(async ({ input, ctx }) => {
-  const { lat, lng, limit, offset, category, query, dateRange } = input;
+  const { lat, lng, limit, offset, category, query, dateRange, date } = input;
   const userId = ctx.session?.user?.id ?? null;
   const nowUnix = Math.floor(Date.now() / 1000);
 
   const categoryFilter = category ? ` && category:=${category}` : '';
   const searchQuery = query?.trim() || '*';
-  const dateFilter = buildDateFilter(dateRange, nowUnix);
+  const dateFilter = buildDateFilter(dateRange, nowUnix, date);
 
   try {
     const [typesenseResult, followedIds, savedEventIds] = await Promise.all([
