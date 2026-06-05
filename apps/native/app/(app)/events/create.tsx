@@ -110,6 +110,7 @@ export default function CreateEventScreen() {
             }}
             venueAddress={form.venueAddress}
             onVenueAddressChange={form.setVenueAddress}
+            venueId={form.venueId}
             onVenueIdChange={form.setVenueId}
             showManualAddress={showManualAddress}
             onToggleManualAddress={() => setShowManualAddress(!showManualAddress)}
