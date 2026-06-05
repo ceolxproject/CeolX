@@ -15,6 +15,7 @@ import { useAuth } from '@/contexts/auth-context';
 import { useMediaUpload } from '@/hooks/use-media-upload';
 import { useOnboardingDraft } from '@/hooks/use-onboarding-draft';
 import { pickSquarePhoto, requestPhotoLibraryPermission } from '@/utils/image-picker';
+import { normalizeOptionalUrl } from '@/utils/normalize-url';
 import { trpc, type RouterOutputs } from '@/utils/trpc';
 import { getTRPCErrorCode, getTRPCErrorMessage } from '@/utils/trpc-error';
 
@@ -140,18 +141,21 @@ export function useVenueOnboarding(): UseVenueOnboardingReturn {
 
   // ── Step navigation ─────────────────────────────────────────────────────
 
+  // Normalize bare domains (e.g. `instagram.com/me`) to `https://…` before
+  // validating, so users aren't forced to type the scheme. Empty fields become
+  // undefined (omitted). Mirrors the edit-profile screen's submit boundary.
+  const normalizedVenueLinks = () => ({
+    WEBSITE: normalizeOptionalUrl(venueLinks.WEBSITE),
+    INSTAGRAM: normalizeOptionalUrl(venueLinks.INSTAGRAM),
+    FACEBOOK: normalizeOptionalUrl(venueLinks.FACEBOOK),
+    TWITTER: normalizeOptionalUrl(venueLinks.TWITTER),
+  });
+
   const buildStepValues = (step: Step) => {
     if (step === 1) return { venueName, contactEmail: contactEmail || undefined };
     if (step === 2)
       return { address, lat: lat ?? undefined, lng: lng ?? undefined, bio: bio || undefined };
-    return {
-      venueLinks: {
-        WEBSITE: venueLinks.WEBSITE || undefined,
-        INSTAGRAM: venueLinks.INSTAGRAM || undefined,
-        FACEBOOK: venueLinks.FACEBOOK || undefined,
-        TWITTER: venueLinks.TWITTER || undefined,
-      },
-    };
+    return { venueLinks: normalizedVenueLinks() };
   };
 
   const validateStep = (step: Step, currentTouched: Set<string> = touched): boolean => {
@@ -295,12 +299,7 @@ export function useVenueOnboarding(): UseVenueOnboardingReturn {
       lng: lng ?? undefined,
       bio: bio || undefined,
       contactEmail: contactEmail || undefined,
-      venueLinks: {
-        WEBSITE: venueLinks.WEBSITE || undefined,
-        INSTAGRAM: venueLinks.INSTAGRAM || undefined,
-        FACEBOOK: venueLinks.FACEBOOK || undefined,
-        TWITTER: venueLinks.TWITTER || undefined,
-      },
+      venueLinks: normalizedVenueLinks(),
       profileImageUrl,
     });
 
