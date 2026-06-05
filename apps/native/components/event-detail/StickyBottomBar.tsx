@@ -5,6 +5,12 @@ import { ActivityIndicator, Alert, Pressable, Text, View } from 'react-native';
 import { useTrackTicketClick } from '@/hooks/use-track-ticket-click';
 import { normalizeOptionalUrl } from '@/utils/normalize-url';
 
+// Shared label style for both CTAs. 11px (down from 12px) with tighter tracking
+// — matches the design's 0.24px letter-spacing and lets "Request to Perform"
+// fit on one line. `adjustsFontSizeToFit` at the call sites is the safety net
+// for the longest labels (e.g. "Book Ticket FOR €1299").
+const ctaLabelClass = 'text-[11px] font-bold text-white font-urbanist tracking-wide uppercase';
+
 interface StickyBottomBarProps {
   eventId: string;
   ticketPrice?: number | null;
@@ -85,22 +91,10 @@ export function StickyBottomBar({
         elevation: 12,
       }}
     >
-      <View className="flex-row items-center gap-3">
-        {/* Book Ticket — purple filled. Only shown when there's a link to open. */}
-        {showBookTicket && (
-          <Pressable
-            onPress={handleBookTicket}
-            className="flex-1 items-center justify-center rounded-full py-3 bg-blue-10 active:opacity-80"
-          >
-            <Text
-              className="text-xs font-bold text-white font-urbanist tracking-widest uppercase"
-              numberOfLines={1}
-            >
-              {ticketLabel}
-            </Text>
-          </Pressable>
-        )}
-
+      {/* Design order (Figma 1:5459): the outlined "Request to perform" sits
+          first/left, the filled "Book Ticket" second/right. 8px gap matches the
+          design and gives the two CTAs room to breathe. */}
+      <View className="flex-row items-center gap-2">
         {/* Request to Perform — outlined, artists on venue events only */}
         {showRequestToPerform && (
           <Pressable
@@ -114,10 +108,7 @@ export function StickyBottomBar({
             {isRequesting ? (
               <ActivityIndicator size="small" color="#fff" />
             ) : (
-              <Text
-                className="text-xs font-bold text-white font-urbanist tracking-widest uppercase"
-                numberOfLines={1}
-              >
+              <Text className={ctaLabelClass} numberOfLines={1} adjustsFontSizeToFit>
                 Request to Perform
               </Text>
             )}
@@ -128,12 +119,25 @@ export function StickyBottomBar({
         {showRequestSent && (
           <View className="flex-1 items-center justify-center rounded-full py-3 border border-white/30">
             <Text
-              className="text-xs font-bold text-white/50 font-urbanist tracking-widest uppercase"
+              className={cn(ctaLabelClass, 'text-white/50')}
               numberOfLines={1}
+              adjustsFontSizeToFit
             >
               Request Sent
             </Text>
           </View>
+        )}
+
+        {/* Book Ticket — purple filled. Only shown when there's a link to open. */}
+        {showBookTicket && (
+          <Pressable
+            onPress={handleBookTicket}
+            className="flex-1 items-center justify-center rounded-full py-3 bg-blue-10 active:opacity-80"
+          >
+            <Text className={ctaLabelClass} numberOfLines={1} adjustsFontSizeToFit>
+              {ticketLabel}
+            </Text>
+          </Pressable>
         )}
       </View>
     </View>
