@@ -98,6 +98,29 @@ function combineDateAndTime(date: Date | null, time: Date | null): string | unde
 }
 
 /**
+ * Validate that the optional end time does not fall before the start time.
+ * Both times are anchored to the same event date (dateStart) and compared as
+ * full ISO datetimes — mirroring how the submit payload is built — so the
+ * per-step check can never drift from what's actually saved. Equal times are
+ * allowed, matching the shared schema's `dateEnd >= dateStart` rule.
+ *
+ * Returns the error message when the end is strictly earlier, otherwise
+ * undefined (including when any of the three inputs is missing — nothing to
+ * compare yet). Exported for unit testing.
+ */
+export function endTimeBeforeStartError(
+  dateStart: Date | null,
+  startTime: Date | null,
+  endTime: Date | null
+): string | undefined {
+  if (!dateStart || !startTime || !endTime) return undefined;
+  const start = combineDateAndTime(dateStart, startTime);
+  const end = combineDateAndTime(dateStart, endTime);
+  if (start && end && end < start) return 'End time cannot be before the start time';
+  return undefined;
+}
+
+/**
  * Convert a user-entered price string (e.g. "12.50") to cents (1250).
  * Returns undefined for empty / invalid input.
  */
@@ -238,6 +261,9 @@ export function useEventForm(options?: UseEventFormOptions) {
           return dateStart ? undefined : 'Start date is required';
         case 'startTime':
           return startTime ? undefined : 'Start time is required';
+        case 'endTime':
+          // Optional field — only rejected when set strictly earlier than start.
+          return endTimeBeforeStartError(dateStart, startTime, endTime);
         case 'lat':
           // Map and feed are coordinate-driven, so an event needs a real pin.
           // A free-text address alone is not enough — the user must drop a pin
@@ -251,7 +277,7 @@ export function useEventForm(options?: UseEventFormOptions) {
           return undefined;
       }
     },
-    [title, description, category, dateStart, startTime, lat, lng, venueId]
+    [title, description, category, dateStart, startTime, endTime, lat, lng, venueId]
   );
 
   // Re-validate every already-touched field whenever any value changes, so an
@@ -318,7 +344,7 @@ export function useEventForm(options?: UseEventFormOptions) {
   );
 
   const validateStep2 = useCallback(
-    (): boolean => validateFields(['dateStart', 'startTime', 'lat']),
+    (): boolean => validateFields(['dateStart', 'startTime', 'endTime', 'lat']),
     [validateFields]
   );
 
@@ -363,6 +389,16 @@ export function useEventForm(options?: UseEventFormOptions) {
     (value: Date) => {
       setStartTime(value);
       markTouched('startTime');
+    },
+    [markTouched]
+  );
+
+  // End time is optional, but choosing one is the interaction — mark it touched
+  // so the live effect re-checks the start/end ordering as either time changes.
+  const handleEndTimeChange = useCallback(
+    (value: Date | null) => {
+      setEndTime(value);
+      markTouched('endTime');
     },
     [markTouched]
   );
@@ -589,7 +625,7 @@ export function useEventForm(options?: UseEventFormOptions) {
     startTime,
     setStartTime: handleStartTimeChange,
     endTime,
-    setEndTime,
+    setEndTime: handleEndTimeChange,
     lat,
     setLat: handleLatChange,
     lng,
