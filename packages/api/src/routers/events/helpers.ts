@@ -68,74 +68,21 @@ export const MapQueryInput = z.object({
   limit: z.number().int().min(1).max(50).default(50),
   category: z.string().optional(),
   county: z.string().optional(),
-  dateRange: z.enum(['today', 'this_week', 'this_weekend', 'this_month']).optional(),
 });
 
 /**
  * Builds a Typesense date_start filter string.
  *
- * Precedence:
- *   1. `specificDate` (YYYY-MM-DD) — a single calendar day picked from the
- *      feed's calendar button. Overrides `dateRange` when both are present.
- *   2. `dateRange` — one of the named presets.
- *   3. Neither — everything from now onwards.
+ *   - `day` — a single calendar day picked from the feed's calendar button,
+ *     already resolved by the client to an absolute [start, end) Unix-second
+ *     window. Filtered exactly as given (no server-side timezone math, since the
+ *     server runs in UTC and would otherwise shift the day boundary; and no
+ *     "earlier today" clamp, so a picked day shows every event on it).
+ *   - Omitted — everything from now onwards.
  */
-export function buildDateFilter(
-  dateRange: 'today' | 'this_week' | 'this_weekend' | 'this_month' | undefined,
-  nowUnix: number,
-  specificDate?: string
-): string {
-  if (specificDate) {
-    // A single picked day, built server-local like the presets above so the
-    // boundary behaviour stays uniform across both date filters.
-    const [year, month, day] = specificDate.split('-').map(Number);
-    const rangeStart = new Date(year, month - 1, day);
-    const rangeEnd = new Date(year, month - 1, day + 1);
-    const startUnix = Math.max(Math.floor(rangeStart.getTime() / 1000), nowUnix);
-    const endUnix = Math.floor(rangeEnd.getTime() / 1000);
-    return ` && date_start:>=${startUnix} && date_start:<${endUnix}`;
+export function buildDateFilter(nowUnix: number, day?: { start: number; end: number }): string {
+  if (day) {
+    return ` && date_start:>=${day.start} && date_start:<${day.end}`;
   }
-
-  if (!dateRange) return ` && date_start:>=${nowUnix}`;
-
-  const now = new Date();
-  let rangeStart: Date;
-  let rangeEnd: Date;
-
-  switch (dateRange) {
-    case 'today':
-      rangeStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      rangeEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
-      break;
-    case 'this_week': {
-      const dayOfWeek = now.getDay();
-      const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
-      rangeStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() + mondayOffset);
-      rangeEnd = new Date(
-        rangeStart.getFullYear(),
-        rangeStart.getMonth(),
-        rangeStart.getDate() + 7
-      );
-      break;
-    }
-    case 'this_weekend': {
-      const day = now.getDay();
-      const satOffset = day === 0 ? -1 : 6 - day;
-      rangeStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() + satOffset);
-      rangeEnd = new Date(
-        rangeStart.getFullYear(),
-        rangeStart.getMonth(),
-        rangeStart.getDate() + 2
-      );
-      break;
-    }
-    case 'this_month':
-      rangeStart = new Date(now.getFullYear(), now.getMonth(), 1);
-      rangeEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-      break;
-  }
-
-  const startUnix = Math.max(Math.floor(rangeStart.getTime() / 1000), nowUnix);
-  const endUnix = Math.floor(rangeEnd.getTime() / 1000);
-  return ` && date_start:>=${startUnix} && date_start:<${endUnix}`;
+  return ` && date_start:>=${nowUnix}`;
 }

@@ -1,12 +1,28 @@
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import type { EventCategory, FeedEvent, FeedQueryInput } from '@CeolX/shared';
+import type { EventCategory, FeedEvent } from '@CeolX/shared';
 import { MAP_DEBOUNCE_MS } from '@CeolX/shared';
 
 import { trpc } from '@/utils/trpc';
 
 const FEED_PAGE_SIZE = 20;
+
+/**
+ * Resolve a device-local YYYY-MM-DD day to its absolute [start, end) window in
+ * Unix seconds. Computed on-device so the boundaries reflect the user's own
+ * timezone — the server then filters by these instants directly and never has to
+ * guess a timezone (it runs in UTC). End is the start of the next day.
+ */
+function localDayWindowSeconds(ymd: string): { dayStart: number; dayEnd: number } {
+  const [year, month, day] = ymd.split('-').map(Number);
+  const start = new Date(year, month - 1, day);
+  const end = new Date(year, month - 1, day + 1);
+  return {
+    dayStart: Math.floor(start.getTime() / 1000),
+    dayEnd: Math.floor(end.getTime() / 1000),
+  };
+}
 
 export type UseFeedEventsOpts = {
   lat: number;
@@ -18,10 +34,10 @@ export function useFeedEvents({ lat, lng, enabled = true }: UseFeedEventsOpts) {
   const queryClient = useQueryClient();
 
   const [category, setCategory] = useState<EventCategory | undefined>();
-  const [dateRange, setDateRange] = useState<FeedQueryInput['dateRange']>(undefined);
-  // A specific calendar day (YYYY-MM-DD) picked from the header's calendar
-  // button. Mutually exclusive with the dateRange presets.
-  const [date, setDate] = useState<FeedQueryInput['date']>(undefined);
+  // A specific calendar day (YYYY-MM-DD, device-local) picked from the header's
+  // calendar button. Kept as a string for the UI (chip + picker); converted to
+  // an absolute window before it's sent to the server.
+  const [date, setDate] = useState<string | undefined>(undefined);
   const [searchQuery, setSearchQuery] = useState('');
   const [offset, setOffset] = useState(0);
   const [accumulatedEvents, setAccumulatedEvents] = useState<FeedEvent[]>([]);
@@ -29,14 +45,15 @@ export function useFeedEvents({ lat, lng, enabled = true }: UseFeedEventsOpts) {
   const [totalCount, setTotalCount] = useState(0);
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const dayWindow = date ? localDayWindowSeconds(date) : undefined;
   const queryInput = {
     lat,
     lng,
     limit: FEED_PAGE_SIZE,
     offset,
     category,
-    dateRange,
-    date,
+    dayStart: dayWindow?.dayStart,
+    dayEnd: dayWindow?.dayEnd,
     query: searchQuery.trim() || undefined,
   };
 
@@ -99,18 +116,8 @@ export function useFeedEvents({ lat, lng, enabled = true }: UseFeedEventsOpts) {
     setAccumulatedEvents([]);
   }, []);
 
-  const onDateRangeChange = useCallback((range: FeedQueryInput['dateRange']) => {
-    setDateRange(range);
-    // A preset and a specific day are competing date filters — picking one
-    // clears the other so the feed only ever applies a single date window.
-    if (range) setDate(undefined);
-    setOffset(0);
-    setAccumulatedEvents([]);
-  }, []);
-
-  const onDateChange = useCallback((next: FeedQueryInput['date']) => {
+  const onDateChange = useCallback((next: string | undefined) => {
     setDate(next);
-    if (next) setDateRange(undefined);
     setOffset(0);
     setAccumulatedEvents([]);
   }, []);
@@ -126,8 +133,6 @@ export function useFeedEvents({ lat, lng, enabled = true }: UseFeedEventsOpts) {
     refresh,
     category,
     setCategory: onCategoryChange,
-    dateRange,
-    setDateRange: onDateRangeChange,
     date,
     setDate: onDateChange,
     searchQuery,
