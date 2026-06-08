@@ -480,6 +480,7 @@ function SpectatorProfile() {
         ref={settingsRef}
         onChangePassword={() => {
           settingsRef.current?.dismiss();
+          router.push('/(app)/change-password');
         }}
         onSignOut={handleLogout}
       />
@@ -637,6 +638,7 @@ function CreatorProfile({
         ref={settingsRef}
         onChangePassword={() => {
           settingsRef.current?.dismiss();
+          router.push('/(app)/change-password');
         }}
         onSignOut={handleSignOut}
       />
