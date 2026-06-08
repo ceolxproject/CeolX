@@ -50,7 +50,7 @@ export default function EditEventScreen() {
   if (event.status === EventStatus.ARCHIVED) {
     return (
       <View className="flex-1 bg-background items-center justify-center px-5">
-        <Text className="text-center text-lg text-white">Cannot edit an archived event.</Text>
+        <Text className="text-center text-lg text-white">Cannot edit a deleted event.</Text>
       </View>
     );
   }

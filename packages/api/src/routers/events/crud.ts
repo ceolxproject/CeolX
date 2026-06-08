@@ -894,6 +894,48 @@ export const archive = protectedProcedure
 
     await removeEventFromTypesense(input.id).catch(() => {});
 
+    // Tell the linked counterparty their event was deleted. The other side of
+    // any still-live booking (a venue's invited/confirmed artist, or the venue
+    // an artist tagged) loses the event silently otherwise. Best-effort fan-out
+    // — a dispatch outage must not fail the delete (mirrors admin/moderation).
+    const linked = await db
+      .select({
+        artistUserId: artistProfiles.userId,
+        venueUserId: venueProfiles.userId,
+      })
+      .from(bookings)
+      .leftJoin(artistProfiles, eq(artistProfiles.id, bookings.artistId))
+      .leftJoin(venueProfiles, eq(venueProfiles.id, bookings.venueId))
+      .where(
+        and(
+          eq(bookings.eventId, input.id),
+          inArray(bookings.status, [BookingStatus.PENDING, BookingStatus.ACCEPTED])
+        )
+      );
+
+    const artistRecipients = new Set<string>();
+    const venueRecipients = new Set<string>();
+    for (const row of linked) {
+      if (row.artistUserId && row.artistUserId !== ctx.userId)
+        artistRecipients.add(row.artistUserId);
+      if (row.venueUserId && row.venueUserId !== ctx.userId) venueRecipients.add(row.venueUserId);
+    }
+
+    const dispatches: DispatchNotificationInput[] = [
+      ...[...artistRecipients].map((recipientUserId) => ({
+        trigger: NotificationTrigger.EVENT_DELETED_BY_CREATOR_TO_ARTIST,
+        recipientUserId,
+        vars: { eventTitle: event.title },
+      })),
+      ...[...venueRecipients].map((recipientUserId) => ({
+        trigger: NotificationTrigger.EVENT_DELETED_BY_CREATOR_TO_VENUE,
+        recipientUserId,
+        vars: { eventTitle: event.title },
+      })),
+    ];
+
+    await Promise.all(dispatches.map((d) => ctx.dispatchNotification(d).catch(() => {})));
+
     return updated;
   });
 
@@ -903,6 +945,15 @@ export const getMyEvents = creatorProcedure
   .input(myEventsQuerySchema)
   .query(async ({ input, ctx }) => {
     const { limit, offset } = input;
+
+    // Archived events are a soft-delete from the creator's perspective — once
+    // they delete an event it should drop out of My Events entirely (Asana
+    // 1215489535915818). All other statuses (draft/pending/active/removed) stay
+    // so the creator can still manage or resubmit them.
+    const ownAndNotArchived = and(
+      eq(events.createdBy, ctx.userId),
+      ne(events.status, EventStatus.ARCHIVED)
+    );
 
     const [rows, countResult] = await Promise.all([
       db
@@ -922,14 +973,14 @@ export const getMyEvents = creatorProcedure
           joinedCount: sql<number>`(SELECT count(*)::int FROM ${savedEvents} WHERE ${savedEvents.eventId} = ${events.id})`,
         })
         .from(events)
-        .where(eq(events.createdBy, ctx.userId))
+        .where(ownAndNotArchived)
         .orderBy(desc(events.createdAt))
         .limit(limit)
         .offset(offset),
       db
         .select({ count: sql<number>`count(*)::int` })
         .from(events)
-        .where(eq(events.createdBy, ctx.userId)),
+        .where(ownAndNotArchived),
     ]);
 
     const totalCount = countResult[0]?.count ?? 0;

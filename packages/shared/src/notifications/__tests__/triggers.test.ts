@@ -152,6 +152,30 @@ describe('buildNotification — inApp surface diverges from push', () => {
     );
   });
 
+  it('A-17 / V-16 creator-delete — both personas, route to the feed, only needs {eventTitle}', () => {
+    const toArtist = buildNotification(
+      NotificationTrigger.EVENT_DELETED_BY_CREATOR_TO_ARTIST,
+      NotificationSurface.PUSH,
+      { eventTitle: 'Friday Night Trad' }
+    );
+    expect(toArtist.persona).toBe('artist');
+    expect(toArtist.type).toBe('event_deleted');
+    expect(toArtist.route).toBe('/(app)/(tabs)/discover');
+    expect(toArtist.body).toBe(
+      'The organiser deleted "Friday Night Trad" — it\'s no longer on CeolX.'
+    );
+
+    const toVenue = buildNotification(
+      NotificationTrigger.EVENT_DELETED_BY_CREATOR_TO_VENUE,
+      NotificationSurface.IN_APP,
+      { eventTitle: 'Friday Night Trad' }
+    );
+    expect(toVenue.persona).toBe('venue');
+    expect(toVenue.body).toBe(
+      '"Friday Night Trad" hosted at your venue was deleted by the organiser.'
+    );
+  });
+
   it('A-09 inApp adds "Respond before it expires"', () => {
     expect(
       buildNotification(
