@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
-import { Alert, KeyboardAvoidingView, Pressable, Text, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { Alert, KeyboardAvoidingView, Platform, Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { UserRole } from '@CeolX/shared/enums';
@@ -28,6 +28,20 @@ export default function CreateEventScreen() {
       router.replace('/(app)/(tabs)/discover');
     },
   });
+
+  // Android-only: a freshly-picked cover image paints black until the whole step
+  // remounts — leaving step 1 and coming back fixes it, but styling/inset fixes
+  // (see commits 93fdd1f, 4ad5751) and remounting just the <Image> do not. So we
+  // reproduce that working remount: bump a key on the step shortly after a new
+  // image is picked. Typed form data is safe (it lives in useEventForm, not the
+  // step), only the scroll position resets. iOS renders fine, so we skip it
+  // there. (Asana 1215040939202669)
+  const [coverRefreshKey, setCoverRefreshKey] = useState(0);
+  useEffect(() => {
+    if (Platform.OS !== 'android' || !form.coverImageUri) return;
+    const timer = setTimeout(() => setCoverRefreshKey((k) => k + 1), 350);
+    return () => clearTimeout(timer);
+  }, [form.coverImageUri]);
 
   const handleBackPress = () => {
     Alert.alert('Leave without saving?', 'Your event details will be lost.', [
@@ -71,6 +85,7 @@ export default function CreateEventScreen() {
       <KeyboardAvoidingView behavior="padding" style={{ flex: 1, marginTop: 8 }}>
         {form.currentStep === 1 && (
           <BasicDetailsStep
+            key={coverRefreshKey}
             title={form.title}
             onTitleChange={form.setTitle}
             onTitleBlur={() => form.handleBlur('title')}
