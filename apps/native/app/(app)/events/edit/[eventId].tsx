@@ -168,6 +168,7 @@ function EditEventForm({ event, eventId }: { event: LoadedEvent; eventId: string
             errors={form.errors}
             onContinue={form.goNext}
             isVenue={isVenue}
+            myUserId={me?.id}
           />
         )}
 
