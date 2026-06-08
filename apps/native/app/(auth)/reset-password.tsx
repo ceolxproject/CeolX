@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
+import * as Sentry from '@sentry/react-native';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { KeyboardAvoidingView, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -10,6 +11,18 @@ import { authClient } from '@/lib/auth-client';
 
 export default function ResetPasswordScreen() {
   const { token } = useLocalSearchParams<{ token: string }>();
+
+  // Evidence that the deep link actually landed here (vs. being dropped back to
+  // the splash). Pairs with the 'splash redirect' breadcrumb. (Asana 1215040939202673)
+  useEffect(() => {
+    Sentry.addBreadcrumb({
+      category: 'navigation',
+      level: 'info',
+      message: 'reset-password mounted',
+      data: { hasToken: !!token },
+    });
+  }, [token]);
+
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [passwordVisible, setPasswordVisible] = useState(false);
