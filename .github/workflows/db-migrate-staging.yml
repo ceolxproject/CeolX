@@ -1,0 +1,54 @@
+name: Migrate Neon (staging)
+
+# Applies committed Drizzle migrations to the Neon *staging* database.
+#
+# Flow: run `pnpm db:generate` locally -> commit the generated SQL under
+# packages/db/src/migrations -> push to `staging`. This workflow then runs
+# `drizzle-kit migrate`, which applies any pending migration files in order
+# and records them in the `__drizzle_migrations` table (idempotent).
+#
+# It deliberately does NOT use `drizzle-kit push` (live schema diff), which is
+# non-deterministic and can drop data on a shared DB.
+
+on:
+  push:
+    branches: [staging]
+    paths:
+      - 'packages/db/src/migrations/**'
+
+# Never let two migration runs race on the migrations table.
+concurrency:
+  group: db-migrate-staging
+  cancel-in-progress: false
+
+jobs:
+  migrate:
+    name: drizzle-kit migrate
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.7.1
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      # Scoped install: only the @CeolX/db package and its workspace deps.
+      # Avoids pulling the heavy native/expo dependency tree.
+      - name: Install deps
+        run: pnpm install --frozen-lockfile --filter @CeolX/db...
+
+      # Bypass turbo on purpose: turbo.json marks db:migrate as persistent,
+      # which would hang in CI. Call drizzle-kit directly instead.
+      - name: Run migrations
+        env:
+          DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
+        run: pnpm --filter @CeolX/db exec drizzle-kit migrate
