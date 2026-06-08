@@ -30,6 +30,7 @@ import { useGpsRegion } from '@/hooks/use-gps-region';
 import { useLocationPermissionPrompt } from '@/hooks/use-location-permission-prompt';
 import { useMapEvents } from '@/hooks/use-map-events';
 import { usePanelAnimation } from '@/hooks/use-panel-animation';
+import { useVenueFallback } from '@/hooks/use-venue-fallback';
 
 const MAP_FILTER_SECTIONS: FilterSection[] = [
   { key: 'category', label: 'Category', options: EVENT_CATEGORIES },
@@ -45,8 +46,10 @@ export default function MapScreen() {
   // known-good values into it rather than letting it re-measure.
   const insets = useSafeAreaInsets();
   const { promptState, markSeen } = useLocationPermissionPrompt();
+  const venueFallback = useVenueFallback();
   const { initialRegion, gpsPermissionGranted, locationSource, mapKey } = useGpsRegion(
-    promptState === 'done'
+    promptState === 'done',
+    venueFallback
   );
   const mapEventsResult = useMapEvents({
     // Only pass coords once the location chain has resolved — prevents expand
