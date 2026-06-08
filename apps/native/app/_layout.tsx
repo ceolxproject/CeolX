@@ -15,6 +15,7 @@ import Constants from 'expo-constants';
 import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import { HeroUINativeProvider } from 'heroui-native';
+import { StyleSheet, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
@@ -64,7 +65,7 @@ function RootStack() {
 }
 
 function Layout() {
-  const [fontsLoaded] = useFonts({
+  const [fontsLoaded, fontError] = useFonts({
     Inter_500Medium,
     Inter_600SemiBold,
     Urbanist_400Regular,
@@ -73,9 +74,16 @@ function Layout() {
     Urbanist_700Bold,
     Urbanist_900Black,
   });
+  const fontsReady = fontsLoaded || !!fontError;
 
-  if (!fontsLoaded) return null;
-
+  // Keep the navigator mounted at ALL times. Returning null here (or in
+  // (auth)/_layout while the session resolves) unmounts the navigator and races
+  // with Expo Router's cold-start deep-link restoration — that race is what
+  // dropped a reset-password deep link back to the (auth) splash anchor, which
+  // then either bounced to sign-in (old timer) or got stuck on the splash (focus
+  // guard). The navigator must exist the instant the app launches so the deep
+  // link can mount. We cover the brief pre-font window with a brand overlay
+  // instead of unmounting. (Asana 1215040939202673)
   return (
     <QueryClientProvider client={queryClient}>
       <SafeAreaProvider initialMetrics={initialWindowMetrics}>
@@ -92,6 +100,9 @@ function Layout() {
               </HeroUINativeProvider>
             </AppThemeProvider>
           </KeyboardProvider>
+          {!fontsReady && (
+            <View style={[StyleSheet.absoluteFill, { backgroundColor: '#0d0c0f' }]} />
+          )}
         </GestureHandlerRootView>
       </SafeAreaProvider>
     </QueryClientProvider>
