@@ -1,4 +1,4 @@
-import { and, count, countDistinct, desc, eq, gte, lt, ne, sql } from 'drizzle-orm';
+import { and, asc, count, countDistinct, desc, eq, gte, lt, ne, sql } from 'drizzle-orm';
 
 import { db } from '@CeolX/db';
 import { session, user } from '@CeolX/db/schema/auth';
@@ -78,6 +78,7 @@ async function computeStats() {
     topCategoriesRows,
     activeSessions7Row,
     activeSessions30Row,
+    categoriesInUseRow,
   ] = await Promise.all([
     db
       .select({ role: user.currentRole, count: count() })
@@ -150,7 +151,9 @@ async function computeStats() {
       .from(events)
       .where(ne(events.status, 'draft'))
       .groupBy(events.category)
-      .orderBy(desc(count()))
+      // Secondary alphabetical sort makes the top-5 selection deterministic when
+      // counts tie (the shaper re-ranks; this just keeps which 5 we pick stable).
+      .orderBy(desc(count()), asc(events.category))
       .limit(5),
     db
       .select({ count: countDistinct(session.userId) })
@@ -160,6 +163,13 @@ async function computeStats() {
       .select({ count: countDistinct(session.userId) })
       .from(session)
       .where(gte(session.createdAt, last30)),
+    // True count of distinct categories with at least one published event. The
+    // top-categories list above is capped at 5, so its length can't be used as
+    // the "categories in use" headline.
+    db
+      .select({ count: countDistinct(events.category) })
+      .from(events)
+      .where(ne(events.status, 'draft')),
   ]);
 
   const cacheMeta = buildCacheMeta(now, CACHE_TTL_MS);
@@ -202,6 +212,7 @@ async function computeStats() {
     topCategories: shapeTopCategories(
       topCategoriesRows.map((r) => ({ category: r.category, count: r.count }))
     ),
+    categoriesInUse: categoriesInUseRow[0]?.count ?? 0,
     sessions: shapeSessionStats({
       activeLast7Days: activeSessions7Row[0]?.count ?? 0,
       activeLast30Days: activeSessions30Row[0]?.count ?? 0,
