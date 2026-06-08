@@ -25,8 +25,10 @@ export function RequestActions({
   if (booking.status !== BookingStatus.PENDING) return null;
 
   const isSentByUser =
-    (userRole === UserRole.VENUE && booking.direction === BookingDirection.VENUE_TO_ARTIST) ||
-    (userRole === UserRole.ARTIST && booking.direction === BookingDirection.ARTIST_TO_VENUE);
+    booking.direction === BookingDirection.ARTIST_TO_ARTIST
+      ? booking.viewerIsSender === true
+      : (userRole === UserRole.VENUE && booking.direction === BookingDirection.VENUE_TO_ARTIST) ||
+        (userRole === UserRole.ARTIST && booking.direction === BookingDirection.ARTIST_TO_VENUE);
 
   if (isUpdating) {
     return (

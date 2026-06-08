@@ -363,6 +363,10 @@ export const create = creatorProcedure.input(createEventSchema).mutation(async (
 
   const isVenue = ctx.session.user.currentRole === UserRole.VENUE;
 
+  // Exclude the creator from their own invite list (artists could otherwise
+  // search and invite themselves). platformInvites carry userIds.
+  const inviteUserIds = (platformInvites ?? []).filter((id) => id !== ctx.userId);
+
   // Ad fields are venue-only — strip them for non-venue creators
   if (!isVenue) {
     eventData.adTitle = undefined;
@@ -422,25 +426,23 @@ export const create = creatorProcedure.input(createEventSchema).mutation(async (
       );
     }
 
-    // Platform invites (venue only) — create pending bookings for invited artists
-    if (platformInvites && platformInvites.length > 0 && isVenue) {
-      const inviteUserIds = platformInvites;
+    // Platform invites → pending bookings for invited artists.
+    if (inviteUserIds.length > 0) {
+      const inviteProfiles = await tx
+        .select({
+          id: artistProfiles.id,
+          userId: artistProfiles.userId,
+          stageName: artistProfiles.stageName,
+        })
+        .from(artistProfiles)
+        .where(inArray(artistProfiles.userId, inviteUserIds));
 
-      if (inviteUserIds.length > 0) {
+      if (isVenue) {
+        // ── Venue → Artist (existing behaviour) ──
         const venueProfile = await tx.query.venueProfiles.findFirst({
           where: eq(venueProfiles.userId, ctx.userId),
           columns: { id: true, venueName: true },
         });
-
-        const inviteProfiles = await tx
-          .select({
-            id: artistProfiles.id,
-            userId: artistProfiles.userId,
-            stageName: artistProfiles.stageName,
-          })
-          .from(artistProfiles)
-          .where(inArray(artistProfiles.userId, inviteUserIds));
-
         if (venueProfile) {
           for (const ap of inviteProfiles) {
             const [booking] = await tx
@@ -453,14 +455,12 @@ export const create = creatorProcedure.input(createEventSchema).mutation(async (
                 direction: BookingDirection.VENUE_TO_ARTIST,
               })
               .returning();
-
             if (booking) {
               await tx.insert(eventCollaborators).values({
                 eventId: inserted.id,
                 artistProfileId: ap.userId,
                 bookingId: booking.id,
               });
-
               // Matrix A-09 — Venue invited Artist (booking is PENDING here).
               pendingDispatches.push({
                 trigger: NotificationTrigger.BOOKING_INVITE_TO_ARTIST,
@@ -469,6 +469,44 @@ export const create = creatorProcedure.input(createEventSchema).mutation(async (
                   bookingId: booking.id,
                   venueName: venueProfile.venueName,
                   artistName: ap.stageName,
+                  eventTitle: inserted.title,
+                  date: formatNotificationDate(inserted.dateStart),
+                },
+              });
+            }
+          }
+        }
+      } else {
+        // ── Artist → Artist (new) ──
+        const creatorProfile = await tx.query.artistProfiles.findFirst({
+          where: eq(artistProfiles.userId, ctx.userId),
+          columns: { id: true, stageName: true },
+        });
+        if (creatorProfile) {
+          for (const ap of inviteProfiles) {
+            const [booking] = await tx
+              .insert(bookings)
+              .values({
+                artistId: ap.id,
+                inviterArtistId: creatorProfile.id,
+                venueId: null,
+                eventId: inserted.id,
+                status: BookingStatus.PENDING,
+                direction: BookingDirection.ARTIST_TO_ARTIST,
+              })
+              .returning();
+            if (booking) {
+              await tx.insert(eventCollaborators).values({
+                eventId: inserted.id,
+                artistProfileId: ap.userId,
+                bookingId: booking.id,
+              });
+              pendingDispatches.push({
+                trigger: NotificationTrigger.BOOKING_INVITE_TO_COARTIST,
+                recipientUserId: ap.userId,
+                vars: {
+                  bookingId: booking.id,
+                  coArtistName: creatorProfile.stageName,
                   eventTitle: inserted.title,
                   date: formatNotificationDate(inserted.dateStart),
                 },
@@ -772,8 +810,11 @@ export const update = protectedProcedure
         }
       }
 
-      // Platform invites (venue only) — create pending bookings for newly invited artists
-      if (platformInvites !== undefined && platformInvites.length > 0 && isVenue) {
+      // Platform invites — create pending bookings for newly invited artists.
+      // Venue → VENUE_TO_ARTIST (performer invite); artist → ARTIST_TO_ARTIST
+      // (co-artist invite). Self is excluded; already-collaborating artists are
+      // skipped so re-saving the form doesn't duplicate invites.
+      if (platformInvites !== undefined && platformInvites.length > 0) {
         const existingCollabs = await tx.query.eventCollaborators.findMany({
           where: eq(eventCollaborators.eventId, input.id),
           columns: { artistProfileId: true },
@@ -782,14 +823,11 @@ export const update = protectedProcedure
           existingCollabs.map((c) => c.artistProfileId).filter((id): id is string => id !== null)
         );
 
-        const newInviteUserIds = platformInvites.filter((id) => !existingArtistUserIds.has(id));
+        const newInviteUserIds = platformInvites.filter(
+          (id) => id !== ctx.userId && !existingArtistUserIds.has(id)
+        );
 
         if (newInviteUserIds.length > 0) {
-          const venueProfile = await tx.query.venueProfiles.findFirst({
-            where: eq(venueProfiles.userId, ctx.userId),
-            columns: { id: true, venueName: true },
-          });
-
           const inviteProfiles = await tx
             .select({
               id: artistProfiles.id,
@@ -799,38 +837,86 @@ export const update = protectedProcedure
             .from(artistProfiles)
             .where(inArray(artistProfiles.userId, newInviteUserIds));
 
-          if (venueProfile) {
-            for (const ap of inviteProfiles) {
-              const [booking] = await tx
-                .insert(bookings)
-                .values({
-                  artistId: ap.id,
-                  venueId: venueProfile.id,
-                  eventId: input.id,
-                  status: BookingStatus.PENDING,
-                  direction: BookingDirection.VENUE_TO_ARTIST,
-                })
-                .returning();
+          if (isVenue) {
+            const venueProfile = await tx.query.venueProfiles.findFirst({
+              where: eq(venueProfiles.userId, ctx.userId),
+              columns: { id: true, venueName: true },
+            });
 
-              if (booking) {
-                await tx.insert(eventCollaborators).values({
-                  eventId: input.id,
-                  artistProfileId: ap.userId,
-                  bookingId: booking.id,
-                });
+            if (venueProfile) {
+              for (const ap of inviteProfiles) {
+                const [booking] = await tx
+                  .insert(bookings)
+                  .values({
+                    artistId: ap.id,
+                    venueId: venueProfile.id,
+                    eventId: input.id,
+                    status: BookingStatus.PENDING,
+                    direction: BookingDirection.VENUE_TO_ARTIST,
+                  })
+                  .returning();
 
-                // Matrix A-09 — Venue invited Artist (booking is PENDING here).
-                pendingDispatches.push({
-                  trigger: NotificationTrigger.BOOKING_INVITE_TO_ARTIST,
-                  recipientUserId: ap.userId,
-                  vars: {
+                if (booking) {
+                  await tx.insert(eventCollaborators).values({
+                    eventId: input.id,
+                    artistProfileId: ap.userId,
                     bookingId: booking.id,
-                    venueName: venueProfile.venueName,
-                    artistName: ap.stageName,
-                    eventTitle: result.title,
-                    date: formatNotificationDate(result.dateStart),
-                  },
-                });
+                  });
+
+                  // Matrix A-09 — Venue invited Artist (booking is PENDING here).
+                  pendingDispatches.push({
+                    trigger: NotificationTrigger.BOOKING_INVITE_TO_ARTIST,
+                    recipientUserId: ap.userId,
+                    vars: {
+                      bookingId: booking.id,
+                      venueName: venueProfile.venueName,
+                      artistName: ap.stageName,
+                      eventTitle: result.title,
+                      date: formatNotificationDate(result.dateStart),
+                    },
+                  });
+                }
+              }
+            }
+          } else {
+            const creatorProfile = await tx.query.artistProfiles.findFirst({
+              where: eq(artistProfiles.userId, ctx.userId),
+              columns: { id: true, stageName: true },
+            });
+
+            if (creatorProfile) {
+              for (const ap of inviteProfiles) {
+                const [booking] = await tx
+                  .insert(bookings)
+                  .values({
+                    artistId: ap.id,
+                    inviterArtistId: creatorProfile.id,
+                    venueId: null,
+                    eventId: input.id,
+                    status: BookingStatus.PENDING,
+                    direction: BookingDirection.ARTIST_TO_ARTIST,
+                  })
+                  .returning();
+
+                if (booking) {
+                  await tx.insert(eventCollaborators).values({
+                    eventId: input.id,
+                    artistProfileId: ap.userId,
+                    bookingId: booking.id,
+                  });
+
+                  // Co-artist invite — pending until the invitee accepts.
+                  pendingDispatches.push({
+                    trigger: NotificationTrigger.BOOKING_INVITE_TO_COARTIST,
+                    recipientUserId: ap.userId,
+                    vars: {
+                      bookingId: booking.id,
+                      coArtistName: creatorProfile.stageName,
+                      eventTitle: result.title,
+                      date: formatNotificationDate(result.dateStart),
+                    },
+                  });
+                }
               }
             }
           }
