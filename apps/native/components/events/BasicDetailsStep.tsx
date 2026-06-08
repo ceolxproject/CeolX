@@ -4,6 +4,7 @@ import { Image, Pressable, ScrollView, Text, TextInput, View } from 'react-nativ
 
 import type { EventCategory } from '@CeolX/shared';
 
+import type { ArtistResult } from './ArtistSearchRow';
 import { CategoryPicker } from './CategoryPicker';
 import { CollectionPicker } from './CollectionPicker';
 import { FieldLabel } from './FieldLabel';
@@ -25,13 +26,15 @@ type Props = {
   onCategoryChange: (v: EventCategory) => void;
   collectionId: string;
   onCollectionIdChange: (v: string) => void;
-  platformInvites: string[];
-  onPlatformInvitesChange: (ids: string[]) => void;
+  platformInvites: ArtistResult[];
+  onPlatformInvitesChange: (artists: ArtistResult[]) => void;
   unregisteredCollaborators: Array<{ name: string; email: string }>;
   onUnregisteredCollaboratorsChange: (invites: Array<{ name: string; email: string }>) => void;
   errors: Record<string, string>;
   onContinue: () => void;
   isVenue: boolean;
+  /** Current user's id — excluded from the invite search so a creator can't invite themselves. */
+  myUserId?: string;
 };
 
 const MAX_DESCRIPTION_LENGTH = 2000;
@@ -57,6 +60,7 @@ export function BasicDetailsStep({
   errors,
   onContinue,
   isVenue,
+  myUserId,
 }: Props) {
   return (
     <ScrollView
@@ -185,15 +189,14 @@ export function BasicDetailsStep({
         <CollectionPicker collectionId={collectionId} onCollectionIdChange={onCollectionIdChange} />
       )}
 
-      {/* ── Invite Artists — Venues only ── */}
-      {isVenue && (
-        <InviteArtistPicker
-          platformInvites={platformInvites}
-          onPlatformInvitesChange={onPlatformInvitesChange}
-          unregisteredInvites={unregisteredCollaborators}
-          onUnregisteredInvitesChange={onUnregisteredCollaboratorsChange}
-        />
-      )}
+      {/* ── Invite Artists — Venues invite performers, Artists invite co-artists ── */}
+      <InviteArtistPicker
+        platformInvites={platformInvites}
+        onPlatformInvitesChange={onPlatformInvitesChange}
+        unregisteredInvites={unregisteredCollaborators}
+        onUnregisteredInvitesChange={onUnregisteredCollaboratorsChange}
+        myUserId={myUserId}
+      />
 
       {/* ── Continue Button ── */}
       <Pressable

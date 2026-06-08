@@ -26,10 +26,12 @@ type UnregisteredInvite = {
 };
 
 type Props = {
-  platformInvites: string[];
-  onPlatformInvitesChange: (ids: string[]) => void;
+  platformInvites: ArtistResult[];
+  onPlatformInvitesChange: (artists: ArtistResult[]) => void;
   unregisteredInvites: UnregisteredInvite[];
   onUnregisteredInvitesChange: (invites: UnregisteredInvite[]) => void;
+  /** Current user's id — hidden from results so an artist can't invite themselves. */
+  myUserId?: string;
 };
 
 export function InviteArtistPicker({
@@ -37,10 +39,10 @@ export function InviteArtistPicker({
   onPlatformInvitesChange,
   unregisteredInvites,
   onUnregisteredInvitesChange,
+  myUserId,
 }: Props) {
   const [query, setQuery] = useState('');
   const debouncedQuery = useDebouncedValue(query);
-  const [selectedPlatformArtists, setSelectedPlatformArtists] = useState<ArtistResult[]>([]);
   const [showDropdown, setShowDropdown] = useState(false);
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [inviteName, setInviteName] = useState('');
@@ -52,18 +54,23 @@ export function InviteArtistPicker({
     enabled: debouncedQuery.length >= 1,
   });
 
-  const results = (data?.artists ?? []).filter((a) => !platformInvites.includes(a.id));
+  // Hide already-invited artists and the creator themselves. artists.search
+  // returns id = artist_profiles.user_id, which matches the current user's id.
+  const results = (data?.artists ?? []).filter(
+    (a) => !platformInvites.some((p) => p.id === a.id) && a.id !== myUserId
+  );
 
   function addPlatformInvite(artist: ArtistResult) {
-    setSelectedPlatformArtists((prev) => [...prev, artist]);
-    onPlatformInvitesChange([...platformInvites, artist.id]);
+    // Skip if already invited — the search list filters these out, but guard
+    // anyway so a stale tap can't push a duplicate into the lifted state.
+    if (platformInvites.some((p) => p.id === artist.id)) return;
+    onPlatformInvitesChange([...platformInvites, artist]);
     setQuery('');
     setShowDropdown(false);
   }
 
   function removePlatformInvite(id: string) {
-    setSelectedPlatformArtists((prev) => prev.filter((a) => a.id !== id));
-    onPlatformInvitesChange(platformInvites.filter((i) => i !== id));
+    onPlatformInvitesChange(platformInvites.filter((a) => a.id !== id));
   }
 
   function removeUnregisteredInvite(email: string) {
@@ -96,7 +103,7 @@ export function InviteArtistPicker({
   }
 
   const inviteChips = useMemo<ChipItem[]>(() => {
-    const platform = selectedPlatformArtists.map((a) => ({
+    const platform = platformInvites.map((a) => ({
       key: `platform:${a.id}`,
       label: a.stageName,
       icon: 'paper-plane-outline' as const,
@@ -107,7 +114,7 @@ export function InviteArtistPicker({
       icon: 'mail-outline' as const,
     }));
     return [...platform, ...unregistered];
-  }, [selectedPlatformArtists, unregisteredInvites]);
+  }, [platformInvites, unregisteredInvites]);
 
   function handleChipRemove(key: string) {
     if (key.startsWith('platform:')) {

@@ -452,4 +452,39 @@ describe('posts.feed', () => {
     expect(result.posts[0]?.createdBy).toBe('user-2');
     expect(result.totalCount).toBe(1);
   });
+
+  it('filters by query — resolves matching author ids before the post page', async () => {
+    // With a query present, the procedure first looks up author ids whose
+    // display name matches (artist → venue → user), THEN runs the post page +
+    // count, THEN hydrates. The mock resolves select chains in call order, so
+    // this ordering is what proves the search branch ran.
+    mockSelectChain
+      .mockResolvedValueOnce([{ userId: 'user-2' }]) // artist name match
+      .mockResolvedValueOnce([]) // venue name match
+      .mockResolvedValueOnce([]) // user name match
+      .mockResolvedValueOnce([
+        {
+          id: 'post-1',
+          createdBy: 'user-2',
+          caption: 'late night jazz set',
+          mediaType: 'text',
+          mediaUrl: null,
+          likeCount: 0,
+          deletedAt: null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      ]) // paginated posts
+      .mockResolvedValueOnce([{ count: 1 }]) // count
+      .mockResolvedValueOnce([{ id: 'user-2', name: 'Jazz Cat', image: null }]) // users hydration
+      .mockResolvedValueOnce([{ userId: 'user-2', stageName: 'Jazz Cat', profileImageUrl: null }]) // artists
+      .mockResolvedValueOnce([]) // venues
+      .mockResolvedValueOnce([]); // likedRows
+
+    const caller = authedCaller('user-1', 'artist' as UserRole);
+    const result = await caller.feed({ limit: 20, offset: 0, query: 'jazz' });
+    expect(result.posts).toHaveLength(1);
+    expect(result.posts[0]?.author.displayName).toBe('Jazz Cat');
+    expect(result.totalCount).toBe(1);
+  });
 });

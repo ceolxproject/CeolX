@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { combineDateAndTime, endDateTimeError } from '../use-event-form.utils';
+import { combineDateAndTime, endDateTimeError, platformInviteIds } from '../use-event-form.utils';
 
 // A fixed calendar day, plus a helper to build a Date carrying only a time.
 const DAY = new Date(2026, 5, 10);
@@ -60,5 +60,24 @@ describe('endDateTimeError', () => {
     const nextDay = new Date(2026, 5, 11);
     // End on the following day at an earlier clock time is still valid.
     expect(endDateTimeError(DAY, timeAt(20, 0), nextDay, timeAt(9, 0))).toBeUndefined();
+  });
+});
+
+describe('platformInviteIds', () => {
+  // The form now holds the full artist display objects (so the invite chips
+  // survive a step change); the payload still wants just the IDs. These guard
+  // that derivation. (Asana 1215484565234867)
+  const artist = (id: string) => ({ id, stageName: id, genre: null, image: null, name: null });
+
+  it('maps selected artist objects down to their IDs', () => {
+    expect(platformInviteIds([artist('a1'), artist('a2')])).toEqual(['a1', 'a2']);
+  });
+
+  it('preserves order and keeps every selection (no dedupe — the picker guards that)', () => {
+    expect(platformInviteIds([artist('b'), artist('a'), artist('c')])).toEqual(['b', 'a', 'c']);
+  });
+
+  it('returns undefined for an empty selection so the optional field is omitted', () => {
+    expect(platformInviteIds([])).toBeUndefined();
   });
 });

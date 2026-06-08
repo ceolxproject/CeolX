@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
-import { useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, Image, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -58,12 +58,16 @@ export default function BookingDetailScreen() {
   const formattedDate = formatEventDate(booking.eventDateStart, booking.eventDateEnd);
   const statusStyle = STATUS_STYLES[booking.status] ?? STATUS_STYLES.pending;
 
+  // Whether the viewer is the one who sent this request — drives the direction
+  // label only.
   const isSentByUser =
     (userRole === UserRole.VENUE && booking.direction === BookingDirection.VENUE_TO_ARTIST) ||
     (userRole === UserRole.ARTIST && booking.direction === BookingDirection.ARTIST_TO_VENUE);
 
-  const otherPartyName = isSentByUser ? booking.artistName : booking.venueName;
-  const otherPartyImage = isSentByUser ? booking.artistImage : booking.venueImage;
+  // "Other party" is always the party that is NOT you, regardless of who sent
+  // the request — a venue always sees the artist, an artist always the venue.
+  const otherPartyName = userRole === UserRole.VENUE ? booking.artistName : booking.venueName;
+  const otherPartyImage = userRole === UserRole.VENUE ? booking.artistImage : booking.venueImage;
   const directionLabel = isSentByUser ? 'Sent Request to:' : 'Request Sent by:';
   const contactLabel = userRole === UserRole.ARTIST ? 'CONTACT VENUE' : 'CONTACT ARTIST';
 
@@ -139,7 +143,16 @@ export default function BookingDetailScreen() {
               {otherPartyName}
             </Text>
             {booking.status === BookingStatus.ACCEPTED && (
-              <Pressable>
+              <Pressable
+                onPress={() =>
+                  router.push(
+                    userRole === UserRole.ARTIST
+                      ? `/(app)/venue/${booking.venueUserId}`
+                      : `/(app)/artist/${booking.artistUserId}`
+                  )
+                }
+                hitSlop={8}
+              >
                 <Text className="text-xs font-bold text-[#D4FC5A] font-urbanist tracking-wide">
                   {contactLabel}
                 </Text>

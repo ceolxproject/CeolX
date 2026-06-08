@@ -106,6 +106,7 @@ export default function CreateEventScreen() {
             errors={form.errors}
             onContinue={form.goNext}
             isVenue={isVenue}
+            myUserId={me?.id}
           />
         )}
 

@@ -18,11 +18,11 @@ export function OwnerActionBar({ eventStatus, onEdit, onArchive, className }: Ow
 
   const handleArchive = () => {
     Alert.alert(
-      'Archive Event',
+      'Delete Event',
       'This will remove the event from the map and feed. This action cannot be undone.',
       [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'Archive', style: 'destructive', onPress: onArchive },
+        { text: 'Delete', style: 'destructive', onPress: onArchive },
       ]
     );
   };
@@ -50,15 +50,15 @@ export function OwnerActionBar({ eventStatus, onEdit, onArchive, className }: Ow
           </Text>
         </Pressable>
 
-        {/* Archive — only for active events */}
+        {/* Delete — only for active events (server soft-archives them) */}
         {!isRemoved && (
           <Pressable
             onPress={handleArchive}
             className="flex-1 flex-row items-center justify-center rounded-full h-11 border border-red-400 active:opacity-80"
           >
-            <Ionicons name="archive-outline" size={16} color="#f87171" style={{ marginRight: 6 }} />
+            <Ionicons name="trash-outline" size={16} color="#f87171" style={{ marginRight: 6 }} />
             <Text className="text-xs font-bold text-red-400 tracking-wider uppercase font-urbanist">
-              Archive
+              Delete
             </Text>
           </Pressable>
         )}

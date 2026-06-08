@@ -104,11 +104,26 @@ export interface BookingSummary {
   status: BookingStatus;
   direction: BookingDirection;
   artistId: string;
+  // User (account) id behind the artist profile — used to open their public
+  // profile (the /artist/[userId] route resolves by userId) e.g. from Contact.
+  artistUserId: string;
   artistName: string;
   artistImage?: string;
   venueId: string;
+  venueUserId: string;
   venueName: string;
   venueImage?: string;
+  /** Inviting artist — populated only for artist_to_artist rows. */
+  inviterArtistId?: string;
+  inviterArtistName?: string;
+  inviterArtistImage?: string;
+  /**
+   * Whether the viewer initiated this booking. Server-computed per request.
+   * Used by the Requests card/actions for artist_to_artist rows where role +
+   * direction alone cannot distinguish sender from recipient. Undefined for
+   * venue↔artist rows (the card falls back to role/direction).
+   */
+  viewerIsSender?: boolean;
   eventId: string;
   eventTitle: string;
   eventCoverImage?: string;

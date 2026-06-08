@@ -37,13 +37,30 @@ export function RequestCard({
   const formattedDate = formatEventDate(booking.eventDateStart, booking.eventDateEnd);
   const timeSince = getTimeSince(booking.createdAt);
 
-  const isSentByUser =
-    (userRole === UserRole.VENUE && booking.direction === BookingDirection.VENUE_TO_ARTIST) ||
-    (userRole === UserRole.ARTIST && booking.direction === BookingDirection.ARTIST_TO_VENUE);
+  const isA2A = booking.direction === BookingDirection.ARTIST_TO_ARTIST;
 
-  // "Other party" is always the party that is NOT you, regardless of direction
-  const otherPartyName = userRole === UserRole.VENUE ? booking.artistName : booking.venueName;
-  const otherPartyImage = userRole === UserRole.VENUE ? booking.artistImage : booking.venueImage;
+  // For artist↔artist the server tells us whether the viewer is the inviter
+  // (sender) via viewerIsSender, since both parties are artists.
+  const isSentByUser = isA2A
+    ? booking.viewerIsSender === true
+    : (userRole === UserRole.VENUE && booking.direction === BookingDirection.VENUE_TO_ARTIST) ||
+      (userRole === UserRole.ARTIST && booking.direction === BookingDirection.ARTIST_TO_VENUE);
+
+  // "Other party" is always whoever is NOT the viewer.
+  const otherPartyName = isA2A
+    ? isSentByUser
+      ? booking.artistName // viewer is the inviter → other party is the invited co-artist
+      : (booking.inviterArtistName ?? 'Artist')
+    : userRole === UserRole.VENUE
+      ? booking.artistName
+      : booking.venueName;
+  const otherPartyImage = isA2A
+    ? isSentByUser
+      ? booking.artistImage
+      : booking.inviterArtistImage
+    : userRole === UserRole.VENUE
+      ? booking.artistImage
+      : booking.venueImage;
   const directionLabel = isSentByUser ? 'Sent Request to:' : 'Request Sent by:';
 
   const isAccepted = booking.status === BookingStatus.ACCEPTED;
@@ -116,9 +133,18 @@ export function RequestCard({
               {otherPartyName}
             </Text>
             {isAccepted && (
-              <Pressable>
+              <Pressable
+                onPress={() =>
+                  router.push(
+                    userRole === UserRole.ARTIST
+                      ? `/(app)/venue/${booking.venueUserId}`
+                      : `/(app)/artist/${booking.artistUserId}`
+                  )
+                }
+                hitSlop={8}
+              >
                 <Text className="text-xs font-bold text-[#D4FC5A] font-urbanist tracking-wide">
-                  {userRole === UserRole.ARTIST ? 'CONTACT VENUE' : 'CONTACT ARTIST'}
+                  {userRole === UserRole.ARTIST && !isA2A ? 'CONTACT VENUE' : 'CONTACT ARTIST'}
                 </Text>
               </Pressable>
             )}
