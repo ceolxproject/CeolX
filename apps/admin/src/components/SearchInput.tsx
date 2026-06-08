@@ -1,5 +1,5 @@
 import { X } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import { Input } from '@CeolX/ui/components/input';
 
@@ -18,22 +18,28 @@ export function SearchInput({
 }: SearchInputProps) {
   const [local, setLocal] = useState(value);
 
-  const debouncedOnChange = useCallback(
-    (val: string) => {
-      const timer = setTimeout(() => onChange(val), debounceMs);
-      return () => clearTimeout(timer);
-    },
-    [onChange, debounceMs]
-  );
-
+  // Hold the latest onChange in a ref so the debounce effect does not depend on
+  // its (often inline, unstable) identity. Otherwise the effect re-runs on every
+  // parent render and re-fires onChange, clobbering parent state (e.g. resetting
+  // pagination back to page 1).
+  const onChangeRef = useRef(onChange);
   useEffect(() => {
-    const cleanup = debouncedOnChange(local);
-    return cleanup;
-  }, [local, debouncedOnChange]);
+    onChangeRef.current = onChange;
+  });
 
+  // Sync external value into the local input.
   useEffect(() => {
     setLocal(value);
   }, [value]);
+
+  // Debounce: only emit when the local input actually diverges from the
+  // controlled value, i.e. the user typed something. A plain re-render where
+  // local === value must not fire onChange.
+  useEffect(() => {
+    if (local === value) return;
+    const timer = setTimeout(() => onChangeRef.current(local), debounceMs);
+    return () => clearTimeout(timer);
+  }, [local, value, debounceMs]);
 
   return (
     <div className="relative">
