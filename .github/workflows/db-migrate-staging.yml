@@ -30,9 +30,17 @@ jobs:
     name: drizzle-kit migrate
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    # Staging-only guard: the push trigger is already pinned to `staging`, but
+    # workflow_dispatch can target any ref. Refuse to run unless the ref is
+    # `staging`, so a manual run can never apply another branch's migrations.
+    if: github.ref == 'refs/heads/staging'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        # Defense in depth: always check out staging's tree, so the migrations
+        # applied can't diverge from the gated ref even if the guard changes.
+        with:
+          ref: refs/heads/staging
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
