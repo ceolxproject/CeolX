@@ -7,7 +7,12 @@ import type { EventCategory } from '@CeolX/shared';
 import { isValidCoordinate } from '@CeolX/shared';
 import { createEventSchema } from '@CeolX/shared/validators';
 
-import { combineDateAndTime, endDateTimeError } from '@/hooks/use-event-form.utils';
+import type { ArtistResult } from '@/components/events/ArtistSearchRow';
+import {
+  combineDateAndTime,
+  endDateTimeError,
+  platformInviteIds,
+} from '@/hooks/use-event-form.utils';
 import { keyFromCdnUrl, useMediaDelete } from '@/hooks/use-media-delete';
 import { useMediaUpload } from '@/hooks/use-media-upload';
 import { trpc } from '@/utils/trpc';
@@ -23,7 +28,10 @@ export interface EventFormData {
   coverImageUri: string | null;
   category: EventCategory | '';
   collectionId: string;
-  platformInvites: string[];
+  // Full artist display objects (not just IDs) so the invite chips persist
+  // across step changes — the picker unmounts between steps, so holding the
+  // display data there lost it on back-navigation. IDs are derived at submit.
+  platformInvites: ArtistResult[];
   unregisteredCollaborators: Array<{ name: string; email: string }>;
 
   // Step 2 — Date & Venue
@@ -182,7 +190,7 @@ export function useEventForm(options?: UseEventFormOptions) {
   const [coverImageUri, setCoverImageUri] = useState<string | null>(init.coverImageUri);
   const [category, setCategory] = useState<EventCategory | ''>(init.category);
   const [collectionId, setCollectionId] = useState(init.collectionId);
-  const [platformInvites, setPlatformInvites] = useState<string[]>(init.platformInvites);
+  const [platformInvites, setPlatformInvites] = useState<ArtistResult[]>(init.platformInvites);
   const [unregisteredCollaborators, setUnregisteredCollaborators] = useState<
     Array<{ name: string; email: string }>
   >(init.unregisteredCollaborators);
@@ -527,7 +535,7 @@ export function useEventForm(options?: UseEventFormOptions) {
       ticketPrice: priceToCents(ticketPrice),
       ticketQuantity: parseQuantity(ticketQuantity),
       collectionId: collectionId || undefined,
-      platformInvites: platformInvites.length > 0 ? platformInvites : undefined,
+      platformInvites: platformInviteIds(platformInvites),
       unregisteredCollaborators:
         unregisteredCollaborators.length > 0 ? unregisteredCollaborators : undefined,
       adTitle: adTitle.trim() || undefined,
