@@ -58,12 +58,16 @@ export default function BookingDetailScreen() {
   const formattedDate = formatEventDate(booking.eventDateStart, booking.eventDateEnd);
   const statusStyle = STATUS_STYLES[booking.status] ?? STATUS_STYLES.pending;
 
+  // Whether the viewer is the one who sent this request — drives the direction
+  // label only.
   const isSentByUser =
     (userRole === UserRole.VENUE && booking.direction === BookingDirection.VENUE_TO_ARTIST) ||
     (userRole === UserRole.ARTIST && booking.direction === BookingDirection.ARTIST_TO_VENUE);
 
-  const otherPartyName = isSentByUser ? booking.artistName : booking.venueName;
-  const otherPartyImage = isSentByUser ? booking.artistImage : booking.venueImage;
+  // "Other party" is always the party that is NOT you, regardless of who sent
+  // the request — a venue always sees the artist, an artist always the venue.
+  const otherPartyName = userRole === UserRole.VENUE ? booking.artistName : booking.venueName;
+  const otherPartyImage = userRole === UserRole.VENUE ? booking.artistImage : booking.venueImage;
   const directionLabel = isSentByUser ? 'Sent Request to:' : 'Request Sent by:';
   const contactLabel = userRole === UserRole.ARTIST ? 'CONTACT VENUE' : 'CONTACT ARTIST';
 
