@@ -62,6 +62,9 @@ export const postByIdSchema = z.object({
 export const postFeedQuerySchema = z.object({
   limit: z.number().int().min(1).max(50).default(20),
   offset: z.number().int().min(0).default(0),
+  // Free-text search. Matches a post's caption OR its author's display name
+  // (artist stage name / venue name / user name). Omitted/empty → unfiltered feed.
+  query: z.string().trim().min(1).max(100).optional(),
 });
 
 export const userPostsQuerySchema = z.object({

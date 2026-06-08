@@ -1,29 +1,71 @@
-import { and, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
+import { and, desc, eq, ilike, inArray, isNull, or, type SQL, sql } from 'drizzle-orm';
 
 import { db } from '@CeolX/db';
+import { user } from '@CeolX/db/schema/auth';
 import { postLikes, posts } from '@CeolX/db/schema/social';
+import { artistProfiles, venueProfiles } from '@CeolX/db/schema/users';
 import { postFeedQuerySchema } from '@CeolX/shared/validators';
 
 import { protectedProcedure } from '../../index';
 
 import { hydrateAuthors } from './hydrate';
 
+/**
+ * Build the optional caption/author search predicate for the feed.
+ *
+ * Posts have no music/event entity to search, so a query matches the post
+ * caption OR the author's display name. Author names live in three tables, so we
+ * first resolve the set of matching author ids (artist stage name → venue name →
+ * user name, the same precedence `hydrateAuthors` uses), then OR that against a
+ * caption match. Returns `undefined` when there is no query, leaving the feed
+ * unfiltered.
+ */
+async function buildSearchFilter(query: string | undefined): Promise<SQL | undefined> {
+  if (!query) return undefined;
+  const term = `%${query}%`;
+
+  const [artistRows, venueRows, userRows] = await Promise.all([
+    db
+      .select({ id: artistProfiles.userId })
+      .from(artistProfiles)
+      .where(ilike(artistProfiles.stageName, term)),
+    db
+      .select({ id: venueProfiles.userId })
+      .from(venueProfiles)
+      .where(ilike(venueProfiles.venueName, term)),
+    db.select({ id: user.id }).from(user).where(ilike(user.name, term)),
+  ]);
+
+  const authorIds = Array.from(
+    new Set([...artistRows, ...venueRows, ...userRows].map((r) => r.id))
+  );
+
+  const captionMatch = ilike(posts.caption, term);
+  return authorIds.length > 0
+    ? or(captionMatch, inArray(posts.createdBy, authorIds))
+    : captionMatch;
+}
+
 export const feed = protectedProcedure.input(postFeedQuerySchema).query(async ({ input, ctx }) => {
-  const { limit, offset } = input;
+  const { limit, offset, query } = input;
   const viewerId = ctx.userId;
+
+  const searchFilter = await buildSearchFilter(query);
+  // `and` drops the undefined arg, so no-query falls back to deleted-only.
+  const where = and(isNull(posts.deletedAt), searchFilter);
 
   const [rows, countRow] = await Promise.all([
     db
       .select()
       .from(posts)
-      .where(isNull(posts.deletedAt))
+      .where(where)
       .orderBy(desc(posts.createdAt))
       .limit(limit + 1)
       .offset(offset),
     db
       .select({ count: sql<number>`count(*)::int` })
       .from(posts)
-      .where(isNull(posts.deletedAt)),
+      .where(where),
   ]);
 
   const totalCount = countRow[0]?.count ?? 0;
