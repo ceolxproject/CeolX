@@ -133,7 +133,16 @@ export function RequestCard({
               {otherPartyName}
             </Text>
             {isAccepted && (
-              <Pressable>
+              <Pressable
+                onPress={() =>
+                  router.push(
+                    userRole === UserRole.ARTIST
+                      ? `/(app)/venue/${booking.venueUserId}`
+                      : `/(app)/artist/${booking.artistUserId}`
+                  )
+                }
+                hitSlop={8}
+              >
                 <Text className="text-xs font-bold text-[#D4FC5A] font-urbanist tracking-wide">
                   {userRole === UserRole.ARTIST && !isA2A ? 'CONTACT VENUE' : 'CONTACT ARTIST'}
                 </Text>

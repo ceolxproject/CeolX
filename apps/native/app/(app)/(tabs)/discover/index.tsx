@@ -61,6 +61,9 @@ export default function DiscoverScreen() {
   const [activeSegment, setActiveSegment] = useState(0);
   const [filterSheetVisible, setFilterSheetVisible] = useState(false);
   const [datePickerVisible, setDatePickerVisible] = useState(false);
+  // The single search box drives whichever segment is active. Kept controlled so
+  // we can clear it when switching tabs (Events and Posts search are separate).
+  const [searchText, setSearchText] = useState('');
 
   const isArtist = session?.user?.currentRole === UserRole.ARTIST;
 
@@ -100,6 +103,30 @@ export default function DiscoverScreen() {
       router.push(`/(app)/(tabs)/discover/event/${eventId}`);
     },
     [router]
+  );
+
+  // Route keystrokes to the active segment's search. Each hook debounces
+  // internally, so we just forward the raw text.
+  const postsOnSearch = feedPosts.onSearch;
+  const handleSearchChange = useCallback(
+    (text: string) => {
+      setSearchText(text);
+      if (activeSegment === 0) onSearch(text);
+      else postsOnSearch(text);
+    },
+    [activeSegment, onSearch, postsOnSearch]
+  );
+
+  // Events and Posts keep independent searches — clear the box and reset both
+  // feeds when toggling so a query meant for one tab never leaks into the other.
+  const handleSegmentChange = useCallback(
+    (index: number) => {
+      setActiveSegment(index);
+      setSearchText('');
+      onSearch('');
+      postsOnSearch('');
+    },
+    [onSearch, postsOnSearch]
   );
 
   const handleFiltersApply = useCallback(
@@ -158,6 +185,8 @@ export default function DiscoverScreen() {
         onCalendarPress={() => setDatePickerVisible(true)}
         onFilterPress={() => setFilterSheetVisible(true)}
         onNotificationPress={() => router.push('/notifications')}
+        calendarActive={activeSegment === 0 && !!date}
+        filterActive={activeSegment === 0 && !!category}
       />
 
       {/* Search bar */}
@@ -165,10 +194,15 @@ export default function DiscoverScreen() {
         <View className="flex-row items-center bg-[rgba(141,141,141,0.2)] rounded-full px-4 py-3 gap-3">
           <Ionicons name="search-outline" size={20} color="rgba(255,255,255,0.6)" />
           <TextInput
-            placeholder="Find Music, Artist or Event"
+            value={searchText}
+            placeholder={
+              activeSegment === 1
+                ? 'Search posts by author or caption'
+                : 'Find Music, Artist or Event'
+            }
             placeholderTextColor="rgba(255,255,255,0.6)"
             className="flex-1 text-sm text-white font-urbanist"
-            onChangeText={onSearch}
+            onChangeText={handleSearchChange}
             returnKeyType="search"
           />
         </View>
@@ -176,7 +210,11 @@ export default function DiscoverScreen() {
 
       {/* Segment toggle */}
       <View className="px-5 mt-4">
-        <SegmentToggle segments={SEGMENTS} activeIndex={activeSegment} onPress={setActiveSegment} />
+        <SegmentToggle
+          segments={SEGMENTS}
+          activeIndex={activeSegment}
+          onPress={handleSegmentChange}
+        />
       </View>
 
       {/* Active filter indicator */}
@@ -314,7 +352,11 @@ export default function DiscoverScreen() {
             hasNextPage={feedPosts.hasNextPage}
             currentUserId={me?.id ?? null}
             onLoadMore={feedPosts.loadMore}
-            emptyMessage="No posts yet. Check back soon for updates from artists and venues."
+            emptyMessage={
+              searchText.trim()
+                ? `No posts match "${searchText.trim()}".`
+                : 'No posts yet. Check back soon for updates from artists and venues.'
+            }
           />
         </ScrollView>
       )}

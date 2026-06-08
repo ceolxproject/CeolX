@@ -3,6 +3,23 @@
 // (mirrors the ArtistSearchRow.utils.ts convention).
 
 /**
+ * Reduce the selected platform-artist invites (full display objects, the form's
+ * single source of truth) to the array of artist IDs the create/update payload
+ * expects. Returns undefined when nothing is selected so the optional
+ * `platformInvites` field is omitted rather than sent as an empty array.
+ *
+ * The form holds the full {@link ArtistResult} objects — not just IDs — so the
+ * invite chips survive a step change (the picker is unmounted between steps;
+ * keeping only IDs there meant the chips vanished on back-navigation). IDs are
+ * derived here, at submit time, from that persisted list.
+ */
+export function platformInviteIds(
+  invites: ReadonlyArray<{ id: string }>
+): string[] | undefined {
+  return invites.length > 0 ? invites.map((a) => a.id) : undefined;
+}
+
+/**
  * Merge a Date (date portion) with a Date (time portion) into an ISO-8601
  * datetime string. Returns undefined when either part is missing.
  */

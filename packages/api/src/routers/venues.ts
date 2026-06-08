@@ -74,15 +74,12 @@ export const venuesRouter = router({
 
     const isOwner = ctx.session?.user?.id === profile.userId;
 
-    // Subscription gating: inactive/cancelled venues return 404 for non-owners
-    if (!isOwner && profile.subscriptionStatus !== 'active') {
-      throw new TRPCError({ code: 'NOT_FOUND', message: 'Venue not found' });
-    }
-
-    // Inactive profiles (is_active = false) return 404 for non-owners
-    if (!isOwner && !profile.isActive) {
-      throw new TRPCError({ code: 'NOT_FOUND', message: 'Venue not found' });
-    }
+    // NOTE: subscription-based visibility gating is intentionally disabled until
+    // the subscription system ships. Venues never reach `subscription_status =
+    // active` / `is_active = true` yet, so the previous owner-only gate 404'd
+    // every venue profile — e.g. a spectator tapping an event host saw "Venue
+    // Not Found". Restore the gate (subscriptionStatus === 'active' && isActive
+    // for non-owners) once subscriptions are live. Asana 1215489113550392.
 
     const { followerCount, followingCount } = await getFollowerCounts(profile.userId);
     const socialLinksRecord = await getSocialLinksRecord(profile.userId);

@@ -1,5 +1,7 @@
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+
+import { MAP_DEBOUNCE_MS } from '@CeolX/shared';
 
 import { trpc } from '@/utils/trpc';
 
@@ -31,8 +33,14 @@ export function useFeedPosts({ enabled = true }: Opts = {}) {
   const [accumulated, setAccumulated] = useState<HydratedPost[]>([]);
   const [hasNextPage, setHasNextPage] = useState(true);
   const [totalCount, setTotalCount] = useState(0);
+  const [searchQuery, setSearchQuery] = useState('');
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const queryOptions = trpc.posts.feed.queryOptions({ limit: PAGE_SIZE, offset });
+  const queryOptions = trpc.posts.feed.queryOptions({
+    limit: PAGE_SIZE,
+    offset,
+    query: searchQuery.trim() || undefined,
+  });
   const { data, isLoading, isFetching, refetch } = useQuery({
     ...queryOptions,
     enabled,
@@ -70,6 +78,17 @@ export function useFeedPosts({ enabled = true }: Opts = {}) {
     await refetch();
   }, [queryClient, queryOptions.queryKey, refetch]);
 
+  // Debounced so we don't refetch on every keystroke. Resetting offset +
+  // accumulated forces the list back to page one for the new term.
+  const onSearch = useCallback((text: string) => {
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+    searchTimerRef.current = setTimeout(() => {
+      setSearchQuery(text);
+      setOffset(0);
+      setAccumulated([]);
+    }, MAP_DEBOUNCE_MS);
+  }, []);
+
   return {
     posts: accumulated,
     isLoading: isLoading && offset === 0,
@@ -78,5 +97,7 @@ export function useFeedPosts({ enabled = true }: Opts = {}) {
     totalCount,
     loadMore,
     refresh,
+    searchQuery,
+    onSearch,
   };
 }

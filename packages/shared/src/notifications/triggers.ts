@@ -49,6 +49,10 @@ export const NotificationTrigger = {
   EVENT_REMOVED_BY_ADMIN_TO_VENUE: 'event_removed_by_admin_to_venue',
   EVENT_RESUBMITTED_TO_ARTIST: 'event_resubmitted_to_artist',
   EVENT_RESUBMITTED_TO_VENUE: 'event_resubmitted_to_venue',
+  // Creator deleted (soft-archived) their own event — tell the linked
+  // counterparty (the other side of an invite/request booking).
+  EVENT_DELETED_BY_CREATOR_TO_ARTIST: 'event_deleted_by_creator_to_artist',
+  EVENT_DELETED_BY_CREATOR_TO_VENUE: 'event_deleted_by_creator_to_venue',
   SAVED_EVENT_REMOVED_TO_SAVERS: 'saved_event_removed_to_savers',
 } as const;
 
@@ -413,6 +417,43 @@ export const NOTIFICATION_TRIGGERS: Record<NotificationTrigger, TriggerDefinitio
     inApp: {
       title: 'Event Resubmitted ✓',
       body: 'Your updated event "{eventTitle}" is back live on CeolX.',
+    },
+    email: null,
+  },
+  // A-17 — Creator deleted their event; tell the linked Artist (confirmed or
+  // invited via a pending/accepted booking). Routes to the feed because the
+  // event is archived and its detail page 404s for non-creators.
+  // NOTE: provisional matrix row — confirm A-17/V-16 IDs with Pratiksha
+  // (Asana 1215489535915818).
+  [NotificationTrigger.EVENT_DELETED_BY_CREATOR_TO_ARTIST]: {
+    matrixRef: 'A-17',
+    type: 'event_deleted',
+    persona: 'artist',
+    routeTemplate: '/(app)/(tabs)/discover',
+    push: {
+      title: 'Event cancelled',
+      body: 'The organiser deleted "{eventTitle}" — it\'s no longer on CeolX.',
+    },
+    inApp: {
+      title: 'Event cancelled',
+      body: '"{eventTitle}" was deleted by the organiser, so your involvement has ended.',
+    },
+    email: null,
+  },
+  // V-16 — Same, told to the linked Venue (e.g. an Artist deleted an event
+  // hosted at their venue).
+  [NotificationTrigger.EVENT_DELETED_BY_CREATOR_TO_VENUE]: {
+    matrixRef: 'V-16',
+    type: 'event_deleted',
+    persona: 'venue',
+    routeTemplate: '/(app)/(tabs)/discover',
+    push: {
+      title: 'Event cancelled',
+      body: 'The organiser deleted "{eventTitle}" — it\'s no longer on CeolX.',
+    },
+    inApp: {
+      title: 'Event cancelled',
+      body: '"{eventTitle}" hosted at your venue was deleted by the organiser.',
     },
     email: null,
   },
