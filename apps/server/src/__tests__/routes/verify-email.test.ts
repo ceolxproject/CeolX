@@ -10,7 +10,7 @@ function buildApp() {
 }
 
 describe('GET /verify-email', () => {
-  it('returns HTML with a meta-refresh to ceolx://verify-email and the token', async () => {
+  it('fires the deep link exactly once and offers a manual fallback', async () => {
     const app = buildApp();
     const res = await app.request('/verify-email?token=abc123');
 
@@ -18,12 +18,18 @@ describe('GET /verify-email', () => {
     expect(res.headers.get('content-type')).toMatch(/text\/html/);
 
     const html = await res.text();
-    expect(html).toContain(
-      '<meta http-equiv="refresh" content="0;url=ceolx://verify-email?token=abc123">'
-    );
-    // Belt-and-braces JS redirect
-    expect(html).toContain("window.location.href = 'ceolx://verify-email?token=abc123'");
-    // Visible fallback link
+
+    // Single auto-redirect via JS — a meta-refresh AND a JS redirect together
+    // deliver the ceolx:// intent twice on Android and bounce the deep-linked
+    // screen. (Asana 1215040939202673)
+    expect(html).not.toContain('http-equiv="refresh"');
+    expect(html).toContain("window.location.replace('ceolx://verify-email?token=abc123')");
+    expect(html).not.toContain('window.location.href');
+
+    const autoRedirects = html.match(/window\.location\.replace\(/g) ?? [];
+    expect(autoRedirects).toHaveLength(1);
+
+    // Visible manual fallback for clients that block scripted scheme launches.
     expect(html).toContain('href="ceolx://verify-email?token=abc123"');
   });
 

@@ -27,11 +27,17 @@ function escapeHtml(s: string): string {
 function renderRedirectPage(path: string, token: string): string {
   const safe = escapeHtml(token);
   const deepLink = `ceolx://${path}?token=${safe}`;
+  // Fire the deep link via EXACTLY ONE auto-mechanism. A `<meta http-equiv="refresh">`
+  // and a JS redirect firing together each launch the ceolx:// intent — and on
+  // Android a custom-scheme navigation does not unload this page, so the second
+  // mechanism delivers the intent a second time. With a singleTask activity that
+  // duplicate arrives via onNewIntent, re-anchors the app's (auth) splash on top of
+  // the reset-password screen, and the splash's timed redirect then bounces to
+  // sign-in. One trigger only. (Asana 1215040939202673)
   return `<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta http-equiv="refresh" content="0;url=${deepLink}">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Opening CeolX…</title>
   <style>
@@ -52,7 +58,7 @@ function renderRedirectPage(path: string, token: string): string {
     <a class="btn" href="${deepLink}">Open the CeolX app</a>
     <div><a class="small" href="${deepLink}">${deepLink}</a></div>
   </div>
-  <script>window.location.href = '${deepLink}';</script>
+  <script>window.location.replace('${deepLink}');</script>
 </body>
 </html>`;
 }
