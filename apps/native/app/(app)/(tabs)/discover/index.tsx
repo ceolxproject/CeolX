@@ -29,6 +29,7 @@ import { useFeedEvents } from '@/hooks/use-feed-events';
 import { useFeedPosts } from '@/hooks/use-feed-posts';
 import { useGpsRegion } from '@/hooks/use-gps-region';
 import { useMe } from '@/hooks/use-me';
+import { useVenueFallback } from '@/hooks/use-venue-fallback';
 import { authClient } from '@/lib/auth-client';
 
 const SEGMENTS = ['Events', 'Posts'];
@@ -55,7 +56,8 @@ function parseLocalYmd(s: string): Date {
 export default function DiscoverScreen() {
   const router = useRouter();
   const { data: session } = authClient.useSession();
-  const { initialRegion, locationSource, placeLabel } = useGpsRegion();
+  const venueFallback = useVenueFallback();
+  const { initialRegion, locationSource, placeLabel } = useGpsRegion(true, venueFallback);
   const [activeSegment, setActiveSegment] = useState(0);
   const [filterSheetVisible, setFilterSheetVisible] = useState(false);
   const [datePickerVisible, setDatePickerVisible] = useState(false);
@@ -129,7 +131,9 @@ export default function DiscoverScreen() {
       ? 'Current Location'
       : locationSource === 'ip'
         ? 'Approximate Location'
-        : 'Ireland');
+        : locationSource === 'venue-profile'
+          ? 'Your venue'
+          : 'Ireland');
 
   const renderEvent = useCallback(
     ({ item }: { item: (typeof events)[number] }) => (

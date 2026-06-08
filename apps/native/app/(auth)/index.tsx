@@ -1,3 +1,4 @@
+import * as Linking from 'expo-linking';
 import { router, useIsFocused } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import { useEffect } from 'react';
@@ -53,8 +54,22 @@ export default function SplashScreen() {
   // Only navigate when the splash is the screen actually in focus.
   const isFocused = useIsFocused();
 
+  // Defense-in-depth against deep-link re-delivery. The isFocused guard cancels
+  // the timer while the deep-linked screen sits on top, but a *second* delivery
+  // of the same ceolx:// link (Android fires onNewIntent on the singleTask
+  // activity) re-resolves the URL and can transiently re-anchor this splash with
+  // focus — at which point the timer would legitimately fire and bounce the
+  // deep-linked screen to sign-in. useURL() retains the launch/most-recent deep
+  // link, so if the app was opened by an auth deep link we never auto-redirect
+  // and let that screen own navigation. The bridge single-fire (server) removes
+  // the duplicate at the source; this is the belt to that braces.
+  // (Asana 1215040939202673)
+  const deepLinkUrl = Linking.useURL();
+  const openedViaAuthDeepLink =
+    !!deepLinkUrl && /\b(reset-password|verify-email)\b/.test(deepLinkUrl);
+
   useEffect(() => {
-    if (isLoading || !isFocused) return;
+    if (isLoading || !isFocused || openedViaAuthDeepLink) return;
 
     // Authenticated users skip the splash hold and go straight to the app.
     if (user) {
@@ -84,7 +99,7 @@ export default function SplashScreen() {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [isLoading, user, isFocused]);
+  }, [isLoading, user, isFocused, openedViaAuthDeepLink]);
 
   return (
     <View className="flex-1 bg-[#0d0c0f] items-center justify-center">
