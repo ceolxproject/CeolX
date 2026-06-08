@@ -11,10 +11,14 @@ name: Migrate Neon (staging)
 # non-deterministic and can drop data on a shared DB.
 
 on:
+  # Auto: apply migrations when a push to `staging` adds/changes migration SQL.
   push:
     branches: [staging]
     paths:
       - 'packages/db/src/migrations/**'
+  # Manual: "Run workflow" button in the Actions tab (ignores the path filter).
+  # Requires this workflow to exist on the default branch to show the button.
+  workflow_dispatch:
 
 # Never let two migration runs race on the migrations table.
 concurrency:
