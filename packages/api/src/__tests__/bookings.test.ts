@@ -586,6 +586,8 @@ describe('bookings.list', () => {
     const result = await caller.bookings.list({ tab: 'sent' });
     expect(result.bookings).toHaveLength(1);
     expect(result.total).toBe(1);
+    expect(result.bookings[0]?.artistUserId).toBe(ARTIST_USER_ID);
+    expect(result.bookings[0]?.venueUserId).toBe(VENUE_USER_ID);
   });
 });
 
@@ -616,6 +618,9 @@ describe('bookings.byId', () => {
     expect(result.id).toBe(BOOKING_ID);
     expect(result.artistName).toBe('Celtic Thunder');
     expect(result.venueName).toBe('The Temple Bar');
+    // Account ids power the "Contact" deep link to the counterparty profile.
+    expect(result.artistUserId).toBe(ARTIST_USER_ID);
+    expect(result.venueUserId).toBe(VENUE_USER_ID);
   });
 });
 

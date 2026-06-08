@@ -104,9 +104,13 @@ export interface BookingSummary {
   status: BookingStatus;
   direction: BookingDirection;
   artistId: string;
+  // User (account) id behind the artist profile — used to open their public
+  // profile (the /artist/[userId] route resolves by userId) e.g. from Contact.
+  artistUserId: string;
   artistName: string;
   artistImage?: string;
   venueId: string;
+  venueUserId: string;
   venueName: string;
   venueImage?: string;
   eventId: string;

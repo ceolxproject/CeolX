@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
-import { useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, Image, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -139,7 +139,16 @@ export default function BookingDetailScreen() {
               {otherPartyName}
             </Text>
             {booking.status === BookingStatus.ACCEPTED && (
-              <Pressable>
+              <Pressable
+                onPress={() =>
+                  router.push(
+                    userRole === UserRole.ARTIST
+                      ? `/(app)/venue/${booking.venueUserId}`
+                      : `/(app)/artist/${booking.artistUserId}`
+                  )
+                }
+                hitSlop={8}
+              >
                 <Text className="text-xs font-bold text-[#D4FC5A] font-urbanist tracking-wide">
                   {contactLabel}
                 </Text>
