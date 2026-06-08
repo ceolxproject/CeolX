@@ -38,6 +38,11 @@ export const NotificationTrigger = {
   BOOKING_WITHDRAWN_TO_ARTIST: 'booking_withdrawn_to_artist',
   BOOKING_CANCELLED_TO_ARTIST: 'booking_cancelled_to_artist',
   BOOKING_CANCELLED_TO_VENUE: 'booking_cancelled_to_venue',
+  BOOKING_INVITE_TO_COARTIST: 'booking_invite_to_coartist',
+  BOOKING_COARTIST_ACCEPTED_TO_INVITER: 'booking_coartist_accepted_to_inviter',
+  BOOKING_COARTIST_REJECTED_TO_INVITER: 'booking_coartist_rejected_to_inviter',
+  BOOKING_COARTIST_WITHDRAWN_TO_INVITEE: 'booking_coartist_withdrawn_to_invitee',
+  BOOKING_COARTIST_CANCELLED: 'booking_coartist_cancelled',
   ADDED_AS_COLLABORATOR_TO_ARTIST: 'added_as_collaborator_to_artist',
   EVENT_HOSTED_AT_VENUE_TO_VENUE: 'event_hosted_at_venue_to_venue',
   EVENT_REMOVED_BY_ADMIN_TO_ARTIST: 'event_removed_by_admin_to_artist',
@@ -230,6 +235,87 @@ export const NOTIFICATION_TRIGGERS: Record<NotificationTrigger, TriggerDefinitio
     inApp: {
       title: 'Booking Cancelled',
       body: '{artistName} cancelled the confirmed booking for "{eventTitle}" on {date}.',
+    },
+    email: null,
+  },
+  // Artist↔artist booking triggers (A-09a…A-13a). The single {coArtistName}
+  // placeholder is always "the OTHER co-artist, from the recipient's
+  // perspective": the inviter's name when notifying the invitee
+  // (BOOKING_INVITE_TO_COARTIST), and the invitee's name when notifying the
+  // inviter (accepted/rejected/cancelled). The bookings.update dispatcher sets
+  // it accordingly, so callers never decide which name to pass.
+  [NotificationTrigger.BOOKING_INVITE_TO_COARTIST]: {
+    matrixRef: 'A-09a',
+    type: 'booking_invitation',
+    persona: 'artist',
+    routeTemplate: '/(app)/(tabs)/bookings/{bookingId}',
+    push: {
+      title: 'New Collab Invite',
+      body: '{coArtistName} invited you to play "{eventTitle}" on {date}.',
+    },
+    inApp: {
+      title: 'New Collab Invite',
+      body: '{coArtistName} invited you to play "{eventTitle}" on {date}. Respond before it expires.',
+    },
+    email: null,
+  },
+  [NotificationTrigger.BOOKING_COARTIST_ACCEPTED_TO_INVITER]: {
+    matrixRef: 'A-10a',
+    type: 'booking_accepted',
+    persona: 'artist',
+    routeTemplate: '/(app)/(tabs)/bookings/{bookingId}',
+    push: {
+      title: 'Collab Accepted ✓',
+      body: '{coArtistName} accepted your invite for "{eventTitle}" on {date}.',
+    },
+    inApp: {
+      title: 'Collab Accepted ✓',
+      body: '{coArtistName} is confirmed for "{eventTitle}" on {date}.',
+    },
+    email: null,
+  },
+  [NotificationTrigger.BOOKING_COARTIST_REJECTED_TO_INVITER]: {
+    matrixRef: 'A-11a',
+    type: 'booking_rejected',
+    persona: 'artist',
+    routeTemplate: '/(app)/(tabs)/bookings/{bookingId}',
+    push: {
+      title: 'Collab Declined',
+      body: '{coArtistName} declined your invite for "{eventTitle}".',
+    },
+    inApp: {
+      title: 'Collab Declined',
+      body: '{coArtistName} declined your invite for "{eventTitle}" on {date}.',
+    },
+    email: null,
+  },
+  [NotificationTrigger.BOOKING_COARTIST_WITHDRAWN_TO_INVITEE]: {
+    matrixRef: 'A-13a',
+    type: 'booking_withdrawn',
+    persona: 'artist',
+    routeTemplate: '/(app)/(tabs)/bookings/{bookingId}',
+    push: {
+      title: 'Invite Withdrawn',
+      body: '{coArtistName} withdrew the invite for "{eventTitle}".',
+    },
+    inApp: {
+      title: 'Invite Withdrawn',
+      body: '{coArtistName} withdrew the invite for "{eventTitle}" on {date}.',
+    },
+    email: null,
+  },
+  [NotificationTrigger.BOOKING_COARTIST_CANCELLED]: {
+    matrixRef: 'A-12a',
+    type: 'booking_cancelled',
+    persona: 'artist',
+    routeTemplate: '/(app)/(tabs)/bookings/{bookingId}',
+    push: {
+      title: 'Collab Cancelled',
+      body: '{coArtistName} cancelled the collab for "{eventTitle}" on {date}.',
+    },
+    inApp: {
+      title: 'Collab Cancelled',
+      body: '{coArtistName} cancelled the collab for "{eventTitle}" on {date}.',
     },
     email: null,
   },

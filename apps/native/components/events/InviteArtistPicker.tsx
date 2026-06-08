@@ -30,6 +30,8 @@ type Props = {
   onPlatformInvitesChange: (artists: ArtistResult[]) => void;
   unregisteredInvites: UnregisteredInvite[];
   onUnregisteredInvitesChange: (invites: UnregisteredInvite[]) => void;
+  /** Current user's id — hidden from results so an artist can't invite themselves. */
+  myUserId?: string;
 };
 
 export function InviteArtistPicker({
@@ -37,6 +39,7 @@ export function InviteArtistPicker({
   onPlatformInvitesChange,
   unregisteredInvites,
   onUnregisteredInvitesChange,
+  myUserId,
 }: Props) {
   const [query, setQuery] = useState('');
   const debouncedQuery = useDebouncedValue(query);
@@ -51,8 +54,10 @@ export function InviteArtistPicker({
     enabled: debouncedQuery.length >= 1,
   });
 
+  // Hide already-invited artists and the creator themselves. artists.search
+  // returns id = artist_profiles.user_id, which matches the current user's id.
   const results = (data?.artists ?? []).filter(
-    (a) => !platformInvites.some((p) => p.id === a.id)
+    (a) => !platformInvites.some((p) => p.id === a.id) && a.id !== myUserId
   );
 
   function addPlatformInvite(artist: ArtistResult) {

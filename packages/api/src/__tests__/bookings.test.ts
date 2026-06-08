@@ -1,6 +1,7 @@
 import { TRPCError } from '@trpc/server';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 
+import { NotificationTrigger } from '@CeolX/shared';
 import type { UserRole } from '@CeolX/shared';
 
 // ─── Hoisted mocks (separate fns per query namespace) ────���──────────────────
@@ -256,6 +257,31 @@ const mockBooking = {
   artist: mockArtistProfile,
   venue: mockVenueProfile,
   event: mockEvent,
+};
+
+// ─── artist↔artist (co-artist) fixtures ──────────────────────────────────────
+// Inviter = the artist who created the event and sent the invite.
+// Invited (mockArtistProfile) = the co-artist receiving it. No venue.
+const INVITER_USER_ID = 'inviter-user-789';
+const INVITER_PROFILE_ID = 'e5555555-5555-4555-a555-555555555555';
+
+const mockInviterArtistProfile = {
+  id: INVITER_PROFILE_ID,
+  userId: INVITER_USER_ID,
+  stageName: 'Tune Bomb',
+  isActive: true,
+  genre: 'traditional',
+};
+
+const mockA2ABooking = {
+  ...mockBooking,
+  venueId: null,
+  inviterArtistId: INVITER_PROFILE_ID,
+  direction: 'artist_to_artist',
+  artist: mockArtistProfile, // invited co-artist (recipient)
+  inviterArtist: mockInviterArtistProfile, // inviter (sender)
+  venue: null,
+  event: { ...mockEvent, createdBy: INVITER_USER_ID },
 };
 
 beforeEach(() => {
@@ -621,6 +647,128 @@ describe('bookings.byId', () => {
     // Account ids power the "Contact" deep link to the counterparty profile.
     expect(result.artistUserId).toBe(ARTIST_USER_ID);
     expect(result.venueUserId).toBe(VENUE_USER_ID);
+  });
+});
+
+// ─── bookings artist_to_artist (co-artist) ───────────────────────────────────
+
+describe('bookings.update — artist_to_artist', () => {
+  it('allows the invited co-artist to accept and notifies the inviter', async () => {
+    const caller = createCaller(authedContext('artist', ARTIST_USER_ID));
+    mockBookingsFindFirst.mockResolvedValueOnce(mockA2ABooking);
+    mockUpdateReturning.mockResolvedValueOnce([{ ...mockA2ABooking, status: 'accepted' }]);
+
+    const result = await caller.bookings.update({ id: BOOKING_ID, status: 'accepted' });
+    expect(result.status).toBe('accepted');
+    expect(mockDispatchNotification).toHaveBeenCalledWith(
+      expect.objectContaining({
+        trigger: NotificationTrigger.BOOKING_COARTIST_ACCEPTED_TO_INVITER,
+        recipientUserId: INVITER_USER_ID,
+        vars: expect.objectContaining({ coArtistName: 'Celtic Thunder' }),
+      })
+    );
+  });
+
+  it('forbids the inviter from accepting their own co-artist invite', async () => {
+    const caller = createCaller(authedContext('artist', INVITER_USER_ID));
+    mockBookingsFindFirst.mockResolvedValueOnce(mockA2ABooking);
+
+    await expectTRPCError(
+      caller.bookings.update({ id: BOOKING_ID, status: 'accepted' }),
+      'FORBIDDEN'
+    );
+  });
+
+  it('allows the inviter to withdraw a pending invite and notifies the invitee', async () => {
+    const caller = createCaller(authedContext('artist', INVITER_USER_ID));
+    mockBookingsFindFirst.mockResolvedValueOnce(mockA2ABooking);
+    mockUpdateReturning.mockResolvedValueOnce([{ ...mockA2ABooking, status: 'cancelled' }]);
+
+    const result = await caller.bookings.update({ id: BOOKING_ID, status: 'cancelled' });
+    expect(result.status).toBe('cancelled');
+    expect(mockDispatchNotification).toHaveBeenCalledWith(
+      expect.objectContaining({
+        trigger: NotificationTrigger.BOOKING_COARTIST_WITHDRAWN_TO_INVITEE,
+        recipientUserId: ARTIST_USER_ID,
+        vars: expect.objectContaining({ coArtistName: 'Tune Bomb' }),
+      })
+    );
+  });
+
+  it('forbids a non-party artist from updating a co-artist booking', async () => {
+    const caller = createCaller(authedContext('artist', 'some-other-artist'));
+    mockBookingsFindFirst.mockResolvedValueOnce(mockA2ABooking);
+
+    await expectTRPCError(
+      caller.bookings.update({ id: BOOKING_ID, status: 'accepted' }),
+      'FORBIDDEN'
+    );
+  });
+});
+
+describe('bookings.list — artist_to_artist tabs', () => {
+  it('maps a received co-artist row with inviter fields and viewerIsSender false', async () => {
+    const caller = createCaller(authedContext('artist', ARTIST_USER_ID));
+    mockArtistsFindFirst.mockResolvedValueOnce({ id: ARTIST_PROFILE_ID });
+
+    mockSelectWhere.mockReturnValueOnce({
+      then: (cb: (v: unknown[]) => void) => cb([{ count: 1 }]),
+    });
+    mockBookingsFindMany.mockResolvedValueOnce([mockA2ABooking]);
+    mockSelectWhere.mockReturnValueOnce({
+      then: (cb: (v: unknown[]) => void) =>
+        cb([
+          { id: ARTIST_USER_ID, image: 'invited.jpg' },
+          { id: INVITER_USER_ID, image: 'inviter.jpg' },
+        ]),
+    });
+
+    const result = await caller.bookings.list({ tab: 'received' });
+    expect(result.bookings).toHaveLength(1);
+    const row = result.bookings[0]!;
+    expect(row.direction).toBe('artist_to_artist');
+    expect(row.inviterArtistName).toBe('Tune Bomb');
+    expect(row.inviterArtistId).toBe(INVITER_PROFILE_ID);
+    // The viewer is the invited artist, not the sender.
+    expect(row.viewerIsSender).toBe(false);
+    // Null venue must not throw and must serialize to empty strings.
+    expect(row.venueName).toBe('');
+    expect(row.venueId).toBe('');
+  });
+
+  it('marks viewerIsSender true for the inviter on the sent tab', async () => {
+    const caller = createCaller(authedContext('artist', INVITER_USER_ID));
+    mockArtistsFindFirst.mockResolvedValueOnce({ id: INVITER_PROFILE_ID });
+
+    mockSelectWhere.mockReturnValueOnce({
+      then: (cb: (v: unknown[]) => void) => cb([{ count: 1 }]),
+    });
+    mockBookingsFindMany.mockResolvedValueOnce([mockA2ABooking]);
+    mockSelectWhere.mockReturnValueOnce({
+      then: (cb: (v: unknown[]) => void) =>
+        cb([
+          { id: ARTIST_USER_ID, image: 'invited.jpg' },
+          { id: INVITER_USER_ID, image: 'inviter.jpg' },
+        ]),
+    });
+
+    const result = await caller.bookings.list({ tab: 'sent' });
+    const row = result.bookings[0]!;
+    expect(row.viewerIsSender).toBe(true);
+  });
+});
+
+describe('bookings.byId — artist_to_artist', () => {
+  it('allows the inviter artist (previously forbidden) and maps inviter fields', async () => {
+    const caller = createCaller(authedContext('artist', INVITER_USER_ID));
+    mockBookingsFindFirst.mockResolvedValueOnce(mockA2ABooking);
+    mockUserFindFirst.mockResolvedValueOnce({ image: 'invited.jpg' }); // artist
+    mockUserFindFirst.mockResolvedValueOnce({ image: 'inviter.jpg' }); // inviterArtist
+
+    const result = await caller.bookings.byId({ id: BOOKING_ID });
+    expect(result.inviterArtistName).toBe('Tune Bomb');
+    expect(result.viewerIsSender).toBe(true);
+    expect(result.venueName).toBe('');
   });
 });
 
