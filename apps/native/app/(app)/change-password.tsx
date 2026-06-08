@@ -40,9 +40,12 @@ export default function ChangePasswordScreen() {
     setLoading(true);
     setError('');
 
+    // revokeOtherSessions evicts every other device on password change, so a
+    // stolen/old session can't persist after the user rotates their password.
     const { error: apiError } = await authClient.changePassword({
       currentPassword,
       newPassword,
+      revokeOtherSessions: true,
     });
 
     setLoading(false);
@@ -52,9 +55,11 @@ export default function ChangePasswordScreen() {
       return;
     }
 
-    Alert.alert('Password updated', 'Your password has been changed.', [
-      { text: 'OK', onPress: () => router.back() },
-    ]);
+    Alert.alert(
+      'Password updated',
+      'Your password has been changed. You have been signed out on your other devices.',
+      [{ text: 'OK', onPress: () => router.back() }]
+    );
   };
 
   return (
