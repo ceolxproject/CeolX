@@ -158,6 +158,8 @@ export default function DiscoverScreen() {
         onCalendarPress={() => setDatePickerVisible(true)}
         onFilterPress={() => setFilterSheetVisible(true)}
         onNotificationPress={() => router.push('/notifications')}
+        calendarActive={activeSegment === 0 && !!date}
+        filterActive={activeSegment === 0 && !!category}
       />
 
       {/* Search bar */}
