@@ -1,6 +1,6 @@
 import { router, useNavigation } from 'expo-router';
 import { useEffect } from 'react';
-import { BackHandler, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import { BackHandler, KeyboardAvoidingView, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { OnboardingHeader } from '@/components/onboarding/shared/OnboardingHeader';
@@ -56,10 +56,7 @@ export default function VenueOnboardingScreen() {
   }, [currentStep, goBack, navigation]);
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      style={{ flex: 1, backgroundColor: '#080808' }}
-    >
+    <KeyboardAvoidingView behavior="padding" style={{ flex: 1, backgroundColor: '#080808' }}>
       <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
         <OnboardingHeader onLogoutPress={handleLogoutAndExit} />
         <StepIndicator currentStep={currentStep} stepCount={3} onStepPress={goToStep} />

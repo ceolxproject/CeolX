@@ -1,22 +1,14 @@
 import * as Sentry from '@sentry/react-native';
 import { useRouter } from 'expo-router';
 import { useCallback, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Animated, Modal, Platform, Pressable, Text, View } from 'react-native';
+import { ActivityIndicator, Animated, Modal, Platform, Text, View } from 'react-native';
 import MapView from 'react-native-map-clustering';
 import type RNMapView from 'react-native-maps';
 import type { Region } from 'react-native-maps';
-import { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
+import { PROVIDER_GOOGLE } from 'react-native-maps';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import {
-  CATEGORY_ICONS,
-  CATEGORY_LABELS,
-  DATE_RANGE_LABELS,
-  DATE_RANGE_OPTIONS,
-  EVENT_CATEGORIES,
-  IRISH_COUNTIES,
-  filterValidMapEvents,
-} from '@CeolX/shared';
+import { EVENT_CATEGORIES, IRISH_COUNTIES, filterValidMapEvents } from '@CeolX/shared';
 
 import { CountySuggestionsDropdown } from '@/components/CountySuggestionsDropdown';
 import { EventPreviewCard } from '@/components/EventPreviewCard';
@@ -24,9 +16,12 @@ import { FilterSheet } from '@/components/FilterSheet';
 import type { FilterSection } from '@/components/FilterSheet';
 import { LocationBanner } from '@/components/LocationBanner';
 import { LocationPermissionScreen } from '@/components/LocationPermissionScreen';
+import type { ClusterObject } from '@/components/MapClusterMarker';
+import { MapClusterMarker } from '@/components/MapClusterMarker';
 import { MapEmptyStateCard } from '@/components/MapEmptyStateCard';
 import { MapErrorBoundary } from '@/components/MapErrorBoundary';
-import { MapEventPin } from '@/components/MapEventPin';
+import type { MapEvent } from '@/components/MapEventMarker';
+import { MapEventMarker } from '@/components/MapEventMarker';
 import { MapHeader } from '@/components/MapHeader';
 import { MapSearchBar } from '@/components/MapSearchBar';
 import type { CountyResult } from '@/hooks/use-county-search';
@@ -35,33 +30,12 @@ import { useGpsRegion } from '@/hooks/use-gps-region';
 import { useLocationPermissionPrompt } from '@/hooks/use-location-permission-prompt';
 import { useMapEvents } from '@/hooks/use-map-events';
 import { usePanelAnimation } from '@/hooks/use-panel-animation';
+import { useVenueFallback } from '@/hooks/use-venue-fallback';
 
 const MAP_FILTER_SECTIONS: FilterSection[] = [
-  { key: 'dateRange', label: 'When', options: DATE_RANGE_OPTIONS, labels: DATE_RANGE_LABELS },
   { key: 'category', label: 'Category', options: EVENT_CATEGORIES },
   { key: 'county', label: 'County', options: IRISH_COUNTIES },
 ];
-
-type MapEvent = {
-  id: string;
-  title: string;
-  lat: number;
-  lng: number;
-  category: string;
-  dateStart: string;
-  dateEnd?: string;
-  venueAddress?: string;
-  coverImageUrl?: string;
-  distanceMeters?: number;
-};
-
-// Typed shape of the cluster object passed by react-native-map-clustering
-type ClusterObject = {
-  id: string | number;
-  geometry: { coordinates: [number, number] }; // [lng, lat]
-  properties: { point_count: number };
-  onPress: () => void;
-};
 
 export default function MapScreen() {
   const mapRef = useRef<RNMapView>(null);
@@ -72,8 +46,10 @@ export default function MapScreen() {
   // known-good values into it rather than letting it re-measure.
   const insets = useSafeAreaInsets();
   const { promptState, markSeen } = useLocationPermissionPrompt();
+  const venueFallback = useVenueFallback();
   const { initialRegion, gpsPermissionGranted, locationSource, mapKey } = useGpsRegion(
-    promptState === 'done'
+    promptState === 'done',
+    venueFallback
   );
   const mapEventsResult = useMapEvents({
     // Only pass coords once the location chain has resolved — prevents expand
@@ -174,16 +150,7 @@ export default function MapScreen() {
 
   const renderCluster = useCallback(
     (cluster: ClusterObject) => (
-      <Marker
-        key={`cluster-${cluster.id}`}
-        coordinate={{
-          latitude: cluster.geometry.coordinates[1],
-          longitude: cluster.geometry.coordinates[0],
-        }}
-        onPress={cluster.onPress}
-      >
-        <MapEventPin type="cluster" count={cluster.properties.point_count} />
-      </Marker>
+      <MapClusterMarker key={`cluster-${cluster.id}`} cluster={cluster} />
     ),
     []
   );
@@ -220,30 +187,12 @@ export default function MapScreen() {
           renderCluster={renderCluster}
         >
           {events.map((event) => (
-            <Marker
+            <MapEventMarker
               key={event.id}
-              coordinate={{ latitude: event.lat, longitude: event.lng }}
-              tracksViewChanges={selectedEvent?.id === event.id}
-            >
-              <Pressable onPress={() => selectItem(event)}>
-                <View className="items-center">
-                  <MapEventPin
-                    type="single"
-                    coverImageUrl={event.coverImageUrl}
-                    category={CATEGORY_LABELS[event.category] ?? event.category}
-                    categoryIcon={CATEGORY_ICONS[event.category]}
-                    isSelected={selectedEvent?.id === event.id}
-                  />
-                  {selectedEvent?.id === event.id ? (
-                    <View className="mt-1 bg-[rgba(255,255,255,0.92)] px-2 py-[3px] rounded-[10px] max-w-[140px]">
-                      <Text className="text-[11px] text-[#080808] font-semibold" numberOfLines={1}>
-                        {event.title}
-                      </Text>
-                    </View>
-                  ) : null}
-                </View>
-              </Pressable>
-            </Marker>
+              event={event}
+              isSelected={selectedEvent?.id === event.id}
+              onSelect={selectItem}
+            />
           ))}
         </MapView>
       </MapErrorBoundary>

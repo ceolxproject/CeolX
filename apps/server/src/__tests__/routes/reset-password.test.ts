@@ -10,7 +10,7 @@ function buildApp() {
 }
 
 describe('GET /reset-password', () => {
-  it('returns HTML with a meta-refresh to ceolx://reset-password and the token', async () => {
+  it('fires the deep link exactly once and offers a manual fallback', async () => {
     const app = buildApp();
     const res = await app.request('/reset-password?token=abc123');
 
@@ -18,12 +18,22 @@ describe('GET /reset-password', () => {
     expect(res.headers.get('content-type')).toMatch(/text\/html/);
 
     const html = await res.text();
-    expect(html).toContain(
-      '<meta http-equiv="refresh" content="0;url=ceolx://reset-password?token=abc123">'
-    );
-    // Belt-and-braces JS redirect
-    expect(html).toContain("window.location.href = 'ceolx://reset-password?token=abc123'");
-    // Visible fallback link
+
+    // Single auto-redirect via JS. A meta-refresh AND a JS redirect both firing
+    // delivers the ceolx:// intent twice on Android (custom-scheme navigation
+    // does not unload the page), which re-anchors the app's splash and bounces
+    // reset-password to sign-in. Exactly one auto-trigger. (Asana 1215040939202673)
+    expect(html).not.toContain('http-equiv="refresh"');
+    expect(html).toContain("window.location.replace('ceolx://reset-password?token=abc123')");
+    // `.replace` (not `.href`) so the bridge page isn't kept in history — a back
+    // navigation must not return to it and re-fire the intent.
+    expect(html).not.toContain('window.location.href');
+
+    // Exactly one auto-redirect script in the document.
+    const autoRedirects = html.match(/window\.location\.replace\(/g) ?? [];
+    expect(autoRedirects).toHaveLength(1);
+
+    // Visible manual fallback for clients that block scripted scheme launches.
     expect(html).toContain('href="ceolx://reset-password?token=abc123"');
   });
 

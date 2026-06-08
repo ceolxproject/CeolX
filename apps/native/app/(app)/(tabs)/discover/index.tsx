@@ -13,11 +13,12 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import type { DateRangeOption, EventCategory } from '@CeolX/shared';
-import { DATE_RANGE_LABELS, DATE_RANGE_OPTIONS, EVENT_CATEGORIES } from '@CeolX/shared';
+import type { EventCategory } from '@CeolX/shared';
+import { EVENT_CATEGORIES } from '@CeolX/shared';
 import { UserRole } from '@CeolX/shared/enums';
 
 import { AdStack } from '@/components/ads/AdStack';
+import { DatePickerSheet } from '@/components/DatePickerSheet';
 import { FeedEventCard } from '@/components/FeedEventCard';
 import { FeedHeader } from '@/components/FeedHeader';
 import { FilterSheet } from '@/components/FilterSheet';
@@ -28,21 +29,38 @@ import { useFeedEvents } from '@/hooks/use-feed-events';
 import { useFeedPosts } from '@/hooks/use-feed-posts';
 import { useGpsRegion } from '@/hooks/use-gps-region';
 import { useMe } from '@/hooks/use-me';
+import { useVenueFallback } from '@/hooks/use-venue-fallback';
 import { authClient } from '@/lib/auth-client';
 
 const SEGMENTS = ['Events', 'Posts'];
 
+// Date selection lives on the header's calendar button — the filter sheet is
+// category-only.
 const FEED_FILTER_SECTIONS: FilterSection[] = [
-  { key: 'dateRange', label: 'When', options: DATE_RANGE_OPTIONS, labels: DATE_RANGE_LABELS },
   { key: 'category', label: 'Category', options: EVENT_CATEGORIES },
 ];
+
+// Device-local YYYY-MM-DD. Avoids the UTC day-shift that toISOString() causes
+// for users behind/ahead of UTC (it could store "yesterday" for a late pick).
+function toLocalYmd(d: Date): string {
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${d.getFullYear()}-${month}-${day}`;
+}
+
+function parseLocalYmd(s: string): Date {
+  const [y, m, d] = s.split('-').map(Number);
+  return new Date(y, m - 1, d);
+}
 
 export default function DiscoverScreen() {
   const router = useRouter();
   const { data: session } = authClient.useSession();
-  const { initialRegion, locationSource, placeLabel } = useGpsRegion();
+  const venueFallback = useVenueFallback();
+  const { initialRegion, locationSource, placeLabel } = useGpsRegion(true, venueFallback);
   const [activeSegment, setActiveSegment] = useState(0);
   const [filterSheetVisible, setFilterSheetVisible] = useState(false);
+  const [datePickerVisible, setDatePickerVisible] = useState(false);
 
   const isArtist = session?.user?.currentRole === UserRole.ARTIST;
 
@@ -61,8 +79,8 @@ export default function DiscoverScreen() {
     onSearch,
     category,
     setCategory,
-    dateRange,
-    setDateRange,
+    date,
+    setDate,
   } = useFeedEvents({
     lat: initialRegion.latitude,
     lng: initialRegion.longitude,
@@ -87,13 +105,25 @@ export default function DiscoverScreen() {
   const handleFiltersApply = useCallback(
     (filters: Record<string, string | undefined>) => {
       setCategory(filters.category as EventCategory | undefined);
-      setDateRange(filters.dateRange as DateRangeOption | undefined);
     },
-    [setCategory, setDateRange]
+    [setCategory]
   );
 
-  const currentFilters: Record<string, string | undefined> = { category, dateRange };
-  const hasActiveFilters = !!(category || dateRange);
+  const currentFilters: Record<string, string | undefined> = { category };
+  const hasActiveFilters = !!(category || date);
+
+  const handleDateSelect = useCallback(
+    (picked: Date) => {
+      setDate(toLocalYmd(picked));
+      setDatePickerVisible(false);
+    },
+    [setDate]
+  );
+
+  const handleDateClear = useCallback(() => {
+    setDate(undefined);
+    setDatePickerVisible(false);
+  }, [setDate]);
 
   const locationText =
     placeLabel ??
@@ -101,7 +131,9 @@ export default function DiscoverScreen() {
       ? 'Current Location'
       : locationSource === 'ip'
         ? 'Approximate Location'
-        : 'Ireland');
+        : locationSource === 'venue-profile'
+          ? 'Your venue'
+          : 'Ireland');
 
   const renderEvent = useCallback(
     ({ item }: { item: (typeof events)[number] }) => (
@@ -123,7 +155,7 @@ export default function DiscoverScreen() {
     >
       <FeedHeader
         locationText={locationText}
-        onCalendarPress={() => setFilterSheetVisible(true)}
+        onCalendarPress={() => setDatePickerVisible(true)}
         onFilterPress={() => setFilterSheetVisible(true)}
         onNotificationPress={() => router.push('/notifications')}
       />
@@ -150,11 +182,15 @@ export default function DiscoverScreen() {
       {/* Active filter indicator */}
       {hasActiveFilters && activeSegment === 0 && (
         <View className="flex-row items-center px-5 mt-2 gap-2">
-          {dateRange && (
+          {date && (
             <View className="flex-row items-center bg-[#C8FF2F]/20 border border-[#C8FF2F] rounded-full px-3 py-1 gap-1">
               <Ionicons name="calendar-outline" size={12} color="#C8FF2F" />
-              <Text className="text-[11px] font-semibold text-[#C8FF2F] font-urbanist capitalize">
-                {dateRange.replace(/_/g, ' ')}
+              <Text className="text-[11px] font-semibold text-[#C8FF2F] font-urbanist">
+                {parseLocalYmd(date).toLocaleDateString('en-IE', {
+                  weekday: 'short',
+                  day: 'numeric',
+                  month: 'short',
+                })}
               </Text>
             </View>
           )}
@@ -166,7 +202,12 @@ export default function DiscoverScreen() {
               </Text>
             </View>
           )}
-          <Pressable onPress={() => handleFiltersApply({})}>
+          <Pressable
+            onPress={() => {
+              handleFiltersApply({});
+              setDate(undefined);
+            }}
+          >
             <Text className="text-[11px] text-white/40 font-urbanist underline">Clear</Text>
           </Pressable>
         </View>
@@ -285,6 +326,15 @@ export default function DiscoverScreen() {
         variant="dark"
         onApply={handleFiltersApply}
         onClose={() => setFilterSheetVisible(false)}
+      />
+
+      <DatePickerSheet
+        visible={datePickerVisible}
+        value={date ? parseLocalYmd(date) : null}
+        minimumDate={new Date()}
+        onSelect={handleDateSelect}
+        onClear={handleDateClear}
+        onClose={() => setDatePickerVisible(false)}
       />
     </SafeAreaView>
   );

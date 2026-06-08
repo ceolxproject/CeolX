@@ -17,7 +17,6 @@ interface FeedHeaderProps {
 
 export function FeedHeader({
   locationText = 'Ireland',
-  onBookmarkPress,
   onNotificationPress,
   onLocationPress,
   onCalendarPress,
@@ -31,9 +30,6 @@ export function FeedHeader({
         <CeolxLogo fontSize={18} letterSpacing={2} />
 
         <View className="flex-row items-center gap-4">
-          <Pressable onPress={onBookmarkPress} hitSlop={8}>
-            <Ionicons name="bookmark-outline" size={22} color="#FFFFFF" />
-          </Pressable>
           {onNotificationPress && <BellWithBadge onPress={onNotificationPress} />}
         </View>
       </View>

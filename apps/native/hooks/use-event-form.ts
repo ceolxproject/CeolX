@@ -7,6 +7,7 @@ import type { EventCategory } from '@CeolX/shared';
 import { isValidCoordinate } from '@CeolX/shared';
 import { createEventSchema } from '@CeolX/shared/validators';
 
+import { combineDateAndTime, endDateTimeError } from '@/hooks/use-event-form.utils';
 import { keyFromCdnUrl, useMediaDelete } from '@/hooks/use-media-delete';
 import { useMediaUpload } from '@/hooks/use-media-upload';
 import { trpc } from '@/utils/trpc';
@@ -44,6 +45,33 @@ export interface EventFormData {
 }
 
 type Step = 1 | 2 | 3;
+
+// Which wizard step owns each schema field. Used to route final-schema errors
+// back to the step that actually renders the offending field, so a server-side
+// rule (e.g. dateEnd >= dateStart) lands where the user can see and fix it
+// rather than always dumping them on step 1.
+const FIELD_STEP: Record<string, Step> = {
+  title: 1,
+  description: 1,
+  coverImage: 1,
+  category: 1,
+  collectionId: 1,
+  platformInvites: 1,
+  unregisteredCollaborators: 1,
+  dateStart: 2,
+  dateEnd: 2,
+  startTime: 2,
+  endTime: 2,
+  lat: 2,
+  lng: 2,
+  venueId: 2,
+  venueAddress: 2,
+  ticketPrice: 3,
+  ticketLink: 3,
+  ticketQuantity: 3,
+  adTitle: 3,
+  adDescription: 3,
+};
 
 interface UseEventFormOptions {
   /** If provided, the form operates in edit mode. */
@@ -86,15 +114,31 @@ function defaults(initial?: EventFormData): EventFormData {
 }
 
 /**
- * Merge a Date (date portion) with a Date (time portion) into an ISO-8601
- * datetime string. Returns undefined when either part is missing.
+ * Validate that the optional end time does not fall before the start time.
+ * Both times are anchored to the same event date (dateStart) and compared as
+ * full ISO datetimes — mirroring how the submit payload is built — so the
+ * per-step check can never drift from what's actually saved. Equal times are
+ * allowed, matching the shared schema's `dateEnd >= dateStart` rule.
+ *
+ * Returns the error message when the end is strictly earlier, otherwise
+ * undefined (including when any of the three inputs is missing — nothing to
+ * compare yet). Exported for unit testing.
+ *
+ * NOTE: The live form now validates end time via `endDateTimeError` (which
+ * also accounts for a separate end date). This single-date variant is retained
+ * for the `use-event-form.test.ts` unit suite; prefer `endDateTimeError` for
+ * new call sites.
  */
-function combineDateAndTime(date: Date | null, time: Date | null): string | undefined {
-  if (!date || !time) return undefined;
-
-  const combined = new Date(date);
-  combined.setHours(time.getHours(), time.getMinutes(), time.getSeconds(), 0);
-  return combined.toISOString();
+export function endTimeBeforeStartError(
+  dateStart: Date | null,
+  startTime: Date | null,
+  endTime: Date | null
+): string | undefined {
+  if (!dateStart || !startTime || !endTime) return undefined;
+  const start = combineDateAndTime(dateStart, startTime);
+  const end = combineDateAndTime(dateStart, endTime);
+  if (start && end && end < start) return 'End time cannot be before the start time';
+  return undefined;
 }
 
 /**
@@ -238,6 +282,11 @@ export function useEventForm(options?: UseEventFormOptions) {
           return dateStart ? undefined : 'Start date is required';
         case 'startTime':
           return startTime ? undefined : 'Start time is required';
+        case 'endTime':
+          // End time is optional, but when set it must not precede the start.
+          // Surfaced here (not just in the final schema) so the error renders
+          // live under End Time on step 2 and blocks the step's Continue gate.
+          return endDateTimeError(dateStart, startTime, dateEnd, endTime);
         case 'lat':
           // Map and feed are coordinate-driven, so an event needs a real pin.
           // A free-text address alone is not enough — the user must drop a pin
@@ -251,7 +300,7 @@ export function useEventForm(options?: UseEventFormOptions) {
           return undefined;
       }
     },
-    [title, description, category, dateStart, startTime, lat, lng, venueId]
+    [title, description, category, dateStart, dateEnd, startTime, endTime, lat, lng, venueId]
   );
 
   // Re-validate every already-touched field whenever any value changes, so an
@@ -318,7 +367,7 @@ export function useEventForm(options?: UseEventFormOptions) {
   );
 
   const validateStep2 = useCallback(
-    (): boolean => validateFields(['dateStart', 'startTime', 'lat']),
+    (): boolean => validateFields(['dateStart', 'startTime', 'endTime', 'lat']),
     [validateFields]
   );
 
@@ -363,6 +412,17 @@ export function useEventForm(options?: UseEventFormOptions) {
     (value: Date) => {
       setStartTime(value);
       markTouched('startTime');
+    },
+    [markTouched]
+  );
+
+  // End time is a discrete picker too — mark it touched on change so the
+  // "must be after start time" rule validates live, and clears the instant
+  // the user picks a valid (or empty) value.
+  const handleEndTimeChange = useCallback(
+    (value: Date | null) => {
+      setEndTime(value);
+      markTouched('endTime');
     },
     [markTouched]
   );
@@ -479,12 +539,20 @@ export function useEventForm(options?: UseEventFormOptions) {
 
     if (!parsed.success) {
       const fieldErrors: Record<string, string> = {};
+      // Route to the earliest step that owns a failing field, so the errors are
+      // actually visible (the date/time and location rules live on step 2, not 1).
+      let targetStep: Step = 3;
       for (const issue of parsed.error.issues) {
-        fieldErrors[issue.path.join('.')] = issue.message;
+        let key = issue.path.join('.');
+        // dateEnd has no control of its own on the form — the user edits End
+        // Time, so surface its rule there where step 2 already renders it.
+        if (key === 'dateEnd') key = 'endTime';
+        fieldErrors[key] = issue.message;
+        const step = FIELD_STEP[key] ?? 1;
+        if (step < targetStep) targetStep = step;
       }
       setErrors(fieldErrors);
-      // Navigate back to step 1 so the field errors are actually visible
-      setCurrentStep(1);
+      setCurrentStep(targetStep);
       Alert.alert(
         'Invalid event data',
         parsed.error.issues[0]?.message ?? 'Please check all fields.'
@@ -589,7 +657,7 @@ export function useEventForm(options?: UseEventFormOptions) {
     startTime,
     setStartTime: handleStartTimeChange,
     endTime,
-    setEndTime,
+    setEndTime: handleEndTimeChange,
     lat,
     setLat: handleLatChange,
     lng,

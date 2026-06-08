@@ -4,15 +4,64 @@ import type { SOCIAL_PLATFORMS } from '../enums';
 
 // ── Artist onboarding (initial profile creation — follows Figma design) ───────
 
-// Reusable URL field — accepts a valid URL or empty string (treated as omitted)
-const socialUrl = z.string().url('Invalid URL').or(z.literal('')).optional();
+// Real-domain check: valid URL whose host has ≥1 dot and non-empty labels.
+// The mobile clients prepend `https://` to bare input before validating, which
+// makes `z.url()` alone accept single-word junk like `dhjdjddk` (it parses as a
+// valid hostname). This rejects that while allowing bare domains. Used for the
+// generic Website fields, where any real domain is acceptable.
+export const isRealDomain = (value: string): boolean => {
+  try {
+    return /^[^.\s]+(\.[^.\s]+)+$/.test(new URL(value).hostname);
+  } catch {
+    return false;
+  }
+};
+
+// Host allow-lists per platform, including common alternates (short links,
+// regional/mobile subdomains are covered by the `endsWith` match below).
+const PLATFORM_HOSTS = {
+  INSTAGRAM: ['instagram.com', 'instagr.am'],
+  FACEBOOK: ['facebook.com', 'fb.com', 'fb.me'],
+  TWITTER: ['twitter.com', 'x.com'],
+  TIKTOK: ['tiktok.com'],
+  YOUTUBE: ['youtube.com', 'youtu.be'],
+} as const;
+
+// True when the URL's host is (or is a subdomain of) one of the allowed hosts.
+// `www.` is stripped and subdomains like `m.facebook.com` match via the suffix.
+const matchesPlatform = (value: string, allowed: readonly string[]): boolean => {
+  try {
+    const host = new URL(value).hostname.toLowerCase().replace(/^www\./, '');
+    return allowed.some((a) => host === a || host.endsWith(`.${a}`));
+  } catch {
+    return false;
+  }
+};
+
+// Per-platform URL field — must be a valid URL pointing at that platform's
+// domain (or empty, treated as omitted).
+const platformUrl = (label: string, example: string, allowed: readonly string[]) =>
+  z
+    .string()
+    .url('Invalid URL')
+    .refine((v) => matchesPlatform(v, allowed), `Enter a valid ${label} link (e.g. ${example})`)
+    .or(z.literal(''))
+    .optional();
+
+// Generic Website field — any real domain is fine.
+const websiteUrlField = z
+  .string()
+  .url('Invalid URL')
+  .refine(isRealDomain, 'Enter a valid link (e.g. yourvenue.com)')
+  .or(z.literal(''))
+  .optional();
 
 // Validated against SOCIAL_PLATFORMS so adding a new platform here requires updating the enum too.
 export const socialLinksSchema = z.object({
-  INSTAGRAM: socialUrl,
-  FACEBOOK: socialUrl,
-  TIKTOK: socialUrl,
-  YOUTUBE: socialUrl,
+  INSTAGRAM: platformUrl('Instagram', 'instagram.com/you', PLATFORM_HOSTS.INSTAGRAM),
+  FACEBOOK: platformUrl('Facebook', 'facebook.com/you', PLATFORM_HOSTS.FACEBOOK),
+  TIKTOK: platformUrl('TikTok', 'tiktok.com/@you', PLATFORM_HOSTS.TIKTOK),
+  YOUTUBE: platformUrl('YouTube', 'youtube.com/@you', PLATFORM_HOSTS.YOUTUBE),
 } satisfies Record<
   Extract<(typeof SOCIAL_PLATFORMS)[number], 'INSTAGRAM' | 'FACEBOOK' | 'TIKTOK' | 'YOUTUBE'>,
   unknown
@@ -21,10 +70,10 @@ export const socialLinksSchema = z.object({
 // ── Venue onboarding (initial profile creation — follows Figma design) ────────
 
 export const venueLinksSchema = z.object({
-  WEBSITE: socialUrl,
-  INSTAGRAM: socialUrl,
-  FACEBOOK: socialUrl,
-  TWITTER: socialUrl,
+  WEBSITE: websiteUrlField,
+  INSTAGRAM: platformUrl('Instagram', 'instagram.com/you', PLATFORM_HOSTS.INSTAGRAM),
+  FACEBOOK: platformUrl('Facebook', 'facebook.com/you', PLATFORM_HOSTS.FACEBOOK),
+  TWITTER: platformUrl('Twitter/X', 'x.com/you', PLATFORM_HOSTS.TWITTER),
 } satisfies Record<
   Extract<(typeof SOCIAL_PLATFORMS)[number], 'WEBSITE' | 'INSTAGRAM' | 'FACEBOOK' | 'TWITTER'>,
   unknown
@@ -121,7 +170,8 @@ export const updateVenueProfileSchema = z.object({
   // null clears the stored image (remove photo); undefined leaves it unchanged.
   profileImageUrl: z.string().url().nullable().optional(),
   coverImageUrl: z.string().url().optional(),
-  websiteUrl: z.string().url().optional(),
+  // User-typed website — any real domain (same generic check as venue WEBSITE).
+  websiteUrl: websiteUrlField,
   phone: z.string().max(30).trim().optional(),
   socialLinks: venueLinksSchema.optional(),
 });

@@ -11,7 +11,7 @@ type MapRegion = {
   longitudeDelta: number;
 };
 
-export type LocationSource = 'gps' | 'ip' | 'default' | 'pending';
+export type LocationSource = 'gps' | 'ip' | 'default' | 'pending' | 'venue-profile';
 
 type GpsRegionResult = {
   initialRegion: MapRegion;
@@ -119,12 +119,35 @@ async function resolveViaIp(
 }
 
 /**
+ * Decide whether a resolved location should be upgraded to the venue pin.
+ * Pure — exported for testing.
+ *
+ * Only fires when the chain landed on the Ireland `'default'` (both GPS and IP
+ * failed) AND a venue pin is available. GPS/IP/pending are never overridden, and
+ * once the source is already `'venue-profile'` it returns null so the override
+ * effect can't loop.
+ */
+export function applyVenueFallback(
+  locationSource: LocationSource,
+  venueFallback: { latitude: number; longitude: number } | null
+): { region: MapRegion; source: LocationSource } | null {
+  if (locationSource !== 'default' || !venueFallback) return null;
+  return {
+    region: { ...venueFallback, ...GPS_ZOOM },
+    source: 'venue-profile',
+  };
+}
+
+/**
  * Resolves the initial map region using a three-step fallback chain.
  *
  * @param enabled - Delay resolution while the location permission priming
  *   screen is visible. Defaults to true.
  */
-export function useGpsRegion(enabled = true): GpsRegionResult {
+export function useGpsRegion(
+  enabled = true,
+  venueFallback: { latitude: number; longitude: number } | null = null
+): GpsRegionResult {
   const [initialRegion, setInitialRegion] = useState<MapRegion>(IRELAND_INITIAL_REGION);
   const [gpsPermissionGranted, setGpsPermissionGranted] = useState(false);
   const [locationSource, setLocationSource] = useState<LocationSource>('pending');
@@ -141,10 +164,22 @@ export function useGpsRegion(enabled = true): GpsRegionResult {
     });
   }, [enabled]);
 
-  // Reverse-geocode whenever we have real coordinates (GPS or IP). Failures
-  // are non-fatal — consumers fall back to a source-based label.
+  // Venue-only upgrade: if the chain bottomed out at the Ireland default and we
+  // have the venue's saved pin, recenter on it. Self-heals if `useMe()` resolves
+  // after the chain (Ireland → pin). Keyed on the pin's coords, not object
+  // identity, so a fresh-but-equal fallback object won't re-fire.
   useEffect(() => {
-    if (locationSource !== 'gps' && locationSource !== 'ip') {
+    const upgrade = applyVenueFallback(locationSource, venueFallback);
+    if (!upgrade) return;
+    setInitialRegion(upgrade.region);
+    setLocationSource(upgrade.source);
+    setMapKey((k) => k + 1);
+  }, [locationSource, venueFallback?.latitude, venueFallback?.longitude]);
+
+  // Reverse-geocode whenever we have real coordinates (GPS, IP, or the venue
+  // pin). Failures are non-fatal — consumers fall back to a source-based label.
+  useEffect(() => {
+    if (locationSource !== 'gps' && locationSource !== 'ip' && locationSource !== 'venue-profile') {
       setPlaceLabel(null);
       return;
     }
