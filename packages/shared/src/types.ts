@@ -115,6 +115,10 @@ export interface BookingSummary {
   venueImage?: string;
   /** Inviting artist — populated only for artist_to_artist rows. */
   inviterArtistId?: string;
+  // User (account) id behind the inviting artist's profile — used to open their
+  // public profile via the /artist/[userId] route from the accepted-invite
+  // "CONTACT ARTIST" button.
+  inviterArtistUserId?: string;
   inviterArtistName?: string;
   inviterArtistImage?: string;
   /**

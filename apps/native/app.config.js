@@ -95,6 +95,9 @@ export default (_) => ({
       'android.permission.CAMERA',
       'android.permission.READ_EXTERNAL_STORAGE',
       'android.permission.RECORD_AUDIO',
+      // "Add to calendar" on event detail (expo-calendar).
+      'android.permission.READ_CALENDAR',
+      'android.permission.WRITE_CALENDAR',
     ],
     // App Links for shared post URLs. Full verification requires
     // assetlinks.json hosted at https://ceolx.ie/.well-known/assetlinks.json
@@ -150,6 +153,15 @@ export default (_) => ({
       },
     ],
     '@react-native-community/datetimepicker',
+    // "Add to calendar" on event detail. The plugin writes the iOS usage
+    // strings (incl. iOS 17 full-access key); Android READ/WRITE_CALENDAR are
+    // declared in android.permissions above.
+    [
+      'expo-calendar',
+      {
+        calendarPermission: 'CeolX adds events you choose to your device calendar.',
+      },
+    ],
   ],
   experiments: {
     typedRoutes: true,

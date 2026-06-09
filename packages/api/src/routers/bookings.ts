@@ -502,10 +502,18 @@ export const bookingsRouter = router({
     // 6. Notify the counter-party.
     if (isA2A) {
       // Co-artist flow: notify the OTHER artist. coArtistName is always the
-      // actor's name from the recipient's perspective.
+      // actor's name from the recipient's perspective. A2A rows always have an
+      // inviter (the artist who sent the invite).
+      const { inviterArtist } = booking;
+      if (!inviterArtist) {
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: 'Co-artist booking is missing its inviter',
+        });
+      }
       const recipientUserId = isInviterArtist
         ? booking.artist.userId // inviter acted → notify the invited artist
-        : booking.inviterArtist!.userId; // invited acted → notify the inviter
+        : inviterArtist.userId; // invited acted → notify the inviter
       await ctx.dispatchNotification({
         trigger: resolveA2ABookingTrigger({
           actorIsInviter: isInviterArtist,
@@ -516,7 +524,7 @@ export const bookingsRouter = router({
         vars: {
           bookingId: booking.id,
           coArtistName: isInviterArtist
-            ? booking.inviterArtist!.stageName // inviter acted; recipient sees inviter's name
+            ? inviterArtist.stageName // inviter acted; recipient sees inviter's name
             : booking.artist.stageName, // invited acted; recipient sees invited's name
           eventTitle: booking.event?.title ?? 'event',
           date: formatNotificationDate(booking.event?.dateStart ?? new Date()),
@@ -524,14 +532,21 @@ export const bookingsRouter = router({
       });
     } else {
       // Venue flow. Matrix rows: A-10/V-10 (accepted), A-11/V-11 (rejected),
-      // V-13 (withdraw), A-12/V-12 (cancelled).
-      const recipientUserId = isArtist ? booking.venue!.userId : booking.artist.userId;
+      // V-13 (withdraw), A-12/V-12 (cancelled). Venue↔artist rows always have a venue.
+      const { venue } = booking;
+      if (!venue) {
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: 'Venue booking is missing its venue',
+        });
+      }
+      const recipientUserId = isArtist ? venue.userId : booking.artist.userId;
       await ctx.dispatchNotification({
         trigger: resolveBookingUpdateTrigger({ isArtist, currentStatus, newStatus }),
         recipientUserId,
         vars: {
           bookingId: booking.id,
-          venueName: booking.venue!.venueName,
+          venueName: venue.venueName,
           artistName: booking.artist.stageName,
           eventTitle: booking.event?.title ?? 'event',
           date: formatNotificationDate(booking.event?.dateStart ?? new Date()),
@@ -541,6 +556,111 @@ export const bookingsRouter = router({
 
     return { id: updated.id, status: updated.status };
   }),
+
+  // ─── Resend a pending invite ────────────────────────────────────────────────
+  // Re-emits the *original* invite notification to the recipient. Only the
+  // sender of a still-pending booking may resend. The trigger differs by
+  // direction so the recipient sees the same invite copy they got first time.
+  resend: protectedProcedure
+    .input(updateBookingSchema.pick({ id: true }))
+    .mutation(async ({ input, ctx }) => {
+      const booking = await db.query.bookings.findFirst({
+        where: eq(bookings.id, input.id),
+        with: { artist: true, inviterArtist: true, venue: true, event: true },
+      });
+
+      if (!booking) {
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Booking not found' });
+      }
+      if (booking.status !== BookingStatus.PENDING) {
+        throw new TRPCError({
+          code: 'BAD_REQUEST',
+          message: 'Only a pending request can be resent',
+        });
+      }
+
+      // Sender = whoever originally initiated this invite/request (mirrors the
+      // sender predicate in `update`). Only they may resend.
+      const isA2A = booking.direction === BookingDirection.ARTIST_TO_ARTIST;
+      const isInvitedArtist = booking.artist.userId === ctx.userId;
+      const isInviterArtist = booking.inviterArtist?.userId === ctx.userId;
+      const isVenue = booking.venue?.userId === ctx.userId;
+      const isSender = isA2A
+        ? isInviterArtist
+        : (booking.direction === BookingDirection.VENUE_TO_ARTIST && isVenue) ||
+          (booking.direction === BookingDirection.ARTIST_TO_VENUE && isInvitedArtist);
+
+      if (!isSender) {
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: 'Only the sender can resend this request',
+        });
+      }
+
+      const eventTitle = booking.event?.title ?? 'event';
+      const date = formatNotificationDate(booking.event?.dateStart ?? new Date());
+
+      if (isA2A) {
+        // Co-artist invite → notify the invited artist (A-09a). The sender check
+        // above guarantees the inviter row exists.
+        if (!booking.inviterArtist) {
+          throw new TRPCError({
+            code: 'INTERNAL_SERVER_ERROR',
+            message: 'Co-artist booking is missing its inviter',
+          });
+        }
+        await ctx.dispatchNotification({
+          trigger: NotificationTrigger.BOOKING_INVITE_TO_COARTIST,
+          recipientUserId: booking.artist.userId,
+          vars: {
+            bookingId: booking.id,
+            coArtistName: booking.inviterArtist.stageName,
+            eventTitle,
+            date,
+          },
+        });
+        return { id: booking.id, success: true };
+      }
+
+      // Venue flow (venue↔artist) — these rows always have a venue.
+      if (!booking.venue) {
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: 'Venue booking is missing its venue',
+        });
+      }
+      const { venue } = booking;
+
+      if (booking.direction === BookingDirection.VENUE_TO_ARTIST) {
+        // Venue invitation → notify the artist (A-09).
+        await ctx.dispatchNotification({
+          trigger: NotificationTrigger.BOOKING_INVITE_TO_ARTIST,
+          recipientUserId: booking.artist.userId,
+          vars: {
+            bookingId: booking.id,
+            venueName: venue.venueName,
+            artistName: booking.artist.stageName,
+            eventTitle,
+            date,
+          },
+        });
+      } else {
+        // Artist→venue performance request → notify the venue (V-09).
+        await ctx.dispatchNotification({
+          trigger: NotificationTrigger.BOOKING_REQUEST_TO_VENUE,
+          recipientUserId: venue.userId,
+          vars: {
+            bookingId: booking.id,
+            venueName: venue.venueName,
+            artistName: booking.artist.stageName,
+            eventTitle,
+            date,
+          },
+        });
+      }
+
+      return { id: booking.id, success: true };
+    }),
 
   // ─── List bookings (sent / received tabs) ──────────────────────────────────
   list: protectedProcedure.input(listBookingsSchema).query(async ({ input, ctx }) => {
@@ -584,18 +704,17 @@ export const bookingsRouter = router({
       } else {
         // Artist sent: applications to venues (artist_to_venue) OR co-artist
         // invites they sent (artist_to_artist, where they are the inviter).
-        conditions.push(
-          or(
-            and(
-              eq(bookings.artistId, profileId),
-              eq(bookings.direction, BookingDirection.ARTIST_TO_VENUE)
-            ),
-            and(
-              eq(bookings.inviterArtistId, profileId),
-              eq(bookings.direction, BookingDirection.ARTIST_TO_ARTIST)
-            )
-          )!
+        const sentClause = or(
+          and(
+            eq(bookings.artistId, profileId),
+            eq(bookings.direction, BookingDirection.ARTIST_TO_VENUE)
+          ),
+          and(
+            eq(bookings.inviterArtistId, profileId),
+            eq(bookings.direction, BookingDirection.ARTIST_TO_ARTIST)
+          )
         );
+        if (sentClause) conditions.push(sentClause);
       }
     } else {
       // received
@@ -608,18 +727,17 @@ export const bookingsRouter = router({
       } else {
         // Artist received: invitations from venues (venue_to_artist) OR
         // co-artist invites where they are the invited artist (artist_to_artist).
-        conditions.push(
-          or(
-            and(
-              eq(bookings.artistId, profileId),
-              eq(bookings.direction, BookingDirection.VENUE_TO_ARTIST)
-            ),
-            and(
-              eq(bookings.artistId, profileId),
-              eq(bookings.direction, BookingDirection.ARTIST_TO_ARTIST)
-            )
-          )!
+        const receivedClause = or(
+          and(
+            eq(bookings.artistId, profileId),
+            eq(bookings.direction, BookingDirection.VENUE_TO_ARTIST)
+          ),
+          and(
+            eq(bookings.artistId, profileId),
+            eq(bookings.direction, BookingDirection.ARTIST_TO_ARTIST)
+          )
         );
+        if (receivedClause) conditions.push(receivedClause);
       }
     }
 
@@ -685,6 +803,7 @@ export const bookingsRouter = router({
           artistName: row.artist.stageName,
           artistImage: imageMap.get(row.artist.userId) ?? undefined,
           inviterArtistId: row.inviterArtist?.id,
+          inviterArtistUserId: row.inviterArtist?.userId,
           inviterArtistName: row.inviterArtist?.stageName,
           inviterArtistImage: row.inviterArtist
             ? (imageMap.get(row.inviterArtist.userId) ?? undefined)
@@ -769,6 +888,7 @@ export const bookingsRouter = router({
         artistName: booking.artist.stageName,
         artistImage: artistUser?.image ?? undefined,
         inviterArtistId: booking.inviterArtist?.id,
+        inviterArtistUserId: booking.inviterArtist?.userId,
         inviterArtistName: booking.inviterArtist?.stageName,
         inviterArtistImage: inviterUser?.image ?? undefined,
         viewerIsSender: isA2A ? booking.inviterArtist?.userId === ctx.userId : undefined,
