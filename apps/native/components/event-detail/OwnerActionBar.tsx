@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { cn } from 'heroui-native';
 import { Alert, Pressable, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { EventStatus } from '@CeolX/shared/enums';
 
@@ -12,6 +13,8 @@ interface OwnerActionBarProps {
 }
 
 export function OwnerActionBar({ eventStatus, onEdit, onArchive, className }: OwnerActionBarProps) {
+  const insets = useSafeAreaInsets();
+
   if (eventStatus === EventStatus.ARCHIVED) return null;
 
   const isRemoved = eventStatus === EventStatus.REMOVED;
@@ -29,8 +32,12 @@ export function OwnerActionBar({ eventStatus, onEdit, onArchive, className }: Ow
 
   return (
     <View
-      className={cn('px-4 py-2.5 bg-black', className)}
+      className={cn('px-4 pt-2.5 bg-black', className)}
+      // Pad the bottom past the Android system nav bar / iOS home indicator so
+      // Edit/Archive aren't overlapped by the back/home/recents buttons. Falls
+      // back to the original 10px spacing on devices with no bottom inset.
       style={{
+        paddingBottom: insets.bottom + 10,
         shadowColor: 'rgba(239,239,244,0.25)',
         shadowOffset: { width: 0, height: -2 },
         shadowOpacity: 1,

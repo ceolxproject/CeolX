@@ -1,6 +1,7 @@
 import * as WebBrowser from 'expo-web-browser';
 import { cn } from 'heroui-native';
 import { ActivityIndicator, Alert, Pressable, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useTrackTicketClick } from '@/hooks/use-track-ticket-click';
 import { normalizeOptionalUrl } from '@/utils/normalize-url';
@@ -39,6 +40,7 @@ export function StickyBottomBar({
   className,
 }: StickyBottomBarProps) {
   const trackClick = useTrackTicketClick();
+  const insets = useSafeAreaInsets();
 
   const showRequestToPerform =
     isArtist && isVenueEvent && !isOwner && !isCollaborator && !hasExistingRequest;
@@ -82,8 +84,12 @@ export function StickyBottomBar({
 
   return (
     <View
-      className={cn('px-4 py-3 bg-black gap-2.5', className)}
+      className={cn('px-4 pt-3 bg-black gap-2.5', className)}
+      // Pad the bottom past the Android system nav bar / iOS home indicator so
+      // the CTAs aren't overlapped by the back/home/recents buttons. Falls back
+      // to the original 12px spacing on devices with no bottom inset.
       style={{
+        paddingBottom: insets.bottom + 12,
         shadowColor: 'rgba(239,239,244,0.25)',
         shadowOffset: { width: 0, height: -2 },
         shadowOpacity: 1,
