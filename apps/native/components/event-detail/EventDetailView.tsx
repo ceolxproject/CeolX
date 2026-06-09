@@ -19,6 +19,8 @@ import { PerformingArtistCard } from './PerformingArtistCard';
 import { SectionDivider } from './SectionDivider';
 import { StickyBottomBar } from './StickyBottomBar';
 
+import { appToast } from '@/components/AppToast';
+import { addEventToDeviceCalendar, CALENDAR_PERMISSION_DENIED } from '@/hooks/use-add-to-calendar';
 import { useGpsRegion } from '@/hooks/use-gps-region';
 import { useRequestToPerform } from '@/hooks/use-request-to-perform';
 import { useSaveEvent } from '@/hooks/use-save-event';
@@ -75,17 +77,31 @@ export function EventDetailView({
     requestToPerform(event.id);
   };
 
-  const handleAddToCalendar = () => {
+  const handleAddToCalendar = async () => {
     const start = new Date(event.dateStart);
     const end = event.dateEnd
       ? new Date(event.dateEnd)
       : new Date(start.getTime() + 2 * 60 * 60 * 1000);
-    const startISO = start.toISOString().replace(/-|:|\.\d{3}/g, '');
-    const endISO = end.toISOString().replace(/-|:|\.\d{3}/g, '');
-    const location = event.venueAddress ?? `${event.lat},${event.lng}`;
 
-    const url = `https://www.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(event.title)}&dates=${startISO}/${endISO}&location=${encodeURIComponent(location)}&details=${encodeURIComponent(event.description.slice(0, 200))}`;
-    void Linking.openURL(url);
+    try {
+      await addEventToDeviceCalendar({
+        title: event.title,
+        startDate: start,
+        endDate: end,
+        notes: event.description.slice(0, 200),
+        location: event.venueAddress ?? `${event.lat},${event.lng}`,
+      });
+      appToast.success('Added to calendar');
+    } catch (err) {
+      if (err instanceof Error && err.message === CALENDAR_PERMISSION_DENIED) {
+        appToast.error(
+          'Calendar access needed',
+          'Enable calendar permission in Settings to add events.'
+        );
+      } else {
+        appToast.error('Could not add to calendar', 'Please try again.');
+      }
+    }
   };
 
   const handleViewMap = () => {

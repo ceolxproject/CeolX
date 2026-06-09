@@ -9,7 +9,12 @@ import { CATEGORY_LABELS } from '@CeolX/shared';
 import { BookingDirection, BookingStatus, UserRole } from '@CeolX/shared/enums';
 
 import { appToast } from '@/components/AppToast';
-import { RequestActions } from '@/components/requests/RequestActions';
+import {
+  BOOKING_STATUS_FEEDBACK,
+  RequestActions,
+  type RequestAction,
+} from '@/components/requests/RequestActions';
+import { useResendBooking } from '@/hooks/use-resend-booking';
 import { useUpdateBooking } from '@/hooks/use-update-booking';
 import { authClient } from '@/lib/auth-client';
 import { formatEventDate } from '@/utils/format-event-date';
@@ -30,30 +35,41 @@ export function BookingDetailScreen() {
   const { data: booking, isLoading } = useQuery(trpc.bookings.byId.queryOptions({ id: bookingId }));
 
   const updateBooking = useUpdateBooking();
-  const [isUpdating, setIsUpdating] = useState(false);
+  const resendBooking = useResendBooking();
+  const [pendingAction, setPendingAction] = useState<RequestAction | null>(null);
 
   const handleUpdate = useCallback(
     async (status: 'accepted' | 'rejected' | 'cancelled') => {
       if (!bookingId) return;
-      setIsUpdating(true);
+      const copy = BOOKING_STATUS_FEEDBACK[status];
+      setPendingAction(copy.action);
       try {
         await updateBooking.mutateAsync({ id: bookingId, status });
-        if (status === BookingStatus.CANCELLED) appToast.success('Request withdrawn');
+        appToast.success(copy.success);
       } catch (err) {
-        if (status === BookingStatus.CANCELLED) {
-          appToast.error(
-            'Could not withdraw request',
-            err instanceof Error ? err.message : 'Please try again.'
-          );
-        } else {
-          throw err;
-        }
+        appToast.error(copy.error, err instanceof Error ? err.message : 'Please try again.');
       } finally {
-        setIsUpdating(false);
+        setPendingAction(null);
       }
     },
     [bookingId, updateBooking]
   );
+
+  const handleResend = useCallback(async () => {
+    if (!bookingId) return;
+    setPendingAction('resend');
+    try {
+      await resendBooking.mutateAsync({ id: bookingId });
+      appToast.success('Invite resent');
+    } catch (err) {
+      appToast.error(
+        'Could not resend invite',
+        err instanceof Error ? err.message : 'Please try again.'
+      );
+    } finally {
+      setPendingAction(null);
+    }
+  }, [bookingId, resendBooking]);
 
   if (isLoading || !booking) {
     return (
@@ -69,18 +85,42 @@ export function BookingDetailScreen() {
   const formattedDate = formatEventDate(booking.eventDateStart, booking.eventDateEnd);
   const statusStyle = STATUS_STYLES[booking.status] ?? STATUS_STYLES.pending;
 
-  // Whether the viewer is the one who sent this request — drives the direction
-  // label only.
-  const isSentByUser =
-    (userRole === UserRole.VENUE && booking.direction === BookingDirection.VENUE_TO_ARTIST) ||
-    (userRole === UserRole.ARTIST && booking.direction === BookingDirection.ARTIST_TO_VENUE);
+  // For artist↔artist the server tells us whether the viewer is the inviter
+  // (both parties are artists, so role + direction can't distinguish them).
+  const isA2A = booking.direction === BookingDirection.ARTIST_TO_ARTIST;
+  const isSentByUser = isA2A
+    ? booking.viewerIsSender === true
+    : (userRole === UserRole.VENUE && booking.direction === BookingDirection.VENUE_TO_ARTIST) ||
+      (userRole === UserRole.ARTIST && booking.direction === BookingDirection.ARTIST_TO_VENUE);
 
-  // "Other party" is always the party that is NOT you, regardless of who sent
-  // the request — a venue always sees the artist, an artist always the venue.
-  const otherPartyName = userRole === UserRole.VENUE ? booking.artistName : booking.venueName;
-  const otherPartyImage = userRole === UserRole.VENUE ? booking.artistImage : booking.venueImage;
+  // "Other party" is always whoever is NOT the viewer. For A2A that's the other
+  // artist (the invited co-artist if you sent it, else the inviter).
+  const otherPartyName = isA2A
+    ? isSentByUser
+      ? booking.artistName
+      : (booking.inviterArtistName ?? 'Artist')
+    : userRole === UserRole.VENUE
+      ? booking.artistName
+      : booking.venueName;
+  const otherPartyImage = isA2A
+    ? isSentByUser
+      ? booking.artistImage
+      : booking.inviterArtistImage
+    : userRole === UserRole.VENUE
+      ? booking.artistImage
+      : booking.venueImage;
   const directionLabel = isSentByUser ? 'Sent Request to:' : 'Request Sent by:';
-  const contactLabel = userRole === UserRole.ARTIST ? 'CONTACT VENUE' : 'CONTACT ARTIST';
+  const contactLabel = isA2A || userRole === UserRole.VENUE ? 'CONTACT ARTIST' : 'CONTACT VENUE';
+
+  // Where the "CONTACT" button opens. A2A rows have no venue — route to the
+  // other artist's *user* id (routing to /venue/<empty> was the 404 bug).
+  const contactHref = (
+    isA2A
+      ? `/(app)/artist/${isSentByUser ? booking.artistUserId : booking.inviterArtistUserId}`
+      : userRole === UserRole.ARTIST
+        ? `/(app)/venue/${booking.venueUserId}`
+        : `/(app)/artist/${booking.artistUserId}`
+  ) as Parameters<typeof router.push>[0];
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#080808' }} edges={['top']}>
@@ -154,16 +194,7 @@ export function BookingDetailScreen() {
               {otherPartyName}
             </Text>
             {booking.status === BookingStatus.ACCEPTED && (
-              <Pressable
-                onPress={() =>
-                  router.push(
-                    userRole === UserRole.ARTIST
-                      ? `/(app)/venue/${booking.venueUserId}`
-                      : `/(app)/artist/${booking.artistUserId}`
-                  )
-                }
-                hitSlop={8}
-              >
+              <Pressable onPress={() => router.push(contactHref)} hitSlop={8}>
                 <Text className="text-xs font-bold text-[#D4FC5A] font-urbanist tracking-wide">
                   {contactLabel}
                 </Text>
@@ -209,8 +240,9 @@ export function BookingDetailScreen() {
               onAccept={() => handleUpdate(BookingStatus.ACCEPTED)}
               onReject={() => handleUpdate(BookingStatus.REJECTED)}
               onWithdraw={() => handleUpdate(BookingStatus.CANCELLED)}
+              onResend={handleResend}
               onCancel={() => handleUpdate(BookingStatus.CANCELLED)}
-              isUpdating={isUpdating}
+              pendingAction={pendingAction}
             />
           )}
         </View>
