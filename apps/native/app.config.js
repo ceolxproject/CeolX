@@ -1,3 +1,11 @@
+// Marketing version, the single source of truth. `standard-version` (pnpm
+// release) bumps apps/native/package.json; reading it here means there's no
+// separate "update the Expo version" step. The version never reaches the
+// runtimeVersion hash — fingerprint.config.js skips ExpoConfigVersions — so a
+// release bumps the store version without orphaning binaries from OTAs.
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const pkg = require('./package.json');
+
 const VARIANT = process.env.APP_VARIANT ?? 'production';
 const IS_STAGING = VARIANT === 'staging';
 
@@ -19,7 +27,7 @@ export default (_) => ({
   name: IS_STAGING ? 'CeolX (Staging)' : 'CeolX',
   slug: 'ceolx',
   owner: 'raftlabs_expo',
-  version: '1.0.0',
+  version: pkg.version,
   orientation: 'portrait',
   icon: './assets/images/icon.png',
   userInterfaceStyle: 'automatic',
