@@ -44,7 +44,7 @@ export function EventsTab({ upcomingEvents, pastEvents }: EventsTabProps) {
               dateEnd={event.dateEnd ? new Date(event.dateEnd).toISOString() : null}
               category={event.category}
               venueAddress={event.venueAddress}
-              onPress={() => router.push(`/(app)/(tabs)/discover/event/${event.id}`)}
+              onPress={() => router.push(`/(app)/events/${event.id}`)}
             />
           ))}
         </>
@@ -66,7 +66,7 @@ export function EventsTab({ upcomingEvents, pastEvents }: EventsTabProps) {
               category={event.category}
               venueAddress={event.venueAddress}
               status="archived"
-              onPress={() => router.push(`/(app)/(tabs)/discover/event/${event.id}`)}
+              onPress={() => router.push(`/(app)/events/${event.id}`)}
             />
           ))}
         </>

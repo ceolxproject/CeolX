@@ -14,9 +14,16 @@ import { useMe } from '@/hooks/use-me';
 // Nested stack routes inside (tabs) that render full-screen and must hide the tab bar.
 const HIDDEN_TAB_BAR_PATHS = new Set(['/profile/followers', '/profile/following']);
 
-// Dynamic detail routes (event id in the path) that must hide the tab bar.
-// Matched by prefix since the trailing segment is the event id.
-const HIDDEN_TAB_BAR_PREFIXES = ['/discover/event/', '/map/event/'];
+// Dynamic detail routes (event/booking id in the path) that must hide the tab
+// bar. Matched by prefix since the trailing segment is the id. Each tab owns its
+// own copy of a detail route so drilling in stays within that tab's stack.
+const HIDDEN_TAB_BAR_PREFIXES = [
+  '/discover/event/',
+  '/map/event/',
+  '/profile/event/',
+  '/profile/booking/',
+  '/bookings/event/',
+];
 
 const shouldHideTabBar = (pathname: string) =>
   HIDDEN_TAB_BAR_PATHS.has(pathname) ||

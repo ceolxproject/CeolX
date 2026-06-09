@@ -249,7 +249,7 @@ function MyEventsTab() {
             onAnalytics: () => router.push(`/(app)/events/${event.id}/analytics`),
             onArchive: () => archive.mutate({ id: event.id }),
           }}
-          onPress={() => router.push(`/(app)/(tabs)/discover/event/${event.id}`)}
+          onPress={() => router.push(`/(app)/(tabs)/profile/event/${event.id}`)}
         />
       ))}
       {isFetchingNextPage && (
@@ -280,7 +280,7 @@ function MyEventsTab() {
               venueAddress={event.venueAddress}
               bookingId={event.bookingId}
               onCancel={handleCancelBooking}
-              onPress={() => router.push(`/(app)/(tabs)/discover/event/${event.id}`)}
+              onPress={() => router.push(`/(app)/(tabs)/profile/event/${event.id}`)}
             />
           ))}
           {confirmed.isFetchingNextPage && (
