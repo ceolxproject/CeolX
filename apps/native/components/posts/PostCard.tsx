@@ -3,6 +3,7 @@ import { router } from 'expo-router';
 import { ActivityIndicator, Image, Pressable, Text, View } from 'react-native';
 
 import { PostActionMenu } from './PostActionMenu';
+import { PostVideo } from './PostVideo';
 
 import { useDeletePost } from '@/hooks/use-delete-post';
 import { useSharePost } from '@/hooks/use-share-post';
@@ -15,6 +16,10 @@ export type PostCardPost = {
   caption: string;
   mediaType: string;
   mediaUrl: string | null;
+  // Mux video fields — populated only for mediaType === 'video'. Drive the
+  // processing / error / ready states in <PostVideo>.
+  muxStatus?: string | null;
+  muxPlaybackId?: string | null;
   likeCount: number | null;
   author: {
     id: string;
@@ -108,6 +113,13 @@ export function PostCard({ post, currentUserId, hideAuthorHeader, expanded }: Pr
           source={{ uri: post.mediaUrl }}
           className="mb-3 aspect-video w-full rounded-xl bg-white/5"
           resizeMode="cover"
+        />
+      )}
+      {post.mediaType === 'video' && (
+        <PostVideo
+          mediaUrl={post.mediaUrl}
+          muxStatus={post.muxStatus ?? null}
+          muxPlaybackId={post.muxPlaybackId ?? null}
         />
       )}
 

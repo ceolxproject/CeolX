@@ -98,6 +98,10 @@ export default (_) => ({
   },
   plugins: [
     'expo-font',
+    // Mux HLS video playback in PostCard / post detail (M10-T2). expo-video
+    // plays .m3u8 streams natively on iOS + Android; no background playback or
+    // picture-in-picture needed for V1, so the bare plugin string is enough.
+    'expo-video',
     [
       'expo-location',
       {

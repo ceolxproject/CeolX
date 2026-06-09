@@ -64,6 +64,7 @@
     "expo-secure-store": "~55.0.13",
     "expo-status-bar": "~55.0.6",
     "expo-updates": "~55.0.21",
+    "expo-video": "~55.0.17",
     "expo-web-browser": "~55.0.15",
     "heroui-native": "^1.0.0",
     "react": "19.2.0",
