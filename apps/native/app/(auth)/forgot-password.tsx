@@ -81,7 +81,7 @@ export default function ForgotPasswordScreen() {
             <View className="gap-2 mb-4">
               <TextInput
                 className="bg-white rounded-lg h-[52px] px-4 text-base text-black"
-                placeholder="Email"
+                placeholder="Enter your email address"
                 placeholderTextColor="#8d8d8d"
                 keyboardType="email-address"
                 autoCapitalize="none"

@@ -6,7 +6,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { distanceBetween } from '@CeolX/shared';
 import { EventStatus, UserRole } from '@CeolX/shared/enums';
 
-import { CategoryBadge } from './CategoryBadge';
 import { CollectionEventCard } from './CollectionEventCard';
 import { DescriptionSection } from './DescriptionSection';
 import { EventDetailHeader } from './EventDetailHeader';
@@ -110,14 +109,12 @@ export function EventDetailView({
         {/* Header */}
         <EventDetailHeader onBack={onBack} isSaved={isSaved} onToggleSave={handleToggleSave} />
 
-        {/* Hero Image */}
+        {/* Hero Image with category + attendee badges */}
         <EventHeroImage
           coverImageUrl={event.coverImageUrl ?? undefined}
+          category={event.category}
           attendeeCount={event.attendeeCount}
         />
-
-        {/* Category badge overlapping image */}
-        <CategoryBadge category={event.category} className="ml-4 -mt-6 z-10" />
 
         {/* Removal reason banner — visible to owner when admin removed */}
         {isOwner && event.status === EventStatus.REMOVED && event.removalReason && (

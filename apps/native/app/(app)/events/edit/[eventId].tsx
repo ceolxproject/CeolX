@@ -14,7 +14,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { EventCategory } from '@CeolX/shared';
 import { EventStatus, UserRole } from '@CeolX/shared/enums';
 
-import { AppTabBar, TAB_CONFIG } from '@/components/AppTabBar';
 import { appToast } from '@/components/AppToast';
 import { BasicDetailsStep } from '@/components/events/BasicDetailsStep';
 import { DateVenueStep } from '@/components/events/DateVenueStep';
@@ -107,17 +106,11 @@ function EditEventForm({ event, eventId }: { event: LoadedEvent; eventId: string
     ]);
   };
 
-  const tabBarState = {
-    index: -1,
-    routes: TAB_CONFIG.map((t) => ({ key: t.name, name: t.name })),
-  };
-  const tabBarNavigation = {
-    emit: () => ({ defaultPrevented: false }),
-    navigate: (name: string) => router.replace(`/(app)/(tabs)/${name}`),
-  };
-
   return (
-    <View className="flex-1 bg-background" style={{ paddingTop: insets.top }}>
+    <View
+      className="flex-1 bg-background"
+      style={{ paddingTop: insets.top, paddingBottom: insets.bottom }}
+    >
       {/* Header */}
       <View className="flex-row items-center px-5 pt-4 pb-1">
         <Pressable onPress={handleBackPress} hitSlop={8} className="mr-3">
@@ -222,14 +215,6 @@ function EditEventForm({ event, eventId }: { event: LoadedEvent; eventId: string
           />
         )}
       </KeyboardAvoidingView>
-
-      {/* Bottom tab bar */}
-      <AppTabBar
-        state={tabBarState as never}
-        descriptors={{}}
-        navigation={tabBarNavigation as never}
-        insets={{ top: 0, bottom: 0, left: 0, right: 0 }}
-      />
     </View>
   );
 }
