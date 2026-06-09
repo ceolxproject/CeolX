@@ -8,6 +8,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { CATEGORY_LABELS } from '@CeolX/shared';
 import { BookingDirection, BookingStatus, UserRole } from '@CeolX/shared/enums';
 
+import { appToast } from '@/components/AppToast';
 import { RequestActions } from '@/components/requests/RequestActions';
 import { useUpdateBooking } from '@/hooks/use-update-booking';
 import { authClient } from '@/lib/auth-client';
@@ -37,6 +38,16 @@ export default function BookingDetailScreen() {
       setIsUpdating(true);
       try {
         await updateBooking.mutateAsync({ id: bookingId, status });
+        if (status === BookingStatus.CANCELLED) appToast.success('Request withdrawn');
+      } catch (err) {
+        if (status === BookingStatus.CANCELLED) {
+          appToast.error(
+            'Could not withdraw request',
+            err instanceof Error ? err.message : 'Please try again.'
+          );
+        } else {
+          throw err;
+        }
       } finally {
         setIsUpdating(false);
       }

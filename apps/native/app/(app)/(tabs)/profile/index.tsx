@@ -17,6 +17,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import type { BookingSummary } from '@CeolX/shared';
 import { BookingStatus, UserRole } from '@CeolX/shared/enums';
 
+import { appToast } from '@/components/AppToast';
 import { ConfirmedBookingCard } from '@/components/bookings/ConfirmedBookingCard';
 import { BellWithBadge } from '@/components/notifications/BellWithBadge';
 import { PostsList } from '@/components/posts/PostsList';
@@ -156,7 +157,11 @@ function ProfileHeader({
             Edit Profile
           </Text>
         </Pressable>
-        <Pressable className="w-9 h-9 items-center justify-center" onPress={onSettingsPress}>
+        <Pressable
+          className="w-8 h-8 items-center justify-center"
+          onPress={onSettingsPress}
+          hitSlop={6}
+        >
           <Ionicons name="settings-outline" size={24} color="#fff" />
         </Pressable>
       </View>
@@ -373,6 +378,16 @@ function CollaborationTab({ currentRole }: { currentRole: string }) {
       await updateBooking.mutateAsync({ id, status });
       // Refresh both directions so counts and lists stay in sync.
       await Promise.all([sent.refresh(), received.refresh()]);
+      if (status === BookingStatus.CANCELLED) appToast.success('Request withdrawn');
+    } catch (err) {
+      if (status === BookingStatus.CANCELLED) {
+        appToast.error(
+          'Could not withdraw request',
+          err instanceof Error ? err.message : 'Please try again.'
+        );
+      } else {
+        throw err;
+      }
     } finally {
       setUpdatingId(null);
     }
