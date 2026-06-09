@@ -7,7 +7,7 @@ import type { BookingSummary } from '@CeolX/shared';
 import { CATEGORY_LABELS } from '@CeolX/shared';
 import { BookingDirection, BookingStatus, UserRole } from '@CeolX/shared/enums';
 
-import { RequestActions } from './RequestActions';
+import { RequestActions, type RequestAction } from './RequestActions';
 
 import { formatEventDate } from '@/utils/format-event-date';
 import { getMockEventImage, MOCK_PROFILE_IMAGE } from '@/utils/mock-images';
@@ -18,8 +18,9 @@ interface RequestCardProps {
   onAccept?: () => void;
   onReject?: () => void;
   onWithdraw?: () => void;
+  onResend?: () => void;
   onCancel?: () => void;
-  isUpdating?: boolean;
+  pendingAction?: RequestAction | null;
   className?: string;
 }
 
@@ -29,8 +30,9 @@ export function RequestCard({
   onAccept,
   onReject,
   onWithdraw,
+  onResend,
   onCancel,
-  isUpdating,
+  pendingAction,
   className,
 }: RequestCardProps) {
   const categoryLabel = CATEGORY_LABELS[booking.eventCategory] ?? booking.eventCategory;
@@ -64,6 +66,18 @@ export function RequestCard({
   const directionLabel = isSentByUser ? 'Sent Request to:' : 'Request Sent by:';
 
   const isAccepted = booking.status === BookingStatus.ACCEPTED;
+
+  // Where the "CONTACT" button opens. For artist↔artist the other party is an
+  // artist, so route to their *user* id (A2A rows have no venue — routing to
+  // /venue/<empty> was the "Page Not Found" bug). Otherwise venue→artist or
+  // artist→venue per the viewer's role.
+  const contactHref = (
+    isA2A
+      ? `/(app)/artist/${isSentByUser ? booking.artistUserId : booking.inviterArtistUserId}`
+      : userRole === UserRole.ARTIST
+        ? `/(app)/venue/${booking.venueUserId}`
+        : `/(app)/artist/${booking.artistUserId}`
+  ) as Parameters<typeof router.push>[0];
 
   return (
     <Pressable
@@ -133,16 +147,7 @@ export function RequestCard({
               {otherPartyName}
             </Text>
             {isAccepted && (
-              <Pressable
-                onPress={() =>
-                  router.push(
-                    userRole === UserRole.ARTIST
-                      ? `/(app)/venue/${booking.venueUserId}`
-                      : `/(app)/artist/${booking.artistUserId}`
-                  )
-                }
-                hitSlop={8}
-              >
+              <Pressable onPress={() => router.push(contactHref)} hitSlop={8}>
                 <Text className="text-xs font-bold text-[#D4FC5A] font-urbanist tracking-wide">
                   {userRole === UserRole.ARTIST && !isA2A ? 'CONTACT VENUE' : 'CONTACT ARTIST'}
                 </Text>
@@ -166,8 +171,9 @@ export function RequestCard({
             onAccept={onAccept}
             onReject={onReject}
             onWithdraw={onWithdraw}
+            onResend={onResend}
             onCancel={onCancel}
-            isUpdating={isUpdating}
+            pendingAction={pendingAction}
           />
         )}
       </View>

@@ -1,7 +1,26 @@
+import { cn } from 'heroui-native';
 import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 
 import type { BookingSummary } from '@CeolX/shared';
 import { BookingDirection, BookingStatus, UserRole } from '@CeolX/shared/enums';
+
+/** A pending-request action that can be in flight (drives per-button feedback). */
+export type RequestAction = 'accept' | 'reject' | 'withdraw' | 'resend';
+
+/** Maps a booking status transition to its button action + toast copy. Shared by
+ *  the Requests tab and the booking detail screen so feedback stays consistent. */
+export const BOOKING_STATUS_FEEDBACK: Record<
+  'accepted' | 'rejected' | 'cancelled',
+  { action: RequestAction; success: string; error: string }
+> = {
+  accepted: { action: 'accept', success: 'Request accepted', error: 'Could not accept request' },
+  rejected: { action: 'reject', success: 'Request declined', error: 'Could not decline request' },
+  cancelled: {
+    action: 'withdraw',
+    success: 'Request withdrawn',
+    error: 'Could not withdraw request',
+  },
+};
 
 interface RequestActionsProps {
   booking: BookingSummary;
@@ -9,8 +28,11 @@ interface RequestActionsProps {
   onAccept?: () => void;
   onReject?: () => void;
   onWithdraw?: () => void;
+  onResend?: () => void;
   onCancel?: () => void;
-  isUpdating?: boolean;
+  /** Which action is currently in flight — shows a spinner on that button and
+   *  disables the rest. Null = idle. */
+  pendingAction?: RequestAction | null;
 }
 
 export function RequestActions({
@@ -19,8 +41,9 @@ export function RequestActions({
   onAccept,
   onReject,
   onWithdraw,
+  onResend,
   onCancel: _onCancel,
-  isUpdating,
+  pendingAction,
 }: RequestActionsProps) {
   if (booking.status !== BookingStatus.PENDING) return null;
 
@@ -30,55 +53,86 @@ export function RequestActions({
       : (userRole === UserRole.VENUE && booking.direction === BookingDirection.VENUE_TO_ARTIST) ||
         (userRole === UserRole.ARTIST && booking.direction === BookingDirection.ARTIST_TO_VENUE);
 
-  if (isUpdating) {
-    return (
-      <View className="flex-row items-center justify-center mt-3 py-3">
-        <ActivityIndicator size="small" color="#C8FF2F" />
-      </View>
-    );
-  }
+  const isBusy = Boolean(pendingAction);
 
   if (isSentByUser) {
-    // Venue sent → can RESEND (no-op placeholder) or WITHDRAW
+    // Sender → can RESEND the invite or WITHDRAW it.
     return (
       <View className="flex-row gap-3 mt-3">
         <Pressable
-          className="flex-1 items-center py-2.5 rounded-full border border-[#C8FF2F] active:opacity-70"
+          onPress={onResend}
+          disabled={isBusy}
+          className={cn(
+            'flex-1 items-center py-2.5 rounded-full border border-[#C8FF2F] active:opacity-70',
+            isBusy && 'opacity-50'
+          )}
           accessibilityRole="button"
+          accessibilityState={{ disabled: isBusy, busy: pendingAction === 'resend' }}
           accessibilityLabel="Resend request"
         >
-          <Text className="text-sm font-bold text-[#C8FF2F] font-urbanist">RESEND</Text>
+          {pendingAction === 'resend' ? (
+            <ActivityIndicator size="small" color="#C8FF2F" />
+          ) : (
+            <Text className="text-sm font-bold text-[#C8FF2F] font-urbanist">RESEND</Text>
+          )}
         </Pressable>
         <Pressable
           onPress={onWithdraw}
-          className="flex-1 items-center py-2.5 rounded-full border border-white/30 active:opacity-70"
+          disabled={isBusy}
+          className={cn(
+            'flex-1 items-center py-2.5 rounded-full border border-white/30 active:opacity-70',
+            isBusy && 'opacity-50'
+          )}
           accessibilityRole="button"
+          accessibilityState={{ disabled: isBusy, busy: pendingAction === 'withdraw' }}
           accessibilityLabel="Withdraw request"
         >
-          <Text className="text-sm font-bold text-white font-urbanist">WITHDRAW</Text>
+          {pendingAction === 'withdraw' ? (
+            <ActivityIndicator size="small" color="#FFFFFF" />
+          ) : (
+            <Text className="text-sm font-bold text-white font-urbanist">WITHDRAW</Text>
+          )}
         </Pressable>
       </View>
     );
   }
 
-  // Artist received → can ACCEPT or REJECT
+  // Recipient → can ACCEPT or REJECT.
   return (
     <View className="flex-row gap-3 mt-3">
       <Pressable
         onPress={onAccept}
-        className="flex-1 items-center py-2.5 rounded-full bg-[#662FFF] active:opacity-70"
+        disabled={isBusy}
+        className={cn(
+          'flex-1 items-center py-2.5 rounded-full bg-[#662FFF] active:opacity-70',
+          isBusy && 'opacity-50'
+        )}
         accessibilityRole="button"
+        accessibilityState={{ disabled: isBusy, busy: pendingAction === 'accept' }}
         accessibilityLabel="Accept request"
       >
-        <Text className="text-sm font-bold text-white font-urbanist tracking-wider">ACCEPT</Text>
+        {pendingAction === 'accept' ? (
+          <ActivityIndicator size="small" color="#FFFFFF" />
+        ) : (
+          <Text className="text-sm font-bold text-white font-urbanist tracking-wider">ACCEPT</Text>
+        )}
       </Pressable>
       <Pressable
         onPress={onReject}
-        className="flex-1 items-center py-2.5 rounded-full border border-[#8D8D8D] active:opacity-70"
+        disabled={isBusy}
+        className={cn(
+          'flex-1 items-center py-2.5 rounded-full border border-[#8D8D8D] active:opacity-70',
+          isBusy && 'opacity-50'
+        )}
         accessibilityRole="button"
+        accessibilityState={{ disabled: isBusy, busy: pendingAction === 'reject' }}
         accessibilityLabel="Reject request"
       >
-        <Text className="text-sm font-bold text-white font-urbanist tracking-wider">REJECT</Text>
+        {pendingAction === 'reject' ? (
+          <ActivityIndicator size="small" color="#FFFFFF" />
+        ) : (
+          <Text className="text-sm font-bold text-white font-urbanist tracking-wider">REJECT</Text>
+        )}
       </Pressable>
     </View>
   );

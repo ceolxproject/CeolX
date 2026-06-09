@@ -50,6 +50,7 @@
     "dotenv": "catalog:",
     "expo": "^55.0.23",
     "expo-apple-authentication": "^55.0.13",
+    "expo-calendar": "~55.0.15",
     "expo-constants": "~55.0.16",
     "expo-dev-client": "~55.0.32",
     "expo-device": "^55.0.16",

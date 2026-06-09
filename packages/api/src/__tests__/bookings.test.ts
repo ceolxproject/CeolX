@@ -729,6 +729,9 @@ describe('bookings.list — artist_to_artist tabs', () => {
     expect(row.direction).toBe('artist_to_artist');
     expect(row.inviterArtistName).toBe('Tune Bomb');
     expect(row.inviterArtistId).toBe(INVITER_PROFILE_ID);
+    // The inviter's *user* id is what the /artist/[userId] route needs to open
+    // their public profile from the accepted-invite "CONTACT ARTIST" button.
+    expect(row.inviterArtistUserId).toBe(INVITER_USER_ID);
     // The viewer is the invited artist, not the sender.
     expect(row.viewerIsSender).toBe(false);
     // Null venue must not throw and must serialize to empty strings.
@@ -767,8 +770,64 @@ describe('bookings.byId — artist_to_artist', () => {
 
     const result = await caller.bookings.byId({ id: BOOKING_ID });
     expect(result.inviterArtistName).toBe('Tune Bomb');
+    expect(result.inviterArtistUserId).toBe(INVITER_USER_ID);
     expect(result.viewerIsSender).toBe(true);
     expect(result.venueName).toBe('');
+  });
+});
+
+// ─── bookings.resend ──────────────────────────────────────────────────────────
+// Re-sends the *original* invite notification to the recipient. Only the
+// sender of a still-pending booking may resend.
+
+describe('bookings.resend', () => {
+  it('throws NOT_FOUND when the booking does not exist', async () => {
+    const caller = createCaller(authedContext('venue', VENUE_USER_ID));
+    mockBookingsFindFirst.mockResolvedValueOnce(null);
+    await expectTRPCError(caller.bookings.resend({ id: BOOKING_ID }), 'NOT_FOUND');
+  });
+
+  it('throws BAD_REQUEST when the booking is not pending', async () => {
+    const caller = createCaller(authedContext('venue', VENUE_USER_ID));
+    mockBookingsFindFirst.mockResolvedValueOnce({ ...mockBooking, status: 'accepted' });
+    await expectTRPCError(caller.bookings.resend({ id: BOOKING_ID }), 'BAD_REQUEST');
+  });
+
+  it('forbids the recipient (non-sender) from resending', async () => {
+    const caller = createCaller(authedContext('artist', ARTIST_USER_ID));
+    mockBookingsFindFirst.mockResolvedValueOnce(mockBooking);
+    await expectTRPCError(caller.bookings.resend({ id: BOOKING_ID }), 'FORBIDDEN');
+  });
+
+  it('re-dispatches BOOKING_INVITE_TO_ARTIST to the artist for a venue→artist invite', async () => {
+    const caller = createCaller(authedContext('venue', VENUE_USER_ID));
+    mockBookingsFindFirst.mockResolvedValueOnce(mockBooking);
+
+    const result = await caller.bookings.resend({ id: BOOKING_ID });
+
+    expect(result).toEqual({ id: BOOKING_ID, success: true });
+    expect(mockDispatchNotification).toHaveBeenCalledWith(
+      expect.objectContaining({
+        trigger: NotificationTrigger.BOOKING_INVITE_TO_ARTIST,
+        recipientUserId: ARTIST_USER_ID,
+      })
+    );
+  });
+
+  it('re-dispatches BOOKING_INVITE_TO_COARTIST to the invited artist for an A2A invite', async () => {
+    const caller = createCaller(authedContext('artist', INVITER_USER_ID));
+    mockBookingsFindFirst.mockResolvedValueOnce(mockA2ABooking);
+
+    const result = await caller.bookings.resend({ id: BOOKING_ID });
+
+    expect(result).toEqual({ id: BOOKING_ID, success: true });
+    expect(mockDispatchNotification).toHaveBeenCalledWith(
+      expect.objectContaining({
+        trigger: NotificationTrigger.BOOKING_INVITE_TO_COARTIST,
+        recipientUserId: ARTIST_USER_ID,
+        vars: expect.objectContaining({ coArtistName: 'Tune Bomb' }),
+      })
+    );
   });
 });
 

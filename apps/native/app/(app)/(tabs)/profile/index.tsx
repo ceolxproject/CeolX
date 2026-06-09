@@ -24,6 +24,7 @@ import { PostsList } from '@/components/posts/PostsList';
 import { ProfileEventCard } from '@/components/ProfileEventCard';
 import { SegmentControl } from '@/components/profiles';
 import { EmptyRequests } from '@/components/requests/EmptyRequests';
+import { BOOKING_STATUS_FEEDBACK, type RequestAction } from '@/components/requests/RequestActions';
 import { RequestCard } from '@/components/requests/RequestCard';
 import { SettingsBottomSheet } from '@/components/SettingsBottomSheet';
 import { useAuth } from '@/contexts/auth-context';
@@ -33,6 +34,7 @@ import { useConfirmedEvents } from '@/hooks/use-confirmed-events';
 import { useMe } from '@/hooks/use-me';
 import { useMyEvents } from '@/hooks/use-my-events';
 import { useMyPosts } from '@/hooks/use-my-posts';
+import { useResendBooking } from '@/hooks/use-resend-booking';
 import { useUpdateBooking } from '@/hooks/use-update-booking';
 import { MOCK_PROFILE_IMAGE } from '@/utils/mock-images';
 
@@ -370,26 +372,38 @@ function CollaborationTab({ currentRole }: { currentRole: string }) {
   const counts = { sent: sent.total, received: received.total };
 
   const updateBooking = useUpdateBooking();
-  const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const resendBooking = useResendBooking();
+  // Track both which request and which action is in flight, so each button shows
+  // its own spinner instead of replacing the whole row.
+  const [pending, setPending] = useState<{ id: string; action: RequestAction } | null>(null);
 
   const handleUpdate = async (id: string, status: 'accepted' | 'rejected' | 'cancelled') => {
-    setUpdatingId(id);
+    const copy = BOOKING_STATUS_FEEDBACK[status];
+    setPending({ id, action: copy.action });
     try {
       await updateBooking.mutateAsync({ id, status });
       // Refresh both directions so counts and lists stay in sync.
       await Promise.all([sent.refresh(), received.refresh()]);
-      if (status === BookingStatus.CANCELLED) appToast.success('Request withdrawn');
+      appToast.success(copy.success);
     } catch (err) {
-      if (status === BookingStatus.CANCELLED) {
-        appToast.error(
-          'Could not withdraw request',
-          err instanceof Error ? err.message : 'Please try again.'
-        );
-      } else {
-        throw err;
-      }
+      appToast.error(copy.error, err instanceof Error ? err.message : 'Please try again.');
     } finally {
-      setUpdatingId(null);
+      setPending(null);
+    }
+  };
+
+  const handleResend = async (id: string) => {
+    setPending({ id, action: 'resend' });
+    try {
+      await resendBooking.mutateAsync({ id });
+      appToast.success('Invite resent');
+    } catch (err) {
+      appToast.error(
+        'Could not resend invite',
+        err instanceof Error ? err.message : 'Please try again.'
+      );
+    } finally {
+      setPending(null);
     }
   };
 
@@ -422,8 +436,9 @@ function CollaborationTab({ currentRole }: { currentRole: string }) {
               onAccept={() => handleUpdate(booking.id, BookingStatus.ACCEPTED)}
               onReject={() => handleUpdate(booking.id, BookingStatus.REJECTED)}
               onWithdraw={() => handleUpdate(booking.id, BookingStatus.CANCELLED)}
+              onResend={() => handleResend(booking.id)}
               onCancel={() => handleUpdate(booking.id, BookingStatus.CANCELLED)}
-              isUpdating={updatingId === booking.id}
+              pendingAction={pending?.id === booking.id ? pending.action : null}
             />
           ))}
           {active.isFetchingNextPage && (
