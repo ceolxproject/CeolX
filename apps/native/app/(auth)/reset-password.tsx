@@ -101,7 +101,7 @@ export default function ResetPasswordScreen() {
               <View className="flex-row items-center">
                 <TextInput
                   className="flex-1 bg-white rounded-lg h-[52px] px-4 text-base font-sans font-medium text-black leading-5"
-                  placeholder="Enter new password"
+                  placeholder="Enter your new password"
                   placeholderTextColor="#8d8d8d"
                   secureTextEntry={!passwordVisible}
                   autoComplete="new-password"
@@ -128,7 +128,7 @@ export default function ResetPasswordScreen() {
               </Text>
               <TextInput
                 className="bg-white rounded-lg h-[52px] px-4 text-base font-sans font-medium text-black leading-5"
-                placeholder="Re-enter new password"
+                placeholder="Re-enter your new password"
                 placeholderTextColor="#8d8d8d"
                 secureTextEntry={!passwordVisible}
                 autoComplete="new-password"

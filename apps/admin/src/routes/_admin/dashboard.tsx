@@ -5,7 +5,6 @@ import {
   ArrowDown,
   ArrowRight,
   ArrowUp,
-  CalendarCheck,
   CalendarDays,
   CreditCard,
   Info,
@@ -262,7 +261,7 @@ function DashboardPage() {
     );
   }
 
-  const { users, events, subscriptions, bookings, topCategories, categoriesInUse, sessions } = data;
+  const { users, events, subscriptions, topCategories, categoriesInUse, sessions } = data;
 
   return (
     <div className="space-y-6">
@@ -410,23 +409,6 @@ function DashboardPage() {
               ))}
             </div>
           )}
-        </MetricCard>
-
-        <MetricCard
-          label="Bookings"
-          icon={CalendarCheck}
-          attention={
-            bookings.byStatus.pending > 0 ? { label: 'Pending', tone: 'warning' } : undefined
-          }
-          value={bookings.total.toLocaleString()}
-          caption={<span className="text-xs text-muted-foreground">total bookings</span>}
-        >
-          <StatGrid cols={2}>
-            <StatTile label="Accepted" value={bookings.byStatus.accepted} />
-            <StatTile label="Pending" value={bookings.byStatus.pending} tone="warning" />
-            <StatTile label="Rejected" value={bookings.byStatus.rejected} tone="destructive" />
-            <StatTile label="Cancelled" value={bookings.byStatus.cancelled} />
-          </StatGrid>
         </MetricCard>
       </div>
     </div>

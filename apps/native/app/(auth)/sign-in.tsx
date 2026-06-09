@@ -133,7 +133,7 @@ export default function SignInScreen() {
               </Text>
               <TextInput
                 className="bg-white rounded-lg h-[52px] px-4 text-base font-sans font-medium text-black leading-5"
-                placeholder="james@gmail.com"
+                placeholder="Enter your email address"
                 placeholderTextColor="#8d8d8d"
                 keyboardType="email-address"
                 autoCapitalize="none"
@@ -151,7 +151,7 @@ export default function SignInScreen() {
               <View className="flex-row items-center">
                 <TextInput
                   className="flex-1 bg-white rounded-lg h-[52px] px-4 text-base font-sans font-medium text-black leading-5"
-                  placeholder="Enter Password"
+                  placeholder="Enter your password"
                   placeholderTextColor="#8d8d8d"
                   secureTextEntry={!passwordVisible}
                   autoComplete="current-password"

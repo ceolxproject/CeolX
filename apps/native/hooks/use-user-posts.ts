@@ -46,14 +46,13 @@ export function useUserPosts(userId: string | null | undefined) {
     if (!data || isFetching) return;
     const newPosts = data.posts as HydratedPost[];
     if (offset === 0) {
-      if (
-        accumulated.length !== newPosts.length ||
-        (newPosts.length > 0 && accumulated[0]?.id !== newPosts[0]?.id)
-      ) {
-        setAccumulated(newPosts);
-        setHasNextPage(data.hasNextPage);
-        setTotalCount(data.totalCount);
-      }
+      // Always re-sync page 0 to the latest query data. `newPosts` is a stable
+      // reference until the cache changes (e.g. an optimistic like patch), so
+      // React bails on no-op sets — but field-level updates like a flipped
+      // `likedByMe` / `likeCount` now reach the list instead of being dropped.
+      setAccumulated(newPosts);
+      setHasNextPage(data.hasNextPage);
+      setTotalCount(data.totalCount);
     } else if (accumulated.length < offset + newPosts.length) {
       setAccumulated((prev) => [...prev, ...newPosts]);
       setHasNextPage(data.hasNextPage);

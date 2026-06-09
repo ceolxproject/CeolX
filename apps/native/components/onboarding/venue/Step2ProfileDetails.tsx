@@ -52,7 +52,7 @@ export function Step2ProfileDetails({
           </View>
           <TextInput
             className={`rounded-lg bg-white px-4 py-4 text-base text-black ${errors.bio ? 'border border-error' : ''}`}
-            placeholder="Describe your business..."
+            placeholder="Tell artists about your venue..."
             placeholderTextColor="rgba(141,141,141,0.8)"
             value={bio}
             onChangeText={setBio}

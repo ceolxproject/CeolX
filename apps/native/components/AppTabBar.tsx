@@ -14,6 +14,14 @@ import { useMe } from '@/hooks/use-me';
 // Nested stack routes inside (tabs) that render full-screen and must hide the tab bar.
 const HIDDEN_TAB_BAR_PATHS = new Set(['/profile/followers', '/profile/following']);
 
+// Dynamic detail routes (event id in the path) that must hide the tab bar.
+// Matched by prefix since the trailing segment is the event id.
+const HIDDEN_TAB_BAR_PREFIXES = ['/discover/event/', '/map/event/'];
+
+const shouldHideTabBar = (pathname: string) =>
+  HIDDEN_TAB_BAR_PATHS.has(pathname) ||
+  HIDDEN_TAB_BAR_PREFIXES.some((prefix) => pathname.startsWith(prefix));
+
 type IoniconsName = ComponentProps<typeof Ionicons>['name'];
 
 type TabConfig = {
@@ -43,7 +51,7 @@ export function AppTabBar({ state, navigation, onFabPress }: AppTabBarProps) {
   const { data: me } = useMe();
   const currentRole = me?.currentRole ?? 'spectator';
 
-  if (HIDDEN_TAB_BAR_PATHS.has(pathname)) return null;
+  if (shouldHideTabBar(pathname)) return null;
 
   const getTabLabel = (tab: TabConfig) => {
     if (tab.name === 'bookings') {

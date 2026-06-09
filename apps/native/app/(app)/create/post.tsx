@@ -1,7 +1,15 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Platform,
+  Pressable,
+  ScrollView,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { createPostSchema, updatePostSchema } from '@CeolX/shared/validators';
@@ -43,6 +51,10 @@ export default function CreatePostScreen() {
   const isUploading = imageUpload.isUploading || videoUpload.isUploading;
   const progress = imageUpload.isUploading ? imageUpload.progress : videoUpload.progress;
 
+  // Covers the whole publish flow (upload + mutation), so the button shows a
+  // spinner the instant it's tapped instead of only once the mutation fires.
+  const [isPublishing, setIsPublishing] = useState(false);
+
   // Seed form when editing an existing post.
   useEffect(() => {
     if (!isEditing || !existing.data) return;
@@ -53,6 +65,18 @@ export default function CreatePostScreen() {
       setMedia(null);
     }
   }, [existing.data, isEditing]);
+
+  // Android-only: a freshly-picked image paints black until the picker field
+  // remounts (same issue as the event cover — see create.tsx and Asana
+  // 1215040939202669). Bump a key shortly after a new image is picked to force
+  // that remount. iOS renders fine, so we skip it there. Videos render a static
+  // placeholder, not an <Image>, so they don't need it.
+  const [mediaRefreshKey, setMediaRefreshKey] = useState(0);
+  useEffect(() => {
+    if (Platform.OS !== 'android' || media?.kind !== 'image' || !media.uri) return;
+    const timer = setTimeout(() => setMediaRefreshKey((k) => k + 1), 350);
+    return () => clearTimeout(timer);
+  }, [media?.uri, media?.kind]);
 
   const handleRemoveMedia = async () => {
     // If the existing media is already in S3, delete it now so the bucket
@@ -70,10 +94,11 @@ export default function CreatePostScreen() {
     setMedia(null);
   };
 
-  const disabled =
-    caption.trim().length === 0 || isUploading || createPost.isPending || updatePost.isPending;
+  const busy = isPublishing || createPost.isPending || updatePost.isPending;
+  const disabled = caption.trim().length === 0 || isUploading || busy;
 
   const handlePublish = async () => {
+    setIsPublishing(true);
     try {
       if (isEditing && editId) {
         // Editing only updates caption (video mediaUrl is server-managed,
@@ -115,6 +140,8 @@ export default function CreatePostScreen() {
       router.back();
     } catch (err) {
       appToast.error('Failed to publish', err instanceof Error ? err.message : 'Please try again.');
+    } finally {
+      setIsPublishing(false);
     }
   };
 
@@ -134,6 +161,7 @@ export default function CreatePostScreen() {
 
           <View className="mb-5">
             <MediaPickerField
+              key={mediaRefreshKey}
               mediaUri={media?.uri ?? null}
               mediaKind={media?.kind}
               onPick={(asset) =>
@@ -181,7 +209,7 @@ export default function CreatePostScreen() {
               : 'h-14 items-center justify-center rounded-full bg-[#6155F5]'
           }
         >
-          {createPost.isPending || updatePost.isPending ? (
+          {busy ? (
             <ActivityIndicator color="#fff" />
           ) : (
             <Text className="text-base font-bold uppercase text-white font-inter tracking-wider">
