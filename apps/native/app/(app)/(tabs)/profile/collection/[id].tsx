@@ -171,7 +171,7 @@ export default function CollectionDetailScreen() {
                 category={event.category}
                 venueAddress={event.venueAddress}
                 status={event.status}
-                onPress={() => router.push(`/(app)/(tabs)/discover/event/${event.id}`)}
+                onPress={() => router.push(`/(app)/(tabs)/profile/event/${event.id}`)}
               />
             ))}
           </View>

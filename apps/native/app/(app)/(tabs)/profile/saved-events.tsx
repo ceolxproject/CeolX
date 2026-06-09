@@ -48,7 +48,7 @@ export default function SavedEventsScreen() {
                 dateEnd={event.dateEnd}
                 category={event.category}
                 venueAddress={event.venueAddress}
-                onPress={() => router.push(`/(app)/(tabs)/discover/event/${event.id}`)}
+                onPress={() => router.push(`/(app)/(tabs)/profile/event/${event.id}`)}
               />
             ))}
 
@@ -78,7 +78,7 @@ export default function SavedEventsScreen() {
                       dateEnd={event.dateEnd}
                       category={event.category}
                       venueAddress={event.venueAddress}
-                      onPress={() => router.push(`/(app)/(tabs)/discover/event/${event.id}`)}
+                      onPress={() => router.push(`/(app)/(tabs)/profile/event/${event.id}`)}
                     />
                   ))}
               </>

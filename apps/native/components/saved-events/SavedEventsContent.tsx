@@ -45,7 +45,7 @@ export function SavedEventsContent() {
             dateEnd={event.dateEnd}
             category={event.category}
             venueAddress={event.venueAddress}
-            onPress={() => router.push(`/(app)/(tabs)/discover/event/${event.id}`)}
+            onPress={() => router.push(`/(app)/(tabs)/bookings/event/${event.id}`)}
           />
         ))}
 
@@ -75,7 +75,7 @@ export function SavedEventsContent() {
                   dateEnd={event.dateEnd}
                   category={event.category}
                   venueAddress={event.venueAddress}
-                  onPress={() => router.push(`/(app)/(tabs)/discover/event/${event.id}`)}
+                  onPress={() => router.push(`/(app)/(tabs)/bookings/event/${event.id}`)}
                 />
               ))}
           </>
