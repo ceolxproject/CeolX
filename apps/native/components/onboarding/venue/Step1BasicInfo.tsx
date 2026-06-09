@@ -53,7 +53,7 @@ export function Step1BasicInfo({
           >
             <TextInput
               className="text-base text-black"
-              placeholder="Dooagh Film Festival"
+              placeholder="Enter your venue name"
               placeholderTextColor="#8d8d8d"
               value={venueName}
               onChangeText={setVenueName}

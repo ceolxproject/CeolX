@@ -30,7 +30,7 @@ export function Step2ProfileDetails({ bio, setBio, errors, handleBlur }: Step2Pr
         </View>
         <TextInput
           className={`rounded-lg bg-white px-4 py-4 text-base text-black ${errors.bio ? 'border border-error' : ''}`}
-          placeholder="Describe yourself..."
+          placeholder="Tell fans about your music..."
           placeholderTextColor="rgba(141,141,141,0.8)"
           value={bio}
           onChangeText={setBio}
