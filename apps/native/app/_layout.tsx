@@ -29,7 +29,13 @@ import { AppToastProvider } from '@/components/AppToast';
 import { FallbackComponent } from '@/components/sentry-fallback';
 import { AppThemeProvider } from '@/contexts/app-theme-context';
 import { AuthProvider } from '@/contexts/auth-context';
+import { configureGoogleSignIn } from '@/lib/google-signin';
 import { queryClient } from '@/utils/trpc';
+
+// Initialise the native Google Sign-In SDK once, before any screen mounts. The
+// account sheet is opened later from use-social-auth; this just primes the SDK.
+// No-ops when EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID is unset (e.g. Expo Go).
+configureGoogleSignIn();
 
 // Initialise Sentry before any component mounts.
 const iosBuild = Constants.expoConfig?.ios?.buildNumber;

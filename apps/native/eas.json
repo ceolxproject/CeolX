@@ -21,7 +21,9 @@
       "env": {
         "APP_VARIANT": "staging",
         "EXPO_PUBLIC_SERVER_URL": "https://ceol-x-server-git-staging-ceolxproject-6613s-projects.vercel.app",
-        "EXPO_PUBLIC_SENTRY_DSN": "https://9e5bd61ee5ce285201b7f8d571e27b83@o4511115981750272.ingest.de.sentry.io/4511116008620112"
+        "EXPO_PUBLIC_SENTRY_DSN": "https://9e5bd61ee5ce285201b7f8d571e27b83@o4511115981750272.ingest.de.sentry.io/4511116008620112",
+        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "1057693721951-rtpisqt4dio7pptsterfaf1ldb6hgpv7.apps.googleusercontent.com",
+        "GOOGLE_IOS_URL_SCHEME": "com.googleusercontent.apps.1057693721951-08nqa00s0ood9pimkpbb5p7njtmm4qal"
       },
       "android": {
         "buildType": "apk"
@@ -39,7 +41,9 @@
       "distribution": "store",
       "channel": "production",
       "env": {
-        "APP_VARIANT": "production"
+        "APP_VARIANT": "production",
+        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "",
+        "GOOGLE_IOS_URL_SCHEME": ""
       }
     }
   },

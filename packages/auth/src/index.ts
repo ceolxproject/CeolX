@@ -82,7 +82,16 @@ export const auth = betterAuth({
     ...(env.GOOGLE_OAUTH_CLIENT_ID && env.GOOGLE_OAUTH_CLIENT_SECRET
       ? {
           google: {
-            clientId: env.GOOGLE_OAUTH_CLIENT_ID,
+            // Accept the web client id plus the native iOS/Android client ids
+            // as valid idToken audiences. BetterAuth types clientId as a string,
+            // but the runtime verifier accepts an array — so one provider
+            // validates tokens from BOTH the legacy web redirect and the native
+            // Google Sign-In SDK (which mints the token with the web id as aud).
+            clientId: [
+              env.GOOGLE_OAUTH_CLIENT_ID,
+              env.GOOGLE_OAUTH_IOS_CLIENT_ID,
+              env.GOOGLE_OAUTH_ANDROID_CLIENT_ID,
+            ].filter(Boolean) as unknown as string,
             clientSecret: env.GOOGLE_OAUTH_CLIENT_SECRET,
             // Never auto-create an account for an unknown Google identity. A
             // brand-new user tapping Google on the Login screen must instead go

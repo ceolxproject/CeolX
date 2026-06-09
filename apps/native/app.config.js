@@ -4,6 +4,13 @@ const IS_STAGING = VARIANT === 'staging';
 const PROD_BUNDLE_ID = 'ie.ceolx.app';
 const STAGING_BUNDLE_ID = 'com.raftlabs.ceolx.staging';
 
+// REVERSED_CLIENT_ID from the iOS OAuth client (see GoogleService-Info.plist),
+// e.g. com.googleusercontent.apps.1234-abc. Registers the URL scheme the native
+// Google Sign-In SDK uses on iOS. Until it's set, the google-signin config
+// plugin is skipped so prebuild keeps working; Android sign-in still wires up
+// via @react-native-firebase/app + google-services.json.
+const GOOGLE_IOS_URL_SCHEME = process.env.GOOGLE_IOS_URL_SCHEME;
+
 /**
  * @param {import('expo/config').ConfigContext} _ctx
  * @returns {import('expo/config').ExpoConfig}
@@ -122,6 +129,12 @@ export default (_) => ({
     './plugins/with-modular-headers.cjs',
     'expo-notifications',
     'expo-apple-authentication',
+    // Native Google Sign-In. The config plugin only needs to register the iOS
+    // URL scheme; the native module is autolinked and reads its Android OAuth
+    // client from google-services.json (applied by @react-native-firebase/app).
+    ...(GOOGLE_IOS_URL_SCHEME
+      ? [['@react-native-google-signin/google-signin', { iosUrlScheme: GOOGLE_IOS_URL_SCHEME }]]
+      : []),
     [
       'react-native-maps',
       {
