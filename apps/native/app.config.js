@@ -1,8 +1,23 @@
+// Marketing version, the single source of truth. `standard-version` (pnpm
+// release) bumps apps/native/package.json; reading it here means there's no
+// separate "update the Expo version" step. The version never reaches the
+// runtimeVersion hash — fingerprint.config.js skips ExpoConfigVersions — so a
+// release bumps the store version without orphaning binaries from OTAs.
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const pkg = require('./package.json');
+
 const VARIANT = process.env.APP_VARIANT ?? 'production';
 const IS_STAGING = VARIANT === 'staging';
 
 const PROD_BUNDLE_ID = 'ie.ceolx.app';
 const STAGING_BUNDLE_ID = 'com.raftlabs.ceolx.staging';
+
+// REVERSED_CLIENT_ID from the iOS OAuth client (see GoogleService-Info.plist),
+// e.g. com.googleusercontent.apps.1234-abc. Registers the URL scheme the native
+// Google Sign-In SDK uses on iOS. Until it's set, the google-signin config
+// plugin is skipped so prebuild keeps working; Android sign-in still wires up
+// via @react-native-firebase/app + google-services.json.
+const GOOGLE_IOS_URL_SCHEME = process.env.GOOGLE_IOS_URL_SCHEME;
 
 /**
  * @param {import('expo/config').ConfigContext} _ctx
@@ -12,7 +27,7 @@ export default (_) => ({
   name: IS_STAGING ? 'CeolX (Staging)' : 'CeolX',
   slug: 'ceolx',
   owner: 'raftlabs_expo',
-  version: '1.0.0',
+  version: pkg.version,
   orientation: 'portrait',
   icon: './assets/images/icon.png',
   userInterfaceStyle: 'automatic',
@@ -98,6 +113,10 @@ export default (_) => ({
   },
   plugins: [
     'expo-font',
+    // Mux HLS video playback in PostCard / post detail (M10-T2). expo-video
+    // plays .m3u8 streams natively on iOS + Android; no background playback or
+    // picture-in-picture needed for V1, so the bare plugin string is enough.
+    'expo-video',
     [
       'expo-location',
       {
@@ -118,6 +137,12 @@ export default (_) => ({
     './plugins/with-modular-headers.cjs',
     'expo-notifications',
     'expo-apple-authentication',
+    // Native Google Sign-In. The config plugin only needs to register the iOS
+    // URL scheme; the native module is autolinked and reads its Android OAuth
+    // client from google-services.json (applied by @react-native-firebase/app).
+    ...(GOOGLE_IOS_URL_SCHEME
+      ? [['@react-native-google-signin/google-signin', { iosUrlScheme: GOOGLE_IOS_URL_SCHEME }]]
+      : []),
     [
       'react-native-maps',
       {

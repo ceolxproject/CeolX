@@ -47,10 +47,6 @@
       {
         "filename": "apps/native/package.json",
         "type": "json"
-      },
-      {
-        "filename": "apps/native/app.config.js",
-        "updater": "apps/native/scripts/standard-version-app-config-updater.cjs"
       }
     ],
     "skip": {

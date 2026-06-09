@@ -7,6 +7,10 @@ export default function TabsLayout() {
 
   return (
     <Tabs
+      // Android hardware back returns to the previously focused tab instead of
+      // the default `firstRoute` (Map), which made back from Profile flows jump
+      // to Map (Asana 1215493984649842, scenario 3). No-op on iOS (no hw back).
+      backBehavior="history"
       tabBar={(props) => <AppTabBar {...props} onFabPress={() => router.push('/create')} />}
       screenOptions={{
         headerShown: false,

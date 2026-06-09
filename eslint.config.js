@@ -25,6 +25,7 @@ export default tseslint.config(
       'eslint.config.js',
       'commitlint.config.js',
       'apps/native/app.config.js',
+      'apps/native/fingerprint.config.cjs',
       'apps/native/plugins/**',
       'apps/native/scripts/*.cjs',
     ],

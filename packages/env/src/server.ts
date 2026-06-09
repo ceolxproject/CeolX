@@ -19,6 +19,12 @@ export const env = createEnv({
     RATE_LIMIT_IP_ALLOWLIST: z.string().optional(),
     GOOGLE_OAUTH_CLIENT_ID: z.string().optional(),
     GOOGLE_OAUTH_CLIENT_SECRET: z.string().optional(),
+    // Native Google Sign-In client ids. The idToken the mobile SDK mints carries
+    // the **web** client id (GOOGLE_OAUTH_CLIENT_ID) as its audience, so that one
+    // alone usually verifies — but listing the iOS/Android clients too makes the
+    // server accept tokens minted with either as the audience. Optional.
+    GOOGLE_OAUTH_IOS_CLIENT_ID: z.string().optional(),
+    GOOGLE_OAUTH_ANDROID_CLIENT_ID: z.string().optional(),
     // Google Geocoding API key — server-side only. The app's geocoding search
     // (LocationPicker) proxies through /location/geocode so this key is never
     // shipped in the bundle and can be IP-restricted. NOT the same as the

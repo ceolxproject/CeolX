@@ -67,7 +67,7 @@ export function RequestCard({
 
   return (
     <Pressable
-      onPress={() => router.push(`/(app)/(tabs)/bookings/${booking.id}`)}
+      onPress={() => router.push(`/(app)/(tabs)/profile/booking/${booking.id}`)}
       className={cn(
         'rounded-2xl border border-[rgba(141,141,141,0.4)] bg-[rgba(141,141,141,0.1)] overflow-hidden active:opacity-90',
         className

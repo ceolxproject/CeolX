@@ -12,7 +12,20 @@
           "package_name": "com.raftlabs.ceolx.staging"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "1057693721951-krr0sh25maractb6bbqh2kl5bc3hqpsg.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.raftlabs.ceolx.staging",
+            "certificate_hash": "45131ee00f9c8619ae652d15d0aaac9489f8fd46"
+          }
+        },
+        {
+          "client_id": "1057693721951-rtpisqt4dio7pptsterfaf1ldb6hgpv7.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyDmDs6U8OzQ1crMuITwethdH2cBhuYvw9s"
@@ -20,7 +33,19 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1057693721951-rtpisqt4dio7pptsterfaf1ldb6hgpv7.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "1057693721951-08nqa00s0ood9pimkpbb5p7njtmm4qal.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.raftlabs.ceolx.staging"
+              }
+            }
+          ]
         }
       }
     }
