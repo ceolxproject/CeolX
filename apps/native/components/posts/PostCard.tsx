@@ -1,6 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { useState } from 'react';
 import { ActivityIndicator, Image, Pressable, Text, View } from 'react-native';
 
 import { PostActionMenu } from './PostActionMenu';
@@ -43,18 +42,17 @@ const CAPTION_PREVIEW_LIMIT = 120;
 
 export function PostCard({ post, currentUserId, hideAuthorHeader, expanded }: Props) {
   const isOwner = currentUserId === post.createdBy;
-  const [liked, setLiked] = useState(post.likedByMe);
-  const [likeCount, setLikeCount] = useState(post.likeCount ?? 0);
+  // Like state is derived straight from props. useTogglePostLike patches the
+  // query cache optimistically, so these values flow back through the feed /
+  // detail data the instant the user taps — no local copy to drift out of sync.
+  const liked = post.likedByMe;
+  const likeCount = post.likeCount ?? 0;
 
   const toggleLike = useTogglePostLike();
   const deletePost = useDeletePost();
   const sharePost = useSharePost();
 
   const onLikePress = () => {
-    // Local flip for responsiveness — server reconciles via invalidation.
-    // (See TODO(priya) in use-toggle-post-like for the full optimistic plan.)
-    setLiked((v) => !v);
-    setLikeCount((c) => (liked ? Math.max(0, c - 1) : c + 1));
     toggleLike.mutate({ postId: post.id });
   };
 
