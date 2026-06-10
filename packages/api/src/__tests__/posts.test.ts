@@ -7,6 +7,7 @@ import type { UserRole } from '@CeolX/shared';
 const {
   mockPostsFindFirst,
   mockPostLikesFindFirst,
+  mockInsertValues,
   mockInsertReturning,
   mockUpdateReturning,
   mockUpdateWhereNoReturn,
@@ -17,6 +18,10 @@ const {
   const mockPostsFindFirst = vi.fn();
   const mockPostLikesFindFirst = vi.fn();
   const mockInsertReturning = vi.fn();
+  // Captures the object passed to db.insert(posts).values(...) so tests can
+  // assert which columns actually get persisted (regression guard for the
+  // dropped-muxUploadId bug).
+  const mockInsertValues = vi.fn(() => ({ returning: mockInsertReturning }));
   const mockUpdateReturning = vi.fn();
   const mockUpdateWhereNoReturn = vi.fn(() => Promise.resolve());
   const mockDeleteWhere = vi.fn(() => Promise.resolve());
@@ -44,6 +49,7 @@ const {
   return {
     mockPostsFindFirst,
     mockPostLikesFindFirst,
+    mockInsertValues,
     mockInsertReturning,
     mockUpdateReturning,
     mockUpdateWhereNoReturn,
@@ -72,9 +78,7 @@ vi.mock('@CeolX/db', () => {
       },
       select: vi.fn(() => chain),
       insert: vi.fn(() => ({
-        values: vi.fn(() => ({
-          returning: mockInsertReturning,
-        })),
+        values: mockInsertValues,
       })),
       update: vi.fn(() => ({
         set: vi.fn(() => ({
@@ -204,6 +208,36 @@ describe('posts.create', () => {
     });
     expect(result.mediaUrl).toBe('https://cdn.example/posts/x.jpg');
     expect(result.mediaType).toBe('image');
+  });
+
+  it('persists muxUploadId and pending status for a video post', async () => {
+    // Regression: the create handler used to drop muxUploadId, leaving the
+    // row with mux_upload_id = NULL so the video.asset.ready webhook
+    // (UPDATE ... WHERE mux_upload_id = $1) could never match it.
+    mockInsertReturning.mockResolvedValueOnce([
+      {
+        id: 'post-vid',
+        createdBy: 'user-1',
+        caption: 'My teddy bear',
+        mediaType: 'video',
+        mediaUrl: null,
+        muxUploadId: 'upl_abc',
+        muxStatus: 'pending',
+        likeCount: 0,
+        deletedAt: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    ]);
+    const caller = authedCaller('user-1', 'artist' as UserRole);
+    await caller.create({
+      caption: 'My teddy bear',
+      mediaType: 'video',
+      muxUploadId: 'upl_abc',
+    });
+    expect(mockInsertValues).toHaveBeenCalledWith(
+      expect.objectContaining({ muxUploadId: 'upl_abc', muxStatus: 'pending' })
+    );
   });
 
   it('rejects text post with a mediaUrl (schema refinement)', async () => {
