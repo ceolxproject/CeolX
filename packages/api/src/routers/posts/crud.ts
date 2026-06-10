@@ -23,6 +23,12 @@ export const create = creatorProcedure.input(createPostSchema).mutation(async ({
       caption: input.caption,
       mediaType: input.mediaType,
       mediaUrl: input.mediaUrl ?? null,
+      // Persist the Mux upload id so the video.asset.ready webhook can match
+      // this row (UPDATE ... WHERE mux_upload_id = $1) and backfill the
+      // asset/playback ids + HLS mediaUrl. Without this the row is orphaned
+      // and stays pending forever. Status starts 'pending' for video posts.
+      muxUploadId: input.muxUploadId ?? null,
+      muxStatus: input.muxUploadId ? 'pending' : null,
     })
     .returning();
 
