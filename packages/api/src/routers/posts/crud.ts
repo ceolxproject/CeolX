@@ -12,23 +12,77 @@ import {
 } from '@CeolX/shared/validators';
 
 import { creatorProcedure, protectedProcedure, publicProcedure } from '../../index';
+import { retrieveUploadStatus } from '../../services/mux';
 
 import { hydrateAuthors } from './hydrate';
 
+type MuxColumns = {
+  muxUploadId: string | null;
+  muxAssetId: string | null;
+  muxPlaybackId: string | null;
+  muxStatus: 'pending' | 'ready' | 'errored' | null;
+  mediaUrl: string | null;
+};
+
+/**
+ * Resolve the Mux columns for a new post.
+ *
+ * The mobile client polls Mux until the asset is *ready* BEFORE it calls
+ * createPost, which means video.asset.ready almost always fires before this
+ * row exists — so the webhook's `UPDATE ... WHERE mux_upload_id = $1` matches
+ * zero rows and (since Mux got a 200) never re-fires, stranding the post at
+ * 'pending' forever. To close that race we resolve the asset state here at
+ * creation time. The webhook stays as the backstop for the slower case where
+ * the asset is still transcoding when the post is created.
+ *
+ * If the Mux lookup fails we fall back to 'pending' and let the webhook (or a
+ * later poll) backfill — post creation must not hard-fail on a Mux hiccup.
+ */
+async function resolveMuxColumns(input: {
+  mediaType: string;
+  mediaUrl?: string;
+  muxUploadId?: string;
+}): Promise<MuxColumns> {
+  const base: MuxColumns = {
+    muxUploadId: input.muxUploadId ?? null,
+    muxAssetId: null,
+    muxPlaybackId: null,
+    muxStatus: input.muxUploadId ? 'pending' : null,
+    mediaUrl: input.mediaUrl ?? null,
+  };
+
+  if (input.mediaType !== 'video' || !input.muxUploadId) return base;
+
+  try {
+    const status = await retrieveUploadStatus(input.muxUploadId);
+    if (status.status === 'ready' && status.playbackId) {
+      return {
+        muxUploadId: input.muxUploadId,
+        muxAssetId: status.assetId,
+        muxPlaybackId: status.playbackId,
+        muxStatus: 'ready',
+        mediaUrl: `https://stream.mux.com/${status.playbackId}.m3u8`,
+      };
+    }
+    if (status.status === 'errored') {
+      return { ...base, muxAssetId: status.assetId, muxStatus: 'errored' };
+    }
+  } catch (err) {
+    console.warn('[posts.create] mux status lookup failed; leaving pending', err);
+  }
+  return base;
+}
+
 export const create = creatorProcedure.input(createPostSchema).mutation(async ({ input, ctx }) => {
+  const muxColumns = await resolveMuxColumns(input);
+
   const [inserted] = await db
     .insert(posts)
     .values({
       createdBy: ctx.userId,
       caption: input.caption,
       mediaType: input.mediaType,
-      mediaUrl: input.mediaUrl ?? null,
-      // Persist the Mux upload id so the video.asset.ready webhook can match
-      // this row (UPDATE ... WHERE mux_upload_id = $1) and backfill the
-      // asset/playback ids + HLS mediaUrl. Without this the row is orphaned
-      // and stays pending forever. Status starts 'pending' for video posts.
-      muxUploadId: input.muxUploadId ?? null,
-      muxStatus: input.muxUploadId ? 'pending' : null,
+      ...muxColumns,
     })
     .returning();
 
