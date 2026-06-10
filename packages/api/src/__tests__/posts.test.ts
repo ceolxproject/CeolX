@@ -14,10 +14,13 @@ const {
   mockDeleteWhere,
   mockSelectChain,
   mockTransaction,
+  mockRetrieveUploadStatus,
 } = vi.hoisted(() => {
   const mockPostsFindFirst = vi.fn();
   const mockPostLikesFindFirst = vi.fn();
   const mockInsertReturning = vi.fn();
+  // Mux asset lookup performed by posts.create for video posts.
+  const mockRetrieveUploadStatus = vi.fn();
   // Captures the object passed to db.insert(posts).values(...) so tests can
   // assert which columns actually get persisted (regression guard for the
   // dropped-muxUploadId bug).
@@ -56,6 +59,7 @@ const {
     mockDeleteWhere,
     mockSelectChain,
     mockTransaction,
+    mockRetrieveUploadStatus,
   };
 });
 
@@ -105,6 +109,9 @@ vi.mock('@CeolX/db/schema/social', () => ({
   postLikes: { id: 'id', postId: 'post_id', userId: 'user_id' },
   follows: { followerId: 'follower_id', followeeId: 'followee_id' },
 }));
+vi.mock('../services/mux', () => ({
+  retrieveUploadStatus: mockRetrieveUploadStatus,
+}));
 vi.mock('@CeolX/db/schema/auth', () => ({
   user: { id: 'id', name: 'name', image: 'image' },
 }));
@@ -148,6 +155,12 @@ beforeEach(() => {
   vi.clearAllMocks();
   // Default: select chain resolves to empty array (for hydrateAuthors lookups).
   mockSelectChain.mockResolvedValue([]);
+  // Default: Mux asset still transcoding when the post is created.
+  mockRetrieveUploadStatus.mockResolvedValue({
+    status: 'pending',
+    playbackId: null,
+    assetId: null,
+  });
 });
 
 // ─── Tests ───────────────────────────────────────────────────────────────────
@@ -210,10 +223,11 @@ describe('posts.create', () => {
     expect(result.mediaType).toBe('image');
   });
 
-  it('persists muxUploadId and pending status for a video post', async () => {
+  it('persists muxUploadId and pending status when the asset is still transcoding', async () => {
     // Regression: the create handler used to drop muxUploadId, leaving the
     // row with mux_upload_id = NULL so the video.asset.ready webhook
-    // (UPDATE ... WHERE mux_upload_id = $1) could never match it.
+    // (UPDATE ... WHERE mux_upload_id = $1) could never match it. Here the
+    // asset isn't ready yet (default mock), so the webhook is the backstop.
     mockInsertReturning.mockResolvedValueOnce([
       {
         id: 'post-vid',
@@ -236,7 +250,57 @@ describe('posts.create', () => {
       muxUploadId: 'upl_abc',
     });
     expect(mockInsertValues).toHaveBeenCalledWith(
-      expect.objectContaining({ muxUploadId: 'upl_abc', muxStatus: 'pending' })
+      expect.objectContaining({
+        muxUploadId: 'upl_abc',
+        muxStatus: 'pending',
+        muxPlaybackId: null,
+        mediaUrl: null,
+      })
+    );
+  });
+
+  it('seeds asset/playback ids and hls url when Mux is already ready at create time', async () => {
+    // The client polls Mux until ready BEFORE creating the post, so the
+    // webhook usually fires before this row exists. Resolving the asset
+    // state at create time closes that race — the post lands 'ready'
+    // without depending on the webhook.
+    mockRetrieveUploadStatus.mockResolvedValueOnce({
+      status: 'ready',
+      playbackId: 'pb_123',
+      assetId: 'asset_xyz',
+    });
+    mockInsertReturning.mockResolvedValueOnce([
+      {
+        id: 'post-vid',
+        createdBy: 'user-1',
+        caption: 'My DJ band',
+        mediaType: 'video',
+        mediaUrl: 'https://stream.mux.com/pb_123.m3u8',
+        muxUploadId: 'upl_abc',
+        muxAssetId: 'asset_xyz',
+        muxPlaybackId: 'pb_123',
+        muxStatus: 'ready',
+        likeCount: 0,
+        deletedAt: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    ]);
+    const caller = authedCaller('user-1', 'artist' as UserRole);
+    await caller.create({
+      caption: 'My DJ band',
+      mediaType: 'video',
+      muxUploadId: 'upl_abc',
+    });
+    expect(mockRetrieveUploadStatus).toHaveBeenCalledWith('upl_abc');
+    expect(mockInsertValues).toHaveBeenCalledWith(
+      expect.objectContaining({
+        muxUploadId: 'upl_abc',
+        muxAssetId: 'asset_xyz',
+        muxPlaybackId: 'pb_123',
+        muxStatus: 'ready',
+        mediaUrl: 'https://stream.mux.com/pb_123.m3u8',
+      })
     );
   });
 
