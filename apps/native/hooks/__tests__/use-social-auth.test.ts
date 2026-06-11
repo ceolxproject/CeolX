@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 // Mock React so the pure helper functions can be tested without a React Native
-// environment (same approach as use-county-search.test.ts).
+// environment.
 vi.mock('react', () => ({
   useState: (initial: unknown) => [initial, vi.fn()],
 }));

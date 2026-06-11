@@ -1,6 +1,6 @@
 import * as Sentry from '@sentry/react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Animated, Modal, Platform, Text, View } from 'react-native';
 // Plain react-native-maps MapView (no clustering wrapper). Clustering is driven
 // in JS by `useMapClusters`/supercluster, which keeps single-marker keys stable
@@ -14,7 +14,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { EVENT_CATEGORIES, IRISH_COUNTIES, filterValidMapEvents } from '@CeolX/shared';
 
-import { CountySuggestionsDropdown } from '@/components/CountySuggestionsDropdown';
+import { appToast } from '@/components/AppToast';
 import { EventPreviewCard } from '@/components/EventPreviewCard';
 import { FilterSheet } from '@/components/FilterSheet';
 import type { FilterSection } from '@/components/FilterSheet';
@@ -29,9 +29,8 @@ import { MapEventMarker } from '@/components/MapEventMarker';
 import { MapHeader } from '@/components/MapHeader';
 import { MapOverlappingEventsSheet } from '@/components/MapOverlappingEventsSheet';
 import { MapSearchBar } from '@/components/MapSearchBar';
+import { PlaceSuggestionsDropdown } from '@/components/PlaceSuggestionsDropdown';
 import { useTabBarVisibility } from '@/contexts/tab-bar-visibility-context';
-import type { CountyResult } from '@/hooks/use-county-search';
-import { useCountySearch } from '@/hooks/use-county-search';
 import { useGpsRegion } from '@/hooks/use-gps-region';
 import { useLocationPermissionPrompt } from '@/hooks/use-location-permission-prompt';
 import type { MapClusterPoint } from '@/hooks/use-map-clusters';
@@ -43,7 +42,9 @@ import {
 } from '@/hooks/use-map-clusters';
 import { useMapEvents } from '@/hooks/use-map-events';
 import { usePanelAnimation } from '@/hooks/use-panel-animation';
+import { usePlaceSearch } from '@/hooks/use-place-search';
 import { useVenueFallback } from '@/hooks/use-venue-fallback';
+import type { GeocodeResult } from '@/utils/geocode';
 
 const MAP_FILTER_SECTIONS: FilterSection[] = [
   { key: 'category', label: 'Category', options: EVENT_CATEGORIES },
@@ -89,7 +90,6 @@ export default function MapScreen() {
     isError,
     expandExhausted,
     onRegionChangeComplete,
-    onSearch,
     filters,
     setFilters,
     activeFilterCount,
@@ -177,38 +177,40 @@ export default function MapScreen() {
   const {
     query: searchText,
     suggestions,
+    isSearching,
     isDropdownVisible,
-    onChangeText: onCountyChangeText,
+    hasError: placeSearchError,
+    onChangeText: onPlaceChangeText,
     dismissDropdown,
     commitSelection,
-  } = useCountySearch();
+  } = usePlaceSearch();
 
-  const handleSearchChangeText = useCallback(
-    (text: string) => {
-      onCountyChangeText(text);
-      onSearch(text);
-    },
-    [onCountyChangeText, onSearch]
-  );
+  // Surface a place-search failure as a non-blocking toast. Pins are never
+  // cleared on a failed search — the map keeps whatever it was showing.
+  useEffect(() => {
+    if (placeSearchError) {
+      appToast.error("Couldn't search places", 'Check your connection and try again.');
+    }
+  }, [placeSearchError]);
 
-  const handleCountySelect = useCallback(
-    (result: CountyResult) => {
+  const handlePlaceSelect = useCallback(
+    (result: GeocodeResult) => {
       if (!mapRef.current) return;
+      // Town/neighbourhood-level zoom so nearby events are visible — a tighter
+      // venue-level view would often land on an empty patch. The map settling
+      // triggers onRegionChangeComplete → the viewport query loads events.
       mapRef.current.animateToRegion(
         {
-          latitude: result.centre.lat,
-          longitude: result.centre.lng,
-          latitudeDelta: 0.5,
-          longitudeDelta: 0.5,
+          latitude: result.lat,
+          longitude: result.lng,
+          latitudeDelta: 0.15,
+          longitudeDelta: 0.15,
         },
         800
       );
-      // Clear Typesense text filter so the viewport query returns all events
-      // in the new region, then keep the picked county name visible in the bar.
-      onSearch('');
-      commitSelection(result.name);
+      commitSelection(result.address);
     },
-    [onSearch, commitSelection]
+    [commitSelection]
   );
 
   const handleRegionChangeComplete = useCallback(
@@ -260,7 +262,7 @@ export default function MapScreen() {
       <MapHeader />
       <MapSearchBar
         value={searchText}
-        onChangeText={handleSearchChangeText}
+        onChangeText={onPlaceChangeText}
         onFilterPress={() => setFilterSheetVisible(true)}
         activeFilterCount={activeFilterCount}
       />
@@ -270,7 +272,11 @@ export default function MapScreen() {
       )}
 
       {isDropdownVisible && (
-        <CountySuggestionsDropdown suggestions={suggestions} onSelect={handleCountySelect} />
+        <PlaceSuggestionsDropdown
+          suggestions={suggestions}
+          isSearching={isSearching}
+          onSelect={handlePlaceSelect}
+        />
       )}
 
       {isLoading && (
