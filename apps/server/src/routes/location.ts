@@ -131,7 +131,16 @@ location.get('/geocode', async (c) => {
     clearTimeout(timeout);
 
     if (!response.ok) {
-      console.error('[location/geocode] places responded %d for q=%s', response.status, query);
+      // Surface Google's error body — a 403 spells out the exact cause
+      // (API not enabled, key API-restricted, billing off), which the bare
+      // status code hides.
+      const detail = await response.text().catch(() => '');
+      console.error(
+        '[location/geocode] places responded %d for q=%s — %s',
+        response.status,
+        query,
+        detail.slice(0, 500)
+      );
       return c.json({ ok: false, error: 'upstream_error' as const }, 502);
     }
 
