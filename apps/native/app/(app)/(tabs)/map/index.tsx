@@ -2,13 +2,11 @@ import * as Sentry from '@sentry/react-native';
 import { useRouter } from 'expo-router';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Animated, Modal, Platform, Text, View } from 'react-native';
-// NOTE: clustering temporarily removed. react-native-map-clustering@4 is a
-// pre-Fabric, pure-JS wrapper that re-creates marker children on every region
-// change; under the New Architecture that re-attach fails in react-native-maps'
-// ViewAttacherGroup ("View already has a parent"), so marker <Image> content
-// never composites and pins render blank on Android. Plain react-native-maps
-// mounts markers once and paints correctly. Re-introduce clustering via a
-// Fabric-compatible lib in the next native build (Asana 1215453288289175).
+// Plain react-native-maps MapView (no clustering wrapper). Clustering is driven
+// in JS by `useMapClusters`/supercluster, which keeps single-marker keys stable
+// so they don't remount every region change — the churn that broke the old
+// react-native-map-clustering@4 wrapper under the New Architecture
+// (ViewAttacherGroup "View already has a parent" → blank pins, Asana 1215453288289175).
 import MapView, { PROVIDER_GOOGLE } from 'react-native-maps';
 import type RNMapView from 'react-native-maps';
 import type { Region } from 'react-native-maps';
@@ -22,16 +20,26 @@ import { FilterSheet } from '@/components/FilterSheet';
 import type { FilterSection } from '@/components/FilterSheet';
 import { LocationBanner } from '@/components/LocationBanner';
 import { LocationPermissionScreen } from '@/components/LocationPermissionScreen';
+import type { ClusterObject } from '@/components/MapClusterMarker';
+import { MapClusterMarker } from '@/components/MapClusterMarker';
 import { MapEmptyStateCard } from '@/components/MapEmptyStateCard';
 import { MapErrorBoundary } from '@/components/MapErrorBoundary';
 import type { MapEvent } from '@/components/MapEventMarker';
 import { MapEventMarker } from '@/components/MapEventMarker';
 import { MapHeader } from '@/components/MapHeader';
+import { MapOverlappingEventsSheet } from '@/components/MapOverlappingEventsSheet';
 import { MapSearchBar } from '@/components/MapSearchBar';
 import type { CountyResult } from '@/hooks/use-county-search';
 import { useCountySearch } from '@/hooks/use-county-search';
 import { useGpsRegion } from '@/hooks/use-gps-region';
 import { useLocationPermissionPrompt } from '@/hooks/use-location-permission-prompt';
+import type { MapClusterPoint } from '@/hooks/use-map-clusters';
+import {
+  CLUSTER_MAX_ZOOM,
+  isClusterFeature,
+  useMapClusters,
+  zoomToRegion,
+} from '@/hooks/use-map-clusters';
 import { useMapEvents } from '@/hooks/use-map-events';
 import { usePanelAnimation } from '@/hooks/use-panel-animation';
 import { useVenueFallback } from '@/hooks/use-venue-fallback';
@@ -95,6 +103,56 @@ export default function MapScreen() {
   const [filterSheetVisible, setFilterSheetVisible] = useState(false);
   const [bannerDismissed, setBannerDismissed] = useState(false);
   const [emptyCardDismissed, setEmptyCardDismissed] = useState(false);
+  // Live map region (null until the first settle) — drives clustering. Fall back
+  // to initialRegion so the first paint is already clustered.
+  const [region, setRegion] = useState<Region | null>(null);
+  // Events sharing (near-)identical coords that a cluster can't zoom apart.
+  const [overlapEvents, setOverlapEvents] = useState<MapEvent[] | null>(null);
+
+  const { clusters, supercluster } = useMapClusters(events, region ?? initialRegion);
+
+  const handleClusterPress = useCallback(
+    (clusterId: number, lat: number, lng: number) => {
+      const expansionZoom = Math.min(
+        supercluster.getClusterExpansionZoom(clusterId),
+        CLUSTER_MAX_ZOOM
+      );
+      // Can't be zoomed apart (events at the same spot) → let the user pick.
+      if (expansionZoom >= CLUSTER_MAX_ZOOM) {
+        const leaves = supercluster.getLeaves(clusterId, Infinity);
+        setOverlapEvents(leaves.map((leaf) => leaf.properties.event));
+        return;
+      }
+      mapRef.current?.animateToRegion(zoomToRegion(lat, lng, expansionZoom), 350);
+    },
+    [supercluster]
+  );
+
+  const renderMarker = useCallback(
+    (feature: MapClusterPoint) => {
+      const [lng, lat] = feature.geometry.coordinates;
+      if (isClusterFeature(feature)) {
+        const clusterId = feature.properties.cluster_id;
+        const cluster: ClusterObject = {
+          id: clusterId,
+          geometry: { coordinates: [lng, lat] },
+          properties: { point_count: feature.properties.point_count },
+          onPress: () => handleClusterPress(clusterId, lat, lng),
+        };
+        return <MapClusterMarker key={`cluster-${clusterId}`} cluster={cluster} />;
+      }
+      const event = feature.properties.event;
+      return (
+        <MapEventMarker
+          key={event.id}
+          event={event}
+          isSelected={selectedEvent?.id === event.id}
+          onSelect={selectItem}
+        />
+      );
+    },
+    [handleClusterPress, selectedEvent?.id, selectItem]
+  );
 
   const showBanner = !bannerDismissed && (locationSource === 'ip' || locationSource === 'default');
   const bannerMessage =
@@ -140,9 +198,10 @@ export default function MapScreen() {
   );
 
   const handleRegionChangeComplete = useCallback(
-    (region: Region) => {
+    (nextRegion: Region) => {
       if (!markerJustPressedRef.current) dismissPanel();
-      onRegionChangeComplete(region);
+      setRegion(nextRegion);
+      onRegionChangeComplete(nextRegion);
     },
     [onRegionChangeComplete, dismissPanel, markerJustPressedRef]
   );
@@ -180,14 +239,7 @@ export default function MapScreen() {
           showsUserLocation={Boolean(gpsPermissionGranted)}
           userInterfaceStyle={'dark' as const}
         >
-          {events.map((event) => (
-            <MapEventMarker
-              key={event.id}
-              event={event}
-              isSelected={selectedEvent?.id === event.id}
-              onSelect={selectItem}
-            />
-          ))}
+          {clusters.map(renderMarker)}
         </MapView>
       </MapErrorBoundary>
 
@@ -237,6 +289,10 @@ export default function MapScreen() {
         >
           <EventPreviewCard event={selectedEvent} onDismiss={dismissPanel} />
         </Animated.View>
+      )}
+
+      {overlapEvents && (
+        <MapOverlappingEventsSheet events={overlapEvents} onClose={() => setOverlapEvents(null)} />
       )}
 
       <FilterSheet
