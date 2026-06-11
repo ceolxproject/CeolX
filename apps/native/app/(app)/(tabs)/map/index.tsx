@@ -15,7 +15,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { EVENT_CATEGORIES, IRISH_COUNTIES, filterValidMapEvents } from '@CeolX/shared';
 
 import { CountySuggestionsDropdown } from '@/components/CountySuggestionsDropdown';
-import { EventPreviewCard } from '@/components/EventPreviewCard';
+import { EventPreviewPager } from '@/components/EventPreviewPager';
 import { FilterSheet } from '@/components/FilterSheet';
 import type { FilterSection } from '@/components/FilterSheet';
 import { LocationBanner } from '@/components/LocationBanner';
@@ -27,7 +27,6 @@ import { MapErrorBoundary } from '@/components/MapErrorBoundary';
 import type { MapEvent } from '@/components/MapEventMarker';
 import { MapEventMarker } from '@/components/MapEventMarker';
 import { MapHeader } from '@/components/MapHeader';
-import { MapOverlappingEventsSheet } from '@/components/MapOverlappingEventsSheet';
 import { MapSearchBar } from '@/components/MapSearchBar';
 import type { CountyResult } from '@/hooks/use-county-search';
 import { useCountySearch } from '@/hooks/use-county-search';
@@ -94,22 +93,24 @@ export default function MapScreen() {
     activeFilterCount,
   } = mapEventsResult;
   const {
-    selectedItem: selectedEvent,
+    selectedItem: selectedEvents,
     panelAnim,
     markerJustPressedRef,
     selectItem,
     dismissPanel,
-  } = usePanelAnimation<MapEvent>();
+  } = usePanelAnimation<MapEvent[]>();
   const [filterSheetVisible, setFilterSheetVisible] = useState(false);
   const [bannerDismissed, setBannerDismissed] = useState(false);
   const [emptyCardDismissed, setEmptyCardDismissed] = useState(false);
   // Live map region (null until the first settle) — drives clustering. Fall back
   // to initialRegion so the first paint is already clustered.
   const [region, setRegion] = useState<Region | null>(null);
-  // Events sharing (near-)identical coords that a cluster can't zoom apart.
-  const [overlapEvents, setOverlapEvents] = useState<MapEvent[] | null>(null);
 
   const { clusters, supercluster } = useMapClusters(events, region ?? initialRegion);
+
+  // Tapping a single pin shows a one-card panel; a same-location cluster shows
+  // the SAME panel as a swipeable multi-card pager — both go through selectItem.
+  const handleSelectEvent = useCallback((event: MapEvent) => selectItem([event]), [selectItem]);
 
   const handleClusterPress = useCallback(
     (clusterId: number, lat: number, lng: number) => {
@@ -117,15 +118,15 @@ export default function MapScreen() {
         supercluster.getClusterExpansionZoom(clusterId),
         CLUSTER_MAX_ZOOM
       );
-      // Can't be zoomed apart (events at the same spot) → let the user pick.
+      // Can't be zoomed apart (events at the same spot) → show them in the pager.
       if (expansionZoom >= CLUSTER_MAX_ZOOM) {
         const leaves = supercluster.getLeaves(clusterId, Infinity);
-        setOverlapEvents(leaves.map((leaf) => leaf.properties.event));
+        selectItem(leaves.map((leaf) => leaf.properties.event));
         return;
       }
       mapRef.current?.animateToRegion(zoomToRegion(lat, lng, expansionZoom), 350);
     },
-    [supercluster]
+    [supercluster, selectItem]
   );
 
   const renderMarker = useCallback(
@@ -146,12 +147,12 @@ export default function MapScreen() {
         <MapEventMarker
           key={event.id}
           event={event}
-          isSelected={selectedEvent?.id === event.id}
-          onSelect={selectItem}
+          isSelected={selectedEvents?.some((e) => e.id === event.id) ?? false}
+          onSelect={handleSelectEvent}
         />
       );
     },
-    [handleClusterPress, selectedEvent?.id, selectItem]
+    [handleClusterPress, selectedEvents, handleSelectEvent]
   );
 
   const showBanner = !bannerDismissed && (locationSource === 'ip' || locationSource === 'default');
@@ -282,17 +283,13 @@ export default function MapScreen() {
         </View>
       )}
 
-      {selectedEvent && !isDropdownVisible && (
+      {selectedEvents && !isDropdownVisible && (
         <Animated.View
-          className="absolute bottom-[90px] left-4 right-4"
+          className="absolute bottom-[90px] left-0 right-0"
           style={{ transform: [{ translateY: panelAnim }] }}
         >
-          <EventPreviewCard event={selectedEvent} onDismiss={dismissPanel} />
+          <EventPreviewPager events={selectedEvents} onDismiss={dismissPanel} />
         </Animated.View>
-      )}
-
-      {overlapEvents && (
-        <MapOverlappingEventsSheet events={overlapEvents} onClose={() => setOverlapEvents(null)} />
       )}
 
       <FilterSheet
