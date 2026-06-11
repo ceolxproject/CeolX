@@ -45,6 +45,22 @@ export function configureGoogleSignIn(): void {
   configured = true;
 }
 
+// Clear the native Google SDK's cached account so the next sign-in always shows
+// the account chooser instead of silently re-using the last account. The SDK
+// keeps this cache independently of our BetterAuth session, so it must be torn
+// down explicitly on app logout (and defensively before each sign-in). Best
+// effort: a no signed-in account / unconfigured SDK is not an error worth
+// surfacing — we just want the cache empty.
+export async function signOutGoogle(): Promise<void> {
+  if (!webClientId) return;
+  configureGoogleSignIn();
+  try {
+    await GoogleSignin.signOut();
+  } catch {
+    // Already signed out, or SDK unavailable — nothing to clear.
+  }
+}
+
 // Open the native account sheet and return a freshly-signed Google ID token
 // (a JWT) for the chosen account. The token goes straight to BetterAuth via
 // authClient.signIn.social({ provider: 'google', idToken: { token } }) — no
@@ -57,6 +73,11 @@ export async function getGoogleIdToken(): Promise<string> {
     // Android-only check; resolves immediately on iOS. Prompts the user to
     // update Play Services if it's missing/outdated rather than failing opaquely.
     await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+
+    // Clear any cached account first so a user who previously signed in with
+    // Account A and signed out is offered the chooser — letting them pick a
+    // different Account B — instead of the SDK silently reusing Account A.
+    await signOutGoogle();
 
     const response = await GoogleSignin.signIn();
 
