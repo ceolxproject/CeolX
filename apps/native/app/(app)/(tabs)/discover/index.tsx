@@ -21,6 +21,7 @@ import { AdStack } from '@/components/ads/AdStack';
 import { DatePickerSheet } from '@/components/DatePickerSheet';
 import { FeedEventCard } from '@/components/FeedEventCard';
 import { FeedHeader } from '@/components/FeedHeader';
+import { FeedLocationSheet } from '@/components/FeedLocationSheet';
 import { FilterSheet } from '@/components/FilterSheet';
 import type { FilterSection } from '@/components/FilterSheet';
 import { PostsList } from '@/components/posts/PostsList';
@@ -31,6 +32,7 @@ import { useGpsRegion } from '@/hooks/use-gps-region';
 import { useMe } from '@/hooks/use-me';
 import { useVenueFallback } from '@/hooks/use-venue-fallback';
 import { authClient } from '@/lib/auth-client';
+import { resolveFeedLocation, type FeedLocation } from '@/utils/feed-location';
 
 const SEGMENTS = ['Events', 'Posts'];
 
@@ -64,6 +66,15 @@ export default function DiscoverScreen() {
   // The single search box drives whichever segment is active. Kept controlled so
   // we can clear it when switching tabs (Events and Posts search are separate).
   const [searchText, setSearchText] = useState('');
+  const [locationOverride, setLocationOverride] = useState<FeedLocation | null>(null);
+  const [locationSheetVisible, setLocationSheetVisible] = useState(false);
+
+  const effectiveLocation = resolveFeedLocation(
+    locationOverride,
+    initialRegion,
+    placeLabel,
+    locationSource
+  );
 
   const isArtist = session?.user?.currentRole === UserRole.ARTIST;
 
@@ -85,8 +96,8 @@ export default function DiscoverScreen() {
     date,
     setDate,
   } = useFeedEvents({
-    lat: initialRegion.latitude,
-    lng: initialRegion.longitude,
+    lat: effectiveLocation.lat,
+    lng: effectiveLocation.lng,
     enabled: activeSegment === 0,
   });
 
@@ -152,15 +163,12 @@ export default function DiscoverScreen() {
     setDatePickerVisible(false);
   }, [setDate]);
 
-  const locationText =
-    placeLabel ??
-    (locationSource === 'gps'
-      ? 'Current Location'
-      : locationSource === 'ip'
-        ? 'Approximate Location'
-        : locationSource === 'venue-profile'
-          ? 'Your venue'
-          : 'Ireland');
+  const handleLocationConfirm = useCallback((loc: FeedLocation) => {
+    setLocationOverride(loc);
+    setLocationSheetVisible(false);
+  }, []);
+
+  const locationText = effectiveLocation.label;
 
   const renderEvent = useCallback(
     ({ item }: { item: (typeof events)[number] }) => (
@@ -182,6 +190,7 @@ export default function DiscoverScreen() {
     >
       <FeedHeader
         locationText={locationText}
+        onLocationPress={() => setLocationSheetVisible(true)}
         onCalendarPress={() => setDatePickerVisible(true)}
         onFilterPress={() => setFilterSheetVisible(true)}
         onNotificationPress={() => router.push('/notifications')}
@@ -377,6 +386,14 @@ export default function DiscoverScreen() {
         onSelect={handleDateSelect}
         onClear={handleDateClear}
         onClose={() => setDatePickerVisible(false)}
+      />
+
+      <FeedLocationSheet
+        visible={locationSheetVisible}
+        initialLat={effectiveLocation.lat}
+        initialLng={effectiveLocation.lng}
+        onConfirm={handleLocationConfirm}
+        onClose={() => setLocationSheetVisible(false)}
       />
     </SafeAreaView>
   );
