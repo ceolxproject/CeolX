@@ -14,7 +14,7 @@ interface MapSearchBarProps {
 }
 
 export function MapSearchBar({
-  placeholder = 'Search by county / artist / category',
+  placeholder = 'Search a place, venue, town or county',
   value,
   onChangeText,
   onFilterPress,

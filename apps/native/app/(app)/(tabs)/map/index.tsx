@@ -1,16 +1,20 @@
 import * as Sentry from '@sentry/react-native';
-import { useRouter } from 'expo-router';
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Animated, Modal, Platform, Text, View } from 'react-native';
-import MapView from 'react-native-map-clustering';
+// Plain react-native-maps MapView (no clustering wrapper). Clustering is driven
+// in JS by `useMapClusters`/supercluster, which keeps single-marker keys stable
+// so they don't remount every region change — the churn that broke the old
+// react-native-map-clustering@4 wrapper under the New Architecture
+// (ViewAttacherGroup "View already has a parent" → blank pins, Asana 1215453288289175).
+import MapView, { PROVIDER_GOOGLE } from 'react-native-maps';
 import type RNMapView from 'react-native-maps';
 import type { Region } from 'react-native-maps';
-import { PROVIDER_GOOGLE } from 'react-native-maps';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { EVENT_CATEGORIES, IRISH_COUNTIES, filterValidMapEvents } from '@CeolX/shared';
 
-import { CountySuggestionsDropdown } from '@/components/CountySuggestionsDropdown';
+import { appToast } from '@/components/AppToast';
 import { EventPreviewCard } from '@/components/EventPreviewCard';
 import { FilterSheet } from '@/components/FilterSheet';
 import type { FilterSection } from '@/components/FilterSheet';
@@ -23,14 +27,24 @@ import { MapErrorBoundary } from '@/components/MapErrorBoundary';
 import type { MapEvent } from '@/components/MapEventMarker';
 import { MapEventMarker } from '@/components/MapEventMarker';
 import { MapHeader } from '@/components/MapHeader';
+import { MapOverlappingEventsSheet } from '@/components/MapOverlappingEventsSheet';
 import { MapSearchBar } from '@/components/MapSearchBar';
-import type { CountyResult } from '@/hooks/use-county-search';
-import { useCountySearch } from '@/hooks/use-county-search';
+import { PlaceSuggestionsDropdown } from '@/components/PlaceSuggestionsDropdown';
+import { useTabBarVisibility } from '@/contexts/tab-bar-visibility-context';
 import { useGpsRegion } from '@/hooks/use-gps-region';
 import { useLocationPermissionPrompt } from '@/hooks/use-location-permission-prompt';
+import type { MapClusterPoint } from '@/hooks/use-map-clusters';
+import {
+  CLUSTER_MAX_ZOOM,
+  isClusterFeature,
+  useMapClusters,
+  zoomToRegion,
+} from '@/hooks/use-map-clusters';
 import { useMapEvents } from '@/hooks/use-map-events';
 import { usePanelAnimation } from '@/hooks/use-panel-animation';
+import { usePlaceSearch } from '@/hooks/use-place-search';
 import { useVenueFallback } from '@/hooks/use-venue-fallback';
+import type { GeocodeResult } from '@/utils/geocode';
 
 const MAP_FILTER_SECTIONS: FilterSection[] = [
   { key: 'category', label: 'Category', options: EVENT_CATEGORIES },
@@ -76,7 +90,6 @@ export default function MapScreen() {
     isError,
     expandExhausted,
     onRegionChangeComplete,
-    onSearch,
     filters,
     setFilters,
     activeFilterCount,
@@ -91,6 +104,69 @@ export default function MapScreen() {
   const [filterSheetVisible, setFilterSheetVisible] = useState(false);
   const [bannerDismissed, setBannerDismissed] = useState(false);
   const [emptyCardDismissed, setEmptyCardDismissed] = useState(false);
+  // Live map region (null until the first settle) — drives clustering. Fall back
+  // to initialRegion so the first paint is already clustered.
+  const [region, setRegion] = useState<Region | null>(null);
+  // Events sharing (near-)identical coords that a cluster can't zoom apart.
+  const [overlapEvents, setOverlapEvents] = useState<MapEvent[] | null>(null);
+
+  // While a preview owns the bottom of the screen (single card or same-location
+  // sheet), hide the tab bar + FAB so the overlay sits flush against the bottom.
+  // Re-assert on focus and always restore on blur so it can't get stuck hidden
+  // on another tab.
+  const { setHidden: setTabBarHidden } = useTabBarVisibility();
+  const isPreviewOpen = Boolean(selectedEvent || overlapEvents);
+  useFocusEffect(
+    useCallback(() => {
+      setTabBarHidden(isPreviewOpen);
+      return () => setTabBarHidden(false);
+    }, [isPreviewOpen, setTabBarHidden])
+  );
+
+  const { clusters, supercluster } = useMapClusters(events, region ?? initialRegion);
+
+  const handleClusterPress = useCallback(
+    (clusterId: number, lat: number, lng: number) => {
+      const expansionZoom = Math.min(
+        supercluster.getClusterExpansionZoom(clusterId),
+        CLUSTER_MAX_ZOOM
+      );
+      // Can't be zoomed apart (events at the same spot) → let the user pick.
+      if (expansionZoom >= CLUSTER_MAX_ZOOM) {
+        const leaves = supercluster.getLeaves(clusterId, Infinity);
+        setOverlapEvents(leaves.map((leaf) => leaf.properties.event));
+        return;
+      }
+      mapRef.current?.animateToRegion(zoomToRegion(lat, lng, expansionZoom), 350);
+    },
+    [supercluster]
+  );
+
+  const renderMarker = useCallback(
+    (feature: MapClusterPoint) => {
+      const [lng, lat] = feature.geometry.coordinates;
+      if (isClusterFeature(feature)) {
+        const clusterId = feature.properties.cluster_id;
+        const cluster: ClusterObject = {
+          id: clusterId,
+          geometry: { coordinates: [lng, lat] },
+          properties: { point_count: feature.properties.point_count },
+          onPress: () => handleClusterPress(clusterId, lat, lng),
+        };
+        return <MapClusterMarker key={`cluster-${clusterId}`} cluster={cluster} />;
+      }
+      const event = feature.properties.event;
+      return (
+        <MapEventMarker
+          key={event.id}
+          event={event}
+          isSelected={selectedEvent?.id === event.id}
+          onSelect={selectItem}
+        />
+      );
+    },
+    [handleClusterPress, selectedEvent?.id, selectItem]
+  );
 
   const showBanner = !bannerDismissed && (locationSource === 'ip' || locationSource === 'default');
   const bannerMessage =
@@ -101,44 +177,47 @@ export default function MapScreen() {
   const {
     query: searchText,
     suggestions,
+    isSearching,
     isDropdownVisible,
-    onChangeText: onCountyChangeText,
+    hasError: placeSearchError,
+    onChangeText: onPlaceChangeText,
     dismissDropdown,
     commitSelection,
-  } = useCountySearch();
+  } = usePlaceSearch();
 
-  const handleSearchChangeText = useCallback(
-    (text: string) => {
-      onCountyChangeText(text);
-      onSearch(text);
-    },
-    [onCountyChangeText, onSearch]
-  );
+  // Surface a place-search failure as a non-blocking toast. Pins are never
+  // cleared on a failed search — the map keeps whatever it was showing.
+  useEffect(() => {
+    if (placeSearchError) {
+      appToast.error("Couldn't search places", 'Check your connection and try again.');
+    }
+  }, [placeSearchError]);
 
-  const handleCountySelect = useCallback(
-    (result: CountyResult) => {
+  const handlePlaceSelect = useCallback(
+    (result: GeocodeResult) => {
       if (!mapRef.current) return;
+      // Town/neighbourhood-level zoom so nearby events are visible — a tighter
+      // venue-level view would often land on an empty patch. The map settling
+      // triggers onRegionChangeComplete → the viewport query loads events.
       mapRef.current.animateToRegion(
         {
-          latitude: result.centre.lat,
-          longitude: result.centre.lng,
-          latitudeDelta: 0.5,
-          longitudeDelta: 0.5,
+          latitude: result.lat,
+          longitude: result.lng,
+          latitudeDelta: 0.15,
+          longitudeDelta: 0.15,
         },
         800
       );
-      // Clear Typesense text filter so the viewport query returns all events
-      // in the new region, then keep the picked county name visible in the bar.
-      onSearch('');
-      commitSelection(result.name);
+      commitSelection(result.address);
     },
-    [onSearch, commitSelection]
+    [commitSelection]
   );
 
   const handleRegionChangeComplete = useCallback(
-    (region: Region) => {
+    (nextRegion: Region) => {
       if (!markerJustPressedRef.current) dismissPanel();
-      onRegionChangeComplete(region);
+      setRegion(nextRegion);
+      onRegionChangeComplete(nextRegion);
     },
     [onRegionChangeComplete, dismissPanel, markerJustPressedRef]
   );
@@ -147,13 +226,6 @@ export default function MapScreen() {
     dismissDropdown();
     if (!markerJustPressedRef.current) dismissPanel();
   }, [dismissDropdown, dismissPanel, markerJustPressedRef]);
-
-  const renderCluster = useCallback(
-    (cluster: ClusterObject) => (
-      <MapClusterMarker key={`cluster-${cluster.id}`} cluster={cluster} />
-    ),
-    []
-  );
 
   if (promptState === 'checking') return null;
   if (promptState === 'show') {
@@ -182,25 +254,15 @@ export default function MapScreen() {
           onPress={handleMapPress}
           showsUserLocation={Boolean(gpsPermissionGranted)}
           userInterfaceStyle={'dark' as const}
-          clusterColor="#6155F5"
-          clusterTextColor="#ffffff"
-          renderCluster={renderCluster}
         >
-          {events.map((event) => (
-            <MapEventMarker
-              key={event.id}
-              event={event}
-              isSelected={selectedEvent?.id === event.id}
-              onSelect={selectItem}
-            />
-          ))}
+          {clusters.map(renderMarker)}
         </MapView>
       </MapErrorBoundary>
 
       <MapHeader />
       <MapSearchBar
         value={searchText}
-        onChangeText={handleSearchChangeText}
+        onChangeText={onPlaceChangeText}
         onFilterPress={() => setFilterSheetVisible(true)}
         activeFilterCount={activeFilterCount}
       />
@@ -210,7 +272,11 @@ export default function MapScreen() {
       )}
 
       {isDropdownVisible && (
-        <CountySuggestionsDropdown suggestions={suggestions} onSelect={handleCountySelect} />
+        <PlaceSuggestionsDropdown
+          suggestions={suggestions}
+          isSearching={isSearching}
+          onSelect={handlePlaceSelect}
+        />
       )}
 
       {isLoading && (
@@ -238,11 +304,17 @@ export default function MapScreen() {
 
       {selectedEvent && !isDropdownVisible && (
         <Animated.View
-          className="absolute bottom-[90px] left-4 right-4"
-          style={{ transform: [{ translateY: panelAnim }] }}
+          // The tab bar is hidden while this card is open, so it sits just above
+          // the safe-area bottom instead of clearing the (now absent) bar.
+          className="absolute left-4 right-4"
+          style={{ bottom: insets.bottom + 16, transform: [{ translateY: panelAnim }] }}
         >
           <EventPreviewCard event={selectedEvent} onDismiss={dismissPanel} />
         </Animated.View>
+      )}
+
+      {overlapEvents && (
+        <MapOverlappingEventsSheet events={overlapEvents} onClose={() => setOverlapEvents(null)} />
       )}
 
       <FilterSheet

@@ -16,7 +16,7 @@ async function fetchWithTimeout(url: string): Promise<Response> {
 
 /**
  * Forward-geocode a free-text place to coordinates via the CeolX server, which
- * proxies the Google Geocoding API (biased to Ireland).
+ * proxies the Google Geocoding API (global — no region bias).
  *
  * This replaces expo-location's `geocodeAsync`, which on Android relies on the
  * device's native geocoder and silently fails whenever location services are
