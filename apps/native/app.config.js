@@ -19,6 +19,15 @@ const STAGING_BUNDLE_ID = 'com.raftlabs.ceolx.staging';
 // via @react-native-firebase/app + google-services.json.
 const GOOGLE_IOS_URL_SCHEME = process.env.GOOGLE_IOS_URL_SCHEME;
 
+// Host the OS verifies Universal Links (iOS) / App Links (Android) against for
+// shared post URLs. Defaults to the prod marketing domain; staging sets
+// EXPO_PUBLIC_SHARE_BASE_URL to the staging server's Vercel URL (no custom
+// domain off prod). MUST match SHARE_BASE_URL in hooks/use-share-post.ts so the
+// shared link's host is the one declared here. Stripped to a bare host because
+// associatedDomains / intentFilters take a host, not a URL.
+const SHARE_BASE_URL = process.env.EXPO_PUBLIC_SHARE_BASE_URL ?? 'https://ceolx.ie';
+const SHARE_HOST = SHARE_BASE_URL.replace(/^https?:\/\//, '').replace(/\/.*$/, '');
+
 /**
  * @param {import('expo/config').ConfigContext} _ctx
  * @returns {import('expo/config').ExpoConfig}
@@ -52,11 +61,12 @@ export default (_) => ({
     // of a raw APNs token. The plist is downloaded from the Firebase Console
     // and gitignored — see docs/project-management/M7-T1 human handoff checklist.
     googleServicesFile: process.env.GOOGLE_SERVICES_INFO_PLIST ?? './GoogleService-Info.plist',
-    // Universal Links target. Activation requires `apple-app-site-association`
-    // hosted at https://ceolx.ie/.well-known/apple-app-site-association — tracked
-    // with the M10-T1 / admin-redirect work; until then, in-app `ceolx://post/...`
-    // still routes correctly.
-    associatedDomains: ['applinks:ceolx.ie'],
+    // Universal Links target (SHARE_HOST — prod ceolx.ie, staging the server
+    // Vercel URL). The matching apple-app-site-association is served at
+    // https://<host>/.well-known/apple-app-site-association by the Hono backend
+    // (apps/server/src/routes/app-links.ts). appID = APPLE_OAUTH_TEAM_ID + the
+    // build's bundle id (MOBILE_BUNDLE_ID on the server), scoped to /post/*.
+    associatedDomains: [`applinks:${SHARE_HOST}`],
     infoPlist: {
       // CeolX only uses standard HTTPS/TLS (exempt encryption). Declaring this
       // skips the per-build "Missing Compliance" prompt in TestFlight/App Store
@@ -99,14 +109,18 @@ export default (_) => ({
       'android.permission.READ_CALENDAR',
       'android.permission.WRITE_CALENDAR',
     ],
-    // App Links for shared post URLs. Full verification requires
-    // assetlinks.json hosted at https://ceolx.ie/.well-known/assetlinks.json
-    // (pending admin-app work).
+    // App Links for shared post URLs (host = SHARE_HOST). Verified against
+    // assetlinks.json served at https://<host>/.well-known/assetlinks.json by
+    // the Hono backend (apps/server/src/routes/app-links.ts). The published
+    // SHA-256 (ANDROID_SHA256_CERT_FINGERPRINT on the server) must match this
+    // build's signing keystore — `eas credentials -p android` → SHA-256. The
+    // staging app uses a different package + keystore than prod, so its server
+    // must publish the staging package's SHA-256.
     intentFilters: [
       {
         action: 'VIEW',
         autoVerify: true,
-        data: [{ scheme: 'https', host: 'ceolx.ie', pathPrefix: '/post' }],
+        data: [{ scheme: 'https', host: SHARE_HOST, pathPrefix: '/post' }],
         category: ['BROWSABLE', 'DEFAULT'],
       },
     ],

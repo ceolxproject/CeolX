@@ -9,6 +9,7 @@ import { UserRole } from '@CeolX/shared/enums';
 
 import { getTabPressActions } from './app-tab-bar.utils';
 
+import { useTabBarVisibility } from '@/contexts/tab-bar-visibility-context';
 import { useMe } from '@/hooks/use-me';
 
 // Nested stack routes inside (tabs) that render full-screen and must hide the tab bar.
@@ -55,10 +56,13 @@ export type AppTabBarProps = TabBarCallbackProps & {
 export function AppTabBar({ state, navigation, onFabPress }: AppTabBarProps) {
   const insets = useSafeAreaInsets();
   const pathname = usePathname();
+  const { hidden } = useTabBarVisibility();
   const { data: me } = useMe();
   const currentRole = me?.currentRole ?? 'spectator';
 
-  if (shouldHideTabBar(pathname)) return null;
+  // Route-based hide (detail screens) OR an overlay on the current screen asked
+  // to own the bottom (e.g. the map's event preview card / same-location sheet).
+  if (hidden || shouldHideTabBar(pathname)) return null;
 
   const getTabLabel = (tab: TabConfig) => {
     if (tab.name === 'bookings') {

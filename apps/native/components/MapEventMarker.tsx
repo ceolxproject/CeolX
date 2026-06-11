@@ -1,5 +1,5 @@
 import { memo, useCallback, useEffect, useRef, useState } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 import { Marker } from 'react-native-maps';
 
 import { CATEGORY_ICONS, CATEGORY_LABELS } from '@CeolX/shared';
@@ -41,52 +41,76 @@ function MapEventMarkerComponent({ event, isSelected, onSelect }: MapEventMarker
   const [tracksViewChanges, setTracksViewChanges] = useState(true);
 
   // Skip the selection effect on the very first render — initial settling is
-  // driven by the image's onLoad instead (so slow remote images still get
-  // captured no matter how long they take).
+  // driven by the mount fallback / image onLoad instead.
   const isFirstRender = useRef(true);
 
-  // The cover image has painted — freeze the snapshot.
-  const handleImageLoad = useCallback(() => setTracksViewChanges(false), []);
+  // One shared timer across all freeze triggers (mount, image load, selection)
+  // so re-arming cancels the previous pending freeze instead of leaking timers.
+  const freezeTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
+  // Re-enable native snapshotting, then freeze again after `delay`. Deferring
+  // the freeze is essential on Android: the marker's custom view is flattened
+  // to a bitmap, and freezing BEFORE that bitmap has captured the painted pin
+  // leaves a blank snapshot (the pin renders as an empty white circle until a
+  // remount re-captures it). The trailing timer guarantees the freeze lands
+  // after the view is actually drawn.
+  const scheduleFreeze = useCallback((delay: number) => {
+    if (freezeTimer.current) clearTimeout(freezeTimer.current);
+    setTracksViewChanges(true);
+    freezeTimer.current = setTimeout(() => setTracksViewChanges(false), delay);
+  }, []);
+
+  // Mount fallback — freeze even if the cover image never fires onLoad (e.g.
+  // load error, or a cached local image whose onLoad is unreliable on Android).
+  useEffect(() => {
+    scheduleFreeze(1000);
+    return () => {
+      if (freezeTimer.current) clearTimeout(freezeTimer.current);
+    };
+  }, [scheduleFreeze]);
+
+  // The cover image painted — give the native snapshot a short beat to capture
+  // the composited view, then freeze.
+  const handleImageLoad = useCallback(() => scheduleFreeze(250), [scheduleFreeze]);
 
   // Selection flips the pin's visuals (size 44→56, glow ring, title label).
-  // The cached image won't re-fire onLoad, so a short timer is the only signal
-  // the transition has finished: re-enable native snapshotting, then settle
-  // back to frozen after 500ms — long enough to capture the glow ring on
-  // slower devices, short enough to avoid lingering per-frame rasterization.
+  // The cached image won't re-fire onLoad, so re-track briefly to capture the
+  // transition (long enough for the glow ring on slower devices).
   useEffect(() => {
     if (isFirstRender.current) {
       isFirstRender.current = false;
       return;
     }
-    setTracksViewChanges(true);
-    const timer = setTimeout(() => setTracksViewChanges(false), 500);
-    return () => clearTimeout(timer);
-  }, [isSelected]);
+    scheduleFreeze(500);
+  }, [isSelected, scheduleFreeze]);
 
   return (
     <Marker
       coordinate={{ latitude: event.lat, longitude: event.lng }}
       tracksViewChanges={tracksViewChanges}
+      // Touch MUST be handled by the Marker's own onPress: on Android the custom
+      // child view is a static bitmap, so an inner <Pressable> never receives
+      // taps. This is why pin taps worked on iOS (live subview) but were dead on
+      // Android. Mirrors MapClusterMarker, which is tappable on both platforms.
+      onPress={() => onSelect(event)}
     >
-      <Pressable onPress={() => onSelect(event)}>
-        <View className="items-center">
-          <MapEventPin
-            type="single"
-            coverImageUrl={event.coverImageUrl}
-            category={CATEGORY_LABELS[event.category] ?? event.category}
-            categoryIcon={CATEGORY_ICONS[event.category]}
-            isSelected={isSelected}
-            onImageLoad={handleImageLoad}
-          />
-          {isSelected ? (
-            <View className="mt-1 bg-[rgba(255,255,255,0.92)] px-2 py-[3px] rounded-[10px] max-w-[140px]">
-              <Text className="text-[11px] text-[#080808] font-semibold" numberOfLines={1}>
-                {event.title}
-              </Text>
-            </View>
-          ) : null}
-        </View>
-      </Pressable>
+      <View className="items-center">
+        <MapEventPin
+          type="single"
+          coverImageUrl={event.coverImageUrl}
+          category={CATEGORY_LABELS[event.category] ?? event.category}
+          categoryIcon={CATEGORY_ICONS[event.category]}
+          isSelected={isSelected}
+          onImageLoad={handleImageLoad}
+        />
+        {isSelected ? (
+          <View className="mt-1 bg-[rgba(255,255,255,0.92)] px-2 py-[3px] rounded-[10px] max-w-[140px]">
+            <Text className="text-[11px] text-[#080808] font-semibold" numberOfLines={1}>
+              {event.title}
+            </Text>
+          </View>
+        ) : null}
+      </View>
     </Marker>
   );
 }

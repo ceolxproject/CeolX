@@ -179,10 +179,10 @@ describe('GET /location/geocode', () => {
     expect(init?.method).toBe('POST');
     const headers = new Headers(init?.headers);
     expect(headers.get('X-Goog-FieldMask')).toContain('places.displayName');
-    expect(JSON.parse(init?.body as string)).toMatchObject({
-      textQuery: 'Leisureland',
-      regionCode: 'IE',
-    });
+    const body = JSON.parse(init?.body as string) as Record<string, unknown>;
+    expect(body).toMatchObject({ textQuery: 'Leisureland' });
+    // Search is global — no Ireland region bias (events can be created anywhere).
+    expect(body).not.toHaveProperty('regionCode');
   });
 
   it('returns coordinates from the place location', async () => {

@@ -27,6 +27,12 @@ describe('resolveNotificationRoute', () => {
     expect(resolveNotificationRoute('/events/e-123')).toBe('/(app)/(tabs)/discover/event/e-123');
   });
 
+  it('maps bare post routes (the shared-link shape) to the post detail screen', () => {
+    // Shared links are https://ceolx.ie/post/:id; the universal-link path is
+    // /post/:id, which lands on the (app)/post/[postId] screen (not under tabs).
+    expect(resolveNotificationRoute('/post/p-123')).toBe('/(app)/post/p-123');
+  });
+
   it('maps the legacy /feed route to the discover tab', () => {
     expect(resolveNotificationRoute('/feed')).toBe('/(app)/(tabs)/discover');
   });

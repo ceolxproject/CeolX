@@ -38,15 +38,20 @@ export function MapEventPin(props: MapEventPinProps) {
   const pinRadius = isSelected ? 28 : 22;
   const pinStyle = { width: pinSize, height: pinSize, borderRadius: pinRadius };
 
+  // Clip the circle on the <Image> itself (borderRadius + border) rather than a
+  // parent View with `overflow:hidden`. On Android's New Architecture the marker
+  // is rasterized off-screen via react-native-maps' ViewAttacherGroup, and a
+  // clipped child layer is not reliably captured in that snapshot — the image
+  // paints fine in normal views (e.g. the preview card) but stays blank inside
+  // the marker. Image natively clips to its own borderRadius, so this avoids the
+  // separate clip layer that the off-screen snapshot drops.
   const PinContent = () => (
-    <View className="border-2 border-white overflow-hidden" style={pinStyle}>
-      <Image
-        source={coverImageUrl ? { uri: coverImageUrl } : getMockEventImage(category ?? 'pin')}
-        style={pinStyle}
-        resizeMode="cover"
-        onLoad={onImageLoad}
-      />
-    </View>
+    <Image
+      source={coverImageUrl ? { uri: coverImageUrl } : getMockEventImage(category ?? 'pin')}
+      style={[pinStyle, { borderWidth: 2, borderColor: '#ffffff' }]}
+      resizeMode="cover"
+      onLoad={onImageLoad}
+    />
   );
 
   return (

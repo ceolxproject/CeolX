@@ -97,8 +97,8 @@ function buildLocationLabel(name: string, formattedAddress: string): string {
  *
  * Places (not Geocoding) is used so a venue/business name like "Leisureland"
  * resolves to its place name + address rather than only the underlying street.
- * The Google key lives server-side only (never shipped to the app) and is
- * biased to Ireland (regionCode IE) to match the app's scope.
+ * The Google key lives server-side only (never shipped to the app). Search is
+ * global (no Ireland region bias) so events can be created anywhere.
  */
 location.get('/geocode', async (c) => {
   const query = c.req.query('q')?.trim();
@@ -124,8 +124,8 @@ location.get('/geocode', async (c) => {
         // fields requested. We need the name, address and coordinates.
         'X-Goog-FieldMask': 'places.displayName,places.formattedAddress,places.location',
       },
-      // Bias results to Ireland — the app is Irish-music only.
-      body: JSON.stringify({ textQuery: query, regionCode: 'IE' }),
+      // No region bias — search is global so events can be created anywhere.
+      body: JSON.stringify({ textQuery: query }),
       signal: controller.signal,
     });
     clearTimeout(timeout);

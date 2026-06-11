@@ -26,13 +26,20 @@ function ReadyVideo({ streamUri }: { streamUri: string }) {
     p.play();
   });
 
+  // A native VideoView has no intrinsic size, so on the new architecture it
+  // collapses to 0px tall when handed only `aspect-video` (aspectRatio) with no
+  // concrete height — the player mounts and plays but renders nothing. Size a
+  // plain wrapper View (Yoga resolves aspect-ratio there) and let the VideoView
+  // fill it with an explicit width/height.
   return (
-    <VideoView
-      player={player}
-      nativeControls
-      contentFit="contain"
-      className="mb-3 aspect-video w-full overflow-hidden rounded-xl bg-black"
-    />
+    <View className="mb-3 aspect-video w-full overflow-hidden rounded-xl bg-black">
+      <VideoView
+        player={player}
+        style={{ width: '100%', height: '100%' }}
+        nativeControls
+        contentFit="contain"
+      />
+    </View>
   );
 }
 

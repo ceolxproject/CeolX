@@ -33,10 +33,33 @@ export const env = createEnv({
     // returns a clear "geocoding not configured" error instead of crashing.
     GOOGLE_MAPS_API_KEY: z.string().optional(),
     APPLE_OAUTH_CLIENT_ID: z.string().optional(),
+    // Apple Developer Team ID (10 chars). Reused as the App ID Prefix in the
+    // Universal Links AASA file served at /.well-known/apple-app-site-association
+    // (apps/server/src/routes/app-links.ts). For App IDs created the normal way
+    // the prefix equals the Team ID; if yours differs, set the prefix here.
     APPLE_OAUTH_TEAM_ID: z.string().optional(),
     APPLE_OAUTH_KEY_ID: z.string().optional(),
     APPLE_OAUTH_PRIVATE_KEY: z.string().optional(),
     APPLE_APP_BUNDLE_IDENTIFIER: z.string().optional(),
+    // Android release-keystore SHA-256 cert fingerprint (colon-separated upper
+    // hex) published in /.well-known/assetlinks.json so the OS verifies App
+    // Links for ceolx.ie/post/* into the app. Source: `eas credentials` →
+    // Android → production keystore → SHA-256. Public by design (it is served
+    // to the world); the route falls back to the known prod value when unset.
+    ANDROID_SHA256_CERT_FINGERPRINT: z.string().optional(),
+    // Mobile bundle id / Android package this server's App Links files vouch
+    // for. Prod is ie.ceolx.app (the default); the STAGING server sets this to
+    // com.raftlabs.ceolx.staging so its AASA/assetlinks match the staging app.
+    MOBILE_BUNDLE_ID: z.string().optional(),
+    // Canonical origin of shared-post links, used for og:url on the /post page.
+    // Prod = https://ceolx.ie; staging = the staging server's own Vercel URL.
+    PUBLIC_WEB_ORIGIN: z.string().url().optional(),
+    // Store URLs used by the shared-post web fallback page (/post/:id) when the
+    // app is not installed. Optional — the route derives sensible defaults
+    // (Play Store from the package id; App Store search until the numeric id is
+    // known). Set IOS_APP_STORE_URL to the real listing once the app is live.
+    IOS_APP_STORE_URL: z.string().url().optional(),
+    ANDROID_PLAY_STORE_URL: z.string().url().optional(),
     SENTRY_DSN_API: z.url().optional(),
     SENTRY_ENVIRONMENT: z.string().optional(),
     QSTASH_TOKEN: z.string().optional(),
