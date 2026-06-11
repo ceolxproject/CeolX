@@ -20,7 +20,11 @@ import { SectionDivider } from './SectionDivider';
 import { StickyBottomBar } from './StickyBottomBar';
 
 import { appToast } from '@/components/AppToast';
-import { addEventToDeviceCalendar, CALENDAR_PERMISSION_DENIED } from '@/hooks/use-add-to-calendar';
+import {
+  addEventToDeviceCalendar,
+  CALENDAR_NO_SYNCED_ACCOUNT,
+  CALENDAR_PERMISSION_DENIED,
+} from '@/hooks/use-add-to-calendar';
 import { useGpsRegion } from '@/hooks/use-gps-region';
 import { useRequestToPerform } from '@/hooks/use-request-to-perform';
 import { useSaveEvent } from '@/hooks/use-save-event';
@@ -97,6 +101,13 @@ export function EventDetailView({
         appToast.error(
           'Calendar access needed',
           'Enable calendar permission in Settings to add events.'
+        );
+      } else if (err instanceof Error && err.message === CALENDAR_NO_SYNCED_ACCOUNT) {
+        appToast.error(
+          'No synced calendar found',
+          Platform.OS === 'android'
+            ? 'Add a Google account in your phone’s Calendar settings, then try again.'
+            : 'Set up a calendar account in Settings, then try again.'
         );
       } else {
         appToast.error('Could not add to calendar', 'Please try again.');
