@@ -2,10 +2,16 @@ import * as Sentry from '@sentry/react-native';
 import { useRouter } from 'expo-router';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Animated, Modal, Platform, Text, View } from 'react-native';
-import MapView from 'react-native-map-clustering';
+// NOTE: clustering temporarily removed. react-native-map-clustering@4 is a
+// pre-Fabric, pure-JS wrapper that re-creates marker children on every region
+// change; under the New Architecture that re-attach fails in react-native-maps'
+// ViewAttacherGroup ("View already has a parent"), so marker <Image> content
+// never composites and pins render blank on Android. Plain react-native-maps
+// mounts markers once and paints correctly. Re-introduce clustering via a
+// Fabric-compatible lib in the next native build (Asana 1215453288289175).
+import MapView, { PROVIDER_GOOGLE } from 'react-native-maps';
 import type RNMapView from 'react-native-maps';
 import type { Region } from 'react-native-maps';
-import { PROVIDER_GOOGLE } from 'react-native-maps';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { EVENT_CATEGORIES, IRISH_COUNTIES, filterValidMapEvents } from '@CeolX/shared';
@@ -16,8 +22,6 @@ import { FilterSheet } from '@/components/FilterSheet';
 import type { FilterSection } from '@/components/FilterSheet';
 import { LocationBanner } from '@/components/LocationBanner';
 import { LocationPermissionScreen } from '@/components/LocationPermissionScreen';
-import type { ClusterObject } from '@/components/MapClusterMarker';
-import { MapClusterMarker } from '@/components/MapClusterMarker';
 import { MapEmptyStateCard } from '@/components/MapEmptyStateCard';
 import { MapErrorBoundary } from '@/components/MapErrorBoundary';
 import type { MapEvent } from '@/components/MapEventMarker';
@@ -148,13 +152,6 @@ export default function MapScreen() {
     if (!markerJustPressedRef.current) dismissPanel();
   }, [dismissDropdown, dismissPanel, markerJustPressedRef]);
 
-  const renderCluster = useCallback(
-    (cluster: ClusterObject) => (
-      <MapClusterMarker key={`cluster-${cluster.id}`} cluster={cluster} />
-    ),
-    []
-  );
-
   if (promptState === 'checking') return null;
   if (promptState === 'show') {
     // navigationBarTranslucent draws the modal window edge-to-edge under the
@@ -182,9 +179,6 @@ export default function MapScreen() {
           onPress={handleMapPress}
           showsUserLocation={Boolean(gpsPermissionGranted)}
           userInterfaceStyle={'dark' as const}
-          clusterColor="#6155F5"
-          clusterTextColor="#ffffff"
-          renderCluster={renderCluster}
         >
           {events.map((event) => (
             <MapEventMarker
