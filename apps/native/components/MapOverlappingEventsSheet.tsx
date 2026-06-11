@@ -8,13 +8,6 @@ import { CATEGORY_LABELS } from '@CeolX/shared';
 import type { MapEvent } from '@/components/MapEventMarker';
 import { getMockEventImage } from '@/utils/mock-images';
 
-// AppTabBar is an opaque bar anchored at the screen bottom with
-// `height: 60 + insets.bottom`, and its centre FAB pokes 24px (`-top-6`) above
-// the bar's top edge. The sheet renders *under* the tab bar, so its bottom
-// padding has to clear both — otherwise the last row hides behind the bar/FAB.
-const TAB_BAR_HEIGHT = 60;
-const FAB_OVERHANG = 24;
-
 type MapOverlappingEventsSheetProps = {
   events: MapEvent[];
   onClose: () => void;
@@ -40,12 +33,12 @@ export function MapOverlappingEventsSheet({ events, onClose }: MapOverlappingEve
       {/* Backdrop — tap outside to dismiss */}
       <Pressable className="absolute inset-0 bg-black/40" onPress={onClose} />
 
-      {/* Pad just enough to sit the last row clear of the tab bar + FAB tip —
-          inset-aware so it's tight (no dead white band) on every device. */}
+      {/* The tab bar is hidden while this sheet is open, so it hugs the screen
+          bottom — pad only the safe-area inset (+ a little breathing room). */}
       <View
         className="bg-white rounded-t-3xl pt-3 px-4"
         style={{
-          paddingBottom: insets.bottom + TAB_BAR_HEIGHT + FAB_OVERHANG,
+          paddingBottom: insets.bottom + 16,
           boxShadow: '0 -4px 16px rgba(0,0,0,0.18)',
         }}
       >
@@ -53,7 +46,7 @@ export function MapOverlappingEventsSheet({ events, onClose }: MapOverlappingEve
 
         <View className="flex-row items-center justify-between mb-1">
           <Text className="text-[16px] font-semibold text-[#1A1A1A]">
-            {events.length} events here
+            {events.length} events at this location
           </Text>
           <Pressable onPress={onClose} hitSlop={8}>
             <Ionicons name="close" size={22} color="#8D8D8D" />

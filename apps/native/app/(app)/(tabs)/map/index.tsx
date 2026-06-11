@@ -1,5 +1,5 @@
 import * as Sentry from '@sentry/react-native';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Animated, Modal, Platform, Text, View } from 'react-native';
 // Plain react-native-maps MapView (no clustering wrapper). Clustering is driven
@@ -29,6 +29,7 @@ import { MapEventMarker } from '@/components/MapEventMarker';
 import { MapHeader } from '@/components/MapHeader';
 import { MapOverlappingEventsSheet } from '@/components/MapOverlappingEventsSheet';
 import { MapSearchBar } from '@/components/MapSearchBar';
+import { useTabBarVisibility } from '@/contexts/tab-bar-visibility-context';
 import type { CountyResult } from '@/hooks/use-county-search';
 import { useCountySearch } from '@/hooks/use-county-search';
 import { useGpsRegion } from '@/hooks/use-gps-region';
@@ -108,6 +109,19 @@ export default function MapScreen() {
   const [region, setRegion] = useState<Region | null>(null);
   // Events sharing (near-)identical coords that a cluster can't zoom apart.
   const [overlapEvents, setOverlapEvents] = useState<MapEvent[] | null>(null);
+
+  // While a preview owns the bottom of the screen (single card or same-location
+  // sheet), hide the tab bar + FAB so the overlay sits flush against the bottom.
+  // Re-assert on focus and always restore on blur so it can't get stuck hidden
+  // on another tab.
+  const { setHidden: setTabBarHidden } = useTabBarVisibility();
+  const isPreviewOpen = Boolean(selectedEvent || overlapEvents);
+  useFocusEffect(
+    useCallback(() => {
+      setTabBarHidden(isPreviewOpen);
+      return () => setTabBarHidden(false);
+    }, [isPreviewOpen, setTabBarHidden])
+  );
 
   const { clusters, supercluster } = useMapClusters(events, region ?? initialRegion);
 
@@ -284,8 +298,10 @@ export default function MapScreen() {
 
       {selectedEvent && !isDropdownVisible && (
         <Animated.View
-          className="absolute bottom-[90px] left-4 right-4"
-          style={{ transform: [{ translateY: panelAnim }] }}
+          // The tab bar is hidden while this card is open, so it sits just above
+          // the safe-area bottom instead of clearing the (now absent) bar.
+          className="absolute left-4 right-4"
+          style={{ bottom: insets.bottom + 16, transform: [{ translateY: panelAnim }] }}
         >
           <EventPreviewCard event={selectedEvent} onDismiss={dismissPanel} />
         </Animated.View>
