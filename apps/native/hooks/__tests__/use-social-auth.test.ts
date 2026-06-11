@@ -34,6 +34,7 @@ vi.mock('@/components/AppToast', () => ({
 vi.mock('@/lib/google-signin', () => ({
   getGoogleIdToken: vi.fn(),
   configureGoogleSignIn: vi.fn(),
+  signOutGoogle: vi.fn(),
   GoogleSignInUnavailableError: class extends Error {},
   GoogleSignInCancelledError: class extends Error {},
 }));
