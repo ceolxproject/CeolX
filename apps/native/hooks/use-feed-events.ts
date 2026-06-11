@@ -87,6 +87,16 @@ export function useFeedEvents({ lat, lng, enabled = true }: UseFeedEventsOpts) {
     }
   }, [data, isFetching]);
 
+  // Reset pagination whenever the feed's location changes — the user picked a new
+  // point in the location sheet, or GPS/IP resolved after the Ireland default.
+  // Without this, a location change would append new events onto the previous
+  // location's accumulated list. Mirrors the reset in onSearch/onCategory/onDate.
+  useEffect(() => {
+    setOffset(0);
+    setAccumulatedEvents([]);
+    setHasNextPage(true);
+  }, [lat, lng]);
+
   const loadMore = useCallback(() => {
     if (hasNextPage && !isFetching) {
       setOffset((prev) => prev + FEED_PAGE_SIZE);
