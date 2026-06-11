@@ -38,6 +38,7 @@ export function FeedLocationSheet({
   // When a search/recenter sets the centre programmatically we keep that label and
   // skip the next reverse-geocode pass (the animation also fires onRegionChange).
   const labelLockedRef = useRef(false);
+  const reverseReqIdRef = useRef(0);
 
   const {
     query,
@@ -48,6 +49,7 @@ export function FeedLocationSheet({
     onChangeText,
     commitSelection,
     clearSearch,
+    dismissDropdown,
   } = usePlaceSearch();
 
   // Reset the pin + label to the incoming location each time the sheet opens.
@@ -67,9 +69,10 @@ export function FeedLocationSheet({
 
   const scheduleReverseGeocode = useCallback((lat: number, lng: number) => {
     if (reverseTimer.current) clearTimeout(reverseTimer.current);
+    const reqId = ++reverseReqIdRef.current;
     reverseTimer.current = setTimeout(() => {
       void reverseGeocode(lat, lng).then((addr) => {
-        if (addr) setLabel(addr);
+        if (addr && reqId === reverseReqIdRef.current) setLabel(addr);
       });
     }, REVERSE_GEOCODE_DEBOUNCE_MS);
   }, []);
@@ -83,12 +86,16 @@ export function FeedLocationSheet({
         labelLockedRef.current = false;
         return;
       }
+      dismissDropdown();
       scheduleReverseGeocode(region.latitude, region.longitude);
     },
-    [scheduleReverseGeocode]
+    [dismissDropdown, scheduleReverseGeocode]
   );
 
   const recentreTo = useCallback((lat: number, lng: number, nextLabel: string) => {
+    // Invalidate any pending/in-flight reverse-geocode so it can't clobber this label.
+    reverseReqIdRef.current++;
+    if (reverseTimer.current) clearTimeout(reverseTimer.current);
     centreRef.current = { lat, lng };
     setLabel(nextLabel);
     if (!mapRef.current) return;
