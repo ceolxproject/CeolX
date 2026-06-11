@@ -62,8 +62,8 @@ export function LocationPicker({
     if (!query) return;
     setIsSearching(true);
     try {
-      // Server-proxied Google geocoding (biased to Ireland). Works regardless
-      // of whether the device has location services enabled.
+      // Server-proxied Google geocoding (global — no region bias). Works
+      // regardless of whether the device has location services enabled.
       const results = await geocodeAddress(query);
       const first = results[0];
       if (first) {
