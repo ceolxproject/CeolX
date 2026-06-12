@@ -161,7 +161,7 @@ async function resolveViaIp(
  * Pure — exported for testing.
  *
  * Only fires when the chain landed on the Ireland `'default'` (both GPS and IP
- * failed) AND a venue pin is available. GPS/IP/pending are never overridden, and
+ * failed) AND a venue pin is available. GPS/IP/saved/pending are never overridden, and
  * once the source is already `'venue-profile'` it returns null so the override
  * effect can't loop.
  */

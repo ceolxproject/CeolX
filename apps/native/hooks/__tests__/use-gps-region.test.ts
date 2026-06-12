@@ -213,6 +213,18 @@ describe('resolveLocation', () => {
 
     expect(setters.setLocationSource).toHaveBeenCalledWith('ip');
   });
+
+  it('uses the saved base location when granted but no position is available', async () => {
+    mockGetForegroundPermissionsAsync.mockResolvedValue({ status: 'granted' });
+    mockGetLastKnownPositionAsync.mockResolvedValue(null);
+    const setters = createSetters();
+
+    await resolveLocation(setters, { lat: 51.9, lng: -8.47, label: 'Cork City' });
+
+    expect(setters.setLocationSource).toHaveBeenCalledWith('saved');
+    expect(setters.setPlaceLabel).toHaveBeenCalledWith('Cork City');
+    expect(fetchSpy).not.toHaveBeenCalled(); // saved beats IP even when permission was granted
+  });
 });
 
 describe('applyVenueFallback', () => {
@@ -227,6 +239,10 @@ describe('applyVenueFallback', () => {
 
   it('does not override a live GPS fix', () => {
     expect(applyVenueFallback('gps', pin)).toBeNull();
+  });
+
+  it('does not override a saved base location', () => {
+    expect(applyVenueFallback('saved', pin)).toBeNull();
   });
 
   it('does not override an IP fix', () => {
