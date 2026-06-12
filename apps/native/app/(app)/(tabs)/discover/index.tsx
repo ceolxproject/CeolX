@@ -141,6 +141,9 @@ export default function DiscoverScreen() {
   const suggestScope = activeSegment === 0 ? 'events' : 'posts';
   const suggestions = useSearchSuggestions(searchText, suggestScope, searchFocused);
   const showSuggestions = searchFocused && searchText.trim().length >= 1;
+  // Only raise the scrim + floating card when there's actually something to
+  // show, so an empty query never darkens the feed behind a missing card.
+  const showSuggestionsOverlay = showSuggestions && (suggestions.isLoading || !suggestions.isEmpty);
 
   // Tapping a suggestion fills the box and runs the active tab's search, the
   // same path as typing it by hand, then dismisses the dropdown.
@@ -237,7 +240,7 @@ export default function DiscoverScreen() {
 
       {/* Search bar */}
       <View className="px-5 mt-3">
-        <View className="flex-row items-center bg-[rgba(141,141,141,0.2)] rounded-full px-4 py-3 gap-3">
+        <View className="flex-row items-center bg-[rgba(141,141,141,0.2)] rounded-full px-4 py-[14px] gap-3">
           <Ionicons name="search-outline" size={20} color="rgba(255,255,255,0.6)" />
           <TextInput
             value={searchText}
@@ -257,159 +260,179 @@ export default function DiscoverScreen() {
         </View>
       </View>
 
-      {/* Autocomplete suggestions (inline, under the search bar) */}
-      {showSuggestions && (
-        <SearchSuggestions
-          artists={suggestions.artists}
-          venues={suggestions.venues}
-          events={suggestions.events}
-          isLoading={suggestions.isLoading}
-          onSelect={handleSuggestionSelect}
-        />
-      )}
-
-      {/* Segment toggle */}
-      <View className="px-5 mt-4">
-        <SegmentToggle
-          segments={SEGMENTS}
-          activeIndex={activeSegment}
-          onPress={handleSegmentChange}
-        />
-      </View>
-
-      {/* Active filter indicator */}
-      {hasActiveFilters && activeSegment === 0 && (
-        <View className="flex-row items-center px-5 mt-2 gap-2">
-          {date && (
-            <View className="flex-row items-center bg-[#C8FF2F]/20 border border-[#C8FF2F] rounded-full px-3 py-1 gap-1">
-              <Ionicons name="calendar-outline" size={12} color="#C8FF2F" />
-              <Text className="text-[11px] font-semibold text-[#C8FF2F] font-urbanist">
-                {parseLocalYmd(date).toLocaleDateString('en-IE', {
-                  weekday: 'short',
-                  day: 'numeric',
-                  month: 'short',
-                })}
-              </Text>
-            </View>
-          )}
-          {category && (
-            <View className="flex-row items-center bg-[#C8FF2F]/20 border border-[#C8FF2F] rounded-full px-3 py-1 gap-1">
-              <Ionicons name="musical-note-outline" size={12} color="#C8FF2F" />
-              <Text className="text-[11px] font-semibold text-[#C8FF2F] font-urbanist">
-                {category}
-              </Text>
-            </View>
-          )}
-          <Pressable
-            onPress={() => {
-              handleFiltersApply({});
-              setDate(undefined);
-            }}
-          >
-            <Text className="text-[11px] text-white/40 font-urbanist underline">Clear</Text>
-          </Pressable>
+      {/* Everything below the search bar lives in one relative container so the
+          autocomplete can float on top of the feed instead of pushing it down. */}
+      <View className="flex-1 relative">
+        {/* Segment toggle */}
+        <View className="px-5 mt-4">
+          <SegmentToggle
+            segments={SEGMENTS}
+            activeIndex={activeSegment}
+            onPress={handleSegmentChange}
+          />
         </View>
-      )}
 
-      {/* Events tab content */}
-      {activeSegment === 0 && (
-        <>
-          {isLoading ? (
-            <View
-              style={{
-                flex: 1,
-                alignItems: 'center',
-                justifyContent: 'center',
-                backgroundColor: '#080808',
+        {/* Active filter indicator */}
+        {hasActiveFilters && activeSegment === 0 && (
+          <View className="flex-row items-center px-5 mt-2 gap-2">
+            {date && (
+              <View className="flex-row items-center bg-[#C8FF2F]/20 border border-[#C8FF2F] rounded-full px-3 py-1 gap-1">
+                <Ionicons name="calendar-outline" size={12} color="#C8FF2F" />
+                <Text className="text-[11px] font-semibold text-[#C8FF2F] font-urbanist">
+                  {parseLocalYmd(date).toLocaleDateString('en-IE', {
+                    weekday: 'short',
+                    day: 'numeric',
+                    month: 'short',
+                  })}
+                </Text>
+              </View>
+            )}
+            {category && (
+              <View className="flex-row items-center bg-[#C8FF2F]/20 border border-[#C8FF2F] rounded-full px-3 py-1 gap-1">
+                <Ionicons name="musical-note-outline" size={12} color="#C8FF2F" />
+                <Text className="text-[11px] font-semibold text-[#C8FF2F] font-urbanist">
+                  {category}
+                </Text>
+              </View>
+            )}
+            <Pressable
+              onPress={() => {
+                handleFiltersApply({});
+                setDate(undefined);
               }}
             >
-              <ActivityIndicator size="large" color="#C8FF2F" />
-            </View>
-          ) : isError ? (
-            <View
-              style={{
-                flex: 1,
-                alignItems: 'center',
-                justifyContent: 'center',
-                paddingHorizontal: 32,
-                backgroundColor: '#080808',
-              }}
-            >
-              <Text className="text-white/60 text-center text-sm font-urbanist">
-                Something went wrong loading events.
-              </Text>
-              <Pressable
-                onPress={handleRefresh}
-                className="mt-4 bg-[#C8FF2F] rounded-full px-6 py-2"
+              <Text className="text-[11px] text-white/40 font-urbanist underline">Clear</Text>
+            </Pressable>
+          </View>
+        )}
+
+        {/* Events tab content */}
+        {activeSegment === 0 && (
+          <>
+            {isLoading ? (
+              <View
+                style={{
+                  flex: 1,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backgroundColor: '#080808',
+                }}
               >
-                <Text className="text-black font-semibold text-sm font-urbanist">Retry</Text>
-              </Pressable>
-            </View>
-          ) : (
-            <FlatList
-              data={events}
-              keyExtractor={(item) => item.id}
-              style={{ flex: 1, backgroundColor: '#080808' }}
-              renderItem={renderEvent}
-              ListHeaderComponent={<AdStack />}
-              onEndReached={() => {
-                if (hasNextPage) loadMore();
-              }}
-              onEndReachedThreshold={0.5}
-              refreshControl={
-                <RefreshControl
-                  refreshing={refreshing}
-                  onRefresh={handleRefresh}
-                  tintColor="#C8FF2F"
-                />
-              }
-              ListFooterComponent={
-                isFetchingNextPage ? (
-                  <ActivityIndicator size="small" color="#C8FF2F" className="my-6" />
-                ) : null
-              }
-              ListEmptyComponent={
-                <View className="items-center justify-center pt-16 px-8">
-                  <Ionicons name="musical-notes-outline" size={48} color="rgba(255,255,255,0.2)" />
-                  <Text className="text-white/40 text-center text-sm font-urbanist mt-4">
-                    No events found. Try adjusting your filters or search.
-                  </Text>
-                </View>
-              }
-              contentContainerStyle={{
-                flexGrow: 1,
-                backgroundColor: '#080808',
-                paddingTop: 16,
-                paddingBottom: 32,
-              }}
-              initialNumToRender={5}
-              maxToRenderPerBatch={10}
-              removeClippedSubviews
-              showsVerticalScrollIndicator={false}
-            />
-          )}
-        </>
-      )}
+                <ActivityIndicator size="large" color="#C8FF2F" />
+              </View>
+            ) : isError ? (
+              <View
+                style={{
+                  flex: 1,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  paddingHorizontal: 32,
+                  backgroundColor: '#080808',
+                }}
+              >
+                <Text className="text-white/60 text-center text-sm font-urbanist">
+                  Something went wrong loading events.
+                </Text>
+                <Pressable
+                  onPress={handleRefresh}
+                  className="mt-4 bg-[#C8FF2F] rounded-full px-6 py-2"
+                >
+                  <Text className="text-black font-semibold text-sm font-urbanist">Retry</Text>
+                </Pressable>
+              </View>
+            ) : (
+              <FlatList
+                data={events}
+                keyExtractor={(item) => item.id}
+                style={{ flex: 1, backgroundColor: '#080808' }}
+                renderItem={renderEvent}
+                ListHeaderComponent={<AdStack />}
+                onEndReached={() => {
+                  if (hasNextPage) loadMore();
+                }}
+                onEndReachedThreshold={0.5}
+                refreshControl={
+                  <RefreshControl
+                    refreshing={refreshing}
+                    onRefresh={handleRefresh}
+                    tintColor="#C8FF2F"
+                  />
+                }
+                ListFooterComponent={
+                  isFetchingNextPage ? (
+                    <ActivityIndicator size="small" color="#C8FF2F" className="my-6" />
+                  ) : null
+                }
+                ListEmptyComponent={
+                  <View className="items-center justify-center pt-16 px-8">
+                    <Ionicons
+                      name="musical-notes-outline"
+                      size={48}
+                      color="rgba(255,255,255,0.2)"
+                    />
+                    <Text className="text-white/40 text-center text-sm font-urbanist mt-4">
+                      No events found. Try adjusting your filters or search.
+                    </Text>
+                  </View>
+                }
+                contentContainerStyle={{
+                  flexGrow: 1,
+                  backgroundColor: '#080808',
+                  paddingTop: 16,
+                  paddingBottom: 32,
+                }}
+                initialNumToRender={5}
+                maxToRenderPerBatch={10}
+                removeClippedSubviews
+                showsVerticalScrollIndicator={false}
+              />
+            )}
+          </>
+        )}
 
-      {/* Posts tab content — a real FlatList (not a ScrollView) so videos can
+        {/* Posts tab content — a real FlatList (not a ScrollView) so videos can
           reels-autoplay as they scroll into view. */}
-      {activeSegment === 1 && (
-        <FeedPostsList
-          posts={feedPosts.posts}
-          isLoading={feedPosts.isLoading}
-          isFetchingNextPage={feedPosts.isFetchingNextPage}
-          hasNextPage={feedPosts.hasNextPage}
-          currentUserId={me?.id ?? null}
-          onLoadMore={feedPosts.loadMore}
-          refreshing={feedPosts.isFetchingNextPage}
-          onRefresh={feedPosts.refresh}
-          emptyMessage={
-            searchText.trim()
-              ? `No posts match "${searchText.trim()}".`
-              : 'No posts yet. Check back soon for updates from artists and venues.'
-          }
-        />
-      )}
+        {activeSegment === 1 && (
+          <FeedPostsList
+            posts={feedPosts.posts}
+            isLoading={feedPosts.isLoading}
+            isFetchingNextPage={feedPosts.isFetchingNextPage}
+            hasNextPage={feedPosts.hasNextPage}
+            currentUserId={me?.id ?? null}
+            onLoadMore={feedPosts.loadMore}
+            refreshing={feedPosts.isFetchingNextPage}
+            onRefresh={feedPosts.refresh}
+            emptyMessage={
+              searchText.trim()
+                ? `No posts match "${searchText.trim()}".`
+                : 'No posts yet. Check back soon for updates from artists and venues.'
+            }
+          />
+        )}
+
+        {/* Autocomplete overlay — a dim scrim plus the floating suggestion card,
+            both anchored just under the search bar and stacked above the feed. */}
+        {showSuggestionsOverlay && (
+          <View className="absolute inset-0" style={{ zIndex: 30 }}>
+            <Pressable
+              className="absolute inset-0 bg-black/50"
+              onPress={() => {
+                setSearchFocused(false);
+                Keyboard.dismiss();
+              }}
+            />
+            <View className="absolute left-0 right-0 top-1 px-5">
+              <SearchSuggestions
+                artists={suggestions.artists}
+                venues={suggestions.venues}
+                events={suggestions.events}
+                isLoading={suggestions.isLoading}
+                onSelect={handleSuggestionSelect}
+              />
+            </View>
+          </View>
+        )}
+      </View>
 
       <FilterSheet
         visible={filterSheetVisible}
