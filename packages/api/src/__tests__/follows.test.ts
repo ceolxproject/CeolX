@@ -150,7 +150,7 @@ describe('follows router', () => {
       });
     });
 
-    it('returns NOT_FOUND when followee has no active profile', async () => {
+    it('returns NOT_FOUND when followee has no public profile (bare spectator)', async () => {
       mockUserFindFirst.mockResolvedValueOnce({ id: 'user-2' });
       mockArtistFindFirst.mockResolvedValueOnce(null);
       mockVenueFindFirst.mockResolvedValueOnce(null);
@@ -158,8 +158,29 @@ describe('follows router', () => {
       const caller = authedCaller('user-1');
       await expect(caller.follow({ followeeId: 'user-2' })).rejects.toMatchObject({
         code: 'NOT_FOUND',
-        message: 'User has no active profile',
+        message: 'User has no public profile',
       });
+    });
+
+    // Regression: an inactive venue (subscription not yet active) is still visible
+    // via venues.byId, so its Follow button must work. Previously follow gated on
+    // isActive=true and 404'd these accounts (e.g. "Vivek Venue"). The follow guard
+    // now checks profile presence only, so an inactive profile is followable.
+    it('creates follow for a followee whose only profile is an inactive venue', async () => {
+      const followRow = {
+        id: 'f-2',
+        followerId: 'user-1',
+        followeeId: 'user-v',
+        createdAt: new Date(),
+      };
+      mockUserFindFirst.mockResolvedValueOnce({ id: 'user-v' });
+      mockArtistFindFirst.mockResolvedValueOnce(null);
+      mockVenueFindFirst.mockResolvedValueOnce({ id: 'vp-1' }); // inactive venue still returned
+      mockInsertReturning.mockResolvedValueOnce([followRow]);
+
+      const caller = authedCaller('user-1');
+      const result = await caller.follow({ followeeId: 'user-v' });
+      expect(result).toEqual(followRow);
     });
 
     it('returns CONFLICT on duplicate follow', async () => {

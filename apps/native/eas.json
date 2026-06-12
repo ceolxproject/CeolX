@@ -51,6 +51,12 @@
   "submit": {
     "staging-testflight": {
       "ios": {}
+    },
+    "staging": {
+      "android": {
+        "track": "internal",
+        "releaseStatus": "draft"
+      }
     }
   }
 }

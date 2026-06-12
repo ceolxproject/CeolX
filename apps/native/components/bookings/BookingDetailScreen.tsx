@@ -17,6 +17,7 @@ import {
 import { useResendBooking } from '@/hooks/use-resend-booking';
 import { useUpdateBooking } from '@/hooks/use-update-booking';
 import { authClient } from '@/lib/auth-client';
+import { getBookingActionErrorBody } from '@/utils/booking-error';
 import { formatEventDate } from '@/utils/format-event-date';
 import { trpc } from '@/utils/trpc';
 
@@ -47,7 +48,7 @@ export function BookingDetailScreen() {
         await updateBooking.mutateAsync({ id: bookingId, status });
         appToast.success(copy.success);
       } catch (err) {
-        appToast.error(copy.error, err instanceof Error ? err.message : 'Please try again.');
+        appToast.error(copy.error, getBookingActionErrorBody(err));
       } finally {
         setPendingAction(null);
       }
