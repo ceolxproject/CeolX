@@ -1,12 +1,13 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import { ActivityIndicator, Image, Platform, Pressable, Text, TextInput, View } from 'react-native';
 import MapView, { PROVIDER_GOOGLE } from 'react-native-maps';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { IRELAND_INITIAL_REGION } from '@CeolX/shared';
 
+import { appToast } from '@/components/AppToast';
 import { useLocationOverride } from '@/contexts/location-override-context';
 import { useLocationPickerMap } from '@/hooks/use-location-picker-map';
 import { useMe } from '@/hooks/use-me';
@@ -42,33 +43,48 @@ export default function AddLocationScreen() {
     ZOOM,
   } = useLocationPickerMap(initialLat, initialLng);
 
-  // OAuth avatar lives on user.image; spectators may have none → pin glyph fallback.
+  const [isSaving, setIsSaving] = useState(false);
+
+  // me?.image is the OAuth avatar only; uploaded profile images aren't surfaced here.
+  // The pin glyph fallback covers accounts without an OAuth avatar.
   const avatarUrl = me?.image ?? null;
 
   const handleSave = useCallback(async () => {
+    if (isSaving) return;
+    setIsSaving(true);
     const { lat, lng } = getCentre();
+    // label stays at the picker fallback until the user pans or picks a suggestion,
+    // so saving immediately persists the Ireland centre with a generic label —
+    // acceptable fallback behaviour.
     const loc = { lat, lng, label };
-    await setBaseLocation(loc);
+    try {
+      await setBaseLocation(loc);
+    } catch {
+      setIsSaving(false);
+      appToast.error('Could not save location', 'Please try again.');
+      return; // nothing persisted → do NOT navigate or set the override
+    }
     setOverride(loc);
     router.back();
-  }, [getCentre, label, setOverride, router]);
+  }, [isSaving, getCentre, label, setOverride, router]);
 
   return (
     <View className="flex-1 bg-black" style={{ paddingTop: insets.top }}>
-      {/* Back button */}
-      <Pressable
-        onPress={() => router.back()}
-        hitSlop={12}
-        className="absolute left-1 z-20 h-12 w-12 items-center justify-center rounded-full bg-black/60"
-        style={{ top: insets.top + 6 }}
-      >
-        <Ionicons name="arrow-back" size={24} color="#ffffff" />
-      </Pressable>
-
-      {/* Title */}
-      <Text className="ml-5 mt-12 font-urbanist text-[32px] font-semibold text-white">
-        Add your Location
-      </Text>
+      {/* Header: back button above the title (black area above the search) */}
+      <View className="px-4 pt-2">
+        <Pressable
+          onPress={() => router.back()}
+          hitSlop={12}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+          className="h-12 w-12 items-center justify-center rounded-full bg-black/60 active:opacity-70"
+        >
+          <Ionicons name="arrow-back" size={24} color="#ffffff" />
+        </Pressable>
+        <Text className="ml-1 mt-3 font-urbanist text-[32px] font-semibold text-white">
+          Add your Location
+        </Text>
+      </View>
 
       {/* Search field */}
       <View className="z-10 px-4 pt-4">
@@ -169,13 +185,15 @@ export default function AddLocationScreen() {
         <View className="flex-row gap-3">
           <Pressable
             onPress={() => router.back()}
-            className="h-10 flex-1 items-center justify-center rounded-full border border-black"
+            className="h-10 flex-1 items-center justify-center rounded-full border border-black active:opacity-70"
           >
             <Text className="font-urbanist text-[14px] font-semibold text-black">CANCEL</Text>
           </Pressable>
           <Pressable
             onPress={handleSave}
-            className="h-10 flex-1 items-center justify-center rounded-full bg-[#6155F5]"
+            disabled={isSaving}
+            className="h-10 flex-1 items-center justify-center rounded-full bg-[#6155F5] active:opacity-70"
+            style={isSaving ? { opacity: 0.6 } : undefined}
           >
             <Text className="font-urbanist text-[14px] font-semibold text-white">SAVE</Text>
           </Pressable>
