@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { MAP_DEBOUNCE_MS } from '@CeolX/shared';
 
+import { excludeDeletedPosts, useDeletedPostIds } from '@/hooks/use-deleted-posts';
 import { trpc } from '@/utils/trpc';
 
 const PAGE_SIZE = 20;
@@ -88,8 +89,14 @@ export function useFeedPosts({ enabled = true }: Opts = {}) {
     }, MAP_DEBOUNCE_MS);
   }, []);
 
+  // Filter out posts the current session has deleted. The accumulated array can
+  // still hold a just-deleted row (the append-only merge can't remove one when
+  // scrolled past page 0); the shared tombstone set drops it from every surface.
+  const deletedIds = useDeletedPostIds();
+  const posts = excludeDeletedPosts(accumulated, deletedIds);
+
   return {
-    posts: accumulated,
+    posts,
     isLoading: isLoading && offset === 0,
     isFetchingNextPage: isFetching && offset > 0,
     hasNextPage,

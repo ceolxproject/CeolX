@@ -41,11 +41,17 @@ type Props = {
    * and make the card non-tappable so it can't navigate to itself.
    */
   expanded?: boolean;
+  /**
+   * Called after the post is successfully deleted. Lists self-heal via the
+   * shared tombstone set, so they don't need this — it's for the detail screen,
+   * which must navigate away once its post no longer exists.
+   */
+  onDeleted?: () => void;
 };
 
 const CAPTION_PREVIEW_LIMIT = 120;
 
-export function PostCard({ post, currentUserId, hideAuthorHeader, expanded }: Props) {
+export function PostCard({ post, currentUserId, hideAuthorHeader, expanded, onDeleted }: Props) {
   const isOwner = currentUserId === post.createdBy;
   // Like state is derived straight from props. useTogglePostLike patches the
   // query cache optimistically, so these values flow back through the feed /
@@ -70,7 +76,7 @@ export function PostCard({ post, currentUserId, hideAuthorHeader, expanded }: Pr
   };
 
   const onDelete = () => {
-    deletePost.mutate({ id: post.id });
+    deletePost.mutate({ id: post.id }, { onSuccess: () => onDeleted?.() });
   };
 
   const openDetail = () => {
