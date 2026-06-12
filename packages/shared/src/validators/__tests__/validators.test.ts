@@ -192,7 +192,7 @@ describe('createEventSchema', () => {
     lat: 53.3498,
     lng: -6.2603,
     venueAddress: "O'Brien's Pub, Dublin",
-    category: 'Traditional',
+    category: 'Open Trad Sessions',
   };
 
   it('accepts valid event data', () => {

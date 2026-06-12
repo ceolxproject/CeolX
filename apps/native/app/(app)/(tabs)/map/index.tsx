@@ -321,7 +321,6 @@ export default function MapScreen() {
         visible={filterSheetVisible}
         filters={filters}
         sections={MAP_FILTER_SECTIONS}
-        variant="light"
         onApply={(f) => setFilters(f)}
         onClose={() => setFilterSheetVisible(false)}
       />

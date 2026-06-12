@@ -374,7 +374,6 @@ export default function DiscoverScreen() {
         visible={filterSheetVisible}
         filters={currentFilters}
         sections={FEED_FILTER_SECTIONS}
-        variant="dark"
         onApply={handleFiltersApply}
         onClose={() => setFilterSheetVisible(false)}
       />

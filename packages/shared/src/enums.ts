@@ -60,14 +60,22 @@ export const SubscriptionStatus = {
   CANCELLED: 'cancelled',
 } as const satisfies Record<string, VenueSubscriptionStatus>;
 
-// Irish music event categories (pre-seeded, subject to client sign-off)
+// Irish music event categories (finalised — client-provided list, Figma node 1:3817)
 export const EVENT_CATEGORIES = [
-  'Traditional',
-  'Contemporary',
-  'Fusion',
-  'Celtic',
-  'Folk',
-  'Session',
+  'Concerts',
+  'Gigs',
+  'Karaoke',
+  'Open Mic Nights',
+  'Festivals',
+  'Recital',
+  'DJ Sets / Club Nights',
+  'Jam Sessions',
+  'Tribute / Cover Band Shows',
+  'Workshops',
+  'Open Trad Sessions',
+  'Lessons',
+  'Outdoor',
+  'Others',
 ] as const;
 export type EventCategory = (typeof EVENT_CATEGORIES)[number];
 

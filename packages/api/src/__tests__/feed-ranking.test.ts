@@ -104,7 +104,7 @@ function makeEvent(overrides: Partial<RawFeedEvent> = {}): RawFeedEvent {
     lat: 53.3498, // Dublin
     lng: -6.2603,
     venueAddress: 'Temple Bar',
-    category: 'Traditional',
+    category: 'Open Trad Sessions',
     coverImageUrl: null,
     createdAt: new Date().toISOString(),
     creatorName: 'Test Artist',
