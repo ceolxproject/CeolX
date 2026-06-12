@@ -65,13 +65,6 @@ export default function EventAnalyticsScreen() {
           <SectionTitle>Engagement</SectionTitle>
           <EngagementRings data={data} />
 
-          {data.bookings.total > 0 && (
-            <>
-              <SectionTitle>Bookings</SectionTitle>
-              <BookingsBreakdown data={data} />
-            </>
-          )}
-
           {data.performers.confirmed.length > 0 || data.performers.invitedCount > 0 ? (
             <>
               <SectionTitle>Performers</SectionTitle>
@@ -191,13 +184,22 @@ interface ViewsChartProps {
 
 function ViewsChart({ daily, chartWidth }: ViewsChartProps) {
   const total = daily.reduce((sum, b) => sum + b.count, 0);
+  const maxCount = daily.reduce((max, b) => Math.max(max, b.count), 0);
 
-  // Show every 3rd day as an x-axis label so 14 days fit comfortably; format MM-DD.
-  const data = daily.map((b, i) => ({
-    value: b.count,
-    label: i % 3 === 0 ? b.date.slice(5).replace('-', '/') : '',
-    dataPointText: b.count > 0 ? String(b.count) : '',
-  }));
+  // Pin the y-axis to a clean multiple of noOfSections so every gridline is a
+  // whole number of views (no fractional / duplicate ticks from auto-scaling).
+  const noOfSections = 4;
+  const maxValue = Math.max(noOfSections, Math.ceil(maxCount / noOfSections) * noOfSections);
+
+  // Label every 3rd day on the x-axis (14 days fit comfortably). Irish DD/MM format.
+  const data = daily.map((b, i) => {
+    const [, mm, dd] = b.date.split('-');
+    return {
+      value: b.count,
+      label: i % 3 === 0 ? `${dd}/${mm}` : '',
+      dataPointText: b.count > 0 ? String(b.count) : '',
+    };
+  });
 
   if (total === 0) {
     return (
@@ -211,6 +213,9 @@ function ViewsChart({ daily, chartWidth }: ViewsChartProps) {
 
   return (
     <View className="mx-5 rounded-2xl bg-[rgba(141,141,141,0.1)] border border-[rgba(141,141,141,0.4)] py-4 pl-1 pr-4">
+      <Text className="pl-4 pb-3 text-[10px] uppercase tracking-wider text-white/40 font-urbanist">
+        Views per day
+      </Text>
       <LineChart
         data={data}
         // Math: chartWidth - left margin (~30) - right padding (~20). 14 buckets.
@@ -223,15 +228,17 @@ function ViewsChart({ daily, chartWidth }: ViewsChartProps) {
         textShiftY={-6}
         textFontSize={9}
         yAxisTextStyle={{ color: SUBTLE_TEXT, fontSize: 10 }}
-        xAxisLabelTextStyle={{ color: SUBTLE_TEXT, fontSize: 9 }}
+        // Widen + center each label so full DD/MM dates show (was clipped to "06…").
+        xAxisLabelTextStyle={{ color: SUBTLE_TEXT, fontSize: 9, width: 40, textAlign: 'center' }}
         xAxisColor="rgba(141,141,141,0.4)"
         yAxisColor="rgba(141,141,141,0.4)"
         rulesColor="rgba(141,141,141,0.15)"
         rulesType="solid"
         initialSpacing={10}
-        endSpacing={10}
+        endSpacing={20}
         height={140}
-        noOfSections={4}
+        maxValue={maxValue}
+        noOfSections={noOfSections}
         hideYAxisText={false}
         backgroundColor="transparent"
       />
@@ -247,7 +254,6 @@ interface EngagementRingsProps {
     saves: { total: number };
     engagement: { rate: number };
     ticketClicks: { total: number; clickRate: number | null };
-    bookings: { total: number; acceptanceRate: number | null };
     event: { hasTicketLink: boolean };
   };
 }
@@ -259,16 +265,6 @@ function EngagementRings({ data }: EngagementRingsProps) {
         ring={<ProgressRing percentage={data.engagement.rate} />}
         title="Engagement Rate"
         subtitle={`${data.saves.total} saves / ${data.views.total} views`}
-      />
-      <Divider />
-      <RingRow
-        ring={<ProgressRing percentage={data.bookings.acceptanceRate} />}
-        title="Booking Acceptance"
-        subtitle={
-          data.bookings.total === 0
-            ? 'No bookings yet'
-            : `${data.bookings.total} application${data.bookings.total === 1 ? '' : 's'} received`
-        }
       />
       <Divider />
       <RingRow
@@ -306,44 +302,6 @@ function RingRow({
 
 function Divider() {
   return <View className="h-px bg-[rgba(141,141,141,0.2)]" />;
-}
-
-// ─── Bookings breakdown ─────────────────────────────────────────────────────
-
-interface BookingsBreakdownProps {
-  data: {
-    bookings: {
-      total: number;
-      byStatus: { pending: number; accepted: number; rejected: number; cancelled: number };
-    };
-  };
-}
-
-function BookingsBreakdown({ data }: BookingsBreakdownProps) {
-  const { byStatus, total } = data.bookings;
-  const items: Array<{ label: string; count: number; color: string }> = [
-    { label: 'Accepted', count: byStatus.accepted, color: '#C8FF2F' },
-    { label: 'Pending', count: byStatus.pending, color: '#fbbf24' },
-    { label: 'Rejected', count: byStatus.rejected, color: '#f87171' },
-    { label: 'Cancelled', count: byStatus.cancelled, color: 'rgba(255,255,255,0.5)' },
-  ];
-
-  return (
-    <View className="mx-5 rounded-2xl bg-[rgba(141,141,141,0.1)] border border-[rgba(141,141,141,0.4)] p-4 gap-3">
-      <Text className="text-xs text-white/60 font-urbanist">
-        {total} total application{total === 1 ? '' : 's'}
-      </Text>
-      {items.map((item) => (
-        <View key={item.label} className="flex-row items-center justify-between">
-          <View className="flex-row items-center gap-2">
-            <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: item.color }} />
-            <Text className="text-sm text-white font-urbanist">{item.label}</Text>
-          </View>
-          <Text className="text-sm font-bold text-white font-urbanist">{item.count}</Text>
-        </View>
-      ))}
-    </View>
-  );
 }
 
 // ─── Performers ─────────────────────────────────────────────────────────────
