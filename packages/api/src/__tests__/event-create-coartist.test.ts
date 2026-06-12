@@ -184,7 +184,7 @@ const validEventInput = {
   // the missing venueProfiles select chain.
   lat: 53.3498,
   lng: -6.2603,
-  category: 'Traditional' as const,
+  category: 'Open Trad Sessions' as const,
   // Creator + an invited artist in the platformInvites list.
   platformInvites: [INVITED_USER_ID, CREATOR_USER_ID],
 };

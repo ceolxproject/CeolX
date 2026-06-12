@@ -1,6 +1,7 @@
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useState } from 'react';
 
+import { excludeDeletedPosts, useDeletedPostIds } from '@/hooks/use-deleted-posts';
 import { trpc } from '@/utils/trpc';
 
 const PAGE_SIZE = 20;
@@ -72,8 +73,13 @@ export function useUserPosts(userId: string | null | undefined) {
     await refetch();
   }, [queryClient, queryOptions.queryKey, refetch]);
 
+  // Drop posts the current session has deleted — the accumulated array can still
+  // hold a just-deleted row that the append-only merge can't remove on its own.
+  const deletedIds = useDeletedPostIds();
+  const posts = excludeDeletedPosts(accumulated, deletedIds);
+
   return {
-    posts: accumulated,
+    posts,
     isLoading: isLoading && offset === 0,
     isFetchingNextPage: isFetching && offset > 0,
     hasNextPage,

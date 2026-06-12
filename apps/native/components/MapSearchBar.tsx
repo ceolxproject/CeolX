@@ -11,6 +11,8 @@ interface MapSearchBarProps {
   onChangeText?: (text: string) => void;
   onFilterPress?: () => void;
   activeFilterCount?: number;
+  /** Focus the field (and raise the keyboard) as soon as the bar mounts. */
+  autoFocus?: boolean;
 }
 
 export function MapSearchBar({
@@ -19,6 +21,7 @@ export function MapSearchBar({
   onChangeText,
   onFilterPress,
   activeFilterCount = 0,
+  autoFocus = false,
 }: MapSearchBarProps) {
   const insets = useSafeAreaInsets();
   const top = insets.top + MAP_HEADER_HEIGHT + MAP_SEARCH_BAR_GAP;
@@ -43,6 +46,7 @@ export function MapSearchBar({
           onChangeText={onChangeText}
           returnKeyType="search"
           autoCorrect={false}
+          autoFocus={autoFocus}
         />
         <Pressable
           className={cn(

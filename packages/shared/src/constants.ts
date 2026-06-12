@@ -19,24 +19,41 @@ export const IRELAND_INITIAL_REGION = {
   longitudeDelta: 5,
 };
 
-// Event category display labels
+// Event category display labels (display text === stored value; map kept for
+// callers that look up by key and for any future short-form overrides).
 export const CATEGORY_LABELS: Record<string, string> = {
-  Traditional: 'Traditional session',
-  Contemporary: 'Contemporary',
-  Fusion: 'Fusion',
-  Celtic: 'Celtic',
-  Folk: 'Folk',
-  Session: 'Session',
+  Concerts: 'Concerts',
+  Gigs: 'Gigs',
+  Karaoke: 'Karaoke',
+  'Open Mic Nights': 'Open Mic Nights',
+  Festivals: 'Festivals',
+  Recital: 'Recital',
+  'DJ Sets / Club Nights': 'DJ Sets / Club Nights',
+  'Jam Sessions': 'Jam Sessions',
+  'Tribute / Cover Band Shows': 'Tribute / Cover Band Shows',
+  Workshops: 'Workshops',
+  'Open Trad Sessions': 'Open Trad Sessions',
+  Lessons: 'Lessons',
+  Outdoor: 'Outdoor',
+  Others: 'Others',
 };
 
 // Event category emoji icons
 export const CATEGORY_ICONS: Record<string, string> = {
-  Traditional: '🎵',
-  Contemporary: '🎸',
-  Fusion: '🎹',
-  Celtic: '☘️',
-  Folk: '🪕',
-  Session: '🎶',
+  Concerts: '🎤',
+  Gigs: '🎸',
+  Karaoke: '🎶',
+  'Open Mic Nights': '🎙️',
+  Festivals: '🎪',
+  Recital: '🎻',
+  'DJ Sets / Club Nights': '🎧',
+  'Jam Sessions': '🥁',
+  'Tribute / Cover Band Shows': '🎵',
+  Workshops: '🛠️',
+  'Open Trad Sessions': '☘️',
+  Lessons: '📚',
+  Outdoor: '🌳',
+  Others: '✨',
 };
 
 // Geographic centre coordinates for each Irish county (Republic + Northern Ireland).

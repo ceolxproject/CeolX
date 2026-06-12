@@ -153,7 +153,7 @@ const artistEventInput = {
   dateStart: new Date('2026-07-01T20:00:00Z').toISOString(),
   lat: 53.3498,
   lng: -6.2603,
-  category: 'Traditional' as const,
+  category: 'Open Trad Sessions' as const,
 };
 
 const insertedEvent = {

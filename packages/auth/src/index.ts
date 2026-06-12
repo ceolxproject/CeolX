@@ -1,6 +1,7 @@
 import { expo } from '@better-auth/expo';
 import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
+import { createAuthMiddleware } from 'better-auth/api';
 
 import { db } from '@CeolX/db';
 import * as schema from '@CeolX/db/schema/auth';
@@ -10,6 +11,7 @@ import { env } from '@CeolX/env/server';
 import { generateAppleClientSecret } from './apple-secret.js';
 import { buildDeepLinkBridgeUrl, buildVerificationBridgeUrl } from './email-utils';
 import { onSessionCreated } from './login-hook.js';
+import { assertEmailAvailable } from './signup-hook.js';
 
 export const auth = betterAuth({
   database: drizzleAdapter(db, {
@@ -53,6 +55,18 @@ export const auth = betterAuth({
         after: onSessionCreated,
       },
     },
+  },
+  hooks: {
+    // Reject sign-up with an already-registered email *before* Better Auth's
+    // enumeration-protection silently returns success and sends a verification
+    // email. Without this, re-registering an existing email (e.g. switching
+    // roles) showed a misleading "verification sent" screen (Asana 1215616181509943).
+    before: createAuthMiddleware(async (ctx) => {
+      if (ctx.path === '/sign-up/email') {
+        const body = ctx.body as { email?: unknown } | undefined;
+        await assertEmailAvailable(body?.email);
+      }
+    }),
   },
   emailVerification: {
     sendOnSignUp: true,
