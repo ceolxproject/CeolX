@@ -1,6 +1,8 @@
 import * as Location from 'expo-location';
 import { useCallback, useEffect, useState } from 'react';
 
+import { getBaseLocation } from '@/utils/base-location';
+
 /** Three states to avoid a flash of the map before the permission read resolves. */
 export type LocationPromptState = 'checking' | 'show' | 'done';
 
@@ -23,18 +25,27 @@ type Result = {
 /**
  * Pure decision for whether to show the priming screen.
  *
- * - GRANTED → never prompt again.
- * - not granted (undetermined OR denied) → prompt, but at most once per app
- *   launch (the `shownThisSession` guard). We deliberately re-ask denied users
- *   on each cold start instead of suppressing forever — a one-time "asked" flag
- *   meant a user who denied was never asked again. The actual re-ask (OS dialog
- *   vs Settings deep-link) is handled by LocationPermissionScreen.
+ * - GRANTED → never prompt (GPS resolves silently).
+ * - A saved base location exists → suppress, EXCEPT a one-per-launch "allow your
+ *   location?" upgrade ask when device location services are on AND the OS still
+ *   allows a prompt. Services off / hard-denied → stay silent (use the saved location).
+ * - No saved location → prompt at most once per launch (re-ask denied users each
+ *   cold start so they always have a path to set a location).
  */
 export function resolvePromptState(
   status: Location.PermissionStatus,
-  shownThisSession: boolean
+  canAskAgain: boolean,
+  shownThisSession: boolean,
+  hasSavedLocation: boolean,
+  servicesEnabled: boolean
 ): LocationPromptState {
   if (status === Location.PermissionStatus.GRANTED) return 'done';
+
+  if (hasSavedLocation) {
+    if (servicesEnabled && canAskAgain && !shownThisSession) return 'show';
+    return 'done';
+  }
+
   return shownThisSession ? 'done' : 'show';
 }
 
@@ -57,8 +68,14 @@ export function useLocationPermissionPrompt(): Result {
   useEffect(() => {
     async function check() {
       try {
-        const { status } = await Location.getForegroundPermissionsAsync();
-        setPromptState(resolvePromptState(status, shownThisSession));
+        const [{ status, canAskAgain }, base, servicesEnabled] = await Promise.all([
+          Location.getForegroundPermissionsAsync(),
+          getBaseLocation(),
+          Location.hasServicesEnabledAsync(),
+        ]);
+        setPromptState(
+          resolvePromptState(status, canAskAgain, shownThisSession, base !== null, servicesEnabled)
+        );
       } catch {
         // Permission read failed → don't block the map.
         setPromptState('done');
