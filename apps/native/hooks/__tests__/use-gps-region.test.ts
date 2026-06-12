@@ -35,6 +35,10 @@ vi.mock('react', () => ({
   useState: vi.fn(),
 }));
 
+vi.mock('@/utils/base-location', () => ({
+  getBaseLocation: vi.fn(),
+}));
+
 const fetchSpy = vi.fn<typeof globalThis.fetch>();
 vi.stubGlobal('fetch', fetchSpy);
 
@@ -51,6 +55,7 @@ function createSetters() {
     setGpsPermissionGranted: vi.fn(),
     setLocationSource: vi.fn(),
     setMapKey: vi.fn(),
+    setPlaceLabel: vi.fn(),
   };
 }
 
@@ -168,6 +173,45 @@ describe('resolveLocation', () => {
     await resolveLocation(setters);
 
     expect(setters.setLocationSource).toHaveBeenCalledWith('default');
+  });
+
+  it('uses the saved base location when permission denied and a base location exists', async () => {
+    mockGetForegroundPermissionsAsync.mockResolvedValue({ status: 'denied' });
+    const setters = createSetters();
+
+    await resolveLocation(setters, { lat: 51.9, lng: -8.47, label: 'Cork City' });
+
+    expect(setters.setLocationSource).toHaveBeenCalledWith('saved');
+    expect(setters.setInitialRegion).toHaveBeenCalledWith(
+      expect.objectContaining({ latitude: 51.9, longitude: -8.47 })
+    );
+    expect(setters.setPlaceLabel).toHaveBeenCalledWith('Cork City');
+    expect(fetchSpy).not.toHaveBeenCalled(); // saved beats IP
+  });
+
+  it('prefers a live GPS fix over the saved base location', async () => {
+    mockGetForegroundPermissionsAsync.mockResolvedValue({ status: 'granted' });
+    mockGetLastKnownPositionAsync.mockResolvedValue({
+      coords: { latitude: 53.35, longitude: -6.26 },
+    });
+    const setters = createSetters();
+
+    await resolveLocation(setters, { lat: 51.9, lng: -8.47, label: 'Cork City' });
+
+    expect(setters.setLocationSource).toHaveBeenCalledWith('gps');
+    expect(setters.setLocationSource).not.toHaveBeenCalledWith('saved');
+  });
+
+  it('falls back to IP when there is no GPS fix and no saved location', async () => {
+    mockGetForegroundPermissionsAsync.mockResolvedValue({ status: 'denied' });
+    fetchSpy.mockResolvedValueOnce(
+      new Response(JSON.stringify({ ok: true, latitude: 51.9, longitude: -8.47 }), { status: 200 })
+    );
+    const setters = createSetters();
+
+    await resolveLocation(setters, null);
+
+    expect(setters.setLocationSource).toHaveBeenCalledWith('ip');
   });
 });
 
