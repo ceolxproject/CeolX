@@ -18,9 +18,9 @@ import { env } from '@CeolX/env/server';
  *
  * Both files MUST be valid JSON, 200, no redirect. The matching app-side config
  * lives in apps/native/app.config.js (`ios.associatedDomains` +
- * `android.intentFilters`). Paths are scoped to `/post/*` — the only shared
- * link shape today (apps/native/hooks/use-share-post.ts). Widen both sides
- * together if more deep-linkable web routes appear.
+ * `android.intentFilters`). Paths are scoped to `/post/*` and `/event/*` — the
+ * shared link shapes today (apps/native/hooks/use-share-post.ts and the event
+ * share page). Widen both sides together if more deep-linkable web routes appear.
  */
 
 // Bundle id / Android package this deployment vouches for. Prod default;
@@ -34,8 +34,10 @@ const BUNDLE_ID = env.MOBILE_BUNDLE_ID ?? 'ie.ceolx.app';
 const PROD_ANDROID_SHA256 =
   '45:1A:3A:9D:98:E7:84:08:B0:7E:93:33:72:5E:CC:66:32:EC:BD:A5:71:2F:FF:57:25:8A:E1:0F:14:DC:C5:D6';
 
-// Shared-link path scope, kept identical on both platforms.
-const LINK_PATH_GLOB = '/post/*';
+// Shared-link path scopes, kept identical on both platforms. Each shareable web
+// route (apps/native/hooks/use-share-*.ts) needs its prefix listed here AND in
+// the matching app.config.js intentFilters + admin vercel.json rewrite.
+const LINK_PATH_GLOBS = ['/post/*', '/event/*'];
 
 const appLinks = new Hono();
 
@@ -50,7 +52,10 @@ appLinks.get('/.well-known/apple-app-site-association', (c) => {
     ? [
         {
           appIDs: [`${teamId}.${BUNDLE_ID}`],
-          components: [{ '/': LINK_PATH_GLOB, comment: 'Shared CeolX posts' }],
+          components: LINK_PATH_GLOBS.map((glob) => ({
+            '/': glob,
+            comment: 'Shared CeolX links',
+          })),
         },
       ]
     : [];

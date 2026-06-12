@@ -32,7 +32,7 @@ afterEach(() => {
 });
 
 describe('GET /.well-known/apple-app-site-association', () => {
-  it('serves valid JSON with the appID built from the Team ID, scoped to /post/*', async () => {
+  it('serves valid JSON with the appID built from the Team ID, scoped to /post/* and /event/*', async () => {
     mockEnv.APPLE_OAUTH_TEAM_ID = 'ABCDE12345';
     const res = await buildApp().request('/.well-known/apple-app-site-association');
 
@@ -42,7 +42,8 @@ describe('GET /.well-known/apple-app-site-association', () => {
     const body = (await res.json()) as Aasa;
     const detail = body.applinks.details[0];
     expect(detail?.appIDs).toEqual(['ABCDE12345.ie.ceolx.app']);
-    expect(detail?.components[0]?.['/']).toBe('/post/*');
+    const paths = detail?.components.map((comp) => comp['/']);
+    expect(paths).toEqual(['/post/*', '/event/*']);
   });
 
   it('serves valid-but-empty JSON when the Team ID is unset (never 500s the crawler)', async () => {
