@@ -1,7 +1,31 @@
 import { Ionicons } from '@expo/vector-icons';
 import { launchImageLibraryAsync, requestMediaLibraryPermissionsAsync } from 'expo-image-picker';
+import { useVideoPlayer, VideoView } from 'expo-video';
 import { useCallback } from 'react';
 import { ActivityIndicator, Alert, Image, Pressable, Text, View } from 'react-native';
+
+/**
+ * Muted, looping preview of the picked video. Isolated in its own component so
+ * the `useVideoPlayer` hook only runs once a video is actually selected. Shows
+ * the real footage (not a blank placeholder) and uses `cover` so the creator
+ * sees the same reels-style crop the post will display.
+ */
+function LocalVideoPreview({ uri }: { uri: string }) {
+  const player = useVideoPlayer(uri, (p) => {
+    p.loop = true;
+    p.muted = true;
+    p.play();
+  });
+
+  return (
+    <VideoView
+      player={player}
+      style={{ width: '100%', height: '100%' }}
+      nativeControls={false}
+      contentFit="cover"
+    />
+  );
+}
 
 type PickedAsset = {
   uri: string;
@@ -79,17 +103,16 @@ export function MediaPickerField({
         disabled={isUploading}
         className={
           mediaUri
-            ? 'aspect-video overflow-hidden rounded-lg bg-white/10'
+            ? mediaKind === 'video'
+              ? 'aspect-[4/5] overflow-hidden rounded-lg bg-black'
+              : 'aspect-video overflow-hidden rounded-lg bg-white/10'
             : 'aspect-video items-center justify-center rounded-lg border border-dashed border-[#8D8D8D] bg-[rgba(141,141,141,0.3)]'
         }
       >
         {mediaUri ? (
           <>
             {mediaKind === 'video' ? (
-              <View className="h-full w-full items-center justify-center bg-black">
-                <Ionicons name="play-circle" size={56} color="#C8FF2F" />
-                <Text className="mt-2 text-xs text-white/80 font-urbanist">Video selected</Text>
-              </View>
+              <LocalVideoPreview uri={mediaUri} />
             ) : (
               <Image source={{ uri: mediaUri }} className="h-full w-full" resizeMode="cover" />
             )}

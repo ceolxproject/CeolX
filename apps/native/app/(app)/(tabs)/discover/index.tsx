@@ -7,7 +7,6 @@ import {
   Keyboard,
   Pressable,
   RefreshControl,
-  ScrollView,
   Text,
   TextInput,
   View,
@@ -25,7 +24,7 @@ import { FeedHeader } from '@/components/FeedHeader';
 import { FeedLocationSheet } from '@/components/FeedLocationSheet';
 import { FilterSheet } from '@/components/FilterSheet';
 import type { FilterSection } from '@/components/FilterSheet';
-import { PostsList } from '@/components/posts/PostsList';
+import { FeedPostsList } from '@/components/posts/FeedPostsList';
 import { SearchSuggestions } from '@/components/SearchSuggestions';
 import { SegmentToggle } from '@/components/SegmentToggle';
 import { useLocationOverride } from '@/contexts/location-override-context';
@@ -392,34 +391,24 @@ export default function DiscoverScreen() {
         </>
       )}
 
-      {/* Posts tab content */}
+      {/* Posts tab content — a real FlatList (not a ScrollView) so videos can
+          reels-autoplay as they scroll into view. */}
       {activeSegment === 1 && (
-        <ScrollView
-          style={{ flex: 1, backgroundColor: '#080808' }}
-          contentContainerStyle={{ paddingTop: 16, paddingBottom: 32, flexGrow: 1 }}
-          refreshControl={
-            <RefreshControl
-              refreshing={feedPosts.isFetchingNextPage}
-              onRefresh={feedPosts.refresh}
-              tintColor="#C8FF2F"
-            />
+        <FeedPostsList
+          posts={feedPosts.posts}
+          isLoading={feedPosts.isLoading}
+          isFetchingNextPage={feedPosts.isFetchingNextPage}
+          hasNextPage={feedPosts.hasNextPage}
+          currentUserId={me?.id ?? null}
+          onLoadMore={feedPosts.loadMore}
+          refreshing={feedPosts.isFetchingNextPage}
+          onRefresh={feedPosts.refresh}
+          emptyMessage={
+            searchText.trim()
+              ? `No posts match "${searchText.trim()}".`
+              : 'No posts yet. Check back soon for updates from artists and venues.'
           }
-          showsVerticalScrollIndicator={false}
-        >
-          <PostsList
-            posts={feedPosts.posts}
-            isLoading={feedPosts.isLoading}
-            isFetchingNextPage={feedPosts.isFetchingNextPage}
-            hasNextPage={feedPosts.hasNextPage}
-            currentUserId={me?.id ?? null}
-            onLoadMore={feedPosts.loadMore}
-            emptyMessage={
-              searchText.trim()
-                ? `No posts match "${searchText.trim()}".`
-                : 'No posts yet. Check back soon for updates from artists and venues.'
-            }
-          />
-        </ScrollView>
+        />
       )}
 
       <FilterSheet
