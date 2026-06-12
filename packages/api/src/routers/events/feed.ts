@@ -32,7 +32,9 @@ export const getFeed = publicProcedure.input(feedQuerySchema).query(async ({ inp
         .documents()
         .search({
           q: searchQuery,
-          query_by: 'title,category,venue_address',
+          // creator_name is included so tapping an artist/venue name suggestion
+          // (discovery.suggest) surfaces that creator's events, not just title hits.
+          query_by: 'title,category,venue_address,creator_name',
           // 100 km radius matches MAX_DISTANCE_KM in feed-ranking.ts
           filter_by:
             `location:(${lat},${lng},100 km)` + ` && status:=active` + dateFilter + categoryFilter,
