@@ -30,8 +30,9 @@ import { MapHeader } from '@/components/MapHeader';
 import { MapOverlappingEventsSheet } from '@/components/MapOverlappingEventsSheet';
 import { MapSearchBar } from '@/components/MapSearchBar';
 import { PlaceSuggestionsDropdown } from '@/components/PlaceSuggestionsDropdown';
+import { useLocationOverride } from '@/contexts/location-override-context';
 import { useTabBarVisibility } from '@/contexts/tab-bar-visibility-context';
-import { useGpsRegion } from '@/hooks/use-gps-region';
+import { resolveMapInitialRegion, useGpsRegion } from '@/hooks/use-gps-region';
 import { useLocationPermissionPrompt } from '@/hooks/use-location-permission-prompt';
 import type { MapClusterPoint } from '@/hooks/use-map-clusters';
 import {
@@ -53,6 +54,10 @@ const MAP_FILTER_SECTIONS: FilterSection[] = [
 
 export default function MapScreen() {
   const mapRef = useRef<RNMapView>(null);
+  // "lat,lng" of the override we last centred on, so the focus effect re-centres
+  // only when the override actually changed (e.g. set from the Feed) and never
+  // fights a centre we just applied ourselves via a place pick.
+  const lastAppliedOverrideRef = useRef<string | null>(null);
   const router = useRouter();
   // Read insets HERE (inside the root SafeAreaProvider), where they're measured
   // correctly. The permission Modal renders in a separate native window whose
@@ -60,16 +65,29 @@ export default function MapScreen() {
   // known-good values into it rather than letting it re-measure.
   const insets = useSafeAreaInsets();
   const { promptState, focusSearchOnMount, markSeen } = useLocationPermissionPrompt();
+  // Shared with the Feed tab — a manual place pick on either screen syncs here.
+  const { override, setOverride } = useLocationOverride();
   const venueFallback = useVenueFallback();
   const { initialRegion, gpsPermissionGranted, locationSource, mapKey } = useGpsRegion(
     promptState === 'done',
     venueFallback
   );
+  // A manual override wins over the GPS/IP region for where the map opens.
+  const effectiveInitialRegion = resolveMapInitialRegion(override, initialRegion);
   const mapEventsResult = useMapEvents({
-    // Only pass coords once the location chain has resolved — prevents expand
-    // from firing with the Ireland default before GPS/IP has a chance to run.
-    centerLat: locationSource !== 'pending' ? initialRegion.latitude : undefined,
-    centerLng: locationSource !== 'pending' ? initialRegion.longitude : undefined,
+    // A manual override gives explicit coords immediately; otherwise only pass
+    // coords once the location chain has resolved — prevents expand from firing
+    // with the Ireland default before GPS/IP has a chance to run.
+    centerLat: override
+      ? override.lat
+      : locationSource !== 'pending'
+        ? initialRegion.latitude
+        : undefined,
+    centerLng: override
+      ? override.lng
+      : locationSource !== 'pending'
+        ? initialRegion.longitude
+        : undefined,
   });
   const rawEvents = mapEventsResult.events as MapEvent[];
   const events = useMemo(() => {
@@ -123,7 +141,7 @@ export default function MapScreen() {
     }, [isPreviewOpen, setTabBarHidden])
   );
 
-  const { clusters, supercluster } = useMapClusters(events, region ?? initialRegion);
+  const { clusters, supercluster } = useMapClusters(events, region ?? effectiveInitialRegion);
 
   const handleClusterPress = useCallback(
     (clusterId: number, lat: number, lng: number) => {
@@ -209,8 +227,34 @@ export default function MapScreen() {
         800
       );
       commitSelection(result.address);
+      // Sync this intentional pick to the Feed. Mark it as already-applied so the
+      // focus effect doesn't animate to the same spot again on the next focus.
+      lastAppliedOverrideRef.current = `${result.lat},${result.lng}`;
+      setOverride({ lat: result.lat, lng: result.lng, label: result.address });
     },
-    [commitSelection]
+    [commitSelection, setOverride]
+  );
+
+  // Feed → Map: when the shared override changes (e.g. set from the Feed's
+  // location sheet) and differs from what we last centred on, recentre on focus.
+  // Free panning never writes the override, so this only fires for deliberate
+  // picks. Guarded by the ref so re-focusing without a change is a no-op.
+  useFocusEffect(
+    useCallback(() => {
+      if (!override) return;
+      const key = `${override.lat},${override.lng}`;
+      if (lastAppliedOverrideRef.current === key) return;
+      lastAppliedOverrideRef.current = key;
+      mapRef.current?.animateToRegion(
+        {
+          latitude: override.lat,
+          longitude: override.lng,
+          latitudeDelta: 0.15,
+          longitudeDelta: 0.15,
+        },
+        600
+      );
+    }, [override])
   );
 
   const handleRegionChangeComplete = useCallback(
@@ -249,7 +293,7 @@ export default function MapScreen() {
           key={mapKey}
           style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0 }}
           provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
-          initialRegion={initialRegion}
+          initialRegion={effectiveInitialRegion}
           onRegionChangeComplete={handleRegionChangeComplete}
           onPress={handleMapPress}
           showsUserLocation={Boolean(gpsPermissionGranted)}
