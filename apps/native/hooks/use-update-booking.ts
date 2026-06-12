@@ -40,7 +40,13 @@ export function useUpdateBooking() {
       return trpcClient.bookings.update.mutate({ id, status });
     },
     onSettled: () => {
+      // Invalidate BOTH the list AND the per-booking detail query. The detail
+      // screen (bookings.byId) gates the WITHDRAW/ACCEPT buttons on status, so
+      // if we only refresh the list it keeps showing a stale "pending" booking
+      // — letting the user tap WITHDRAW again and hit the raw
+      // "Cannot transition from cancelled to cancelled" backend error.
       void queryClient.invalidateQueries({ queryKey: [['bookings', 'list']] });
+      void queryClient.invalidateQueries({ queryKey: [['bookings', 'byId']] });
     },
   });
 }

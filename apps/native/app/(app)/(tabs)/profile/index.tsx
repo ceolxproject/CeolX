@@ -36,6 +36,7 @@ import { useMyEvents } from '@/hooks/use-my-events';
 import { useMyPosts } from '@/hooks/use-my-posts';
 import { useResendBooking } from '@/hooks/use-resend-booking';
 import { useUpdateBooking } from '@/hooks/use-update-booking';
+import { getBookingActionErrorBody } from '@/utils/booking-error';
 import { MOCK_PROFILE_IMAGE } from '@/utils/mock-images';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -203,8 +204,13 @@ function MyEventsTab() {
   const updateBooking = useUpdateBooking();
 
   const handleCancelBooking = async (bookingId: string) => {
-    await updateBooking.mutateAsync({ id: bookingId, status: 'cancelled' });
-    await confirmed.refresh();
+    try {
+      await updateBooking.mutateAsync({ id: bookingId, status: 'cancelled' });
+      await confirmed.refresh();
+      appToast.success('Booking cancelled');
+    } catch (err) {
+      appToast.error('Could not cancel booking', getBookingActionErrorBody(err));
+    }
   };
 
   // Wait for both queries on the very first load before deciding layout.
@@ -386,7 +392,7 @@ function CollaborationTab({ currentRole }: { currentRole: string }) {
       await Promise.all([sent.refresh(), received.refresh()]);
       appToast.success(copy.success);
     } catch (err) {
-      appToast.error(copy.error, err instanceof Error ? err.message : 'Please try again.');
+      appToast.error(copy.error, getBookingActionErrorBody(err));
     } finally {
       setPending(null);
     }
