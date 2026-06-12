@@ -61,3 +61,4 @@ yarn-error.*
 *.tsbuildinfo
 
 # @end expo-cli
+rl-mobile-ci-*.json
