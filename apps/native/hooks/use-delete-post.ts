@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
+import { markPostDeleted } from '@/hooks/use-deleted-posts';
 import { keyFromCdnUrl, useMediaDelete } from '@/hooks/use-media-delete';
 import { trpc } from '@/utils/trpc';
 
@@ -16,7 +17,13 @@ export function useDeletePost() {
 
   return useMutation({
     ...mutationOptions,
-    onSuccess: async (data) => {
+    onSuccess: async (data, variables) => {
+      // Tombstone the post first so every mounted list drops it immediately —
+      // before the (slower) media cleanup + query invalidation below. This is
+      // what removes the row from the feed AND profile at the same time without
+      // waiting on a refetch.
+      markPostDeleted(queryClient, variables.id);
+
       const key = keyFromCdnUrl(data.mediaUrl);
       try {
         await cleanupAfterDelete({ key, muxAssetId: data.muxAssetId });

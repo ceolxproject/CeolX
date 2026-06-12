@@ -39,7 +39,7 @@ const fetchSpy = vi.fn<typeof globalThis.fetch>();
 vi.stubGlobal('fetch', fetchSpy);
 
 // Import after all mocks
-import { applyVenueFallback, resolveLocation } from '../use-gps-region';
+import { applyVenueFallback, resolveLocation, resolveMapInitialRegion } from '../use-gps-region';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -199,5 +199,27 @@ describe('applyVenueFallback', () => {
 
   it('returns null when there is no venue pin', () => {
     expect(applyVenueFallback('default', null)).toBeNull();
+  });
+});
+
+describe('resolveMapInitialRegion', () => {
+  const gpsRegion = {
+    latitude: 53.35,
+    longitude: -6.26,
+    latitudeDelta: 0.5,
+    longitudeDelta: 0.5,
+  };
+
+  it('falls back to the GPS region when there is no override', () => {
+    expect(resolveMapInitialRegion(null, gpsRegion)).toBe(gpsRegion);
+  });
+
+  it('centres on the manual override at town-level zoom when one is set', () => {
+    expect(resolveMapInitialRegion({ lat: 51.9, lng: -8.47 }, gpsRegion)).toEqual({
+      latitude: 51.9,
+      longitude: -8.47,
+      latitudeDelta: 0.15,
+      longitudeDelta: 0.15,
+    });
   });
 });

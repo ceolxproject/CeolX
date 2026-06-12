@@ -26,6 +26,7 @@ import { FilterSheet } from '@/components/FilterSheet';
 import type { FilterSection } from '@/components/FilterSheet';
 import { PostsList } from '@/components/posts/PostsList';
 import { SegmentToggle } from '@/components/SegmentToggle';
+import { useLocationOverride } from '@/contexts/location-override-context';
 import { useFeedEvents } from '@/hooks/use-feed-events';
 import { useFeedPosts } from '@/hooks/use-feed-posts';
 import { useGpsRegion } from '@/hooks/use-gps-region';
@@ -66,7 +67,8 @@ export default function DiscoverScreen() {
   // The single search box drives whichever segment is active. Kept controlled so
   // we can clear it when switching tabs (Events and Posts search are separate).
   const [searchText, setSearchText] = useState('');
-  const [locationOverride, setLocationOverride] = useState<FeedLocation | null>(null);
+  // Shared with the Map tab — a place pick on either screen syncs to the other.
+  const { override: locationOverride, setOverride } = useLocationOverride();
   const [locationSheetVisible, setLocationSheetVisible] = useState(false);
 
   const effectiveLocation = resolveFeedLocation(
@@ -163,10 +165,13 @@ export default function DiscoverScreen() {
     setDatePickerVisible(false);
   }, [setDate]);
 
-  const handleLocationConfirm = useCallback((loc: FeedLocation) => {
-    setLocationOverride(loc);
-    setLocationSheetVisible(false);
-  }, []);
+  const handleLocationConfirm = useCallback(
+    (loc: FeedLocation) => {
+      setOverride(loc);
+      setLocationSheetVisible(false);
+    },
+    [setOverride]
+  );
 
   const locationText = effectiveLocation.label;
 

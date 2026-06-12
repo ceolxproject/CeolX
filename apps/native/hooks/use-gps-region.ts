@@ -24,6 +24,23 @@ type GpsRegionResult = {
 };
 
 const GPS_ZOOM = { latitudeDelta: 0.5, longitudeDelta: 0.5 };
+// Town-level zoom for a manually chosen location — matches the map's
+// place-search recenter so the override lands at the same scale.
+const OVERRIDE_ZOOM = { latitudeDelta: 0.15, longitudeDelta: 0.15 };
+
+/**
+ * Resolve the map's initial region. A manual location override (shared with the
+ * Feed) wins over the GPS/IP fallback region; otherwise the GPS region is used
+ * unchanged. Pure — the param is structural (`{ lat, lng }`) so this helper stays
+ * decoupled from the Feed's location type.
+ */
+export function resolveMapInitialRegion(
+  override: { lat: number; lng: number } | null,
+  gpsRegion: MapRegion
+): MapRegion {
+  if (!override) return gpsRegion;
+  return { latitude: override.lat, longitude: override.lng, ...OVERRIDE_ZOOM };
+}
 
 type Setters = {
   setInitialRegion: (r: MapRegion) => void;
