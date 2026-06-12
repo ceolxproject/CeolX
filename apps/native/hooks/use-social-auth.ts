@@ -6,6 +6,7 @@ import { Alert, Platform } from 'react-native';
 
 import { appToast } from '@/components/AppToast';
 import { authClient } from '@/lib/auth-client';
+import { getGoogleIdToken } from '@/lib/google-signin';
 
 const POST_AUTH_ROUTE = '/(app)/(tabs)/map' as const;
 // Where a brand-new social user is sent to pick a role and complete sign-up
@@ -34,11 +35,10 @@ export function isSignupAttempt(
   return !!opts && VALID_ROLES.includes(opts.currentRole);
 }
 
-// With implicit signup disabled, BetterAuth's idToken (Apple) path rejects an
-// unknown identity with OAUTH_LINK_ERROR / "signup disabled" instead of creating
-// a row. The Google redirect path cannot return this to the client (the error is
-// a browser redirect the expo client swallows) — there, a missing session is the
-// signal instead. See resolveSignInOutcome.
+// With implicit signup disabled, BetterAuth's idToken path — now used by BOTH
+// Apple and Google (native account sheet) — rejects an unknown identity with
+// OAUTH_LINK_ERROR / "signup disabled" instead of creating a row. The error
+// comes straight back in the response (no browser redirect to swallow it).
 export function isNoAccountError(error: SocialAuthError): boolean {
   if (!error) return false;
   if (error.code === 'OAUTH_LINK_ERROR') return true;
@@ -58,10 +58,10 @@ export function resolveSignInOutcome(params: {
   sessionError?: boolean;
 }): SignInOutcome {
   const { error, hasSession, sessionError } = params;
-  if (isNoAccountError(error)) return 'no-account'; // Apple idToken path
+  if (isNoAccountError(error)) return 'no-account'; // idToken path (Apple + Google)
   if (error) return 'error'; // any other provider error
   if (hasSession || sessionError) return 'enter-app'; // signed in, or don't risk a bounce
-  return 'no-account'; // Google: completed with no session = unknown identity
+  return 'no-account'; // no error yet no session — treat as unknown identity (defensive)
 }
 
 // Persist the chosen role across the OAuth roundtrip. auth-context.tsx picks
@@ -109,9 +109,10 @@ export function useSocialAuth() {
       appToast.error('Sign-in failed', toUserMessage(new Error(error.message ?? '')));
       return;
     }
-    // No error object. For Google the blocked-signup redirect is swallowed by the
-    // expo client, so the presence of a session is what tells an existing user
-    // apart from a brand-new one.
+    // No error object: an existing user signed in. Confirm the session landed
+    // before entering the app (the idToken response sets the cookie; we read it
+    // back rather than assume). A missing session here is the defensive
+    // unknown-identity fallback handled by resolveSignInOutcome.
     let hasSession = false;
     let sessionError = false;
     try {
@@ -131,16 +132,22 @@ export function useSocialAuth() {
   async function signInWithGoogle(signupOptions?: SocialSignupOptions) {
     setIsLoading(true);
     try {
+      // Open the native Google account sheet and get a signed ID token. Throws
+      // GoogleSignInCancelledError on dismiss (swallowed below by the cancelled
+      // check) and GoogleSignInUnavailableError when the SDK isn't configured.
+      const idToken = await getGoogleIdToken();
+
       const isSignup = isSignupAttempt(signupOptions);
       if (isSignup) await stashPendingRegistration(signupOptions);
 
+      // Native idToken flow — identical shape to Apple below. No callbackURL and
+      // no browser redirect: the session (or OAUTH_LINK_ERROR for an unknown
+      // identity) returns in the response and navigation is handled client-side.
       const result = await authClient.signIn.social({
         provider: 'google',
-        callbackURL: POST_AUTH_ROUTE,
-        // Bring the in-app browser back to the app (closing it) if the server
-        // refuses an unknown-identity signup, instead of stranding the user on
-        // the server error page. The expo client rewrites this to a deep link.
-        errorCallbackURL: REGISTER_ROUTE,
+        idToken: {
+          token: idToken,
+        },
         ...(isSignup ? { requestSignUp: true } : {}),
       });
 
@@ -154,7 +161,6 @@ export function useSocialAuth() {
 
       await routeAfterSignIn(result.error);
     } catch (error) {
-      console.error('[google-signin]', error);
       const msg = toUserMessage(error);
       if (!msg.includes('cancelled')) {
         Alert.alert('Google Sign-In', msg);

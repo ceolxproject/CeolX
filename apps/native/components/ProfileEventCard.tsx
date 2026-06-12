@@ -58,7 +58,7 @@ export function ProfileEventCard({
       }
       topRightBadge={
         ownerActions ? (
-          <EventCardOwnerMenu actions={ownerActions} />
+          <EventCardOwnerMenu actions={ownerActions} canDelete={status === EventStatus.ACTIVE} />
         ) : status && status !== EventStatus.ACTIVE ? (
           <View
             className={cn(

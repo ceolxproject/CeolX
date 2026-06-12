@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 // Mock React so the pure helper functions can be tested without a React Native
-// environment (same approach as use-county-search.test.ts).
+// environment.
 vi.mock('react', () => ({
   useState: (initial: unknown) => [initial, vi.fn()],
 }));
@@ -28,6 +28,15 @@ vi.mock('@/lib/auth-client', () => ({
 }));
 vi.mock('@/components/AppToast', () => ({
   appToast: { info: vi.fn(), error: vi.fn() },
+}));
+// google-signin pulls in the native @react-native-google-signin module, which
+// can't resolve in the node test env. The pure helpers don't touch it, so stub.
+vi.mock('@/lib/google-signin', () => ({
+  getGoogleIdToken: vi.fn(),
+  configureGoogleSignIn: vi.fn(),
+  signOutGoogle: vi.fn(),
+  GoogleSignInUnavailableError: class extends Error {},
+  GoogleSignInCancelledError: class extends Error {},
 }));
 
 import { isNoAccountError, isSignupAttempt, resolveSignInOutcome } from '../use-social-auth';

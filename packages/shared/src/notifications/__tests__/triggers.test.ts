@@ -152,6 +152,30 @@ describe('buildNotification — inApp surface diverges from push', () => {
     );
   });
 
+  it('A-17 / V-16 creator-delete — both personas, route to the feed, only needs {eventTitle}', () => {
+    const toArtist = buildNotification(
+      NotificationTrigger.EVENT_DELETED_BY_CREATOR_TO_ARTIST,
+      NotificationSurface.PUSH,
+      { eventTitle: 'Friday Night Trad' }
+    );
+    expect(toArtist.persona).toBe('artist');
+    expect(toArtist.type).toBe('event_deleted');
+    expect(toArtist.route).toBe('/(app)/(tabs)/discover');
+    expect(toArtist.body).toBe(
+      'The organiser deleted "Friday Night Trad" — it\'s no longer on CeolX.'
+    );
+
+    const toVenue = buildNotification(
+      NotificationTrigger.EVENT_DELETED_BY_CREATOR_TO_VENUE,
+      NotificationSurface.IN_APP,
+      { eventTitle: 'Friday Night Trad' }
+    );
+    expect(toVenue.persona).toBe('venue');
+    expect(toVenue.body).toBe(
+      '"Friday Night Trad" hosted at your venue was deleted by the organiser.'
+    );
+  });
+
   it('A-09 inApp adds "Respond before it expires"', () => {
     expect(
       buildNotification(
@@ -205,6 +229,11 @@ describe('buildNotification — placeholder safety', () => {
     NotificationTrigger.BOOKING_WITHDRAWN_TO_ARTIST,
     NotificationTrigger.BOOKING_CANCELLED_TO_ARTIST,
     NotificationTrigger.BOOKING_CANCELLED_TO_VENUE,
+    NotificationTrigger.BOOKING_INVITE_TO_COARTIST,
+    NotificationTrigger.BOOKING_COARTIST_ACCEPTED_TO_INVITER,
+    NotificationTrigger.BOOKING_COARTIST_REJECTED_TO_INVITER,
+    NotificationTrigger.BOOKING_COARTIST_WITHDRAWN_TO_INVITEE,
+    NotificationTrigger.BOOKING_COARTIST_CANCELLED,
   ];
 
   it('every booking-flow trigger has a {bookingId}-bearing route', () => {
@@ -236,6 +265,41 @@ describe('buildNotification — placeholder safety', () => {
         // venueName, eventTitle, date all missing
       })
     ).toThrow(/venueName/);
+  });
+});
+
+// ─── Artist↔artist booking triggers ─────────────────────────────────────────
+
+describe('artist↔artist booking triggers', () => {
+  const vars = {
+    bookingId: 'b1',
+    coArtistName: 'Tune Bomb',
+    eventTitle: 'Trad Night',
+    date: 'Fri 6 Jun',
+  };
+
+  it('builds the co-artist invite push with the inviter name', () => {
+    const n = buildNotification(
+      NotificationTrigger.BOOKING_INVITE_TO_COARTIST,
+      NotificationSurface.PUSH,
+      vars
+    );
+    expect(n.body).toContain('Tune Bomb');
+    expect(n.route).toBe('/(app)/(tabs)/bookings/b1');
+    expect(n.persona).toBe('artist');
+  });
+
+  it('builds accepted / rejected / withdrawn / cancelled to-artist copy', () => {
+    for (const trigger of [
+      NotificationTrigger.BOOKING_COARTIST_ACCEPTED_TO_INVITER,
+      NotificationTrigger.BOOKING_COARTIST_REJECTED_TO_INVITER,
+      NotificationTrigger.BOOKING_COARTIST_WITHDRAWN_TO_INVITEE,
+      NotificationTrigger.BOOKING_COARTIST_CANCELLED,
+    ]) {
+      const n = buildNotification(trigger, NotificationSurface.IN_APP, vars);
+      expect(n.body).toContain('Tune Bomb');
+      expect(n.persona).toBe('artist');
+    }
   });
 });
 

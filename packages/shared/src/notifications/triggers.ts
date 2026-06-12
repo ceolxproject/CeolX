@@ -38,12 +38,21 @@ export const NotificationTrigger = {
   BOOKING_WITHDRAWN_TO_ARTIST: 'booking_withdrawn_to_artist',
   BOOKING_CANCELLED_TO_ARTIST: 'booking_cancelled_to_artist',
   BOOKING_CANCELLED_TO_VENUE: 'booking_cancelled_to_venue',
+  BOOKING_INVITE_TO_COARTIST: 'booking_invite_to_coartist',
+  BOOKING_COARTIST_ACCEPTED_TO_INVITER: 'booking_coartist_accepted_to_inviter',
+  BOOKING_COARTIST_REJECTED_TO_INVITER: 'booking_coartist_rejected_to_inviter',
+  BOOKING_COARTIST_WITHDRAWN_TO_INVITEE: 'booking_coartist_withdrawn_to_invitee',
+  BOOKING_COARTIST_CANCELLED: 'booking_coartist_cancelled',
   ADDED_AS_COLLABORATOR_TO_ARTIST: 'added_as_collaborator_to_artist',
   EVENT_HOSTED_AT_VENUE_TO_VENUE: 'event_hosted_at_venue_to_venue',
   EVENT_REMOVED_BY_ADMIN_TO_ARTIST: 'event_removed_by_admin_to_artist',
   EVENT_REMOVED_BY_ADMIN_TO_VENUE: 'event_removed_by_admin_to_venue',
   EVENT_RESUBMITTED_TO_ARTIST: 'event_resubmitted_to_artist',
   EVENT_RESUBMITTED_TO_VENUE: 'event_resubmitted_to_venue',
+  // Creator deleted (soft-archived) their own event — tell the linked
+  // counterparty (the other side of an invite/request booking).
+  EVENT_DELETED_BY_CREATOR_TO_ARTIST: 'event_deleted_by_creator_to_artist',
+  EVENT_DELETED_BY_CREATOR_TO_VENUE: 'event_deleted_by_creator_to_venue',
   SAVED_EVENT_REMOVED_TO_SAVERS: 'saved_event_removed_to_savers',
 } as const;
 
@@ -229,6 +238,87 @@ export const NOTIFICATION_TRIGGERS: Record<NotificationTrigger, TriggerDefinitio
     },
     email: null,
   },
+  // Artist↔artist booking triggers (A-09a…A-13a). The single {coArtistName}
+  // placeholder is always "the OTHER co-artist, from the recipient's
+  // perspective": the inviter's name when notifying the invitee
+  // (BOOKING_INVITE_TO_COARTIST), and the invitee's name when notifying the
+  // inviter (accepted/rejected/cancelled). The bookings.update dispatcher sets
+  // it accordingly, so callers never decide which name to pass.
+  [NotificationTrigger.BOOKING_INVITE_TO_COARTIST]: {
+    matrixRef: 'A-09a',
+    type: 'booking_invitation',
+    persona: 'artist',
+    routeTemplate: '/(app)/(tabs)/bookings/{bookingId}',
+    push: {
+      title: 'New Collab Invite',
+      body: '{coArtistName} invited you to play "{eventTitle}" on {date}.',
+    },
+    inApp: {
+      title: 'New Collab Invite',
+      body: '{coArtistName} invited you to play "{eventTitle}" on {date}. Respond before it expires.',
+    },
+    email: null,
+  },
+  [NotificationTrigger.BOOKING_COARTIST_ACCEPTED_TO_INVITER]: {
+    matrixRef: 'A-10a',
+    type: 'booking_accepted',
+    persona: 'artist',
+    routeTemplate: '/(app)/(tabs)/bookings/{bookingId}',
+    push: {
+      title: 'Collab Accepted ✓',
+      body: '{coArtistName} accepted your invite for "{eventTitle}" on {date}.',
+    },
+    inApp: {
+      title: 'Collab Accepted ✓',
+      body: '{coArtistName} is confirmed for "{eventTitle}" on {date}.',
+    },
+    email: null,
+  },
+  [NotificationTrigger.BOOKING_COARTIST_REJECTED_TO_INVITER]: {
+    matrixRef: 'A-11a',
+    type: 'booking_rejected',
+    persona: 'artist',
+    routeTemplate: '/(app)/(tabs)/bookings/{bookingId}',
+    push: {
+      title: 'Collab Declined',
+      body: '{coArtistName} declined your invite for "{eventTitle}".',
+    },
+    inApp: {
+      title: 'Collab Declined',
+      body: '{coArtistName} declined your invite for "{eventTitle}" on {date}.',
+    },
+    email: null,
+  },
+  [NotificationTrigger.BOOKING_COARTIST_WITHDRAWN_TO_INVITEE]: {
+    matrixRef: 'A-13a',
+    type: 'booking_withdrawn',
+    persona: 'artist',
+    routeTemplate: '/(app)/(tabs)/bookings/{bookingId}',
+    push: {
+      title: 'Invite Withdrawn',
+      body: '{coArtistName} withdrew the invite for "{eventTitle}".',
+    },
+    inApp: {
+      title: 'Invite Withdrawn',
+      body: '{coArtistName} withdrew the invite for "{eventTitle}" on {date}.',
+    },
+    email: null,
+  },
+  [NotificationTrigger.BOOKING_COARTIST_CANCELLED]: {
+    matrixRef: 'A-12a',
+    type: 'booking_cancelled',
+    persona: 'artist',
+    routeTemplate: '/(app)/(tabs)/bookings/{bookingId}',
+    push: {
+      title: 'Collab Cancelled',
+      body: '{coArtistName} cancelled the collab for "{eventTitle}" on {date}.',
+    },
+    inApp: {
+      title: 'Collab Cancelled',
+      body: '{coArtistName} cancelled the collab for "{eventTitle}" on {date}.',
+    },
+    email: null,
+  },
   // A-13 — Artist auto-added as a confirmed collaborator on a Venue event
   // (no accept/reject step). Routes to the event itself.
   [NotificationTrigger.ADDED_AS_COLLABORATOR_TO_ARTIST]: {
@@ -327,6 +417,43 @@ export const NOTIFICATION_TRIGGERS: Record<NotificationTrigger, TriggerDefinitio
     inApp: {
       title: 'Event Resubmitted ✓',
       body: 'Your updated event "{eventTitle}" is back live on CeolX.',
+    },
+    email: null,
+  },
+  // A-17 — Creator deleted their event; tell the linked Artist (confirmed or
+  // invited via a pending/accepted booking). Routes to the feed because the
+  // event is archived and its detail page 404s for non-creators.
+  // NOTE: provisional matrix row — confirm A-17/V-16 IDs with Pratiksha
+  // (Asana 1215489535915818).
+  [NotificationTrigger.EVENT_DELETED_BY_CREATOR_TO_ARTIST]: {
+    matrixRef: 'A-17',
+    type: 'event_deleted',
+    persona: 'artist',
+    routeTemplate: '/(app)/(tabs)/discover',
+    push: {
+      title: 'Event cancelled',
+      body: 'The organiser deleted "{eventTitle}" — it\'s no longer on CeolX.',
+    },
+    inApp: {
+      title: 'Event cancelled',
+      body: '"{eventTitle}" was deleted by the organiser, so your involvement has ended.',
+    },
+    email: null,
+  },
+  // V-16 — Same, told to the linked Venue (e.g. an Artist deleted an event
+  // hosted at their venue).
+  [NotificationTrigger.EVENT_DELETED_BY_CREATOR_TO_VENUE]: {
+    matrixRef: 'V-16',
+    type: 'event_deleted',
+    persona: 'venue',
+    routeTemplate: '/(app)/(tabs)/discover',
+    push: {
+      title: 'Event cancelled',
+      body: 'The organiser deleted "{eventTitle}" — it\'s no longer on CeolX.',
+    },
+    inApp: {
+      title: 'Event cancelled',
+      body: '"{eventTitle}" hosted at your venue was deleted by the organiser.',
     },
     email: null,
   },

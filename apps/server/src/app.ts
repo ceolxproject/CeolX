@@ -15,7 +15,9 @@ import '@CeolX/env/server'; // validates required env vars at startup
 
 import { isAllowedOrigin } from './config/cors';
 import { errorHandler } from './middleware/errorHandler';
+import appLinksRoute from './routes/app-links';
 import locationRoutes from './routes/location';
+import postShareRoute from './routes/post-share';
 import resetPasswordRoute from './routes/reset-password';
 import verifyEmailRoute from './routes/verify-email';
 import webhooksRoutes from './routes/webhooks';
@@ -61,6 +63,12 @@ export function buildApp() {
   // ceolx:// hrefs, so these pages return an HTML auto-redirect into the app.
   app.route('/', verifyEmailRoute);
   app.route('/', resetPasswordRoute);
+
+  // App Links / Universal Links ownership files + the shared-post web fallback.
+  // ceolx.ie (admin) rewrites /.well-known/* and /post/* here. No auth, no rate
+  // limit — these are public and hit by OS verifiers + social crawlers.
+  app.route('/', appLinksRoute);
+  app.route('/', postShareRoute);
 
   // tRPC — all feature procedures (events, artists, bookings, admin) live in packages/api
   app.use('/trpc/*', rateLimiter(RATE_LIMIT_TIERS.authenticatedGeneral));

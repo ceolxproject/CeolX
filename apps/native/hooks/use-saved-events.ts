@@ -1,6 +1,8 @@
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
+import { mergePaginatedEvents } from './merge-paginated-events';
+
 import { trpc } from '@/utils/trpc';
 
 const PAGE_SIZE = 20;
@@ -37,17 +39,12 @@ export function useSavedEvents(includeArchived = false) {
   useEffect(() => {
     if (!data || isFetching) return;
     const newEvents = data.events as SavedEvent[];
-    if (offset === 0) {
-      if (
-        accumulatedEvents.length !== newEvents.length ||
-        (newEvents.length > 0 && accumulatedEvents[0]?.id !== newEvents[0]?.id)
-      ) {
-        setAccumulatedEvents(newEvents);
-        setHasNextPage(data.hasNextPage);
-        setTotalCount(data.totalCount);
-      }
-    } else if (accumulatedEvents.length < offset + newEvents.length) {
-      setAccumulatedEvents((prev) => [...prev, ...newEvents]);
+    // Always reflect the freshest first page so in-place edits (a replaced
+    // cover image, an edited title) appear once the events cache is
+    // invalidated, rather than staying stale until an app restart.
+    const merged = mergePaginatedEvents({ offset, prev: accumulatedEvents, incoming: newEvents });
+    if (merged) {
+      setAccumulatedEvents(merged);
       setHasNextPage(data.hasNextPage);
       setTotalCount(data.totalCount);
     }

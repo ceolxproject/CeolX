@@ -9,10 +9,26 @@ import { UserRole } from '@CeolX/shared/enums';
 
 import { getTabPressActions } from './app-tab-bar.utils';
 
+import { useTabBarVisibility } from '@/contexts/tab-bar-visibility-context';
 import { useMe } from '@/hooks/use-me';
 
 // Nested stack routes inside (tabs) that render full-screen and must hide the tab bar.
 const HIDDEN_TAB_BAR_PATHS = new Set(['/profile/followers', '/profile/following']);
+
+// Dynamic detail routes (event/booking id in the path) that must hide the tab
+// bar. Matched by prefix since the trailing segment is the id. Each tab owns its
+// own copy of a detail route so drilling in stays within that tab's stack.
+const HIDDEN_TAB_BAR_PREFIXES = [
+  '/discover/event/',
+  '/map/event/',
+  '/profile/event/',
+  '/profile/booking/',
+  '/bookings/event/',
+];
+
+const shouldHideTabBar = (pathname: string) =>
+  HIDDEN_TAB_BAR_PATHS.has(pathname) ||
+  HIDDEN_TAB_BAR_PREFIXES.some((prefix) => pathname.startsWith(prefix));
 
 type IoniconsName = ComponentProps<typeof Ionicons>['name'];
 
@@ -40,10 +56,13 @@ export type AppTabBarProps = TabBarCallbackProps & {
 export function AppTabBar({ state, navigation, onFabPress }: AppTabBarProps) {
   const insets = useSafeAreaInsets();
   const pathname = usePathname();
+  const { hidden } = useTabBarVisibility();
   const { data: me } = useMe();
   const currentRole = me?.currentRole ?? 'spectator';
 
-  if (HIDDEN_TAB_BAR_PATHS.has(pathname)) return null;
+  // Route-based hide (detail screens) OR an overlay on the current screen asked
+  // to own the bottom (e.g. the map's event preview card / same-location sheet).
+  if (hidden || shouldHideTabBar(pathname)) return null;
 
   const getTabLabel = (tab: TabConfig) => {
     if (tab.name === 'bookings') {

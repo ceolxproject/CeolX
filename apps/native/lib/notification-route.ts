@@ -29,6 +29,11 @@ export function resolveNotificationRoute(route: string): Href {
   const event = route.match(/^\/events\/([^/]+)$/);
   if (event) return `/(app)/(tabs)/discover/event/${event[1]}` as Href;
 
+  // Bare post detail: /post/:id — the shape shared links use
+  // (apps/native/hooks/use-share-post.ts) and any future post notification.
+  const post = route.match(/^\/post\/([^/]+)$/);
+  if (post) return `/(app)/post/${post[1]}` as Href;
+
   // Legacy feed alias and anything unrecognised — never 404, land on discover.
   return DISCOVER_ROUTE;
 }

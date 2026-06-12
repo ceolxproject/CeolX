@@ -1,7 +1,15 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Platform,
+  Pressable,
+  ScrollView,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { createPostSchema, updatePostSchema } from '@CeolX/shared/validators';
@@ -13,6 +21,7 @@ import { useMediaDelete, keyFromCdnUrl } from '@/hooks/use-media-delete';
 import { useMediaUpload } from '@/hooks/use-media-upload';
 import { usePostById } from '@/hooks/use-post-by-id';
 import { useUpdatePost } from '@/hooks/use-update-post';
+import { planPostMediaUpdate } from '@/hooks/use-update-post.utils';
 import { useVideoUpload } from '@/hooks/use-video-upload';
 
 const CAPTION_MAX = 500;
@@ -43,6 +52,10 @@ export default function CreatePostScreen() {
   const isUploading = imageUpload.isUploading || videoUpload.isUploading;
   const progress = imageUpload.isUploading ? imageUpload.progress : videoUpload.progress;
 
+  // Covers the whole publish flow (upload + mutation), so the button shows a
+  // spinner the instant it's tapped instead of only once the mutation fires.
+  const [isPublishing, setIsPublishing] = useState(false);
+
   // Seed form when editing an existing post.
   useEffect(() => {
     if (!isEditing || !existing.data) return;
@@ -54,32 +67,70 @@ export default function CreatePostScreen() {
     }
   }, [existing.data, isEditing]);
 
-  const handleRemoveMedia = async () => {
-    // If the existing media is already in S3, delete it now so the bucket
-    // doesn't accumulate orphans. Best-effort — log and move on if it fails.
-    if (media?.cdnUrl) {
-      const key = keyFromCdnUrl(media.cdnUrl);
-      if (key) {
-        try {
-          await cleanupAfterDelete({ key });
-        } catch (err) {
-          console.warn('[post] failed to clean up replaced media', err);
-        }
-      }
-    }
-    setMedia(null);
-  };
+  // Android-only: a freshly-picked image paints black until the picker field
+  // remounts (same issue as the event cover — see create.tsx and Asana
+  // 1215040939202669). Bump a key shortly after a new image is picked to force
+  // that remount. iOS renders fine, so we skip it there. Videos render a static
+  // placeholder, not an <Image>, so they don't need it.
+  const [mediaRefreshKey, setMediaRefreshKey] = useState(0);
+  useEffect(() => {
+    if (Platform.OS !== 'android' || media?.kind !== 'image' || !media.uri) return;
+    const timer = setTimeout(() => setMediaRefreshKey((k) => k + 1), 350);
+    return () => clearTimeout(timer);
+  }, [media?.uri, media?.kind]);
 
-  const disabled =
-    caption.trim().length === 0 || isUploading || createPost.isPending || updatePost.isPending;
+  // Clearing media is just local state — any S3 cleanup of a replaced or
+  // removed image happens once the edit is actually saved (see handlePublish).
+  // That way, cancelling an edit after removing the image never deletes a file
+  // the post still points to.
+  const handleRemoveMedia = () => setMedia(null);
+
+  const busy = isPublishing || createPost.isPending || updatePost.isPending;
+  const disabled = caption.trim().length === 0 || isUploading || busy;
 
   const handlePublish = async () => {
+    setIsPublishing(true);
     try {
       if (isEditing && editId) {
-        // Editing only updates caption (video mediaUrl is server-managed,
-        // and we don't currently support swapping media on edit).
-        const input = updatePostSchema.parse({ id: editId, caption: caption.trim() });
+        // Work out what changed about the media: a new image to upload, an
+        // existing image removed, or no change. Video media is managed by Mux
+        // server-side and is never swapped on edit.
+        const plan = planPostMediaUpdate({
+          originalMediaType: existing.data?.mediaType,
+          originalMediaUrl: existing.data?.mediaUrl,
+          currentKind: media?.kind ?? null,
+          currentHasCdnUrl: !!media?.cdnUrl,
+        });
+
+        const updateInput: Record<string, unknown> = { id: editId, caption: caption.trim() };
+        if (plan.action === 'upload' && media) {
+          // Freshly-picked image — upload to S3 and point the post at the new URL.
+          const { cdnUrl } = await imageUpload.uploadMedia({
+            uri: media.uri,
+            mimeType: media.mimeType,
+            fileSize: media.fileSize ?? null,
+          });
+          updateInput.mediaType = 'image';
+          updateInput.mediaUrl = cdnUrl;
+        } else if (plan.action === 'clear') {
+          // Image removed — revert the post to text-only.
+          updateInput.mediaType = 'text';
+          updateInput.mediaUrl = null;
+        }
+
+        const input = updatePostSchema.parse(updateInput);
         await updatePost.mutateAsync(input);
+
+        // Best-effort cleanup of the replaced/removed image, after the save
+        // succeeds. Fire-and-forget — S3 lifecycle (90-day expiry) is the net.
+        if (plan.action !== 'keep' && plan.cleanupUrl) {
+          const key = keyFromCdnUrl(plan.cleanupUrl);
+          if (key) {
+            cleanupAfterDelete({ key }).catch((err) => {
+              console.warn('[post] failed to clean up replaced media', err);
+            });
+          }
+        }
       } else if (media?.kind === 'video') {
         // Mux pipeline — get an uploadId, persist that. The webhook fills
         // in playback_id/mediaUrl asynchronously.
@@ -115,6 +166,8 @@ export default function CreatePostScreen() {
       router.back();
     } catch (err) {
       appToast.error('Failed to publish', err instanceof Error ? err.message : 'Please try again.');
+    } finally {
+      setIsPublishing(false);
     }
   };
 
@@ -134,6 +187,7 @@ export default function CreatePostScreen() {
 
           <View className="mb-5">
             <MediaPickerField
+              key={mediaRefreshKey}
               mediaUri={media?.uri ?? null}
               mediaKind={media?.kind}
               onPick={(asset) =>
@@ -181,7 +235,7 @@ export default function CreatePostScreen() {
               : 'h-14 items-center justify-center rounded-full bg-[#6155F5]'
           }
         >
-          {createPost.isPending || updatePost.isPending ? (
+          {busy ? (
             <ActivityIndicator color="#fff" />
           ) : (
             <Text className="text-base font-bold uppercase text-white font-inter tracking-wider">

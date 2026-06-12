@@ -25,7 +25,7 @@ import type { DispatchNotificationInput } from '../../context';
 import { creatorProcedure, protectedProcedure, publicProcedure } from '../../index';
 import { syncEventToTypesense, removeEventFromTypesense } from '../../services/event-sync';
 
-import { resolveEventCoordinates } from './helpers';
+import { resolveEventCoordinates, resolveProfileImageUrl } from './helpers';
 import { recordEventView } from './view-tracking';
 
 type DbTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -60,6 +60,68 @@ const lookupVenueCoords = async (venueId: string) => {
     .limit(1);
   return venue ?? null;
 };
+
+/**
+ * A row in `event_collaborators` only counts as a *confirmed performer* — i.e.
+ * something the event detail screen should surface in its Artist / Performing
+ * Artist sections — when it is a real platform artist (so `artistProfileId` is
+ * set, which excludes venue-participant rows and unregistered email invites)
+ * AND it either has no booking (legacy auto-confirmed direct-add) or a booking
+ * the artist has accepted. Pending invites, external email invites, and venue
+ * rows are intentionally hidden until accepted. Mirrors the rule in
+ * `bookings.confirmedEvents`. See CLAUDE.md (confirmed collaborator = ACCEPTED).
+ */
+export function isConfirmedPerformer(
+  collaborator: { artistProfileId: string | null; bookingId: string | null },
+  acceptedBookingIds: Set<string>
+): boolean {
+  if (collaborator.artistProfileId === null) return false;
+  return collaborator.bookingId === null || acceptedBookingIds.has(collaborator.bookingId);
+}
+
+/**
+ * An *external invitee* is an outside-platform performer added by name/email:
+ * `artistProfileId` is null (no account), `venueProfileId` is null (not a venue
+ * participant row), and an `invitedName` was supplied. These can't accept an
+ * invite in-app, so we surface them as confirmed-looking, **non-tappable** cards
+ * (placeholder image, no /artist/:id link). Excludes venue-participant rows,
+ * which are also account-less but carry a `venueProfileId`.
+ */
+export function isExternalInvitee(collaborator: {
+  artistProfileId: string | null;
+  venueProfileId: string | null;
+  invitedName: string | null;
+}): boolean {
+  return (
+    collaborator.artistProfileId === null &&
+    collaborator.venueProfileId === null &&
+    collaborator.invitedName !== null
+  );
+}
+
+/**
+ * The outside-platform invitees of an event, shaped for the edit form's
+ * `unregisteredCollaborators` field. Uses the same `isExternalInvitee`
+ * definition as the display list, so only genuine name/email invites qualify.
+ *
+ * This deliberately excludes account-less *venue-participant* rows (which carry
+ * a `venueProfileId` and no `invitedName`). The previous loose
+ * `!c.artistProfileId` filter let those through as `{ name: '', email: '' }`,
+ * which the edit form then re-submitted — failing the create/edit schema's
+ * `name.min(1)` rule with "Too small expected string to have >=1".
+ */
+export function toUnregisteredCollaborators(
+  collaborators: Array<{
+    artistProfileId: string | null;
+    venueProfileId: string | null;
+    invitedName: string | null;
+    invitedEmail: string | null;
+  }>
+): Array<{ name: string; email: string }> {
+  return collaborators
+    .filter(isExternalInvitee)
+    .map((c) => ({ name: c.invitedName ?? '', email: c.invitedEmail ?? '' }));
+}
 
 export const byId = publicProcedure
   .input(z.object({ id: z.string().uuid() }))
@@ -97,6 +159,10 @@ export const byId = publicProcedure
       .map((c) => c.artistProfileId)
       .filter((id): id is string => id !== null);
 
+    const collaboratorBookingIds = event.collaborators
+      .map((c) => c.bookingId)
+      .filter((id): id is string => id !== null);
+
     const [
       collaboratorProfiles,
       collaboratorUsers,
@@ -106,6 +172,7 @@ export const byId = publicProcedure
       relatedEvents,
       creatorArtistProfile,
       creatorVenueProfile,
+      acceptedBookings,
     ] = await Promise.all([
       // stageName + genre for each collaborator
       collaboratorUserIds.length > 0
@@ -115,7 +182,9 @@ export const byId = publicProcedure
             .where(inArray(artistProfiles.userId, collaboratorUserIds))
         : Promise.resolve([]),
 
-      // profile image (user.image) for each collaborator
+      // user.image for each collaborator — only a fallback; the uploaded
+      // profile picture in artist_profiles.profileImageUrl takes precedence
+      // (see resolveProfileImageUrl). Asana 1215429148917917
       collaboratorUserIds.length > 0
         ? db
             .select({ id: user.id, image: user.image })
@@ -178,11 +247,36 @@ export const byId = publicProcedure
       db.query.venueProfiles.findFirst({
         where: eq(venueProfiles.userId, event.createdBy),
       }),
+
+      // which of this event's collaborator bookings are accepted — drives the
+      // confirmed-performer filter so pending invites stay hidden
+      collaboratorBookingIds.length > 0
+        ? db
+            .select({ id: bookings.id })
+            .from(bookings)
+            .where(
+              and(
+                inArray(bookings.id, collaboratorBookingIds),
+                eq(bookings.status, BookingStatus.ACCEPTED)
+              )
+            )
+        : Promise.resolve([]),
     ]);
 
     const profileByUserId = new Map(collaboratorProfiles.map((p) => [p.userId, p]));
     const userImageById = new Map(collaboratorUsers.map((u) => [u.id, u.image]));
     const countByUserId = new Map(collaboratorEventCounts.map((r) => [r.artistProfileId, r.count]));
+
+    const acceptedBookingIds = new Set(acceptedBookings.map((b) => b.id));
+
+    // Rows the UI may show: confirmed performers (accepted bookings + legacy
+    // auto-confirmed direct-adds) and outside-platform invitees (shown as
+    // non-tappable name cards). Excludes pending platform invites and
+    // venue-participant rows. (Asana — event detail showed broken "Invited
+    // Artist" cards that navigated nowhere.)
+    const displayCollaborators = event.collaborators.filter(
+      (c) => isConfirmedPerformer(c, acceptedBookingIds) || isExternalInvitee(c)
+    );
 
     return {
       id: event.id,
@@ -212,12 +306,19 @@ export const byId = publicProcedure
           creatorVenueProfile?.venueName ??
           event.creator?.name ??
           'Unknown',
-        imageUrl: event.creator?.image ?? null,
+        imageUrl: resolveProfileImageUrl(
+          creatorArtistProfile ?? creatorVenueProfile,
+          event.creator?.image
+        ),
         type: creatorArtistProfile ? UserRole.ARTIST : UserRole.VENUE,
       },
-      collaborators: event.collaborators.map((c) => {
+      // Confirmed performers + external invitees. Platform rows carry the
+      // artist's user id as `id` (a valid /artist/:id target); external rows
+      // carry the collaborator row id and `isExternal: true` so the client
+      // renders a non-tappable placeholder card.
+      collaborators: displayCollaborators.map((c) => {
         if (!c.artistProfileId) {
-          // Non-platform artist (invited by name/email, no user account yet)
+          // Outside-platform invitee — name only, no account/profile to link to.
           return {
             id: c.id,
             stageName: c.invitedName ?? 'Invited Artist',
@@ -227,21 +328,20 @@ export const byId = publicProcedure
             isExternal: true,
           };
         }
-        const profile = profileByUserId.get(c.artistProfileId);
+        const artistUserId = c.artistProfileId;
+        const profile = profileByUserId.get(artistUserId);
         return {
-          id: c.artistProfileId,
+          id: artistUserId,
           stageName: profile?.stageName ?? 'Unknown Artist',
           // `genres` (text[]) is the live field; fall back to the deprecated
           // singular `genre` column for legacy profiles.
           genre: profile?.genres?.[0] ?? profile?.genre ?? null,
-          profileImageUrl: userImageById.get(c.artistProfileId) ?? null,
-          eventCount: countByUserId.get(c.artistProfileId) ?? 0,
+          profileImageUrl: resolveProfileImageUrl(profile, userImageById.get(artistUserId)),
+          eventCount: countByUserId.get(artistUserId) ?? 0,
           isExternal: false,
         };
       }),
-      unregisteredCollaborators: event.collaborators
-        .filter((c) => !c.artistProfileId)
-        .map((c) => ({ name: c.invitedName ?? '', email: c.invitedEmail ?? '' })),
+      unregisteredCollaborators: toUnregisteredCollaborators(event.collaborators),
       collection: event.collection
         ? { id: event.collection.id, name: event.collection.name }
         : null,
@@ -262,6 +362,10 @@ export const create = creatorProcedure.input(createEventSchema).mutation(async (
   const { platformInvites, unregisteredCollaborators, ...eventData } = input;
 
   const isVenue = ctx.session.user.currentRole === UserRole.VENUE;
+
+  // Exclude the creator from their own invite list (artists could otherwise
+  // search and invite themselves). platformInvites carry userIds.
+  const inviteUserIds = (platformInvites ?? []).filter((id) => id !== ctx.userId);
 
   // Ad fields are venue-only — strip them for non-venue creators
   if (!isVenue) {
@@ -322,25 +426,23 @@ export const create = creatorProcedure.input(createEventSchema).mutation(async (
       );
     }
 
-    // Platform invites (venue only) — create pending bookings for invited artists
-    if (platformInvites && platformInvites.length > 0 && isVenue) {
-      const inviteUserIds = platformInvites;
+    // Platform invites → pending bookings for invited artists.
+    if (inviteUserIds.length > 0) {
+      const inviteProfiles = await tx
+        .select({
+          id: artistProfiles.id,
+          userId: artistProfiles.userId,
+          stageName: artistProfiles.stageName,
+        })
+        .from(artistProfiles)
+        .where(inArray(artistProfiles.userId, inviteUserIds));
 
-      if (inviteUserIds.length > 0) {
+      if (isVenue) {
+        // ── Venue → Artist (existing behaviour) ──
         const venueProfile = await tx.query.venueProfiles.findFirst({
           where: eq(venueProfiles.userId, ctx.userId),
           columns: { id: true, venueName: true },
         });
-
-        const inviteProfiles = await tx
-          .select({
-            id: artistProfiles.id,
-            userId: artistProfiles.userId,
-            stageName: artistProfiles.stageName,
-          })
-          .from(artistProfiles)
-          .where(inArray(artistProfiles.userId, inviteUserIds));
-
         if (venueProfile) {
           for (const ap of inviteProfiles) {
             const [booking] = await tx
@@ -353,14 +455,12 @@ export const create = creatorProcedure.input(createEventSchema).mutation(async (
                 direction: BookingDirection.VENUE_TO_ARTIST,
               })
               .returning();
-
             if (booking) {
               await tx.insert(eventCollaborators).values({
                 eventId: inserted.id,
                 artistProfileId: ap.userId,
                 bookingId: booking.id,
               });
-
               // Matrix A-09 — Venue invited Artist (booking is PENDING here).
               pendingDispatches.push({
                 trigger: NotificationTrigger.BOOKING_INVITE_TO_ARTIST,
@@ -369,6 +469,44 @@ export const create = creatorProcedure.input(createEventSchema).mutation(async (
                   bookingId: booking.id,
                   venueName: venueProfile.venueName,
                   artistName: ap.stageName,
+                  eventTitle: inserted.title,
+                  date: formatNotificationDate(inserted.dateStart),
+                },
+              });
+            }
+          }
+        }
+      } else {
+        // ── Artist → Artist (new) ──
+        const creatorProfile = await tx.query.artistProfiles.findFirst({
+          where: eq(artistProfiles.userId, ctx.userId),
+          columns: { id: true, stageName: true },
+        });
+        if (creatorProfile) {
+          for (const ap of inviteProfiles) {
+            const [booking] = await tx
+              .insert(bookings)
+              .values({
+                artistId: ap.id,
+                inviterArtistId: creatorProfile.id,
+                venueId: null,
+                eventId: inserted.id,
+                status: BookingStatus.PENDING,
+                direction: BookingDirection.ARTIST_TO_ARTIST,
+              })
+              .returning();
+            if (booking) {
+              await tx.insert(eventCollaborators).values({
+                eventId: inserted.id,
+                artistProfileId: ap.userId,
+                bookingId: booking.id,
+              });
+              pendingDispatches.push({
+                trigger: NotificationTrigger.BOOKING_INVITE_TO_COARTIST,
+                recipientUserId: ap.userId,
+                vars: {
+                  bookingId: booking.id,
+                  coArtistName: creatorProfile.stageName,
                   eventTitle: inserted.title,
                   date: formatNotificationDate(inserted.dateStart),
                 },
@@ -672,8 +810,11 @@ export const update = protectedProcedure
         }
       }
 
-      // Platform invites (venue only) — create pending bookings for newly invited artists
-      if (platformInvites !== undefined && platformInvites.length > 0 && isVenue) {
+      // Platform invites — create pending bookings for newly invited artists.
+      // Venue → VENUE_TO_ARTIST (performer invite); artist → ARTIST_TO_ARTIST
+      // (co-artist invite). Self is excluded; already-collaborating artists are
+      // skipped so re-saving the form doesn't duplicate invites.
+      if (platformInvites !== undefined && platformInvites.length > 0) {
         const existingCollabs = await tx.query.eventCollaborators.findMany({
           where: eq(eventCollaborators.eventId, input.id),
           columns: { artistProfileId: true },
@@ -682,14 +823,11 @@ export const update = protectedProcedure
           existingCollabs.map((c) => c.artistProfileId).filter((id): id is string => id !== null)
         );
 
-        const newInviteUserIds = platformInvites.filter((id) => !existingArtistUserIds.has(id));
+        const newInviteUserIds = platformInvites.filter(
+          (id) => id !== ctx.userId && !existingArtistUserIds.has(id)
+        );
 
         if (newInviteUserIds.length > 0) {
-          const venueProfile = await tx.query.venueProfiles.findFirst({
-            where: eq(venueProfiles.userId, ctx.userId),
-            columns: { id: true, venueName: true },
-          });
-
           const inviteProfiles = await tx
             .select({
               id: artistProfiles.id,
@@ -699,38 +837,86 @@ export const update = protectedProcedure
             .from(artistProfiles)
             .where(inArray(artistProfiles.userId, newInviteUserIds));
 
-          if (venueProfile) {
-            for (const ap of inviteProfiles) {
-              const [booking] = await tx
-                .insert(bookings)
-                .values({
-                  artistId: ap.id,
-                  venueId: venueProfile.id,
-                  eventId: input.id,
-                  status: BookingStatus.PENDING,
-                  direction: BookingDirection.VENUE_TO_ARTIST,
-                })
-                .returning();
+          if (isVenue) {
+            const venueProfile = await tx.query.venueProfiles.findFirst({
+              where: eq(venueProfiles.userId, ctx.userId),
+              columns: { id: true, venueName: true },
+            });
 
-              if (booking) {
-                await tx.insert(eventCollaborators).values({
-                  eventId: input.id,
-                  artistProfileId: ap.userId,
-                  bookingId: booking.id,
-                });
+            if (venueProfile) {
+              for (const ap of inviteProfiles) {
+                const [booking] = await tx
+                  .insert(bookings)
+                  .values({
+                    artistId: ap.id,
+                    venueId: venueProfile.id,
+                    eventId: input.id,
+                    status: BookingStatus.PENDING,
+                    direction: BookingDirection.VENUE_TO_ARTIST,
+                  })
+                  .returning();
 
-                // Matrix A-09 — Venue invited Artist (booking is PENDING here).
-                pendingDispatches.push({
-                  trigger: NotificationTrigger.BOOKING_INVITE_TO_ARTIST,
-                  recipientUserId: ap.userId,
-                  vars: {
+                if (booking) {
+                  await tx.insert(eventCollaborators).values({
+                    eventId: input.id,
+                    artistProfileId: ap.userId,
                     bookingId: booking.id,
-                    venueName: venueProfile.venueName,
-                    artistName: ap.stageName,
-                    eventTitle: result.title,
-                    date: formatNotificationDate(result.dateStart),
-                  },
-                });
+                  });
+
+                  // Matrix A-09 — Venue invited Artist (booking is PENDING here).
+                  pendingDispatches.push({
+                    trigger: NotificationTrigger.BOOKING_INVITE_TO_ARTIST,
+                    recipientUserId: ap.userId,
+                    vars: {
+                      bookingId: booking.id,
+                      venueName: venueProfile.venueName,
+                      artistName: ap.stageName,
+                      eventTitle: result.title,
+                      date: formatNotificationDate(result.dateStart),
+                    },
+                  });
+                }
+              }
+            }
+          } else {
+            const creatorProfile = await tx.query.artistProfiles.findFirst({
+              where: eq(artistProfiles.userId, ctx.userId),
+              columns: { id: true, stageName: true },
+            });
+
+            if (creatorProfile) {
+              for (const ap of inviteProfiles) {
+                const [booking] = await tx
+                  .insert(bookings)
+                  .values({
+                    artistId: ap.id,
+                    inviterArtistId: creatorProfile.id,
+                    venueId: null,
+                    eventId: input.id,
+                    status: BookingStatus.PENDING,
+                    direction: BookingDirection.ARTIST_TO_ARTIST,
+                  })
+                  .returning();
+
+                if (booking) {
+                  await tx.insert(eventCollaborators).values({
+                    eventId: input.id,
+                    artistProfileId: ap.userId,
+                    bookingId: booking.id,
+                  });
+
+                  // Co-artist invite — pending until the invitee accepts.
+                  pendingDispatches.push({
+                    trigger: NotificationTrigger.BOOKING_INVITE_TO_COARTIST,
+                    recipientUserId: ap.userId,
+                    vars: {
+                      bookingId: booking.id,
+                      coArtistName: creatorProfile.stageName,
+                      eventTitle: result.title,
+                      date: formatNotificationDate(result.dateStart),
+                    },
+                  });
+                }
               }
             }
           }
@@ -794,6 +980,48 @@ export const archive = protectedProcedure
 
     await removeEventFromTypesense(input.id).catch(() => {});
 
+    // Tell the linked counterparty their event was deleted. The other side of
+    // any still-live booking (a venue's invited/confirmed artist, or the venue
+    // an artist tagged) loses the event silently otherwise. Best-effort fan-out
+    // — a dispatch outage must not fail the delete (mirrors admin/moderation).
+    const linked = await db
+      .select({
+        artistUserId: artistProfiles.userId,
+        venueUserId: venueProfiles.userId,
+      })
+      .from(bookings)
+      .leftJoin(artistProfiles, eq(artistProfiles.id, bookings.artistId))
+      .leftJoin(venueProfiles, eq(venueProfiles.id, bookings.venueId))
+      .where(
+        and(
+          eq(bookings.eventId, input.id),
+          inArray(bookings.status, [BookingStatus.PENDING, BookingStatus.ACCEPTED])
+        )
+      );
+
+    const artistRecipients = new Set<string>();
+    const venueRecipients = new Set<string>();
+    for (const row of linked) {
+      if (row.artistUserId && row.artistUserId !== ctx.userId)
+        artistRecipients.add(row.artistUserId);
+      if (row.venueUserId && row.venueUserId !== ctx.userId) venueRecipients.add(row.venueUserId);
+    }
+
+    const dispatches: DispatchNotificationInput[] = [
+      ...[...artistRecipients].map((recipientUserId) => ({
+        trigger: NotificationTrigger.EVENT_DELETED_BY_CREATOR_TO_ARTIST,
+        recipientUserId,
+        vars: { eventTitle: event.title },
+      })),
+      ...[...venueRecipients].map((recipientUserId) => ({
+        trigger: NotificationTrigger.EVENT_DELETED_BY_CREATOR_TO_VENUE,
+        recipientUserId,
+        vars: { eventTitle: event.title },
+      })),
+    ];
+
+    await Promise.all(dispatches.map((d) => ctx.dispatchNotification(d).catch(() => {})));
+
     return updated;
   });
 
@@ -803,6 +1031,15 @@ export const getMyEvents = creatorProcedure
   .input(myEventsQuerySchema)
   .query(async ({ input, ctx }) => {
     const { limit, offset } = input;
+
+    // Archived events are a soft-delete from the creator's perspective — once
+    // they delete an event it should drop out of My Events entirely (Asana
+    // 1215489535915818). All other statuses (draft/pending/active/removed) stay
+    // so the creator can still manage or resubmit them.
+    const ownAndNotArchived = and(
+      eq(events.createdBy, ctx.userId),
+      ne(events.status, EventStatus.ARCHIVED)
+    );
 
     const [rows, countResult] = await Promise.all([
       db
@@ -822,14 +1059,14 @@ export const getMyEvents = creatorProcedure
           joinedCount: sql<number>`(SELECT count(*)::int FROM ${savedEvents} WHERE ${savedEvents.eventId} = ${events.id})`,
         })
         .from(events)
-        .where(eq(events.createdBy, ctx.userId))
+        .where(ownAndNotArchived)
         .orderBy(desc(events.createdAt))
         .limit(limit)
         .offset(offset),
       db
         .select({ count: sql<number>`count(*)::int` })
         .from(events)
-        .where(eq(events.createdBy, ctx.userId)),
+        .where(ownAndNotArchived),
     ]);
 
     const totalCount = countResult[0]?.count ?? 0;

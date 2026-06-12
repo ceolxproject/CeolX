@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { KeyboardAvoidingView, Platform, Pressable, Text, TextInput, View } from 'react-native';
+import { KeyboardAvoidingView, Pressable, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppButton } from '@/components/AppButton';
@@ -66,10 +66,7 @@ export default function ForgotPasswordScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: '#080808' }}>
       <SafeAreaView style={{ flex: 1 }}>
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={{ flex: 1 }}
-        >
+        <KeyboardAvoidingView behavior="padding" style={{ flex: 1 }}>
           <View className="flex-1 p-6 pt-4">
             <Pressable onPress={() => router.back()} className="flex-row items-center mb-8">
               <Ionicons name="arrow-back" size={20} color="#ffffff" />
@@ -84,7 +81,7 @@ export default function ForgotPasswordScreen() {
             <View className="gap-2 mb-4">
               <TextInput
                 className="bg-white rounded-lg h-[52px] px-4 text-base text-black"
-                placeholder="Email"
+                placeholder="Enter your email address"
                 placeholderTextColor="#8d8d8d"
                 keyboardType="email-address"
                 autoCapitalize="none"

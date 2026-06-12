@@ -61,12 +61,44 @@ location.get('/ip', async (c) => {
 });
 
 /**
- * Forward-geocode a free-text place to coordinates via the Google Geocoding
- * API. The app's LocationPicker calls this instead of expo-location's native
- * geocoder, which only works when the device has location services enabled.
+ * Build the human-readable label stored against an event/venue from a Places
+ * result. Leads with the place name the user searched for ("Leisureland") so
+ * the picker shows what they typed, not just the street it sits on.
  *
- * The Google key lives server-side only (never shipped to the app) and is
- * biased + restricted to Ireland to match the app's scope.
+ * `name` is the POI/business name (Places `displayName.text`); `formattedAddress`
+ * is the full street address. Either can be empty — for a plain address search
+ * Google echoes the address back as the name, so they overlap.
+ *
+ * Returns the final single-line label. The route below has already trimmed
+ * both inputs and guaranteed at least one is non-empty.
+ */
+function buildLocationLabel(name: string, formattedAddress: string): string {
+  // Either side may be empty — fall back to whichever we have.
+  if (!name) return formattedAddress;
+  if (!formattedAddress) return name;
+
+  // For plain-address searches Google echoes the address as the displayName,
+  // so the name is already the leading part of the address. Concatenating would
+  // give "Upper Salthill Rd, Upper Salthill Rd, Galway" — just use the address.
+  if (formattedAddress.toLowerCase().startsWith(name.toLowerCase())) {
+    return formattedAddress;
+  }
+
+  // POI search: lead with the place name the user recognises, then the street
+  // for context — "Leisureland, Upper Salthill Rd, Galway, Ireland".
+  return `${name}, ${formattedAddress}`;
+}
+
+/**
+ * Forward-geocode a free-text place to coordinates via the Google Places API
+ * (Text Search, New). The app's LocationPicker calls this instead of
+ * expo-location's native geocoder, which only works when the device has
+ * location services enabled.
+ *
+ * Places (not Geocoding) is used so a venue/business name like "Leisureland"
+ * resolves to its place name + address rather than only the underlying street.
+ * The Google key lives server-side only (never shipped to the app). Search is
+ * global (no Ireland region bias) so events can be created anywhere.
  */
 location.get('/geocode', async (c) => {
   const query = c.req.query('q')?.trim();
@@ -80,47 +112,66 @@ location.get('/geocode', async (c) => {
     return c.json({ ok: false, error: 'not_configured' as const }, 503);
   }
 
-  const url = new URL('https://maps.googleapis.com/maps/api/geocode/json');
-  url.searchParams.set('address', query);
-  url.searchParams.set('key', apiKey);
-  // Bias results to Ireland — the app is Irish-music only.
-  url.searchParams.set('region', 'ie');
-  url.searchParams.set('components', 'country:IE');
-
   try {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), GEOCODE_TIMEOUT_MS);
-    const response = await fetch(url, { signal: controller.signal });
+    const response = await fetch('https://places.googleapis.com/v1/places:searchText', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Goog-Api-Key': apiKey,
+        // Field mask is mandatory on the New Places API — only billed for the
+        // fields requested. We need the name, address and coordinates.
+        'X-Goog-FieldMask': 'places.displayName,places.formattedAddress,places.location',
+      },
+      // No region bias — search is global so events can be created anywhere.
+      body: JSON.stringify({ textQuery: query }),
+      signal: controller.signal,
+    });
     clearTimeout(timeout);
 
     if (!response.ok) {
-      console.error('[location/geocode] google responded %d for q=%s', response.status, query);
+      // Surface Google's error body — a 403 spells out the exact cause
+      // (API not enabled, key API-restricted, billing off), which the bare
+      // status code hides.
+      const detail = await response.text().catch(() => '');
+      console.error(
+        '[location/geocode] places responded %d for q=%s — %s',
+        response.status,
+        query,
+        detail.slice(0, 500)
+      );
       return c.json({ ok: false, error: 'upstream_error' as const }, 502);
     }
 
     const data = (await response.json()) as {
-      status: string;
-      results?: {
-        formatted_address?: string;
-        geometry?: { location?: { lat: number; lng: number } };
+      places?: {
+        displayName?: { text?: string };
+        formattedAddress?: string;
+        location?: { latitude?: number; longitude?: number };
       }[];
     };
 
-    // ZERO_RESULTS is a normal "no match" — not an error. REQUEST_DENIED /
-    // OVER_QUERY_LIMIT are configuration/billing problems worth logging.
-    if (data.status === 'ZERO_RESULTS' || !data.results?.length) {
+    // No `places` key is the New API's "no match" — a normal empty result.
+    if (!data.places?.length) {
       return c.json({ ok: true, results: [] });
     }
-    if (data.status !== 'OK') {
-      console.error('[location/geocode] google status=%s for q=%s', data.status, query);
-      return c.json({ ok: false, error: 'upstream_error' as const }, 502);
-    }
 
-    const results = data.results
-      .map((r) => {
-        const loc = r.geometry?.location;
-        if (!loc || typeof loc.lat !== 'number' || typeof loc.lng !== 'number') return null;
-        return { lat: loc.lat, lng: loc.lng, address: r.formatted_address ?? query };
+    const results = data.places
+      .map((p) => {
+        const loc = p.location;
+        if (!loc || typeof loc.latitude !== 'number' || typeof loc.longitude !== 'number') {
+          return null;
+        }
+        const name = p.displayName?.text?.trim() ?? '';
+        const formattedAddress = p.formattedAddress?.trim() ?? '';
+        // Skip entries with no usable label at all rather than echoing the query.
+        if (!name && !formattedAddress) return null;
+        return {
+          lat: loc.latitude,
+          lng: loc.longitude,
+          address: buildLocationLabel(name, formattedAddress),
+        };
       })
       .filter((r): r is { lat: number; lng: number; address: string } => r !== null);
 
@@ -129,7 +180,7 @@ location.get('/geocode', async (c) => {
     const isAbort = err instanceof Error && err.name === 'AbortError';
     if (isAbort) {
       console.warn(
-        `[location/geocode] google timed out after ${GEOCODE_TIMEOUT_MS}ms for q=${query}`
+        `[location/geocode] places timed out after ${GEOCODE_TIMEOUT_MS}ms for q=${query}`
       );
     } else {
       console.error('[location/geocode] fetch failed for q=%s', query, err);

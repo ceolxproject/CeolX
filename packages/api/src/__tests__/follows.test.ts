@@ -277,6 +277,33 @@ describe('follows router', () => {
       expect(result.following[0]?.profile?.profileImageUrl).toBe('https://cdn/venues/kilkee.jpg');
       expect(result.following[0]?.eventsCount).toBe(7);
     });
+
+    it('excludes the current user from their own following list', async () => {
+      // A self-follow row (legacy data created before the mutation guard existed)
+      // that has a real active profile would survive the profile-presence filter,
+      // so it must be dropped explicitly because it is the viewer themselves.
+      const selfRow = { id: 'f-self', followeeId: 'user-1', createdAt: new Date() };
+      mockSelectChain.mockResolvedValueOnce([selfRow]); // followRows
+      mockSelectChain.mockResolvedValueOnce([{ count: 1 }]); // total
+      mockSelectChain.mockResolvedValueOnce([
+        {
+          id: 'ap-self',
+          userId: 'user-1',
+          displayName: 'Me Myself',
+          profileImageUrl: 'https://cdn/me.jpg',
+          genres: ['trad'],
+          isActive: true,
+        },
+      ]); // artist lookup (self) — gives the row a real profile
+      mockSelectChain.mockResolvedValueOnce([]); // venue lookup
+      // No events-count query is queued: once the self row is filtered out the
+      // list is empty, so getActiveEventsCounts short-circuits without a query.
+
+      const caller = authedCaller('user-1');
+      const result = await caller.getFollowing({ limit: 50, offset: 0 });
+
+      expect(result.following).toHaveLength(0);
+    });
   });
 
   describe('getFollowers', () => {

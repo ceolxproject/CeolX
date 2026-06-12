@@ -29,8 +29,14 @@ export default function SignUpScreen() {
   const [marketingOptIn, setMarketingOptIn] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const { signInWithGoogle, signInWithApple } = useSocialAuth();
   const { continueAsGuest } = useAuth();
+
+  const handleSkip = async () => {
+    await continueAsGuest();
+    router.replace('/(app)/(tabs)/map');
+  };
 
   const handleSignUp = async () => {
     setErrors({});
@@ -54,38 +60,42 @@ export default function SignUpScreen() {
       return;
     }
 
-    const { data, error: authError } = await authClient.signUp.email({
-      name,
-      email,
-      password,
-      currentRole,
-    });
+    setIsSubmitting(true);
+    try {
+      const { data, error: authError } = await authClient.signUp.email({
+        name,
+        email,
+        password,
+        currentRole,
+      });
 
-    if (authError) {
-      if (authError.status === 409 || authError.message?.toLowerCase().includes('already')) {
-        setErrors({ email: 'An account with this email already exists' });
-      } else {
-        setSubmitError(authError.message ?? 'Sign up failed. Please try again.');
+      if (authError) {
+        // The server's before-hook throws an "already exists" APIError for a
+        // duplicate email (Asana 1215616181509943); surface its message verbatim
+        // next to the email field so the copy stays owned by the backend.
+        const message = authError.message ?? '';
+        if (authError.status === 409 || message.toLowerCase().includes('already')) {
+          setErrors({ email: message || 'An account with this email already exists.' });
+        } else {
+          setSubmitError(message || 'Sign up failed. Please try again.');
+        }
+        return;
       }
-      return;
+
+      if (data) {
+        // Store registration data so verify-email screen can call completeRegistration
+        // after the email is verified and BetterAuth has created a session.
+        await SecureStore.setItemAsync(
+          'pendingRegistration',
+          JSON.stringify({ currentRole, marketingConsent: marketingOptIn })
+        );
+      }
+
+      await SecureStore.setItemAsync('pendingVerificationEmail', email);
+      router.replace('/(auth)/verify-email');
+    } finally {
+      setIsSubmitting(false);
     }
-
-    if (data) {
-      // Store registration data so verify-email screen can call completeRegistration
-      // after the email is verified and BetterAuth has created a session.
-      await SecureStore.setItemAsync(
-        'pendingRegistration',
-        JSON.stringify({ currentRole, marketingConsent: marketingOptIn })
-      );
-    }
-
-    await SecureStore.setItemAsync('pendingVerificationEmail', email);
-    router.replace('/(auth)/verify-email');
-  };
-
-  const handleSkip = async () => {
-    await continueAsGuest();
-    router.replace('/(app)/(tabs)/map');
   };
 
   // Social sign-up must accept Terms & Privacy first, exactly like the email
@@ -158,8 +168,8 @@ export default function SignUpScreen() {
               <Text className="text-sm font-bold text-white/80">Full Name</Text>
               <TextInput
                 className="bg-white rounded-lg h-[52px] px-4 text-base text-black"
-                placeholder="Your full name"
-                placeholderTextColor="rgba(255,255,255,0.4)"
+                placeholder="Enter your full name"
+                placeholderTextColor="#8d8d8d"
                 autoCapitalize="words"
                 autoComplete="name"
                 value={name}
@@ -173,8 +183,8 @@ export default function SignUpScreen() {
               <Text className="text-sm font-bold text-white/80">Email Address</Text>
               <TextInput
                 className="bg-white rounded-lg h-[52px] px-4 text-base text-black"
-                placeholder="you@example.com"
-                placeholderTextColor="rgba(255,255,255,0.4)"
+                placeholder="Enter your email address"
+                placeholderTextColor="#8d8d8d"
                 keyboardType="email-address"
                 autoCapitalize="none"
                 autoComplete="email"
@@ -190,8 +200,8 @@ export default function SignUpScreen() {
               <View className="flex-row items-center">
                 <TextInput
                   className="flex-1 bg-white rounded-lg h-[52px] px-4 text-base text-black"
-                  placeholder="Min 8 chars, uppercase, number, symbol"
-                  placeholderTextColor="rgba(255,255,255,0.4)"
+                  placeholder="Enter your password"
+                  placeholderTextColor="#8d8d8d"
                   secureTextEntry={!passwordVisible}
                   autoComplete="new-password"
                   value={password}
@@ -237,6 +247,7 @@ export default function SignUpScreen() {
             {/* Register button */}
             <AppButton
               variant="primary"
+              isLoading={isSubmitting}
               onPress={handleSignUp}
               className="w-full rounded-full py-[18px] mt-2 mb-6"
             >

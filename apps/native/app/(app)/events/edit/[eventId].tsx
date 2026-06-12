@@ -5,7 +5,6 @@ import {
   ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
-  Platform,
   Pressable,
   Text,
   View,
@@ -15,7 +14,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { EventCategory } from '@CeolX/shared';
 import { EventStatus, UserRole } from '@CeolX/shared/enums';
 
-import { AppTabBar, TAB_CONFIG } from '@/components/AppTabBar';
 import { appToast } from '@/components/AppToast';
 import { BasicDetailsStep } from '@/components/events/BasicDetailsStep';
 import { DateVenueStep } from '@/components/events/DateVenueStep';
@@ -51,7 +49,7 @@ export default function EditEventScreen() {
   if (event.status === EventStatus.ARCHIVED) {
     return (
       <View className="flex-1 bg-background items-center justify-center px-5">
-        <Text className="text-center text-lg text-white">Cannot edit an archived event.</Text>
+        <Text className="text-center text-lg text-white">Cannot edit a deleted event.</Text>
       </View>
     );
   }
@@ -108,17 +106,11 @@ function EditEventForm({ event, eventId }: { event: LoadedEvent; eventId: string
     ]);
   };
 
-  const tabBarState = {
-    index: -1,
-    routes: TAB_CONFIG.map((t) => ({ key: t.name, name: t.name })),
-  };
-  const tabBarNavigation = {
-    emit: () => ({ defaultPrevented: false }),
-    navigate: (name: string) => router.replace(`/(app)/(tabs)/${name}`),
-  };
-
   return (
-    <View className="flex-1 bg-background" style={{ paddingTop: insets.top }}>
+    <View
+      className="flex-1 bg-background"
+      style={{ paddingTop: insets.top, paddingBottom: insets.bottom }}
+    >
       {/* Header */}
       <View className="flex-row items-center px-5 pt-4 pb-1">
         <Pressable onPress={handleBackPress} hitSlop={8} className="mr-3">
@@ -146,10 +138,7 @@ function EditEventForm({ event, eventId }: { event: LoadedEvent; eventId: string
       {/* See create.tsx for why this KeyboardAvoidingView matters — the search
           inputs inside Collaborator/InviteArtist pickers otherwise lose their
           dropdown results behind the keyboard. */}
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={{ flex: 1, marginTop: 8 }}
-      >
+      <KeyboardAvoidingView behavior="padding" style={{ flex: 1, marginTop: 8 }}>
         {form.currentStep === 1 && (
           <BasicDetailsStep
             title={form.title}
@@ -172,6 +161,7 @@ function EditEventForm({ event, eventId }: { event: LoadedEvent; eventId: string
             errors={form.errors}
             onContinue={form.goNext}
             isVenue={isVenue}
+            myUserId={me?.id}
           />
         )}
 
@@ -191,6 +181,7 @@ function EditEventForm({ event, eventId }: { event: LoadedEvent; eventId: string
             }}
             venueAddress={form.venueAddress}
             onVenueAddressChange={form.setVenueAddress}
+            venueId={form.venueId}
             onVenueIdChange={form.setVenueId}
             showManualAddress={showManualAddress}
             onToggleManualAddress={() => setShowManualAddress(!showManualAddress)}
@@ -224,14 +215,6 @@ function EditEventForm({ event, eventId }: { event: LoadedEvent; eventId: string
           />
         )}
       </KeyboardAvoidingView>
-
-      {/* Bottom tab bar */}
-      <AppTabBar
-        state={tabBarState as never}
-        descriptors={{}}
-        navigation={tabBarNavigation as never}
-        insets={{ top: 0, bottom: 0, left: 0, right: 0 }}
-      />
     </View>
   );
 }

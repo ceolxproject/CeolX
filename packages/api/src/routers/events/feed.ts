@@ -13,13 +13,17 @@ import { typesenseClient } from '../../lib/typesense';
 import { buildDateFilter } from './helpers';
 
 export const getFeed = publicProcedure.input(feedQuerySchema).query(async ({ input, ctx }) => {
-  const { lat, lng, limit, offset, category, query, dateRange } = input;
+  const { lat, lng, limit, offset, category, query, dayStart, dayEnd } = input;
   const userId = ctx.session?.user?.id ?? null;
   const nowUnix = Math.floor(Date.now() / 1000);
 
   const categoryFilter = category ? ` && category:=${category}` : '';
   const searchQuery = query?.trim() || '*';
-  const dateFilter = buildDateFilter(dateRange, nowUnix);
+  // A picked calendar day arrives as an absolute [start, end) window from the
+  // client; only treat it as set when both bounds are present.
+  const day =
+    dayStart !== undefined && dayEnd !== undefined ? { start: dayStart, end: dayEnd } : undefined;
+  const dateFilter = buildDateFilter(nowUnix, day);
 
   try {
     const [typesenseResult, followedIds, savedEventIds] = await Promise.all([

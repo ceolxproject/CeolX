@@ -4,7 +4,9 @@ import { cn } from 'heroui-native';
 import { useState } from 'react';
 import {
   ActivityIndicator,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   Text,
   TextInput,
@@ -12,6 +14,8 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+import { FieldLabel } from './FieldLabel';
 
 import { trpc } from '@/utils/trpc';
 
@@ -57,9 +61,10 @@ export function CollectionPicker({ collectionId, onCollectionIdChange }: Props) 
     <View className="gap-2">
       {/* Label row */}
       <View className="flex-row items-center justify-between">
-        <Text className="text-sm font-semibold text-gray-3 font-urbanist">
-          Collection (optional)
-        </Text>
+        <FieldLabel
+          label="Collection (optional)"
+          hint="Group related events together (e.g. all gigs in one festival) so fans can browse them as a set."
+        />
         <Pressable
           onPress={() => {
             setShowDropdown(false);
@@ -152,65 +157,76 @@ export function CollectionPicker({ collectionId, onCollectionIdChange }: Props) 
         animationType="fade"
         onRequestClose={() => setShowCreateModal(false)}
       >
-        <TouchableOpacity
-          activeOpacity={1}
-          className="flex-1 bg-black/60 justify-end"
-          onPress={() => setShowCreateModal(false)}
+        {/* RN Modal spawns a native window that ignores the activity's
+            adjustResize softInputMode, so this bottom-anchored sheet otherwise
+            sits behind the keyboard — the autoFocus'd name input is hidden and
+            the collection can't be created. KeyboardAvoidingView lifts the
+            sheet above the keyboard on both platforms (same pattern as
+            InviteArtistPicker). */}
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={{ flex: 1 }}
         >
           <TouchableOpacity
             activeOpacity={1}
-            className="bg-[#1B1B1B] rounded-t-2xl px-5 pt-6"
-            style={{ paddingBottom: insets.bottom + 16 }}
+            className="flex-1 bg-black/60 justify-end"
+            onPress={() => setShowCreateModal(false)}
           >
-            <Text className="text-lg font-bold text-white font-urbanist mb-4">
-              Create Collection
-            </Text>
+            <TouchableOpacity
+              activeOpacity={1}
+              className="bg-[#1B1B1B] rounded-t-2xl px-5 pt-6"
+              style={{ paddingBottom: insets.bottom + 16 }}
+            >
+              <Text className="text-lg font-bold text-white font-urbanist mb-4">
+                Create Collection
+              </Text>
 
-            <Text className="text-sm font-semibold text-gray-3 font-urbanist mb-2">
-              Collection Name
-            </Text>
-            <TextInput
-              className="rounded-lg border border-gray-8 bg-surface px-4 py-3 text-sm text-white font-urbanist"
-              placeholder="e.g. Summer Festival 2026"
-              placeholderTextColor="#8d8d8d"
-              value={newName}
-              onChangeText={(v) => {
-                setNewName(v);
-                if (nameError) setNameError('');
-              }}
-              autoFocus
-              maxLength={255}
-            />
-            {nameError ? (
-              <Text className="text-xs text-error font-urbanist mt-1">{nameError}</Text>
-            ) : null}
-
-            <View className="flex-row gap-3 mt-5">
-              <Pressable
-                className="flex-1 items-center justify-center rounded-xl border border-white py-3 active:opacity-80"
-                onPress={() => {
-                  setShowCreateModal(false);
-                  setNewName('');
-                  setNameError('');
+              <Text className="text-sm font-semibold text-gray-3 font-urbanist mb-2">
+                Collection Name
+              </Text>
+              <TextInput
+                className="rounded-lg border border-gray-8 bg-surface px-4 py-3 text-sm text-white font-urbanist"
+                placeholder="e.g. Summer Festival 2026"
+                placeholderTextColor="#8d8d8d"
+                value={newName}
+                onChangeText={(v) => {
+                  setNewName(v);
+                  if (nameError) setNameError('');
                 }}
-              >
-                <Text className="text-sm font-bold text-white font-urbanist">Cancel</Text>
-              </Pressable>
+                autoFocus
+                maxLength={255}
+              />
+              {nameError ? (
+                <Text className="text-xs text-error font-urbanist mt-1">{nameError}</Text>
+              ) : null}
 
-              <Pressable
-                className="flex-1 items-center justify-center rounded-xl bg-[#6C63FF] py-3 active:opacity-80"
-                onPress={handleCreate}
-                disabled={isPending}
-              >
-                {isPending ? (
-                  <ActivityIndicator size="small" color="#fff" />
-                ) : (
-                  <Text className="text-sm font-bold text-white font-urbanist">Create</Text>
-                )}
-              </Pressable>
-            </View>
+              <View className="flex-row gap-3 mt-5">
+                <Pressable
+                  className="flex-1 items-center justify-center rounded-xl border border-white py-3 active:opacity-80"
+                  onPress={() => {
+                    setShowCreateModal(false);
+                    setNewName('');
+                    setNameError('');
+                  }}
+                >
+                  <Text className="text-sm font-bold text-white font-urbanist">Cancel</Text>
+                </Pressable>
+
+                <Pressable
+                  className="flex-1 items-center justify-center rounded-xl bg-[#6C63FF] py-3 active:opacity-80"
+                  onPress={handleCreate}
+                  disabled={isPending}
+                >
+                  {isPending ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <Text className="text-sm font-bold text-white font-urbanist">Create</Text>
+                  )}
+                </Pressable>
+              </View>
+            </TouchableOpacity>
           </TouchableOpacity>
-        </TouchableOpacity>
+        </KeyboardAvoidingView>
       </Modal>
     </View>
   );

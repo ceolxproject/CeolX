@@ -2,36 +2,90 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { trpc } from '@/utils/trpc';
 
+/** Minimal shape we patch inside any cached posts query. */
+type LikeablePost = { id: string; likedByMe?: boolean; likeCount?: number | null };
+
 /**
- * Toggle a post's like. The server returns `{ liked, likeCount }`.
+ * Walk whatever a `['posts']` query holds and apply `patch` to the post that
+ * matches `postId`. Handles both cache shapes:
+ *   - list queries (`feed`, `byUser`): `{ posts: LikeablePost[], … }`
+ *   - single-post query (`byId`): a bare `LikeablePost`
+ * Anything else is returned untouched.
+ */
+function patchPostInCache(
+  data: unknown,
+  postId: string,
+  patch: (post: LikeablePost) => LikeablePost
+): unknown {
+  if (!data || typeof data !== 'object') return data;
+
+  if (Array.isArray((data as { posts?: unknown }).posts)) {
+    const d = data as { posts: LikeablePost[] };
+    return {
+      ...d,
+      posts: d.posts.map((p) => (p.id === postId ? patch(p) : p)),
+    };
+  }
+
+  if ((data as LikeablePost).id === postId) {
+    return patch(data as LikeablePost);
+  }
+
+  return data;
+}
+
+/**
+ * Toggle a post's like with an optimistic cache update.
  *
- * Learning spot (Priya): The `onMutate` handler below is the optimistic-update
- * strategy. Right now it simply invalidates cached queries on settle — that's
- * safe but causes a visible flicker on slow networks because the heart icon
- * only flips once the server responds. A better UX is to patch every cached
- * feed / by-user / by-id query *synchronously* when the user taps, then roll
- * back in `onError` if the server call fails.
- *
- * You'll want to:
- *  1. In `onMutate`: use `queryClient.setQueriesData({ queryKey: [['posts']] }, (old) => …)`
- *     to flip `likedByMe` and adjust `likeCount` across every cached post shape.
- *  2. Snapshot the previous data so `onError` can roll it back.
- *  3. Keep the `onSettled` invalidation as a safety net — it reconciles with
- *     the server count after the mutation finishes.
- *
- * Trade-off: atomic local flip (snappy UI, risk of temporary inconsistency if
- * the server errors) vs. wait-for-server (accurate but sluggish).
- *
- * TODO(priya): implement the optimistic `onMutate` + `onError` rollback.
+ * `onMutate` flips `likedByMe` and adjusts `likeCount` across every cached
+ * posts query synchronously, so the heart updates the instant the user taps —
+ * no flicker, and the change is consistent across feed / profile / detail.
+ * `onError` rolls back to the snapshot; `onSuccess` reconciles to the server's
+ * exact count; `onSettled` invalidates as a final safety net.
  */
 export function useTogglePostLike() {
   const queryClient = useQueryClient();
   const mutationOptions = trpc.posts.toggleLike.mutationOptions();
+  const postsFilter = { queryKey: [['posts']] } as const;
 
   return useMutation({
     ...mutationOptions,
+    onMutate: async ({ postId }) => {
+      // Stop in-flight fetches from clobbering our optimistic write.
+      await queryClient.cancelQueries(postsFilter);
+      const previous = queryClient.getQueriesData(postsFilter);
+
+      queryClient.setQueriesData(postsFilter, (data) =>
+        patchPostInCache(data, postId, (p) => {
+          const nextLiked = !p.likedByMe;
+          const base = p.likeCount ?? 0;
+          return {
+            ...p,
+            likedByMe: nextLiked,
+            likeCount: Math.max(0, base + (nextLiked ? 1 : -1)),
+          };
+        })
+      );
+
+      return { previous };
+    },
+    onError: (_err, _vars, context) => {
+      context?.previous?.forEach(([key, data]) => {
+        queryClient.setQueryData(key, data);
+      });
+    },
+    onSuccess: (result, { postId }) => {
+      // Reconcile to the authoritative count the server returned.
+      queryClient.setQueriesData(postsFilter, (data) =>
+        patchPostInCache(data, postId, (p) => ({
+          ...p,
+          likedByMe: result.liked,
+          likeCount: result.likeCount,
+        }))
+      );
+    },
     onSettled: async () => {
-      await queryClient.invalidateQueries({ queryKey: [['posts']] });
+      await queryClient.invalidateQueries(postsFilter);
     },
   });
 }

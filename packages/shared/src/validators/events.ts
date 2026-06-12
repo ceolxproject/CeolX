@@ -86,7 +86,13 @@ export const feedQuerySchema = z.object({
   offset: z.number().int().min(0).default(0),
   category: z.enum(EVENT_CATEGORIES).optional(),
   query: z.string().max(100).optional(),
-  dateRange: z.enum(['today', 'this_week', 'this_weekend', 'this_month']).optional(),
+  // A specific calendar day picked from the feed's calendar button, sent as an
+  // absolute [dayStart, dayEnd) window in Unix seconds. The client derives these
+  // from the *device-local* day, so filtering matches the day the user actually
+  // tapped regardless of the server's timezone (the server runs in UTC). Both
+  // bounds are sent together or not at all.
+  dayStart: z.number().int().optional(),
+  dayEnd: z.number().int().optional(),
 });
 
 export type CreateEventInput = z.infer<typeof createEventSchema>;

@@ -39,7 +39,7 @@ const fetchSpy = vi.fn<typeof globalThis.fetch>();
 vi.stubGlobal('fetch', fetchSpy);
 
 // Import after all mocks
-import { resolveLocation } from '../use-gps-region';
+import { applyVenueFallback, resolveLocation, resolveMapInitialRegion } from '../use-gps-region';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -168,5 +168,58 @@ describe('resolveLocation', () => {
     await resolveLocation(setters);
 
     expect(setters.setLocationSource).toHaveBeenCalledWith('default');
+  });
+});
+
+describe('applyVenueFallback', () => {
+  const pin = { latitude: 53.27, longitude: -9.05 };
+
+  it('upgrades the Ireland default to the venue pin', () => {
+    expect(applyVenueFallback('default', pin)).toEqual({
+      region: { latitude: 53.27, longitude: -9.05, latitudeDelta: 0.5, longitudeDelta: 0.5 },
+      source: 'venue-profile',
+    });
+  });
+
+  it('does not override a live GPS fix', () => {
+    expect(applyVenueFallback('gps', pin)).toBeNull();
+  });
+
+  it('does not override an IP fix', () => {
+    expect(applyVenueFallback('ip', pin)).toBeNull();
+  });
+
+  it('does nothing while resolution is pending', () => {
+    expect(applyVenueFallback('pending', pin)).toBeNull();
+  });
+
+  it('does nothing once already on the venue pin (no re-fire loop)', () => {
+    expect(applyVenueFallback('venue-profile', pin)).toBeNull();
+  });
+
+  it('returns null when there is no venue pin', () => {
+    expect(applyVenueFallback('default', null)).toBeNull();
+  });
+});
+
+describe('resolveMapInitialRegion', () => {
+  const gpsRegion = {
+    latitude: 53.35,
+    longitude: -6.26,
+    latitudeDelta: 0.5,
+    longitudeDelta: 0.5,
+  };
+
+  it('falls back to the GPS region when there is no override', () => {
+    expect(resolveMapInitialRegion(null, gpsRegion)).toBe(gpsRegion);
+  });
+
+  it('centres on the manual override at town-level zoom when one is set', () => {
+    expect(resolveMapInitialRegion({ lat: 51.9, lng: -8.47 }, gpsRegion)).toEqual({
+      latitude: 51.9,
+      longitude: -8.47,
+      latitudeDelta: 0.15,
+      longitudeDelta: 0.15,
+    });
   });
 });

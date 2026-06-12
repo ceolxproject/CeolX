@@ -27,9 +27,14 @@ export const bookings = pgTable(
     artistId: uuid('artist_id')
       .notNull()
       .references(() => artistProfiles.id, { onDelete: 'cascade' }),
-    venueId: uuid('venue_id')
-      .notNull()
-      .references(() => venueProfiles.id, { onDelete: 'cascade' }),
+    // Nullable: artist_to_artist rows have no venue. venue_to_artist /
+    // artist_to_venue rows still require it (enforced by a DB CHECK in the
+    // migration). (Artist co-artist invites — spec 2026-06-05)
+    venueId: uuid('venue_id').references(() => venueProfiles.id, { onDelete: 'cascade' }),
+    // Inviting artist for artist_to_artist rows; NULL for venue directions.
+    inviterArtistId: uuid('inviter_artist_id').references(() => artistProfiles.id, {
+      onDelete: 'cascade',
+    }),
     eventId: uuid('event_id').references(() => events.id, { onDelete: 'set null' }),
     status: bookingStatusEnum('status').notNull().default('pending'),
     direction: bookingDirectionEnum('direction').notNull(),
@@ -40,6 +45,7 @@ export const bookings = pgTable(
   (t) => [
     index('bookings_artist_status_idx').on(t.artistId, t.status),
     index('bookings_venue_status_idx').on(t.venueId, t.status),
+    index('bookings_inviter_status_idx').on(t.inviterArtistId, t.status),
   ]
 );
 
@@ -75,6 +81,12 @@ export const bookingsRelations = relations(bookings, ({ one }) => ({
   artist: one(artistProfiles, {
     fields: [bookings.artistId],
     references: [artistProfiles.id],
+    relationName: 'booking_invited_artist',
+  }),
+  inviterArtist: one(artistProfiles, {
+    fields: [bookings.inviterArtistId],
+    references: [artistProfiles.id],
+    relationName: 'booking_inviter_artist',
   }),
   venue: one(venueProfiles, {
     fields: [bookings.venueId],

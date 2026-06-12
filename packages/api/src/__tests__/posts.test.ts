@@ -7,16 +7,24 @@ import type { UserRole } from '@CeolX/shared';
 const {
   mockPostsFindFirst,
   mockPostLikesFindFirst,
+  mockInsertValues,
   mockInsertReturning,
   mockUpdateReturning,
   mockUpdateWhereNoReturn,
   mockDeleteWhere,
   mockSelectChain,
   mockTransaction,
+  mockRetrieveUploadStatus,
 } = vi.hoisted(() => {
   const mockPostsFindFirst = vi.fn();
   const mockPostLikesFindFirst = vi.fn();
   const mockInsertReturning = vi.fn();
+  // Mux asset lookup performed by posts.create for video posts.
+  const mockRetrieveUploadStatus = vi.fn();
+  // Captures the object passed to db.insert(posts).values(...) so tests can
+  // assert which columns actually get persisted (regression guard for the
+  // dropped-muxUploadId bug).
+  const mockInsertValues = vi.fn(() => ({ returning: mockInsertReturning }));
   const mockUpdateReturning = vi.fn();
   const mockUpdateWhereNoReturn = vi.fn(() => Promise.resolve());
   const mockDeleteWhere = vi.fn(() => Promise.resolve());
@@ -44,12 +52,14 @@ const {
   return {
     mockPostsFindFirst,
     mockPostLikesFindFirst,
+    mockInsertValues,
     mockInsertReturning,
     mockUpdateReturning,
     mockUpdateWhereNoReturn,
     mockDeleteWhere,
     mockSelectChain,
     mockTransaction,
+    mockRetrieveUploadStatus,
   };
 });
 
@@ -72,9 +82,7 @@ vi.mock('@CeolX/db', () => {
       },
       select: vi.fn(() => chain),
       insert: vi.fn(() => ({
-        values: vi.fn(() => ({
-          returning: mockInsertReturning,
-        })),
+        values: mockInsertValues,
       })),
       update: vi.fn(() => ({
         set: vi.fn(() => ({
@@ -100,6 +108,9 @@ vi.mock('@CeolX/db/schema/social', () => ({
   },
   postLikes: { id: 'id', postId: 'post_id', userId: 'user_id' },
   follows: { followerId: 'follower_id', followeeId: 'followee_id' },
+}));
+vi.mock('../services/mux', () => ({
+  retrieveUploadStatus: mockRetrieveUploadStatus,
 }));
 vi.mock('@CeolX/db/schema/auth', () => ({
   user: { id: 'id', name: 'name', image: 'image' },
@@ -144,6 +155,12 @@ beforeEach(() => {
   vi.clearAllMocks();
   // Default: select chain resolves to empty array (for hydrateAuthors lookups).
   mockSelectChain.mockResolvedValue([]);
+  // Default: Mux asset still transcoding when the post is created.
+  mockRetrieveUploadStatus.mockResolvedValue({
+    status: 'pending',
+    playbackId: null,
+    assetId: null,
+  });
 });
 
 // ─── Tests ───────────────────────────────────────────────────────────────────
@@ -204,6 +221,87 @@ describe('posts.create', () => {
     });
     expect(result.mediaUrl).toBe('https://cdn.example/posts/x.jpg');
     expect(result.mediaType).toBe('image');
+  });
+
+  it('persists muxUploadId and pending status when the asset is still transcoding', async () => {
+    // Regression: the create handler used to drop muxUploadId, leaving the
+    // row with mux_upload_id = NULL so the video.asset.ready webhook
+    // (UPDATE ... WHERE mux_upload_id = $1) could never match it. Here the
+    // asset isn't ready yet (default mock), so the webhook is the backstop.
+    mockInsertReturning.mockResolvedValueOnce([
+      {
+        id: 'post-vid',
+        createdBy: 'user-1',
+        caption: 'My teddy bear',
+        mediaType: 'video',
+        mediaUrl: null,
+        muxUploadId: 'upl_abc',
+        muxStatus: 'pending',
+        likeCount: 0,
+        deletedAt: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    ]);
+    const caller = authedCaller('user-1', 'artist' as UserRole);
+    await caller.create({
+      caption: 'My teddy bear',
+      mediaType: 'video',
+      muxUploadId: 'upl_abc',
+    });
+    expect(mockInsertValues).toHaveBeenCalledWith(
+      expect.objectContaining({
+        muxUploadId: 'upl_abc',
+        muxStatus: 'pending',
+        muxPlaybackId: null,
+        mediaUrl: null,
+      })
+    );
+  });
+
+  it('seeds asset/playback ids and hls url when Mux is already ready at create time', async () => {
+    // The client polls Mux until ready BEFORE creating the post, so the
+    // webhook usually fires before this row exists. Resolving the asset
+    // state at create time closes that race — the post lands 'ready'
+    // without depending on the webhook.
+    mockRetrieveUploadStatus.mockResolvedValueOnce({
+      status: 'ready',
+      playbackId: 'pb_123',
+      assetId: 'asset_xyz',
+    });
+    mockInsertReturning.mockResolvedValueOnce([
+      {
+        id: 'post-vid',
+        createdBy: 'user-1',
+        caption: 'My DJ band',
+        mediaType: 'video',
+        mediaUrl: 'https://stream.mux.com/pb_123.m3u8',
+        muxUploadId: 'upl_abc',
+        muxAssetId: 'asset_xyz',
+        muxPlaybackId: 'pb_123',
+        muxStatus: 'ready',
+        likeCount: 0,
+        deletedAt: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    ]);
+    const caller = authedCaller('user-1', 'artist' as UserRole);
+    await caller.create({
+      caption: 'My DJ band',
+      mediaType: 'video',
+      muxUploadId: 'upl_abc',
+    });
+    expect(mockRetrieveUploadStatus).toHaveBeenCalledWith('upl_abc');
+    expect(mockInsertValues).toHaveBeenCalledWith(
+      expect.objectContaining({
+        muxUploadId: 'upl_abc',
+        muxAssetId: 'asset_xyz',
+        muxPlaybackId: 'pb_123',
+        muxStatus: 'ready',
+        mediaUrl: 'https://stream.mux.com/pb_123.m3u8',
+      })
+    );
   });
 
   it('rejects text post with a mediaUrl (schema refinement)', async () => {
@@ -450,6 +548,41 @@ describe('posts.feed', () => {
     const result = await caller.feed({ limit: 20, offset: 0 });
     expect(result.posts).toHaveLength(1);
     expect(result.posts[0]?.createdBy).toBe('user-2');
+    expect(result.totalCount).toBe(1);
+  });
+
+  it('filters by query — resolves matching author ids before the post page', async () => {
+    // With a query present, the procedure first looks up author ids whose
+    // display name matches (artist → venue → user), THEN runs the post page +
+    // count, THEN hydrates. The mock resolves select chains in call order, so
+    // this ordering is what proves the search branch ran.
+    mockSelectChain
+      .mockResolvedValueOnce([{ userId: 'user-2' }]) // artist name match
+      .mockResolvedValueOnce([]) // venue name match
+      .mockResolvedValueOnce([]) // user name match
+      .mockResolvedValueOnce([
+        {
+          id: 'post-1',
+          createdBy: 'user-2',
+          caption: 'late night jazz set',
+          mediaType: 'text',
+          mediaUrl: null,
+          likeCount: 0,
+          deletedAt: null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      ]) // paginated posts
+      .mockResolvedValueOnce([{ count: 1 }]) // count
+      .mockResolvedValueOnce([{ id: 'user-2', name: 'Jazz Cat', image: null }]) // users hydration
+      .mockResolvedValueOnce([{ userId: 'user-2', stageName: 'Jazz Cat', profileImageUrl: null }]) // artists
+      .mockResolvedValueOnce([]) // venues
+      .mockResolvedValueOnce([]); // likedRows
+
+    const caller = authedCaller('user-1', 'artist' as UserRole);
+    const result = await caller.feed({ limit: 20, offset: 0, query: 'jazz' });
+    expect(result.posts).toHaveLength(1);
+    expect(result.posts[0]?.author.displayName).toBe('Jazz Cat');
     expect(result.totalCount).toBe(1);
   });
 });

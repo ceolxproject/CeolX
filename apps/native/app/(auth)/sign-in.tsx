@@ -1,15 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Link, router } from 'expo-router';
 import { useState } from 'react';
-import {
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  ScrollView,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { KeyboardAvoidingView, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppButton } from '@/components/AppButton';
@@ -81,10 +73,7 @@ export default function SignInScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: '#0d0c0f' }}>
       <SafeAreaView style={{ flex: 1 }}>
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={{ flex: 1 }}
-        >
+        <KeyboardAvoidingView behavior="padding" style={{ flex: 1 }}>
           {/* Header — Urbanist Bold 12 */}
           <View className="flex-row justify-between items-center p-5 bg-surface-dark">
             <CeolxLogo />
@@ -144,7 +133,7 @@ export default function SignInScreen() {
               </Text>
               <TextInput
                 className="bg-white rounded-lg h-[52px] px-4 text-base font-sans font-medium text-black leading-5"
-                placeholder="james@gmail.com"
+                placeholder="Enter your email address"
                 placeholderTextColor="#8d8d8d"
                 keyboardType="email-address"
                 autoCapitalize="none"
@@ -162,7 +151,7 @@ export default function SignInScreen() {
               <View className="flex-row items-center">
                 <TextInput
                   className="flex-1 bg-white rounded-lg h-[52px] px-4 text-base font-sans font-medium text-black leading-5"
-                  placeholder="Enter Password"
+                  placeholder="Enter your password"
                   placeholderTextColor="#8d8d8d"
                   secureTextEntry={!passwordVisible}
                   autoComplete="current-password"

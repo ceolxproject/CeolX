@@ -4,8 +4,8 @@ import { useMemo, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Modal,
-  Platform,
   Pressable,
+  ScrollView,
   Text,
   TextInput,
   View,
@@ -13,6 +13,7 @@ import {
 
 import type { ArtistResult } from './ArtistSearchRow';
 import { ArtistSearchRow } from './ArtistSearchRow';
+import { FieldLabel } from './FieldLabel';
 import type { ChipItem } from './SelectedChips';
 import { SelectedChips } from './SelectedChips';
 
@@ -25,10 +26,12 @@ type UnregisteredInvite = {
 };
 
 type Props = {
-  platformInvites: string[];
-  onPlatformInvitesChange: (ids: string[]) => void;
+  platformInvites: ArtistResult[];
+  onPlatformInvitesChange: (artists: ArtistResult[]) => void;
   unregisteredInvites: UnregisteredInvite[];
   onUnregisteredInvitesChange: (invites: UnregisteredInvite[]) => void;
+  /** Current user's id — hidden from results so an artist can't invite themselves. */
+  myUserId?: string;
 };
 
 export function InviteArtistPicker({
@@ -36,10 +39,10 @@ export function InviteArtistPicker({
   onPlatformInvitesChange,
   unregisteredInvites,
   onUnregisteredInvitesChange,
+  myUserId,
 }: Props) {
   const [query, setQuery] = useState('');
   const debouncedQuery = useDebouncedValue(query);
-  const [selectedPlatformArtists, setSelectedPlatformArtists] = useState<ArtistResult[]>([]);
   const [showDropdown, setShowDropdown] = useState(false);
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [inviteName, setInviteName] = useState('');
@@ -51,18 +54,23 @@ export function InviteArtistPicker({
     enabled: debouncedQuery.length >= 1,
   });
 
-  const results = (data?.artists ?? []).filter((a) => !platformInvites.includes(a.id));
+  // Hide already-invited artists and the creator themselves. artists.search
+  // returns id = artist_profiles.user_id, which matches the current user's id.
+  const results = (data?.artists ?? []).filter(
+    (a) => !platformInvites.some((p) => p.id === a.id) && a.id !== myUserId
+  );
 
   function addPlatformInvite(artist: ArtistResult) {
-    setSelectedPlatformArtists((prev) => [...prev, artist]);
-    onPlatformInvitesChange([...platformInvites, artist.id]);
+    // Skip if already invited — the search list filters these out, but guard
+    // anyway so a stale tap can't push a duplicate into the lifted state.
+    if (platformInvites.some((p) => p.id === artist.id)) return;
+    onPlatformInvitesChange([...platformInvites, artist]);
     setQuery('');
     setShowDropdown(false);
   }
 
   function removePlatformInvite(id: string) {
-    setSelectedPlatformArtists((prev) => prev.filter((a) => a.id !== id));
-    onPlatformInvitesChange(platformInvites.filter((i) => i !== id));
+    onPlatformInvitesChange(platformInvites.filter((a) => a.id !== id));
   }
 
   function removeUnregisteredInvite(email: string) {
@@ -95,7 +103,7 @@ export function InviteArtistPicker({
   }
 
   const inviteChips = useMemo<ChipItem[]>(() => {
-    const platform = selectedPlatformArtists.map((a) => ({
+    const platform = platformInvites.map((a) => ({
       key: `platform:${a.id}`,
       label: a.stageName,
       icon: 'paper-plane-outline' as const,
@@ -106,7 +114,7 @@ export function InviteArtistPicker({
       icon: 'mail-outline' as const,
     }));
     return [...platform, ...unregistered];
-  }, [selectedPlatformArtists, unregisteredInvites]);
+  }, [platformInvites, unregisteredInvites]);
 
   function handleChipRemove(key: string) {
     if (key.startsWith('platform:')) {
@@ -119,59 +127,82 @@ export function InviteArtistPicker({
   return (
     <View className="gap-2">
       <View className="flex-row items-center justify-between">
-        <Text className="text-sm font-semibold text-gray-3 font-urbanist">
-          Invite Artists (optional)
-        </Text>
+        <FieldLabel
+          label="Invite Artists (optional)"
+          hint="Send a performance invite to platform artists or someone outside the platform (by name + email). They appear once they accept."
+        />
         <Text className="text-xs text-gray-7 font-urbanist">Platform or outside</Text>
       </View>
 
-      {/* Search input */}
-      <View className="flex-row items-center rounded-lg border border-gray-8 bg-surface px-4 py-3 gap-2">
-        <Ionicons name="mail-outline" size={16} color="#8d8d8d" />
-        <TextInput
-          className="flex-1 text-sm text-white font-urbanist"
-          placeholder="Search artists to invite..."
-          placeholderTextColor="#8d8d8d"
-          value={query}
-          onChangeText={(v) => {
-            setQuery(v);
-            setShowDropdown(true);
-          }}
-          onFocus={() => setShowDropdown(true)}
-        />
-      </View>
+      {/* Search input + results.
 
-      {/* Dropdown results + invite button */}
-      {showDropdown && (results.length > 0 || query.length > 0) && (
-        <View className="rounded-lg border border-gray-8 bg-surface overflow-hidden">
-          {results.map((artist) => (
-            <ArtistSearchRow
-              key={artist.id}
-              artist={artist}
-              onPress={() => addPlatformInvite(artist)}
-              actionIcon="paper-plane-outline"
-              actionIconColor="#8d8d8d"
-            />
-          ))}
-
-          {/* Invite outside-platform artist */}
-          <Pressable
-            onPress={() => {
-              setShowDropdown(false);
-              setShowInviteModal(true);
+          The results render as an overlay anchored to the TOP of the input
+          (bottom: '100%') rather than below it. The input is kept just above
+          the keyboard by the form's keyboard-avoiding behaviour, so a list
+          rendered below would fall behind the keyboard. Floating it upward
+          keeps the matches visible above the keyboard while typing, and the
+          absolute position means it never pushes the input down. */}
+      <View style={{ position: 'relative' }}>
+        <View className="flex-row items-center rounded-lg border border-gray-8 bg-surface px-4 py-3 gap-2">
+          <Ionicons name="mail-outline" size={16} color="#8d8d8d" />
+          <TextInput
+            className="flex-1 text-sm text-white font-urbanist"
+            placeholder="Search artists to invite..."
+            placeholderTextColor="#8d8d8d"
+            value={query}
+            onChangeText={(v) => {
+              setQuery(v);
+              setShowDropdown(true);
             }}
-            className="flex-row items-center gap-3 px-4 py-3 active:bg-white/10"
-          >
-            <View className="w-8 h-8 rounded-full bg-[#6C63FF]/20 items-center justify-center">
-              <Ionicons name="person-add-outline" size={14} color="#6C63FF" />
-            </View>
-            <Text className="text-sm font-semibold text-[#6C63FF] font-urbanist">
-              Invite Artist
-            </Text>
-            <Text className="text-xs text-gray-7 font-urbanist">(not on platform)</Text>
-          </Pressable>
+            onFocus={() => setShowDropdown(true)}
+          />
         </View>
-      )}
+
+        {showDropdown && (results.length > 0 || query.length > 0) && (
+          <View
+            style={{
+              position: 'absolute',
+              bottom: '100%',
+              left: 0,
+              right: 0,
+              marginBottom: 4,
+              maxHeight: 260,
+              zIndex: 50,
+              elevation: 8,
+            }}
+            className="rounded-lg border border-gray-8 bg-surface overflow-hidden"
+          >
+            <ScrollView keyboardShouldPersistTaps="handled" nestedScrollEnabled>
+              {results.map((artist) => (
+                <ArtistSearchRow
+                  key={artist.id}
+                  artist={artist}
+                  onPress={() => addPlatformInvite(artist)}
+                  actionIcon="paper-plane-outline"
+                  actionIconColor="#8d8d8d"
+                />
+              ))}
+
+              {/* Invite outside-platform artist */}
+              <Pressable
+                onPress={() => {
+                  setShowDropdown(false);
+                  setShowInviteModal(true);
+                }}
+                className="flex-row items-center gap-3 px-4 py-3 active:bg-white/10"
+              >
+                <View className="w-8 h-8 rounded-full bg-[#6C63FF]/20 items-center justify-center">
+                  <Ionicons name="person-add-outline" size={14} color="#6C63FF" />
+                </View>
+                <Text className="text-sm font-semibold text-[#6C63FF] font-urbanist">
+                  Invite Artist
+                </Text>
+                <Text className="text-xs text-gray-7 font-urbanist">(not on platform)</Text>
+              </Pressable>
+            </ScrollView>
+          </View>
+        )}
+      </View>
 
       {/* Invite chips */}
       <SelectedChips items={inviteChips} onRemove={handleChipRemove} variant="neutral" />
@@ -187,10 +218,7 @@ export function InviteArtistPicker({
             adjustResize softInputMode, so the centered dialog otherwise stays
             anchored to the full screen with the keyboard covering the email
             input. Padding behavior works inside the modal on both platforms. */}
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={{ flex: 1 }}
-        >
+        <KeyboardAvoidingView behavior="padding" style={{ flex: 1 }}>
           <Pressable
             className="flex-1 bg-black/60 items-center justify-center px-5"
             onPress={() => setShowInviteModal(false)}

@@ -1,6 +1,7 @@
+import * as Sentry from '@sentry/react-native';
 import { router, useIsFocused } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Dimensions, StyleSheet, View } from 'react-native';
 import { Circle, Path, Svg } from 'react-native-svg';
 
@@ -52,39 +53,41 @@ export default function SplashScreen() {
   // reset-password is on top and replace it with sign-in, dropping the token.
   // Only navigate when the splash is the screen actually in focus.
   const isFocused = useIsFocused();
+  const [hasSeenOnboarding, setHasSeenOnboarding] = useState<boolean | null>(null);
 
   useEffect(() => {
-    if (isLoading || !isFocused) return;
+    SecureStore.getItemAsync('hasSeenOnboarding')
+      .then((value) => setHasSeenOnboarding(value === 'true'))
+      .catch(() => setHasSeenOnboarding(false));
+  }, []);
 
-    // Authenticated users skip the splash hold and go straight to the app.
-    if (user) {
-      router.replace('/(app)/(tabs)/map');
-      return;
-    }
+  useEffect(() => {
+    // Only route once the session has resolved AND this splash is the actually
+    // focused screen (nothing — e.g. a deep-linked reset-password — sits on top).
+    // The navigator is kept mounted at all times (app/_layout, (auth)/_layout),
+    // so Expo Router restores a cold-start deep link deterministically and this
+    // anchor is reliably unfocused while one is active. No timer / no useURL
+    // guard: both were patches for the remount race that is now gone.
+    if (isLoading || !isFocused || hasSeenOnboarding === null) return;
 
-    // The unauthenticated redirect is deferred (~1.5s splash hold). It MUST stay
-    // cancellable: a deep-link cold-start (e.g. ceolx://reset-password?token=…)
-    // mounts the linked screen on top of this splash, so this screen loses focus,
-    // the effect re-runs, and the cleanup below cancels the pending redirect
-    // *before* it can router.replace the deep-linked screen and drop the token.
-    // The earlier isFocused-only guard checked focus at effect entry but could
-    // not stop an already-scheduled timer, so a fast session-resolve race still
-    // bounced reset-password to sign-in. (Asana 1215040939202673)
-    let cancelled = false;
+    const target = user
+      ? '/(app)/(tabs)/map'
+      : hasSeenOnboarding
+        ? '/(auth)/sign-in'
+        : '/(auth)/get-started';
 
-    const timer = setTimeout(() => {
-      void (async () => {
-        const hasSeen = await SecureStore.getItemAsync('hasSeenOnboarding');
-        if (cancelled) return;
-        router.replace(hasSeen === 'true' ? '/(auth)/sign-in' : '/(auth)/get-started');
-      })();
-    }, 1500);
+    // Breadcrumb so any stray bounce is diagnosable from Sentry: a deep-linked
+    // screen on top would have made this effect bail on !isFocused, so a redirect
+    // logged here when a deep link was expected pinpoints a focus/restore gap.
+    Sentry.addBreadcrumb({
+      category: 'navigation',
+      level: 'info',
+      message: 'splash redirect',
+      data: { target, hasUser: !!user, hasSeenOnboarding },
+    });
 
-    return () => {
-      cancelled = true;
-      clearTimeout(timer);
-    };
-  }, [isLoading, user, isFocused]);
+    router.replace(target);
+  }, [isLoading, user, isFocused, hasSeenOnboarding]);
 
   return (
     <View className="flex-1 bg-[#0d0c0f] items-center justify-center">

@@ -3,6 +3,7 @@ import * as SecureStore from 'expo-secure-store';
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 
 import { authClient } from '@/lib/auth-client';
+import { signOutGoogle } from '@/lib/google-signin';
 import { trpc } from '@/utils/trpc';
 
 interface AuthContextType {
@@ -126,6 +127,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = async () => {
     await authClient.signOut();
+    // Clear the native Google SDK's cached account too — authClient.signOut only
+    // drops our BetterAuth session. Without this the SDK keeps the last Google
+    // account and silently re-uses it on the next sign-in, so a user can never
+    // switch to a different Google account after logging out.
+    await signOutGoogle();
     await SecureStore.deleteItemAsync('isGuest');
     // AuthProvider is mounted once at the app root and never unmounts on
     // logout, so this teardown must be explicit. Without it, the next account

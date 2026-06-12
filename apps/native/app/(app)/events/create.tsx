@@ -1,12 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Alert, KeyboardAvoidingView, Platform, Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { UserRole } from '@CeolX/shared/enums';
 
-import { AppTabBar, TAB_CONFIG } from '@/components/AppTabBar';
 import { appToast } from '@/components/AppToast';
 import { BasicDetailsStep } from '@/components/events/BasicDetailsStep';
 import { DateVenueStep } from '@/components/events/DateVenueStep';
@@ -29,6 +28,20 @@ export default function CreateEventScreen() {
     },
   });
 
+  // Android-only: a freshly-picked cover image paints black until the whole step
+  // remounts — leaving step 1 and coming back fixes it, but styling/inset fixes
+  // (see commits 93fdd1f, 4ad5751) and remounting just the <Image> do not. So we
+  // reproduce that working remount: bump a key on the step shortly after a new
+  // image is picked. Typed form data is safe (it lives in useEventForm, not the
+  // step), only the scroll position resets. iOS renders fine, so we skip it
+  // there. (Asana 1215040939202669)
+  const [coverRefreshKey, setCoverRefreshKey] = useState(0);
+  useEffect(() => {
+    if (Platform.OS !== 'android' || !form.coverImageUri) return;
+    const timer = setTimeout(() => setCoverRefreshKey((k) => k + 1), 350);
+    return () => clearTimeout(timer);
+  }, [form.coverImageUri]);
+
   const handleBackPress = () => {
     Alert.alert('Leave without saving?', 'Your event details will be lost.', [
       { text: 'Stay', style: 'cancel' },
@@ -36,19 +49,11 @@ export default function CreateEventScreen() {
     ]);
   };
 
-  // Mock tab bar props so the AppTabBar renders without a tabs navigator context.
-  // Pressing a tab replaces the stack with the selected tab route.
-  const tabBarState = {
-    index: -1,
-    routes: TAB_CONFIG.map((t) => ({ key: t.name, name: t.name })),
-  };
-  const tabBarNavigation = {
-    emit: () => ({ defaultPrevented: false }),
-    navigate: (name: string) => router.replace(`/(app)/(tabs)/${name}`),
-  };
-
   return (
-    <View className="flex-1 bg-background" style={{ paddingTop: insets.top }}>
+    <View
+      className="flex-1 bg-background"
+      style={{ paddingTop: insets.top, paddingBottom: insets.bottom }}
+    >
       {/* Header */}
       <View className="flex-row items-center px-5 pt-4 pb-1">
         <Pressable onPress={handleBackPress} hitSlop={8} className="mr-3">
@@ -68,12 +73,10 @@ export default function CreateEventScreen() {
           of the form and the dropdown results below them disappear behind
           the keyboard — the activity's adjustResize alone scrolls the
           focused input into view but doesn't lift the content below it. */}
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={{ flex: 1, marginTop: 8 }}
-      >
+      <KeyboardAvoidingView behavior="padding" style={{ flex: 1, marginTop: 8 }}>
         {form.currentStep === 1 && (
           <BasicDetailsStep
+            key={coverRefreshKey}
             title={form.title}
             onTitleChange={form.setTitle}
             onTitleBlur={() => form.handleBlur('title')}
@@ -94,6 +97,7 @@ export default function CreateEventScreen() {
             errors={form.errors}
             onContinue={form.goNext}
             isVenue={isVenue}
+            myUserId={me?.id}
           />
         )}
 
@@ -113,6 +117,7 @@ export default function CreateEventScreen() {
             }}
             venueAddress={form.venueAddress}
             onVenueAddressChange={form.setVenueAddress}
+            venueId={form.venueId}
             onVenueIdChange={form.setVenueId}
             showManualAddress={showManualAddress}
             onToggleManualAddress={() => setShowManualAddress(!showManualAddress)}
@@ -145,14 +150,6 @@ export default function CreateEventScreen() {
           />
         )}
       </KeyboardAvoidingView>
-
-      {/* Bottom tab bar — lets users navigate away without losing the back-stack */}
-      <AppTabBar
-        state={tabBarState as never}
-        descriptors={{}}
-        navigation={tabBarNavigation as never}
-        insets={{ top: 0, bottom: 0, left: 0, right: 0 }}
-      />
     </View>
   );
 }

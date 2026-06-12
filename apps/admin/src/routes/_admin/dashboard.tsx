@@ -5,25 +5,39 @@ import {
   ArrowDown,
   ArrowRight,
   ArrowUp,
-  CalendarCheck,
   CalendarDays,
   CreditCard,
-  Heart,
+  Info,
   Music2,
-  ShieldAlert,
+  UserPlus,
   UsersRound,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 
 import { Card } from '@CeolX/ui/components/card';
 import { Skeleton } from '@CeolX/ui/components/skeleton';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@CeolX/ui/components/tooltip';
 
 import { trpc } from '@/utils/trpc';
 
 export const Route = createFileRoute('/_admin/dashboard')({
   component: DashboardPage,
 });
+
+// Server caches stats for 5 minutes (admin/stats.ts CACHE_TTL_MS). Refetching
+// faster is wasted work — the server returns the same cached snapshot. Aligning
+// to the TTL keeps on-screen data ≤5 min fresh while the dashboard sits open.
+const STATS_REFETCH_INTERVAL_MS = 5 * 60 * 1000;
+// "Updated X ago" is derived from data at render time, so it freezes between
+// refetches. Re-render on a short interval so the relative age stays truthful.
+const RELATIVE_AGE_TICK_MS = 30 * 1000;
 
 type Trend = 'up' | 'down' | 'flat';
 type AttentionTone = 'warning' | 'destructive';
@@ -135,16 +149,40 @@ function StatTile({
   );
 }
 
+// Small "?" affordance for metrics whose meaning isn't obvious from the label.
+// Use sparingly — only where the label genuinely leaves room for misreading.
+function InfoHint({ text }: { text: string }) {
+  return (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <button
+              type="button"
+              className="inline-flex items-center text-muted-foreground/50 transition-colors hover:text-foreground focus:outline-none focus-visible:text-foreground"
+              aria-label="What does this mean?"
+            />
+          }
+        >
+          <Info size={13} strokeWidth={2} />
+        </TooltipTrigger>
+        <TooltipContent>{text}</TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+}
+
 interface MetricCardProps {
   label: string;
   icon: LucideIcon;
   value: ReactNode;
   caption?: ReactNode;
   attention?: { label: string; tone: AttentionTone };
+  info?: string;
   children?: ReactNode;
 }
 
-function MetricCard({ label, icon, value, caption, attention, children }: MetricCardProps) {
+function MetricCard({ label, icon, value, caption, attention, info, children }: MetricCardProps) {
   return (
     <Card className="h-full gap-0 py-0 shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-shadow duration-200 hover:shadow-[0_2px_8px_rgba(0,0,0,0.06)]">
       <div className="flex h-full flex-col p-5">
@@ -154,6 +192,7 @@ function MetricCard({ label, icon, value, caption, attention, children }: Metric
             <span className="text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
               {label}
             </span>
+            {info && <InfoHint text={info} />}
           </div>
           {attention && <AttentionPill label={attention.label} tone={attention.tone} />}
         </div>
@@ -188,7 +227,19 @@ function KpiSkeletonGrid() {
 }
 
 function DashboardPage() {
-  const { data, isLoading, error } = useQuery(trpc.admin.stats.queryOptions());
+  const { data, isLoading, error } = useQuery(
+    trpc.admin.stats.queryOptions(undefined, {
+      refetchInterval: STATS_REFETCH_INTERVAL_MS,
+    })
+  );
+
+  // Force a re-render on a timer so "Updated X ago" advances even when no
+  // refetch has occurred (e.g. tab left open and focused).
+  const [, tick] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => tick((n) => n + 1), RELATIVE_AGE_TICK_MS);
+    return () => clearInterval(id);
+  }, []);
 
   if (isLoading) {
     return (
@@ -210,22 +261,32 @@ function DashboardPage() {
     );
   }
 
-  const {
-    users,
-    events,
-    subscriptions,
-    bookings,
-    engagement,
-    moderation,
-    topCategories,
-    sessions,
-  } = data;
+  const { users, events, subscriptions, topCategories, categoriesInUse, sessions } = data;
 
   return (
     <div className="space-y-6">
       <div className="flex items-baseline justify-between pr-2">
         <h1 className="text-3xl font-bold">Dashboard</h1>
-        <p className="text-xs text-muted-foreground">Updated {formatCacheAge(data.cachedAt)}</p>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <button
+                  type="button"
+                  className="inline-flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-foreground focus:outline-none focus-visible:text-foreground"
+                  aria-label="About this timestamp"
+                />
+              }
+            >
+              Updated {formatCacheAge(data.cachedAt)}
+              <Info size={12} strokeWidth={2} className="opacity-70" />
+            </TooltipTrigger>
+            <TooltipContent>
+              The dashboard statistics refresh automatically every 5 minutes, so they stay up to
+              date. This time shows when they were last refreshed.
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
       </div>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -233,7 +294,7 @@ function DashboardPage() {
           label="Total Users"
           icon={UsersRound}
           value={users.total.toLocaleString()}
-          caption={<TrendPill trend={users.trend7d} label={`+${users.newLast7Days} this week`} />}
+          caption={<span className="text-xs text-muted-foreground">across all personas</span>}
         >
           <StatGrid cols={3}>
             <StatTile label="Spectators" value={users.byPersona.spectator} />
@@ -245,12 +306,25 @@ function DashboardPage() {
         <MetricCard
           label="Active Users"
           icon={Activity}
+          info="Counts people who signed in during the period. Anyone active in the last 7 days is also counted in the last 30, so the 30-day number is always equal to or higher."
           value={sessions.activeLast30Days.toLocaleString()}
           caption={<span className="text-xs text-muted-foreground">in last 30 days</span>}
         >
           <StatGrid cols={2}>
             <StatTile label="Last 7 days" value={sessions.activeLast7Days} />
             <StatTile label="Last 30 days" value={sessions.activeLast30Days} />
+          </StatGrid>
+        </MetricCard>
+
+        <MetricCard
+          label="New Users"
+          icon={UserPlus}
+          value={users.newLast30Days.toLocaleString()}
+          caption={<TrendPill trend={users.trend30d} label="vs. last month" />}
+        >
+          <StatGrid cols={2}>
+            <StatTile label="This week" value={users.newLast7Days} />
+            <StatTile label="Previous week" value={users.newPrev7Days} />
           </StatGrid>
         </MetricCard>
 
@@ -301,10 +375,11 @@ function DashboardPage() {
         <MetricCard
           label="Top Categories"
           icon={Music2}
-          value={topCategories.length.toLocaleString()}
+          info="Your most-used event categories, ranked by how many events use each. Counts cover published events only. Drafts are not included."
+          value={categoriesInUse.toLocaleString()}
           caption={
             <span className="text-xs text-muted-foreground">
-              {topCategories.length === 1 ? 'category in use' : 'categories in use'}
+              {categoriesInUse === 1 ? 'category in use' : 'categories in use'}
             </span>
           }
         >
@@ -317,100 +392,23 @@ function DashboardPage() {
             </div>
           ) : (
             <div className="space-y-1.5">
-              {topCategories.slice(0, 4).map((tc, i) => (
+              {topCategories.slice(0, 3).map((tc) => (
                 <div
                   key={tc.category}
-                  className="flex items-center justify-between rounded-lg px-3 py-2"
-                  style={{
-                    backgroundColor: i === 0 ? COLOR.brandBg : COLOR.neutralBg,
-                  }}
+                  className="flex items-center justify-between gap-2 rounded-lg px-3 py-2"
+                  style={{ backgroundColor: COLOR.neutralBg }}
                 >
-                  <div className="flex items-center gap-2">
-                    <span
-                      className="flex h-4 w-4 items-center justify-center rounded-full text-[9px] font-bold"
-                      style={
-                        i === 0
-                          ? { backgroundColor: COLOR.brand, color: '#fff' }
-                          : { backgroundColor: 'rgba(0,0,0,0.08)', color: 'rgba(0,0,0,0.55)' }
-                      }
-                    >
-                      {i + 1}
+                  <span className="truncate text-xs font-medium">{tc.category}</span>
+                  <span className="shrink-0 text-xs tabular-nums">
+                    <span className="font-bold">{tc.count.toLocaleString()}</span>
+                    <span className="ml-1 font-normal text-muted-foreground">
+                      {tc.count === 1 ? 'event' : 'events'}
                     </span>
-                    <span
-                      className="text-xs font-medium"
-                      style={i === 0 ? { color: COLOR.brand } : undefined}
-                    >
-                      {tc.category}
-                    </span>
-                  </div>
-                  <span className="text-xs font-bold tabular-nums">
-                    {tc.count.toLocaleString()}
                   </span>
                 </div>
               ))}
             </div>
           )}
-        </MetricCard>
-
-        <MetricCard
-          label="Bookings"
-          icon={CalendarCheck}
-          attention={
-            bookings.byStatus.pending > 0 ? { label: 'Pending', tone: 'warning' } : undefined
-          }
-          value={bookings.total.toLocaleString()}
-          caption={<span className="text-xs text-muted-foreground">total bookings</span>}
-        >
-          <StatGrid cols={2}>
-            <StatTile label="Accepted" value={bookings.byStatus.accepted} />
-            <StatTile label="Pending" value={bookings.byStatus.pending} tone="warning" />
-            <StatTile label="Rejected" value={bookings.byStatus.rejected} tone="destructive" />
-            <StatTile label="Cancelled" value={bookings.byStatus.cancelled} />
-          </StatGrid>
-        </MetricCard>
-
-        <MetricCard
-          label="Engagement"
-          icon={Heart}
-          value={(engagement.totalFollows + engagement.totalPosts).toLocaleString()}
-          caption={<span className="text-xs text-muted-foreground">total interactions</span>}
-        >
-          <StatGrid cols={3}>
-            <StatTile label="Follows" value={engagement.totalFollows} />
-            <StatTile label="Posts" value={engagement.totalPosts} />
-            <StatTile label="Likes / post" value={engagement.avgLikesPerPost.toFixed(1)} />
-          </StatGrid>
-        </MetricCard>
-
-        <MetricCard
-          label="Moderation"
-          icon={ShieldAlert}
-          attention={
-            moderation.pendingReview > 0 ? { label: 'Needs review', tone: 'warning' } : undefined
-          }
-          value={
-            <span style={moderation.pendingReview > 0 ? { color: COLOR.warning } : undefined}>
-              {moderation.pendingReview.toLocaleString()}
-            </span>
-          }
-          caption={<span className="text-xs text-muted-foreground">awaiting review</span>}
-        >
-          <StatGrid cols={2}>
-            <StatTile label="Removed (7d)" value={moderation.removedLast7Days} tone="destructive" />
-            <StatTile label="Removed total" value={moderation.removedTotal} />
-          </StatGrid>
-        </MetricCard>
-
-        <MetricCard
-          label="New Users"
-          icon={UsersRound}
-          value={users.newLast30Days.toLocaleString()}
-          caption={<TrendPill trend={users.trend30d} label="vs. previous 30 days" />}
-        >
-          <StatGrid cols={2}>
-            <StatTile label="This week" value={users.newLast7Days} />
-            <StatTile label="This month" value={users.newLast30Days} />
-          </StatGrid>
         </MetricCard>
       </div>
     </div>

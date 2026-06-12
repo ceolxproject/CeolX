@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, Text, View } from 'react-native';
 
 import { CalendarPicker } from '@/components/events/CalendarPicker';
+import { FieldLabel } from '@/components/events/FieldLabel';
 import { TimePickerModal } from '@/components/events/TimePickerModal';
 import { LocationPicker } from '@/components/LocationPicker';
 import { geocodeAddress } from '@/utils/geocode';
@@ -22,6 +23,9 @@ type Props = {
   onLocationChange: (lat: number, lng: number) => void;
   venueAddress: string;
   onVenueAddressChange: (v: string) => void;
+  /** The currently selected registered venue's ID (drives the dropdown's
+   *  selected label, so an event being edited shows its venue pre-selected). */
+  venueId?: string;
   /** Called with the selected registered venue's ID (empty string to clear). */
   onVenueIdChange: (id: string) => void;
   /** When true, show map+search instead of the registered venue dropdown. */
@@ -62,6 +66,7 @@ export function DateVenueStep({
   onLocationChange,
   venueAddress,
   onVenueAddressChange,
+  venueId,
   onVenueIdChange,
   showManualAddress,
   onToggleManualAddress,
@@ -82,10 +87,14 @@ export function DateVenueStep({
 
   // Artist venue picker
   const [showVenueDropdown, setShowVenueDropdown] = useState(false);
-  const [selectedVenueName, setSelectedVenueName] = useState('');
   const { data: registeredVenues = [], isLoading: isLoadingVenues } = useQuery(
     trpc.venues.list.queryOptions()
   );
+
+  // Selected venue label is derived from the chosen venueId + the loaded venue
+  // list — not held in separate state — so editing an event with a venue
+  // already set shows it pre-selected once the list resolves.
+  const selectedVenueName = registeredVenues.find((v) => v.id === venueId)?.name ?? '';
 
   const handleUseMyVenue = async () => {
     if (!myVenueAddress) return;
@@ -135,7 +144,10 @@ export function DateVenueStep({
       >
         {/* ── Date ── */}
         <View className="gap-1.5">
-          <Text className="text-sm font-semibold text-gray-3 font-urbanist">Date</Text>
+          <FieldLabel
+            label="Date"
+            hint="The day your event takes place. Past dates can't be selected."
+          />
           <CalendarPicker
             value={dateStart}
             onChange={onDateStartChange}
@@ -146,7 +158,10 @@ export function DateVenueStep({
 
         {/* ── Time ── */}
         <View className="gap-1.5">
-          <Text className="text-sm font-semibold text-gray-3 font-urbanist">Time</Text>
+          <FieldLabel
+            label="Time"
+            hint="When the event starts and (optionally) ends. The end time can't be before the start time."
+          />
           <View className="flex-row gap-3">
             {/* Start Time */}
             <View className="flex-1 gap-1">
@@ -195,7 +210,10 @@ export function DateVenueStep({
         {/* ── Venue ── */}
         <View className="gap-1.5">
           <View className="flex-row items-center justify-between">
-            <Text className="text-sm font-semibold text-gray-3 font-urbanist">Choose Venue</Text>
+            <FieldLabel
+              label="Choose Venue"
+              hint="Where the event happens. Pick a registered venue or tap “Enter manually” to drop a pin on the map."
+            />
             <Pressable onPress={onToggleManualAddress}>
               <Text className="text-xs font-bold text-[#C8FF2F] font-urbanist tracking-wide">
                 {showManualAddress ? 'SELECT VENUE' : 'ENTER MANUALLY'}
@@ -263,7 +281,6 @@ export function DateVenueStep({
                             className="px-4 py-3 active:bg-white/5 border-b border-gray-8"
                             onPress={() => {
                               setShowVenueDropdown(false);
-                              setSelectedVenueName(v.name);
                               onVenueAddressChange(v.address);
                               onVenueIdChange(v.id);
                               // Use the venue's stored pin directly — no fragile

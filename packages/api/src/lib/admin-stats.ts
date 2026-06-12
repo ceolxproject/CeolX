@@ -38,6 +38,7 @@ export type UserStats = {
   total: number;
   byPersona: { spectator: number; artist: number; venue: number };
   newLast7Days: number;
+  newPrev7Days: number;
   newLast30Days: number;
   trend7d: Trend;
   trend30d: Trend;
@@ -55,6 +56,7 @@ export function shapeUserStats(input: UserStatsInput): UserStats {
     total,
     byPersona,
     newLast7Days: input.newLast7Days,
+    newPrev7Days: input.newPrev7Days,
     newLast30Days: input.newLast30Days,
     trend7d: computeTrend(input.newLast7Days, input.newPrev7Days),
     trend30d: computeTrend(input.newLast30Days, input.newPrev30Days),
@@ -235,8 +237,12 @@ const TOP_CATEGORIES_LIMIT = 5;
 export type TopCategory = { category: string; count: number };
 
 export function shapeTopCategories(rows: TopCategory[]): TopCategory[] {
-  // Caller already sorts via SQL ORDER BY; we still slice defensively.
-  return rows.slice(0, TOP_CATEGORIES_LIMIT);
+  // Most events first; ties broken alphabetically so the order is stable across
+  // reloads instead of relying on arbitrary DB heap order. No rank numbers — the
+  // count is the signal, and a rank column would be self-contradictory on ties.
+  return [...rows]
+    .sort((a, b) => b.count - a.count || a.category.localeCompare(b.category))
+    .slice(0, TOP_CATEGORIES_LIMIT);
 }
 
 // ─── Cache meta ──────────────────────────────────────────────────────────────

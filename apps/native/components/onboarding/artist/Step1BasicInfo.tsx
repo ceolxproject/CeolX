@@ -52,7 +52,7 @@ export function Step1BasicInfo({
           >
             <TextInput
               className="text-base text-black"
-              placeholder="Your Stage Name"
+              placeholder="Enter your artist or band name"
               placeholderTextColor="#8d8d8d"
               value={stageName}
               onChangeText={setStageName}

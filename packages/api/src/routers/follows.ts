@@ -1,5 +1,5 @@
 import { TRPCError } from '@trpc/server';
-import { and, desc, eq, inArray, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, ne, sql } from 'drizzle-orm';
 
 import { db } from '@CeolX/db';
 import { user } from '@CeolX/db/schema/auth';
@@ -135,7 +135,9 @@ export const followsRouter = router({
         createdAt: follows.createdAt,
       })
       .from(follows)
-      .where(eq(follows.followerId, ctx.userId))
+      // Exclude any self-follow row (legacy data predating the mutation guard) —
+      // a user must never appear in their own Following list.
+      .where(and(eq(follows.followerId, ctx.userId), ne(follows.followeeId, ctx.userId)))
       .orderBy(desc(follows.createdAt))
       .limit(limit + 1)
       .offset(offset);
@@ -199,6 +201,8 @@ export const followsRouter = router({
 
     const filtered = following.filter((f) => {
       if (!f.profile) return false;
+      // Defensive: never surface the viewer themselves in their own list.
+      if (f.followeeId === ctx.userId) return false;
       if (profileType && f.profileType !== profileType) return false;
       return true;
     });

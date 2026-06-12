@@ -1,8 +1,32 @@
+// Marketing version, the single source of truth. `standard-version` (pnpm
+// release) bumps apps/native/package.json; reading it here means there's no
+// separate "update the Expo version" step. The version never reaches the
+// runtimeVersion hash — fingerprint.config.js skips ExpoConfigVersions — so a
+// release bumps the store version without orphaning binaries from OTAs.
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const pkg = require('./package.json');
+
 const VARIANT = process.env.APP_VARIANT ?? 'production';
 const IS_STAGING = VARIANT === 'staging';
 
 const PROD_BUNDLE_ID = 'ie.ceolx.app';
 const STAGING_BUNDLE_ID = 'com.raftlabs.ceolx.staging';
+
+// REVERSED_CLIENT_ID from the iOS OAuth client (see GoogleService-Info.plist),
+// e.g. com.googleusercontent.apps.1234-abc. Registers the URL scheme the native
+// Google Sign-In SDK uses on iOS. Until it's set, the google-signin config
+// plugin is skipped so prebuild keeps working; Android sign-in still wires up
+// via @react-native-firebase/app + google-services.json.
+const GOOGLE_IOS_URL_SCHEME = process.env.GOOGLE_IOS_URL_SCHEME;
+
+// Host the OS verifies Universal Links (iOS) / App Links (Android) against for
+// shared post URLs. Defaults to the prod marketing domain; staging sets
+// EXPO_PUBLIC_SHARE_BASE_URL to the staging server's Vercel URL (no custom
+// domain off prod). MUST match SHARE_BASE_URL in hooks/use-share-post.ts so the
+// shared link's host is the one declared here. Stripped to a bare host because
+// associatedDomains / intentFilters take a host, not a URL.
+const SHARE_BASE_URL = process.env.EXPO_PUBLIC_SHARE_BASE_URL ?? 'https://ceolx.ie';
+const SHARE_HOST = SHARE_BASE_URL.replace(/^https?:\/\//, '').replace(/\/.*$/, '');
 
 /**
  * @param {import('expo/config').ConfigContext} _ctx
@@ -12,7 +36,7 @@ export default (_) => ({
   name: IS_STAGING ? 'CeolX (Staging)' : 'CeolX',
   slug: 'ceolx',
   owner: 'raftlabs_expo',
-  version: '1.0.0',
+  version: pkg.version,
   orientation: 'portrait',
   icon: './assets/images/icon.png',
   userInterfaceStyle: 'automatic',
@@ -37,11 +61,12 @@ export default (_) => ({
     // of a raw APNs token. The plist is downloaded from the Firebase Console
     // and gitignored — see docs/project-management/M7-T1 human handoff checklist.
     googleServicesFile: process.env.GOOGLE_SERVICES_INFO_PLIST ?? './GoogleService-Info.plist',
-    // Universal Links target. Activation requires `apple-app-site-association`
-    // hosted at https://ceolx.ie/.well-known/apple-app-site-association — tracked
-    // with the M10-T1 / admin-redirect work; until then, in-app `ceolx://post/...`
-    // still routes correctly.
-    associatedDomains: ['applinks:ceolx.ie'],
+    // Universal Links target (SHARE_HOST — prod ceolx.ie, staging the server
+    // Vercel URL). The matching apple-app-site-association is served at
+    // https://<host>/.well-known/apple-app-site-association by the Hono backend
+    // (apps/server/src/routes/app-links.ts). appID = APPLE_OAUTH_TEAM_ID + the
+    // build's bundle id (MOBILE_BUNDLE_ID on the server), scoped to /post/*.
+    associatedDomains: [`applinks:${SHARE_HOST}`],
     infoPlist: {
       // CeolX only uses standard HTTPS/TLS (exempt encryption). Declaring this
       // skips the per-build "Missing Compliance" prompt in TestFlight/App Store
@@ -60,7 +85,10 @@ export default (_) => ({
   android: {
     adaptiveIcon: {
       foregroundImage: './assets/images/android-icon-foreground.png',
-      backgroundImage: './assets/images/android-icon-background.png',
+      // Solid brand purple behind the logo. A flat color (vs a background PNG)
+      // can't drift out of registration with the foreground and is what the
+      // app-icon design in Figma specifies (#662FFE).
+      backgroundColor: '#662FFE',
       monochromeImage: './assets/images/android-icon-monochrome.png',
     },
     package: IS_STAGING ? STAGING_BUNDLE_ID : PROD_BUNDLE_ID,
@@ -77,15 +105,22 @@ export default (_) => ({
       'android.permission.CAMERA',
       'android.permission.READ_EXTERNAL_STORAGE',
       'android.permission.RECORD_AUDIO',
+      // "Add to calendar" on event detail (expo-calendar).
+      'android.permission.READ_CALENDAR',
+      'android.permission.WRITE_CALENDAR',
     ],
-    // App Links for shared post URLs. Full verification requires
-    // assetlinks.json hosted at https://ceolx.ie/.well-known/assetlinks.json
-    // (pending admin-app work).
+    // App Links for shared post URLs (host = SHARE_HOST). Verified against
+    // assetlinks.json served at https://<host>/.well-known/assetlinks.json by
+    // the Hono backend (apps/server/src/routes/app-links.ts). The published
+    // SHA-256 (ANDROID_SHA256_CERT_FINGERPRINT on the server) must match this
+    // build's signing keystore — `eas credentials -p android` → SHA-256. The
+    // staging app uses a different package + keystore than prod, so its server
+    // must publish the staging package's SHA-256.
     intentFilters: [
       {
         action: 'VIEW',
         autoVerify: true,
-        data: [{ scheme: 'https', host: 'ceolx.ie', pathPrefix: '/post' }],
+        data: [{ scheme: 'https', host: SHARE_HOST, pathPrefix: '/post' }],
         category: ['BROWSABLE', 'DEFAULT'],
       },
     ],
@@ -95,6 +130,10 @@ export default (_) => ({
   },
   plugins: [
     'expo-font',
+    // Mux HLS video playback in PostCard / post detail (M10-T2). expo-video
+    // plays .m3u8 streams natively on iOS + Android; no background playback or
+    // picture-in-picture needed for V1, so the bare plugin string is enough.
+    'expo-video',
     [
       'expo-location',
       {
@@ -115,6 +154,12 @@ export default (_) => ({
     './plugins/with-modular-headers.cjs',
     'expo-notifications',
     'expo-apple-authentication',
+    // Native Google Sign-In. The config plugin only needs to register the iOS
+    // URL scheme; the native module is autolinked and reads its Android OAuth
+    // client from google-services.json (applied by @react-native-firebase/app).
+    ...(GOOGLE_IOS_URL_SCHEME
+      ? [['@react-native-google-signin/google-signin', { iosUrlScheme: GOOGLE_IOS_URL_SCHEME }]]
+      : []),
     [
       'react-native-maps',
       {
@@ -122,6 +167,15 @@ export default (_) => ({
       },
     ],
     '@react-native-community/datetimepicker',
+    // "Add to calendar" on event detail. The plugin writes the iOS usage
+    // strings (incl. iOS 17 full-access key); Android READ/WRITE_CALENDAR are
+    // declared in android.permissions above.
+    [
+      'expo-calendar',
+      {
+        calendarPermission: 'CeolX adds events you choose to your device calendar.',
+      },
+    ],
   ],
   experiments: {
     typedRoutes: true,

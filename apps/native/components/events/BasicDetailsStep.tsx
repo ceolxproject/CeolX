@@ -4,8 +4,10 @@ import { Image, Pressable, ScrollView, Text, TextInput, View } from 'react-nativ
 
 import type { EventCategory } from '@CeolX/shared';
 
+import type { ArtistResult } from './ArtistSearchRow';
 import { CategoryPicker } from './CategoryPicker';
 import { CollectionPicker } from './CollectionPicker';
+import { FieldLabel } from './FieldLabel';
 import { InviteArtistPicker } from './InviteArtistPicker';
 
 type Props = {
@@ -24,13 +26,15 @@ type Props = {
   onCategoryChange: (v: EventCategory) => void;
   collectionId: string;
   onCollectionIdChange: (v: string) => void;
-  platformInvites: string[];
-  onPlatformInvitesChange: (ids: string[]) => void;
+  platformInvites: ArtistResult[];
+  onPlatformInvitesChange: (artists: ArtistResult[]) => void;
   unregisteredCollaborators: Array<{ name: string; email: string }>;
   onUnregisteredCollaboratorsChange: (invites: Array<{ name: string; email: string }>) => void;
   errors: Record<string, string>;
   onContinue: () => void;
   isVenue: boolean;
+  /** Current user's id — excluded from the invite search so a creator can't invite themselves. */
+  myUserId?: string;
 };
 
 const MAX_DESCRIPTION_LENGTH = 2000;
@@ -56,6 +60,7 @@ export function BasicDetailsStep({
   errors,
   onContinue,
   isVenue,
+  myUserId,
 }: Props) {
   return (
     <ScrollView
@@ -66,7 +71,10 @@ export function BasicDetailsStep({
     >
       {/* ── Event Title ── */}
       <View className="gap-2">
-        <Text className="text-sm font-semibold text-gray-3 font-urbanist">Event Title</Text>
+        <FieldLabel
+          label="Event Title"
+          hint="The name of your event as it appears on the map, feed and event page. Keep it short and descriptive."
+        />
         <TextInput
           className={cn(
             'rounded-lg border bg-surface px-4 py-3 text-sm text-white font-urbanist',
@@ -84,22 +92,23 @@ export function BasicDetailsStep({
 
       {/* ── Event Banner / Image ── */}
       <View className="gap-2">
-        <Text className="text-sm font-semibold text-gray-3 font-urbanist">Event Banner/Image</Text>
+        <FieldLabel
+          label="Event Banner/Image"
+          hint="The cover image shown on your event card and detail page. PNG or JPEG, max 100kb."
+        />
         <Pressable onPress={onPickImage}>
           {coverImageUri ? (
             <View className="h-44 rounded-xl overflow-hidden">
-              {/* Height lives on the wrapper View (uniwind sizes Views reliably).
-                  The image MUST be absolute inset-0, not a plain percentage h-full:
-                  on Android, RN <Image> sized only by height:'100%' lays out a box
-                  but never paints the bitmap (Fresco needs resolved pixel bounds),
-                  so the picked image showed blank on Android while fine on iOS.
-                  inset-0 pins it to the wrapper's resolved frame — same pattern as
-                  EventHeroImage / BaseEventCard. (Asana 1215040939202669) */}
-              <Image
-                source={{ uri: coverImageUri }}
-                className="absolute inset-0 w-full h-full"
-                resizeMode="cover"
-              />
+              {/* The image must be a normal flow child (h-full w-full), NOT
+                  absolute inset-0. On Android, an absolutely-positioned <Image>
+                  contributes nothing to layout, so when it's revealed inside an
+                  already-mounted step (after picking) it attaches before its
+                  frame resolves — Fresco requests a 0-sized bitmap and never
+                  repaints, so the picked image stayed blank until a full remount
+                  (going to step 2 and back). A flow child is measured on
+                  insertion, so Fresco gets real bounds immediately. Same pattern
+                  as the post MediaPickerField preview. (Asana 1215040939202669) */}
+              <Image source={{ uri: coverImageUri }} className="h-full w-full" resizeMode="cover" />
               {/* Tap the image to replace; tap ✕ to clear. Stops propagation so
                   removing doesn't also re-open the picker. */}
               <Pressable
@@ -135,7 +144,10 @@ export function BasicDetailsStep({
       {/* ── Event Description ── */}
       <View className="gap-2">
         <View className="flex-row items-center justify-between">
-          <Text className="text-sm font-semibold text-gray-3 font-urbanist">Event Description</Text>
+          <FieldLabel
+            label="Event Description"
+            hint="Tell fans what to expect — the acts, the vibe, and any details they should know before they go."
+          />
           <Text className="text-xs text-gray-7 font-urbanist">
             {description.length}/{MAX_DESCRIPTION_LENGTH}
           </Text>
@@ -165,7 +177,10 @@ export function BasicDetailsStep({
 
       {/* ── Category ── */}
       <View className="gap-2">
-        <Text className="text-sm font-semibold text-gray-3 font-urbanist">Category</Text>
+        <FieldLabel
+          label="Category"
+          hint="Pick the type of event so the right audience can discover it when filtering the map and feed."
+        />
         <CategoryPicker value={category} onChange={onCategoryChange} error={errors.category} />
       </View>
 
@@ -174,15 +189,14 @@ export function BasicDetailsStep({
         <CollectionPicker collectionId={collectionId} onCollectionIdChange={onCollectionIdChange} />
       )}
 
-      {/* ── Invite Artists — Venues only ── */}
-      {isVenue && (
-        <InviteArtistPicker
-          platformInvites={platformInvites}
-          onPlatformInvitesChange={onPlatformInvitesChange}
-          unregisteredInvites={unregisteredCollaborators}
-          onUnregisteredInvitesChange={onUnregisteredCollaboratorsChange}
-        />
-      )}
+      {/* ── Invite Artists — Venues invite performers, Artists invite co-artists ── */}
+      <InviteArtistPicker
+        platformInvites={platformInvites}
+        onPlatformInvitesChange={onPlatformInvitesChange}
+        unregisteredInvites={unregisteredCollaborators}
+        onUnregisteredInvitesChange={onUnregisteredCollaboratorsChange}
+        myUserId={myUserId}
+      />
 
       {/* ── Continue Button ── */}
       <Pressable

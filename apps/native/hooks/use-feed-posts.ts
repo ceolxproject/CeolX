@@ -1,6 +1,9 @@
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
+import { MAP_DEBOUNCE_MS } from '@CeolX/shared';
+
+import { excludeDeletedPosts, useDeletedPostIds } from '@/hooks/use-deleted-posts';
 import { trpc } from '@/utils/trpc';
 
 const PAGE_SIZE = 20;
@@ -31,8 +34,14 @@ export function useFeedPosts({ enabled = true }: Opts = {}) {
   const [accumulated, setAccumulated] = useState<HydratedPost[]>([]);
   const [hasNextPage, setHasNextPage] = useState(true);
   const [totalCount, setTotalCount] = useState(0);
+  const [searchQuery, setSearchQuery] = useState('');
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const queryOptions = trpc.posts.feed.queryOptions({ limit: PAGE_SIZE, offset });
+  const queryOptions = trpc.posts.feed.queryOptions({
+    limit: PAGE_SIZE,
+    offset,
+    query: searchQuery.trim() || undefined,
+  });
   const { data, isLoading, isFetching, refetch } = useQuery({
     ...queryOptions,
     enabled,
@@ -43,14 +52,13 @@ export function useFeedPosts({ enabled = true }: Opts = {}) {
     if (!data || isFetching) return;
     const newPosts = data.posts as HydratedPost[];
     if (offset === 0) {
-      if (
-        accumulated.length !== newPosts.length ||
-        (newPosts.length > 0 && accumulated[0]?.id !== newPosts[0]?.id)
-      ) {
-        setAccumulated(newPosts);
-        setHasNextPage(data.hasNextPage);
-        setTotalCount(data.totalCount);
-      }
+      // Always re-sync page 0 to the latest query data. `newPosts` is a stable
+      // reference until the cache changes (e.g. an optimistic like patch), so
+      // React bails on no-op sets — but field-level updates like a flipped
+      // `likedByMe` / `likeCount` now reach the list instead of being dropped.
+      setAccumulated(newPosts);
+      setHasNextPage(data.hasNextPage);
+      setTotalCount(data.totalCount);
     } else if (accumulated.length < offset + newPosts.length) {
       setAccumulated((prev) => [...prev, ...newPosts]);
       setHasNextPage(data.hasNextPage);
@@ -70,13 +78,32 @@ export function useFeedPosts({ enabled = true }: Opts = {}) {
     await refetch();
   }, [queryClient, queryOptions.queryKey, refetch]);
 
+  // Debounced so we don't refetch on every keystroke. Resetting offset +
+  // accumulated forces the list back to page one for the new term.
+  const onSearch = useCallback((text: string) => {
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+    searchTimerRef.current = setTimeout(() => {
+      setSearchQuery(text);
+      setOffset(0);
+      setAccumulated([]);
+    }, MAP_DEBOUNCE_MS);
+  }, []);
+
+  // Filter out posts the current session has deleted. The accumulated array can
+  // still hold a just-deleted row (the append-only merge can't remove one when
+  // scrolled past page 0); the shared tombstone set drops it from every surface.
+  const deletedIds = useDeletedPostIds();
+  const posts = excludeDeletedPosts(accumulated, deletedIds);
+
   return {
-    posts: accumulated,
+    posts,
     isLoading: isLoading && offset === 0,
     isFetchingNextPage: isFetching && offset > 0,
     hasNextPage,
     totalCount,
     loadMore,
     refresh,
+    searchQuery,
+    onSearch,
   };
 }

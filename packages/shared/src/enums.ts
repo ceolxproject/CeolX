@@ -38,11 +38,16 @@ export const BookingStatus = {
 } as const satisfies Record<string, BookingStatus>;
 
 // Booking direction — imported by packages/db to build pgEnum("booking_direction")
-export const BOOKING_DIRECTIONS = ['venue_to_artist', 'artist_to_venue'] as const;
+export const BOOKING_DIRECTIONS = [
+  'venue_to_artist',
+  'artist_to_venue',
+  'artist_to_artist',
+] as const;
 export type BookingDirection = (typeof BOOKING_DIRECTIONS)[number];
 export const BookingDirection = {
   VENUE_TO_ARTIST: 'venue_to_artist',
   ARTIST_TO_VENUE: 'artist_to_venue',
+  ARTIST_TO_ARTIST: 'artist_to_artist',
 } as const satisfies Record<string, BookingDirection>;
 
 // Venue subscription via Stripe — imported by packages/db to build pgEnum("subscription_status")
@@ -55,27 +60,24 @@ export const SubscriptionStatus = {
   CANCELLED: 'cancelled',
 } as const satisfies Record<string, VenueSubscriptionStatus>;
 
-// Irish music event categories (pre-seeded, subject to client sign-off)
+// Irish music event categories (finalised — client-provided list, Figma node 1:3817)
 export const EVENT_CATEGORIES = [
-  'Traditional',
-  'Contemporary',
-  'Fusion',
-  'Celtic',
-  'Folk',
-  'Session',
+  'Concerts',
+  'Gigs',
+  'Karaoke',
+  'Open Mic Nights',
+  'Festivals',
+  'Recital',
+  'DJ Sets / Club Nights',
+  'Jam Sessions',
+  'Tribute / Cover Band Shows',
+  'Workshops',
+  'Open Trad Sessions',
+  'Lessons',
+  'Outdoor',
+  'Others',
 ] as const;
 export type EventCategory = (typeof EVENT_CATEGORIES)[number];
-
-// Date range filter options for map/feed
-export const DATE_RANGE_OPTIONS = ['today', 'this_week', 'this_weekend', 'this_month'] as const;
-export type DateRangeOption = (typeof DATE_RANGE_OPTIONS)[number];
-
-export const DATE_RANGE_LABELS: Record<DateRangeOption, string> = {
-  today: 'Today',
-  this_week: 'This Week',
-  this_weekend: 'This Weekend',
-  this_month: 'This Month',
-};
 
 // 32 counties of Ireland (Republic + Northern Ireland)
 export const IRISH_COUNTIES = [

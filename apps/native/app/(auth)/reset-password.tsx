@@ -1,15 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
+import * as Sentry from '@sentry/react-native';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useState } from 'react';
-import {
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  ScrollView,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { useEffect, useState } from 'react';
+import { KeyboardAvoidingView, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppButton } from '@/components/AppButton';
@@ -18,6 +11,18 @@ import { authClient } from '@/lib/auth-client';
 
 export default function ResetPasswordScreen() {
   const { token } = useLocalSearchParams<{ token: string }>();
+
+  // Evidence that the deep link actually landed here (vs. being dropped back to
+  // the splash). Pairs with the 'splash redirect' breadcrumb. (Asana 1215040939202673)
+  useEffect(() => {
+    Sentry.addBreadcrumb({
+      category: 'navigation',
+      level: 'info',
+      message: 'reset-password mounted',
+      data: { hasToken: !!token },
+    });
+  }, [token]);
+
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [passwordVisible, setPasswordVisible] = useState(false);
@@ -69,10 +74,7 @@ export default function ResetPasswordScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: '#0d0c0f' }}>
       <SafeAreaView style={{ flex: 1 }}>
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={{ flex: 1 }}
-        >
+        <KeyboardAvoidingView behavior="padding" style={{ flex: 1 }}>
           {/* Header — brand logo, matches sign-in */}
           <View className="flex-row justify-between items-center p-5 bg-surface-dark">
             <CeolxLogo />
@@ -99,7 +101,7 @@ export default function ResetPasswordScreen() {
               <View className="flex-row items-center">
                 <TextInput
                   className="flex-1 bg-white rounded-lg h-[52px] px-4 text-base font-sans font-medium text-black leading-5"
-                  placeholder="Enter new password"
+                  placeholder="Enter your new password"
                   placeholderTextColor="#8d8d8d"
                   secureTextEntry={!passwordVisible}
                   autoComplete="new-password"
@@ -126,7 +128,7 @@ export default function ResetPasswordScreen() {
               </Text>
               <TextInput
                 className="bg-white rounded-lg h-[52px] px-4 text-base font-sans font-medium text-black leading-5"
-                placeholder="Re-enter new password"
+                placeholder="Re-enter your new password"
                 placeholderTextColor="#8d8d8d"
                 secureTextEntry={!passwordVisible}
                 autoComplete="new-password"
