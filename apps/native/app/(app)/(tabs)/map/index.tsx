@@ -279,7 +279,13 @@ export default function MapScreen() {
     // own SafeAreaProvider, which reports bottom = 0 here.
     return (
       <Modal visible animationType="none" statusBarTranslucent navigationBarTranslucent>
-        <LocationPermissionScreen onDone={markSeen} insets={insets} />
+        <LocationPermissionScreen
+          onDone={async (opts) => {
+            await markSeen();
+            if (opts?.viaManualSelection) router.push('/add-location');
+          }}
+          insets={insets}
+        />
       </Modal>
     );
   }
