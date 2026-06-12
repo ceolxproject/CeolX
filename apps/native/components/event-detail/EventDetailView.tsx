@@ -28,6 +28,7 @@ import {
 import { useGpsRegion } from '@/hooks/use-gps-region';
 import { useRequestToPerform } from '@/hooks/use-request-to-perform';
 import { useSaveEvent } from '@/hooks/use-save-event';
+import { useShareEvent } from '@/hooks/use-share-event';
 import type { EventDetailData } from '@/types/event-detail';
 
 interface EventDetailViewProps {
@@ -59,6 +60,7 @@ export function EventDetailView({
   const [isSaved, setIsSaved] = useState(event.isSaved);
   const { initialRegion, locationSource } = useGpsRegion();
   const { mutate: saveEvent } = useSaveEvent();
+  const shareEvent = useShareEvent();
   const { requestToPerform, isRequesting, hasRequested } = useRequestToPerform();
 
   const distanceKm = useMemo(() => {
@@ -75,6 +77,10 @@ export function EventDetailView({
     const newSaved = !isSaved;
     setIsSaved(newSaved); // optimistic update
     saveEvent({ eventId: event.id, saved: newSaved }, { onError: () => setIsSaved(isSaved) });
+  };
+
+  const handleShare = () => {
+    void shareEvent(event.id, event.title, formatDetailDate(event.dateStart));
   };
 
   const handleRequestToPerform = () => {
@@ -134,7 +140,12 @@ export function EventDetailView({
         contentContainerStyle={{ paddingBottom: 16 }}
       >
         {/* Header */}
-        <EventDetailHeader onBack={onBack} isSaved={isSaved} onToggleSave={handleToggleSave} />
+        <EventDetailHeader
+          onBack={onBack}
+          isSaved={isSaved}
+          onToggleSave={handleToggleSave}
+          onShare={handleShare}
+        />
 
         {/* Hero Image with category + attendee badges */}
         <EventHeroImage
