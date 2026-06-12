@@ -16,6 +16,7 @@ import '@CeolX/env/server'; // validates required env vars at startup
 import { isAllowedOrigin } from './config/cors';
 import { errorHandler } from './middleware/errorHandler';
 import appLinksRoute from './routes/app-links';
+import eventShareRoute from './routes/event-share';
 import locationRoutes from './routes/location';
 import postShareRoute from './routes/post-share';
 import resetPasswordRoute from './routes/reset-password';
@@ -69,6 +70,7 @@ export function buildApp() {
   // limit — these are public and hit by OS verifiers + social crawlers.
   app.route('/', appLinksRoute);
   app.route('/', postShareRoute);
+  app.route('/', eventShareRoute);
 
   // tRPC — all feature procedures (events, artists, bookings, admin) live in packages/api
   app.use('/trpc/*', rateLimiter(RATE_LIMIT_TIERS.authenticatedGeneral));
