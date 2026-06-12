@@ -59,7 +59,7 @@ export default function MapScreen() {
   // own SafeAreaProvider reports bottom = 0 on Android, so we pass these
   // known-good values into it rather than letting it re-measure.
   const insets = useSafeAreaInsets();
-  const { promptState, markSeen } = useLocationPermissionPrompt();
+  const { promptState, focusSearchOnMount, markSeen } = useLocationPermissionPrompt();
   const venueFallback = useVenueFallback();
   const { initialRegion, gpsPermissionGranted, locationSource, mapKey } = useGpsRegion(
     promptState === 'done',
@@ -265,6 +265,7 @@ export default function MapScreen() {
         onChangeText={onPlaceChangeText}
         onFilterPress={() => setFilterSheetVisible(true)}
         activeFilterCount={activeFilterCount}
+        autoFocus={focusSearchOnMount}
       />
 
       {showBanner && (

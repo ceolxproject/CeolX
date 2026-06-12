@@ -6,8 +6,12 @@ import type { EdgeInsets } from 'react-native-safe-area-context';
 import { CeolxLogo } from './CeolxLogo';
 
 type Props = {
-  /** Called after the user makes a location choice. */
-  onDone: () => Promise<void>;
+  /**
+   * Called after the user makes a location choice. `viaManualSelection` is set
+   * when they tapped "Select location manually" so the host can route them into
+   * the place search next.
+   */
+  onDone: (opts?: { viaManualSelection?: boolean }) => Promise<void>;
   /**
    * Safe-area insets, passed from the screen that hosts the Modal. The Modal's
    * own native window can't measure its insets reliably on Android (bottom
@@ -96,8 +100,14 @@ export function LocationPermissionScreen({ onDone, insets }: Props) {
           <View className="flex-1 h-px bg-[#7E8492]" />
         </View>
 
-        {/* SELECT LOCATION MANUALLY — lime text link */}
-        <Pressable onPress={onDone}>
+        {/* SELECT LOCATION MANUALLY — lime text link. hitSlop + pressed opacity
+            give the 12px target a real touch area and visible feedback; without
+            them the tap fired but felt dead (QA 1215649892152253). */}
+        <Pressable
+          onPress={() => onDone({ viaManualSelection: true })}
+          hitSlop={16}
+          className="py-2 px-4 active:opacity-60"
+        >
           <Text className="text-[#D4FC5A] text-[12px] font-bold tracking-[2px] uppercase">
             Select location manually
           </Text>
