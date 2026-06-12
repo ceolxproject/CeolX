@@ -120,7 +120,10 @@ export default (_) => ({
       {
         action: 'VIEW',
         autoVerify: true,
-        data: [{ scheme: 'https', host: SHARE_HOST, pathPrefix: '/post' }],
+        data: [
+          { scheme: 'https', host: SHARE_HOST, pathPrefix: '/post' },
+          { scheme: 'https', host: SHARE_HOST, pathPrefix: '/event' },
+        ],
         category: ['BROWSABLE', 'DEFAULT'],
       },
     ],

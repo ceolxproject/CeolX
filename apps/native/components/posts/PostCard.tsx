@@ -47,11 +47,24 @@ type Props = {
    * which must navigate away once its post no longer exists.
    */
   onDeleted?: () => void;
+  /**
+   * Feed viewport flag forwarded to <PostVideo> — the on-screen card autoplays
+   * muted, off-screen cards freeze. Left undefined on surfaces without viewport
+   * tracking (profile / venue / artist), where videos stay tap-to-play.
+   */
+  activeVideo?: boolean;
 };
 
 const CAPTION_PREVIEW_LIMIT = 120;
 
-export function PostCard({ post, currentUserId, hideAuthorHeader, expanded, onDeleted }: Props) {
+export function PostCard({
+  post,
+  currentUserId,
+  hideAuthorHeader,
+  expanded,
+  onDeleted,
+  activeVideo,
+}: Props) {
   const isOwner = currentUserId === post.createdBy;
   // Like state is derived straight from props. useTogglePostLike patches the
   // query cache optimistically, so these values flow back through the feed /
@@ -126,6 +139,8 @@ export function PostCard({ post, currentUserId, hideAuthorHeader, expanded, onDe
           mediaUrl={post.mediaUrl}
           muxStatus={post.muxStatus ?? null}
           muxPlaybackId={post.muxPlaybackId ?? null}
+          active={activeVideo}
+          expanded={expanded}
         />
       )}
 
