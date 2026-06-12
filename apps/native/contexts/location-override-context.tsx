@@ -21,7 +21,8 @@ const LocationOverrideContext = createContext<LocationOverrideContextType | unde
  * "ask for permission once per session" model. Knows nothing about maps, feeds,
  * or GPS; it is just the shared source of the chosen location.
  *
- * Mounted in (tabs)/_layout so both the map and discover screens reach it.
+ * Mounted in (app)/_layout so the map, discover, and the add-location modal
+ * (a sibling of the tabs in the (app) Stack) all reach it.
  */
 export const LocationOverrideProvider = ({ children }: { children: React.ReactNode }) => {
   const [override, setOverride] = useState<FeedLocation | null>(null);
