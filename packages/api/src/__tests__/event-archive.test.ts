@@ -228,7 +228,7 @@ describe('events.getMyEvents — excludes archived', () => {
         coverImage: null,
         dateStart: new Date('2026-07-01T20:00:00Z'),
         dateEnd: null,
-        category: 'Traditional',
+        category: 'Open Trad Sessions',
         status: EventStatus.ACTIVE,
         rejectionReason: null,
         removalReason: null,

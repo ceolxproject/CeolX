@@ -152,7 +152,7 @@ const MOCK_HIT = {
   document: {
     id: 'event-1',
     title: 'Trad Session Galway',
-    category: 'Traditional',
+    category: 'Open Trad Sessions',
     location: [53.27, -9.05],
     date_start: 1750000000,
     venue_address: 'The Crane Bar, Galway',
@@ -190,7 +190,7 @@ describe('events.getMap', () => {
     expect(ev.title).toBe('Trad Session Galway');
     expect(typeof ev.lat).toBe('number');
     expect(typeof ev.lng).toBe('number');
-    expect(ev.category).toBe('Traditional');
+    expect(ev.category).toBe('Open Trad Sessions');
     expect(typeof ev.dateStart).toBe('string');
     // basic ISO string check
     expect(() => new Date(ev.dateStart)).not.toThrow();
