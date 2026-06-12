@@ -1,7 +1,7 @@
 import * as Sentry from '@sentry/react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Animated, Modal, Platform, Text, View } from 'react-native';
+import { ActivityIndicator, Animated, Keyboard, Modal, Platform, Text, View } from 'react-native';
 // Plain react-native-maps MapView (no clustering wrapper). Clustering is driven
 // in JS by `useMapClusters`/supercluster, which keeps single-marker keys stable
 // so they don't remount every region change — the churn that broke the old
@@ -214,6 +214,9 @@ export default function MapScreen() {
   const handlePlaceSelect = useCallback(
     (result: GeocodeResult) => {
       if (!mapRef.current) return;
+      // Picking a suggestion finishes the search — drop the keyboard so the map
+      // result is fully visible (matches the Discover screen's select behaviour).
+      Keyboard.dismiss();
       // Town/neighbourhood-level zoom so nearby events are visible — a tighter
       // venue-level view would often land on an empty patch. The map settling
       // triggers onRegionChangeComplete → the viewport query loads events.
@@ -267,6 +270,9 @@ export default function MapScreen() {
   );
 
   const handleMapPress = useCallback(() => {
+    // RN has no "tap outside → blur" behaviour: the search keyboard stays up
+    // until something explicitly dismisses it. A tap on the map should close it.
+    Keyboard.dismiss();
     dismissDropdown();
     if (!markerJustPressedRef.current) dismissPanel();
   }, [dismissDropdown, dismissPanel, markerJustPressedRef]);
