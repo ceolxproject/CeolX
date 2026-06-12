@@ -70,10 +70,14 @@ export default function SignUpScreen() {
       });
 
       if (authError) {
-        if (authError.status === 409 || authError.message?.toLowerCase().includes('already')) {
-          setErrors({ email: 'An account with this email already exists' });
+        // The server's before-hook throws an "already exists" APIError for a
+        // duplicate email (Asana 1215616181509943); surface its message verbatim
+        // next to the email field so the copy stays owned by the backend.
+        const message = authError.message ?? '';
+        if (authError.status === 409 || message.toLowerCase().includes('already')) {
+          setErrors({ email: message || 'An account with this email already exists.' });
         } else {
-          setSubmitError(authError.message ?? 'Sign up failed. Please try again.');
+          setSubmitError(message || 'Sign up failed. Please try again.');
         }
         return;
       }
