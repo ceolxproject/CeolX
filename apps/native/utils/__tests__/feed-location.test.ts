@@ -25,4 +25,12 @@ describe('resolveFeedLocation', () => {
     expect(resolveFeedLocation(null, region, null, 'default').label).toBe('Ireland');
     expect(resolveFeedLocation(null, region, null, 'pending').label).toBe('Ireland');
   });
+
+  it('surfaces the seeded place label for a saved location, with a fallback', () => {
+    const region = { latitude: 53.5, longitude: -6.2 };
+    // The stored label is passed through placeLabel.
+    expect(resolveFeedLocation(null, region, 'Cork City', 'saved').label).toBe('Cork City');
+    // Fallback string when no label is available.
+    expect(resolveFeedLocation(null, region, null, 'saved').label).toBe('Saved location');
+  });
 });
