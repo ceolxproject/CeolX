@@ -4,6 +4,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { EventCategory, FeedEvent } from '@CeolX/shared';
 import { MAP_DEBOUNCE_MS } from '@CeolX/shared';
 
+import { mergePaginatedEvents } from './merge-paginated-events';
+
 import { trpc } from '@/utils/trpc';
 
 const FEED_PAGE_SIZE = 20;
@@ -69,19 +71,13 @@ export function useFeedEvents({ lat, lng, enabled = true }: UseFeedEventsOpts) {
   useEffect(() => {
     if (!data || isFetching) return;
     const newEvents = data.events as FeedEvent[];
-    if (offset === 0) {
-      // First page or refresh — replace only if the content actually changed
-      if (
-        accumulatedEvents.length !== newEvents.length ||
-        (newEvents.length > 0 && accumulatedEvents[0]?.id !== newEvents[0]?.id)
-      ) {
-        setAccumulatedEvents(newEvents);
-        setHasNextPage(data.hasNextPage);
-        setTotalCount(data.totalCount);
-      }
-    } else if (accumulatedEvents.length < offset + newEvents.length) {
-      // Subsequent page — append
-      setAccumulatedEvents((prev) => [...prev, ...newEvents]);
+    // First page always reflects the freshest data (so an edited event's cover
+    // image / title updates after the cache is invalidated); later pages append
+    // once. See mergePaginatedEvents — the old shape-only guard left stale
+    // content on screen until an app restart.
+    const merged = mergePaginatedEvents({ offset, prev: accumulatedEvents, incoming: newEvents });
+    if (merged) {
+      setAccumulatedEvents(merged);
       setHasNextPage(data.hasNextPage);
       setTotalCount(data.totalCount);
     }
