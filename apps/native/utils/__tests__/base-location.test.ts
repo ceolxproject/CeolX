@@ -56,4 +56,11 @@ describe('base-location', () => {
     await clearBaseLocation();
     expect(await getBaseLocation()).toBeNull();
   });
+
+  it('propagates a write failure (does not swallow like reads do)', async () => {
+    mockSetItemAsync.mockRejectedValueOnce(new Error('keychain locked'));
+    await expect(setBaseLocation({ lat: 53.35, lng: -6.26, label: 'Dublin' })).rejects.toThrow(
+      'keychain locked'
+    );
+  });
 });
