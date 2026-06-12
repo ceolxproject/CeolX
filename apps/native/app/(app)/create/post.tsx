@@ -21,6 +21,7 @@ import { useMediaDelete, keyFromCdnUrl } from '@/hooks/use-media-delete';
 import { useMediaUpload } from '@/hooks/use-media-upload';
 import { usePostById } from '@/hooks/use-post-by-id';
 import { useUpdatePost } from '@/hooks/use-update-post';
+import { planPostMediaUpdate } from '@/hooks/use-update-post.utils';
 import { useVideoUpload } from '@/hooks/use-video-upload';
 
 const CAPTION_MAX = 500;
@@ -78,21 +79,11 @@ export default function CreatePostScreen() {
     return () => clearTimeout(timer);
   }, [media?.uri, media?.kind]);
 
-  const handleRemoveMedia = async () => {
-    // If the existing media is already in S3, delete it now so the bucket
-    // doesn't accumulate orphans. Best-effort — log and move on if it fails.
-    if (media?.cdnUrl) {
-      const key = keyFromCdnUrl(media.cdnUrl);
-      if (key) {
-        try {
-          await cleanupAfterDelete({ key });
-        } catch (err) {
-          console.warn('[post] failed to clean up replaced media', err);
-        }
-      }
-    }
-    setMedia(null);
-  };
+  // Clearing media is just local state — any S3 cleanup of a replaced or
+  // removed image happens once the edit is actually saved (see handlePublish).
+  // That way, cancelling an edit after removing the image never deletes a file
+  // the post still points to.
+  const handleRemoveMedia = () => setMedia(null);
 
   const busy = isPublishing || createPost.isPending || updatePost.isPending;
   const disabled = caption.trim().length === 0 || isUploading || busy;
@@ -101,10 +92,45 @@ export default function CreatePostScreen() {
     setIsPublishing(true);
     try {
       if (isEditing && editId) {
-        // Editing only updates caption (video mediaUrl is server-managed,
-        // and we don't currently support swapping media on edit).
-        const input = updatePostSchema.parse({ id: editId, caption: caption.trim() });
+        // Work out what changed about the media: a new image to upload, an
+        // existing image removed, or no change. Video media is managed by Mux
+        // server-side and is never swapped on edit.
+        const plan = planPostMediaUpdate({
+          originalMediaType: existing.data?.mediaType,
+          originalMediaUrl: existing.data?.mediaUrl,
+          currentKind: media?.kind ?? null,
+          currentHasCdnUrl: !!media?.cdnUrl,
+        });
+
+        const updateInput: Record<string, unknown> = { id: editId, caption: caption.trim() };
+        if (plan.action === 'upload' && media) {
+          // Freshly-picked image — upload to S3 and point the post at the new URL.
+          const { cdnUrl } = await imageUpload.uploadMedia({
+            uri: media.uri,
+            mimeType: media.mimeType,
+            fileSize: media.fileSize ?? null,
+          });
+          updateInput.mediaType = 'image';
+          updateInput.mediaUrl = cdnUrl;
+        } else if (plan.action === 'clear') {
+          // Image removed — revert the post to text-only.
+          updateInput.mediaType = 'text';
+          updateInput.mediaUrl = null;
+        }
+
+        const input = updatePostSchema.parse(updateInput);
         await updatePost.mutateAsync(input);
+
+        // Best-effort cleanup of the replaced/removed image, after the save
+        // succeeds. Fire-and-forget — S3 lifecycle (90-day expiry) is the net.
+        if (plan.action !== 'keep' && plan.cleanupUrl) {
+          const key = keyFromCdnUrl(plan.cleanupUrl);
+          if (key) {
+            cleanupAfterDelete({ key }).catch((err) => {
+              console.warn('[post] failed to clean up replaced media', err);
+            });
+          }
+        }
       } else if (media?.kind === 'video') {
         // Mux pipeline — get an uploadId, persist that. The webhook fills
         // in playback_id/mediaUrl asynchronously.
