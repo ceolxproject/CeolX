@@ -1,9 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
+  Keyboard,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -25,12 +26,14 @@ import { FeedLocationSheet } from '@/components/FeedLocationSheet';
 import { FilterSheet } from '@/components/FilterSheet';
 import type { FilterSection } from '@/components/FilterSheet';
 import { PostsList } from '@/components/posts/PostsList';
+import { SearchSuggestions } from '@/components/SearchSuggestions';
 import { SegmentToggle } from '@/components/SegmentToggle';
 import { useLocationOverride } from '@/contexts/location-override-context';
 import { useFeedEvents } from '@/hooks/use-feed-events';
 import { useFeedPosts } from '@/hooks/use-feed-posts';
 import { useGpsRegion } from '@/hooks/use-gps-region';
 import { useMe } from '@/hooks/use-me';
+import { useSearchSuggestions } from '@/hooks/use-search-suggestions';
 import { useVenueFallback } from '@/hooks/use-venue-fallback';
 import { authClient } from '@/lib/auth-client';
 import { resolveFeedLocation, type FeedLocation } from '@/utils/feed-location';
@@ -67,6 +70,10 @@ export default function DiscoverScreen() {
   // The single search box drives whichever segment is active. Kept controlled so
   // we can clear it when switching tabs (Events and Posts search are separate).
   const [searchText, setSearchText] = useState('');
+  // Drives the autocomplete dropdown: only visible while the box is focused.
+  const [searchFocused, setSearchFocused] = useState(false);
+  // A row tap blurs the input; delay hiding so the tap registers first.
+  const blurTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Shared with the Map tab — a place pick on either screen syncs to the other.
   const { override: locationOverride, setOverride } = useLocationOverride();
   const [locationSheetVisible, setLocationSheetVisible] = useState(false);
@@ -129,6 +136,32 @@ export default function DiscoverScreen() {
     },
     [activeSegment, onSearch, postsOnSearch]
   );
+
+  // Autocomplete: the Events tab suggests artist/venue/event names, the Posts
+  // tab artist/venue only. Disabled until the box is focused and non-empty.
+  const suggestScope = activeSegment === 0 ? 'events' : 'posts';
+  const suggestions = useSearchSuggestions(searchText, suggestScope, searchFocused);
+  const showSuggestions = searchFocused && searchText.trim().length >= 1;
+
+  // Tapping a suggestion fills the box and runs the active tab's search, the
+  // same path as typing it by hand, then dismisses the dropdown.
+  const handleSuggestionSelect = useCallback(
+    (label: string) => {
+      handleSearchChange(label);
+      setSearchFocused(false);
+      Keyboard.dismiss();
+    },
+    [handleSearchChange]
+  );
+
+  const handleSearchFocus = useCallback(() => {
+    if (blurTimer.current) clearTimeout(blurTimer.current);
+    setSearchFocused(true);
+  }, []);
+
+  const handleSearchBlur = useCallback(() => {
+    blurTimer.current = setTimeout(() => setSearchFocused(false), 150);
+  }, []);
 
   // Events and Posts keep independent searches — clear the box and reset both
   // feeds when toggling so a query meant for one tab never leaks into the other.
@@ -217,10 +250,24 @@ export default function DiscoverScreen() {
             placeholderTextColor="rgba(255,255,255,0.6)"
             className="flex-1 text-sm text-white font-urbanist"
             onChangeText={handleSearchChange}
+            onFocus={handleSearchFocus}
+            onBlur={handleSearchBlur}
+            onSubmitEditing={() => setSearchFocused(false)}
             returnKeyType="search"
           />
         </View>
       </View>
+
+      {/* Autocomplete suggestions (inline, under the search bar) */}
+      {showSuggestions && (
+        <SearchSuggestions
+          artists={suggestions.artists}
+          venues={suggestions.venues}
+          events={suggestions.events}
+          isLoading={suggestions.isLoading}
+          onSelect={handleSuggestionSelect}
+        />
+      )}
 
       {/* Segment toggle */}
       <View className="px-5 mt-4">
