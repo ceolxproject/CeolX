@@ -29,8 +29,9 @@ type Result = {
  * - A saved base location exists → suppress, EXCEPT a one-per-launch "allow your
  *   location?" upgrade ask when device location services are on AND the OS still
  *   allows a prompt. Services off / hard-denied → stay silent (use the saved location).
- * - No saved location → prompt at most once per launch (re-ask denied users each
- *   cold start so they always have a path to set a location).
+ * - No saved location → prompt at most once per launch, regardless of canAskAgain
+ *   (re-asking hard-denied users still lets them reach "Select location manually";
+ *   LocationPermissionScreen adapts its CTA to "Open settings" when canAskAgain is false).
  */
 export function resolvePromptState(
   status: Location.PermissionStatus,
@@ -77,7 +78,7 @@ export function useLocationPermissionPrompt(): Result {
           resolvePromptState(status, canAskAgain, shownThisSession, base !== null, servicesEnabled)
         );
       } catch {
-        // Permission read failed → don't block the map.
+        // Location checks failed (permission or services read) → don't block the map.
         setPromptState('done');
       }
     }
