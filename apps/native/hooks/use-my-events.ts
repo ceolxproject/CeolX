@@ -1,6 +1,8 @@
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useState } from 'react';
 
+import { mergePaginatedEvents } from './merge-paginated-events';
+
 import { trpc } from '@/utils/trpc';
 
 const PAGE_SIZE = 20;
@@ -39,17 +41,13 @@ export function useMyEvents() {
   useEffect(() => {
     if (!data || isFetching) return;
     const newEvents = data.events as MyEvent[];
-    if (offset === 0) {
-      if (
-        accumulatedEvents.length !== newEvents.length ||
-        (newEvents.length > 0 && accumulatedEvents[0]?.id !== newEvents[0]?.id)
-      ) {
-        setAccumulatedEvents(newEvents);
-        setHasNextPage(data.hasNextPage);
-        setTotalCount(data.totalCount);
-      }
-    } else if (accumulatedEvents.length < offset + newEvents.length) {
-      setAccumulatedEvents((prev) => [...prev, ...newEvents]);
+    // Always reflect the freshest first page so in-place edits (a replaced
+    // cover image, an edited title) show up once the events cache is
+    // invalidated — see mergePaginatedEvents for why the old shape-only guard
+    // left a stale image until the app was restarted.
+    const merged = mergePaginatedEvents({ offset, prev: accumulatedEvents, incoming: newEvents });
+    if (merged) {
+      setAccumulatedEvents(merged);
       setHasNextPage(data.hasNextPage);
       setTotalCount(data.totalCount);
     }
