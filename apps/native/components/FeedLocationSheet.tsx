@@ -1,17 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect } from 'react';
 import { ActivityIndicator, Modal, Platform, Pressable, Text, TextInput, View } from 'react-native';
-import type RNMapView from 'react-native-maps';
-import MapView, { PROVIDER_GOOGLE, type Region } from 'react-native-maps';
+import MapView, { PROVIDER_GOOGLE } from 'react-native-maps';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { usePlaceSearch } from '@/hooks/use-place-search';
-import { getDeviceLocation } from '@/utils/device-location';
-import { type GeocodeResult, reverseGeocode } from '@/utils/geocode';
-
-const ZOOM = { latitudeDelta: 0.5, longitudeDelta: 0.5 };
-const REVERSE_GEOCODE_DEBOUNCE_MS = 400;
-const FALLBACK_LABEL = 'Selected location';
+import { useLocationPickerMap } from '@/hooks/use-location-picker-map';
 
 export interface FeedLocationSheetProps {
   visible: boolean;
@@ -31,98 +24,31 @@ export function FeedLocationSheet({
   onClose,
 }: FeedLocationSheetProps) {
   const insets = useSafeAreaInsets();
-  const mapRef = useRef<RNMapView>(null);
-  const centreRef = useRef({ lat: initialLat, lng: initialLng });
-  const [label, setLabel] = useState(FALLBACK_LABEL);
-  const reverseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // When a search/recenter sets the centre programmatically we keep that label and
-  // skip the next reverse-geocode pass (the animation also fires onRegionChange).
-  const labelLockedRef = useRef(false);
-  const reverseReqIdRef = useRef(0);
-
   const {
-    query,
-    suggestions,
-    isDropdownVisible,
-    isSearching,
-    hasError,
-    onChangeText,
-    commitSelection,
-    clearSearch,
-    dismissDropdown,
-  } = usePlaceSearch();
+    mapRef,
+    label,
+    search,
+    handleRegionChangeComplete,
+    handleSelect,
+    handleUseCurrentLocation,
+    reset,
+    getCentre,
+    ZOOM,
+  } = useLocationPickerMap(initialLat, initialLng);
+
+  const { query, suggestions, isDropdownVisible, isSearching, hasError, onChangeText } = search;
 
   // Reset the pin + label to the incoming location each time the sheet opens.
   useEffect(() => {
     if (!visible) return;
-    centreRef.current = { lat: initialLat, lng: initialLng };
-    setLabel(FALLBACK_LABEL);
-    labelLockedRef.current = false;
-    clearSearch();
-  }, [visible, initialLat, initialLng, clearSearch]);
-
-  useEffect(() => {
-    return () => {
-      if (reverseTimer.current) clearTimeout(reverseTimer.current);
-    };
-  }, []);
-
-  const scheduleReverseGeocode = useCallback((lat: number, lng: number) => {
-    if (reverseTimer.current) clearTimeout(reverseTimer.current);
-    const reqId = ++reverseReqIdRef.current;
-    reverseTimer.current = setTimeout(() => {
-      void reverseGeocode(lat, lng).then((addr) => {
-        if (addr && reqId === reverseReqIdRef.current) setLabel(addr);
-      });
-    }, REVERSE_GEOCODE_DEBOUNCE_MS);
-  }, []);
-
-  const handleRegionChangeComplete = useCallback(
-    (region: Region) => {
-      centreRef.current = { lat: region.latitude, lng: region.longitude };
-      if (labelLockedRef.current) {
-        // This change came from a programmatic animate (search/recenter); keep the
-        // label we already set and re-enable reverse-geocoding for the next pan.
-        labelLockedRef.current = false;
-        return;
-      }
-      dismissDropdown();
-      scheduleReverseGeocode(region.latitude, region.longitude);
-    },
-    [dismissDropdown, scheduleReverseGeocode]
-  );
-
-  const recentreTo = useCallback((lat: number, lng: number, nextLabel: string) => {
-    // Invalidate any pending/in-flight reverse-geocode so it can't clobber this label.
-    reverseReqIdRef.current++;
-    if (reverseTimer.current) clearTimeout(reverseTimer.current);
-    centreRef.current = { lat, lng };
-    setLabel(nextLabel);
-    if (!mapRef.current) return;
-    // Lock only when we actually animate — the animation will fire
-    // onRegionChangeComplete, which releases the lock and keeps this label.
-    labelLockedRef.current = true;
-    mapRef.current.animateToRegion({ latitude: lat, longitude: lng, ...ZOOM }, 600);
-  }, []);
-
-  const handleSelect = useCallback(
-    (result: GeocodeResult) => {
-      commitSelection(result.address);
-      recentreTo(result.lat, result.lng, result.address);
-    },
-    [commitSelection, recentreTo]
-  );
-
-  const handleUseCurrentLocation = useCallback(async () => {
-    const loc = await getDeviceLocation();
-    if (loc) recentreTo(loc.lat, loc.lng, 'Current Location');
-  }, [recentreTo]);
+    reset(initialLat, initialLng);
+  }, [visible, initialLat, initialLng, reset]);
 
   const handleConfirm = useCallback(() => {
-    const { lat, lng } = centreRef.current;
+    const { lat, lng } = getCentre();
     onConfirm({ lat, lng, label });
     onClose();
-  }, [label, onConfirm, onClose]);
+  }, [getCentre, label, onConfirm, onClose]);
 
   return (
     <Modal
