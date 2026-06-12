@@ -29,6 +29,11 @@ export function resolveNotificationRoute(route: string): Href {
   const event = route.match(/^\/events\/([^/]+)$/);
   if (event) return `/(app)/(tabs)/discover/event/${event[1]}` as Href;
 
+  // Singular shared-link event shape: /event/:id — the shape shared links use
+  // (apps/native/hooks/use-share-event.ts) and the deep-link landing route.
+  const sharedEvent = route.match(/^\/event\/([^/]+)$/);
+  if (sharedEvent) return `/(app)/(tabs)/discover/event/${sharedEvent[1]}` as Href;
+
   // Bare post detail: /post/:id — the shape shared links use
   // (apps/native/hooks/use-share-post.ts) and any future post notification.
   const post = route.match(/^\/post\/([^/]+)$/);

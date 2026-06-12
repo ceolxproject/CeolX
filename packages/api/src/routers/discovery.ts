@@ -26,20 +26,28 @@ function dedupeByLabel(items: Suggestion[]): Suggestion[] {
 // `bookings.searchArtists` / `posts/feed.ts` visibility rule). Sub-line = genre.
 async function suggestArtists(term: string): Promise<Suggestion[]> {
   const rows = await db
-    .select({ stageName: artistProfiles.stageName, genres: artistProfiles.genres })
+    .select({
+      stageName: artistProfiles.stageName,
+      genres: artistProfiles.genres,
+      imageUrl: artistProfiles.profileImageUrl,
+    })
     .from(artistProfiles)
     .where(and(ilike(artistProfiles.stageName, `%${term}%`), eq(artistProfiles.isActive, true)))
     .limit(GROUP_LIMIT);
 
   return dedupeByLabel(
-    rows.map((r) => ({ label: r.stageName, sublabel: r.genres?.[0] || undefined }))
+    rows.map((r) => ({
+      label: r.stageName,
+      sublabel: r.genres?.[0] || undefined,
+      imageUrl: r.imageUrl || undefined,
+    }))
   );
 }
 
 // Venue-name matches, only venues whose subscription is active (i.e. visible).
 async function suggestVenues(term: string): Promise<Suggestion[]> {
   const rows = await db
-    .select({ venueName: venueProfiles.venueName })
+    .select({ venueName: venueProfiles.venueName, imageUrl: venueProfiles.profileImageUrl })
     .from(venueProfiles)
     .where(
       and(
@@ -49,7 +57,9 @@ async function suggestVenues(term: string): Promise<Suggestion[]> {
     )
     .limit(GROUP_LIMIT);
 
-  return dedupeByLabel(rows.map((r) => ({ label: r.venueName })));
+  return dedupeByLabel(
+    rows.map((r) => ({ label: r.venueName, imageUrl: r.imageUrl || undefined }))
+  );
 }
 
 // Event-title matches from Typesense (typo-tolerant). Degrades to an empty group
@@ -76,9 +86,15 @@ async function suggestEvents(term: string): Promise<Suggestion[]> {
 
   const suggestions: Suggestion[] = (res.hits ?? []).map((hit) => {
     const doc = (hit as { document: Record<string, unknown> }).document;
+    const venueAddress = (doc['venue_address'] as string) || undefined;
     return {
       label: doc['title'] as string,
-      sublabel: (doc['venue_address'] as string) || undefined,
+      // Kept for callers that only read the flat sub-line; the redesigned row
+      // prefers `location` + `dateStart` below.
+      sublabel: venueAddress,
+      imageUrl: (doc['cover_image'] as string) || undefined,
+      location: venueAddress,
+      dateStart: (doc['date_start'] as number) || undefined,
     };
   });
 

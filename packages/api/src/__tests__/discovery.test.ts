@@ -81,8 +81,12 @@ function authedContext(): Context {
   } as unknown as Context;
 }
 
-function eventHit(title: string, venueAddress?: string) {
-  return { document: { title, venue_address: venueAddress } };
+function eventHit(
+  title: string,
+  venueAddress?: string,
+  extra?: { cover_image?: string; date_start?: number }
+) {
+  return { document: { title, venue_address: venueAddress, ...extra } };
 }
 
 beforeEach(() => {
@@ -93,16 +97,33 @@ beforeEach(() => {
 
 describe('discovery.suggest', () => {
   it('groups artists, venues and events for the events scope', async () => {
-    setArtistRows([{ stageName: 'Tune Bomb', genres: ['Trad'] }]);
-    setVenueRows([{ venueName: 'The Cobblestone' }]);
-    mockSearch.mockResolvedValueOnce({ hits: [eventHit('Trad Night', 'Smithfield, Dublin')] });
+    setArtistRows([{ stageName: 'Tune Bomb', genres: ['Trad'], imageUrl: 'https://cdn/a.jpg' }]);
+    setVenueRows([{ venueName: 'The Cobblestone', imageUrl: 'https://cdn/v.jpg' }]);
+    mockSearch.mockResolvedValueOnce({
+      hits: [
+        eventHit('Trad Night', 'Smithfield, Dublin', {
+          cover_image: 'https://cdn/e.jpg',
+          date_start: 1_700_000_000,
+        }),
+      ],
+    });
 
     const caller = createCaller(authedContext());
     const result = await caller.discovery.suggest({ q: 't', scope: 'events' });
 
-    expect(result.artists).toEqual([{ label: 'Tune Bomb', sublabel: 'Trad' }]);
-    expect(result.venues).toEqual([{ label: 'The Cobblestone' }]);
-    expect(result.events).toEqual([{ label: 'Trad Night', sublabel: 'Smithfield, Dublin' }]);
+    expect(result.artists).toEqual([
+      { label: 'Tune Bomb', sublabel: 'Trad', imageUrl: 'https://cdn/a.jpg' },
+    ]);
+    expect(result.venues).toEqual([{ label: 'The Cobblestone', imageUrl: 'https://cdn/v.jpg' }]);
+    expect(result.events).toEqual([
+      {
+        label: 'Trad Night',
+        sublabel: 'Smithfield, Dublin',
+        imageUrl: 'https://cdn/e.jpg',
+        location: 'Smithfield, Dublin',
+        dateStart: 1_700_000_000,
+      },
+    ]);
     expect(mockSearch).toHaveBeenCalledTimes(1);
   });
 

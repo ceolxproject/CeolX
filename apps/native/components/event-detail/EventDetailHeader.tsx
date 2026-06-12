@@ -10,6 +10,7 @@ interface EventDetailHeaderProps {
   onBack: () => void;
   isSaved: boolean;
   onToggleSave: () => void;
+  onShare: () => void;
   className?: string;
 }
 
@@ -17,6 +18,7 @@ export function EventDetailHeader({
   onBack,
   isSaved,
   onToggleSave,
+  onShare,
   className,
 }: EventDetailHeaderProps) {
   return (
@@ -30,6 +32,9 @@ export function EventDetailHeader({
       <CeolxLogo fontSize={16} letterSpacing={2} />
 
       <View className="flex-row items-center gap-4">
+        <Pressable onPress={onShare} hitSlop={12} className="active:opacity-70">
+          <Ionicons name="share-outline" size={23} color="#fff" />
+        </Pressable>
         <Pressable onPress={onToggleSave} hitSlop={12} className="active:opacity-70">
           <Ionicons name={isSaved ? 'bookmark' : 'bookmark-outline'} size={23} color="#fff" />
         </Pressable>

@@ -13,10 +13,23 @@ export const suggestSchema = z.object({
 });
 export type SuggestInput = z.infer<typeof suggestSchema>;
 
-/** A single autocomplete row: the term plus an optional context sub-line. */
+/**
+ * A single autocomplete row.
+ *
+ * `label` is the primary term (and what fills the search box on tap). The rest
+ * are optional row decorations the redesigned dropdown renders:
+ * - `sublabel` — a muted secondary line (e.g. an artist's genre).
+ * - `imageUrl` — avatar/thumbnail (artist & venue profile image, event cover).
+ * - `location` — event area/venue address, shown with a pin icon.
+ * - `dateStart` — event start time as a Unix timestamp in **seconds**
+ *   (matches Typesense `date_start`), shown with a calendar icon.
+ */
 export type Suggestion = {
   label: string;
   sublabel?: string;
+  imageUrl?: string;
+  location?: string;
+  dateStart?: number;
 };
 
 /** Grouped suggestion payload returned by `discovery.suggest`. */
