@@ -13,9 +13,12 @@ export const PICKER_FALLBACK_LABEL = 'Selected location';
 /**
  * Map-picker state shared by the Feed location sheet and the Add Location screen:
  * a draggable map whose centre is reverse-geocoded into a label, plus place
- * search that recenters the map. Extracted verbatim from FeedLocationSheet so the
- * two surfaces can't drift. Pan → debounced reverse-geocode; programmatic
+ * search that recenters the map. Pan → debounced reverse-geocode; programmatic
  * recenters lock the label for one region-change so the animation can't clobber it.
+ *
+ * Consume the returned read-only place-search fields and `handleSelect` — do not
+ * reach into place-search imperatively; use `reset()` to clear and `handleSelect()`
+ * to pick a result, so the label-lock and debounce refs stay consistent.
  */
 export function useLocationPickerMap(initialLat: number, initialLng: number) {
   const mapRef = useRef<RNMapView>(null);
@@ -91,16 +94,21 @@ export function useLocationPickerMap(initialLat: number, initialLng: number) {
     [clearSearch]
   );
 
-  const getCentre = useCallback(() => centreRef.current, []);
+  const getCentre = useCallback(() => ({ ...centreRef.current }), []);
 
   return {
     mapRef,
     label,
-    search,
+    // place search (read-only surface — imperative methods stay internal to the hook)
+    query: search.query,
+    suggestions: search.suggestions,
+    isDropdownVisible: search.isDropdownVisible,
+    isSearching: search.isSearching,
+    hasError: search.hasError,
+    onChangeText: search.onChangeText,
     handleRegionChangeComplete,
     handleSelect,
     handleUseCurrentLocation,
-    recentreTo,
     reset,
     getCentre,
     ZOOM,

@@ -27,7 +27,12 @@ export function FeedLocationSheet({
   const {
     mapRef,
     label,
-    search,
+    query,
+    suggestions,
+    isDropdownVisible,
+    isSearching,
+    hasError,
+    onChangeText,
     handleRegionChangeComplete,
     handleSelect,
     handleUseCurrentLocation,
@@ -35,8 +40,6 @@ export function FeedLocationSheet({
     getCentre,
     ZOOM,
   } = useLocationPickerMap(initialLat, initialLng);
-
-  const { query, suggestions, isDropdownVisible, isSearching, hasError, onChangeText } = search;
 
   // Reset the pin + label to the incoming location each time the sheet opens.
   useEffect(() => {
