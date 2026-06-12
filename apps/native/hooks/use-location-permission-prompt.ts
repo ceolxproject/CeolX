@@ -9,17 +9,12 @@ export type LocationPromptState = 'checking' | 'show' | 'done';
 type Result = {
   promptState: LocationPromptState;
   /**
-   * True when the user dismissed the priming screen by choosing to set their
-   * location manually. The map reads this as a neutral "focus the search bar on
-   * mount" signal — it never learns *why*, keeping it decoupled from onboarding.
-   */
-  focusSearchOnMount: boolean;
-  /**
    * Call after the user responds to the permission priming screen.
-   * `viaManualSelection` records that they tapped "Select location manually" so
-   * the next surface can drop them straight into the place search.
+   * The `viaManualSelection` routing signal lives on
+   * `LocationPermissionScreen.onDone` — the map reads it there and navigates
+   * directly, so the hook no longer needs to track it.
    */
-  markSeen: (opts?: { viaManualSelection?: boolean }) => Promise<void>;
+  markSeen: () => Promise<void>;
 };
 
 /**
@@ -64,7 +59,6 @@ let shownThisSession = false;
  */
 export function useLocationPermissionPrompt(): Result {
   const [promptState, setPromptState] = useState<LocationPromptState>('checking');
-  const [focusSearchOnMount, setFocusSearchOnMount] = useState(false);
 
   useEffect(() => {
     async function check() {
@@ -86,12 +80,11 @@ export function useLocationPermissionPrompt(): Result {
     void check();
   }, []);
 
-  const markSeen = useCallback((opts?: { viaManualSelection?: boolean }) => {
+  const markSeen = useCallback(() => {
     shownThisSession = true;
-    if (opts?.viaManualSelection) setFocusSearchOnMount(true);
     setPromptState('done');
     return Promise.resolve();
   }, []);
 
-  return { promptState, focusSearchOnMount, markSeen };
+  return { promptState, markSeen };
 }
