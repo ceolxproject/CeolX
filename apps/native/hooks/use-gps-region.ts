@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import { env } from '@CeolX/env/native';
 import { IRELAND_INITIAL_REGION } from '@CeolX/shared';
 
+import { type BaseLocation, getBaseLocation } from '@/utils/base-location';
+
 type MapRegion = {
   latitude: number;
   longitude: number;
@@ -11,7 +13,7 @@ type MapRegion = {
   longitudeDelta: number;
 };
 
-export type LocationSource = 'gps' | 'ip' | 'default' | 'pending' | 'venue-profile';
+export type LocationSource = 'gps' | 'ip' | 'default' | 'pending' | 'venue-profile' | 'saved';
 
 type GpsRegionResult = {
   initialRegion: MapRegion;
@@ -47,6 +49,7 @@ type Setters = {
   setGpsPermissionGranted: (v: boolean) => void;
   setLocationSource: (s: LocationSource) => void;
   setMapKey: (fn: (k: number) => number) => void;
+  setPlaceLabel: (label: string | null) => void;
 };
 
 /**
@@ -56,11 +59,16 @@ type Setters = {
  * The permission dialog is the responsibility of LocationPermissionScreen.
  *
  * 1. GPS granted + position available → user's location
- * 2. GPS denied or undetermined (or no position) → IP geolocation via server proxy
- * 3. IP fails → Ireland centre (53.1424, -7.6921)
+ * 2. No live GPS fix + saved base location exists → saved manual location
+ * 3. GPS denied or undetermined (or no position, no saved) → IP geolocation via server proxy
+ * 4. IP fails → Ireland centre (53.1424, -7.6921)
  */
-export async function resolveLocation(setters: Setters): Promise<void> {
-  const { setInitialRegion, setGpsPermissionGranted, setLocationSource, setMapKey } = setters;
+export async function resolveLocation(
+  setters: Setters,
+  baseLocation: BaseLocation | null = null
+): Promise<void> {
+  const { setInitialRegion, setGpsPermissionGranted, setLocationSource, setMapKey, setPlaceLabel } =
+    setters;
 
   try {
     const { status } = await Location.getForegroundPermissionsAsync();
@@ -80,11 +88,24 @@ export async function resolveLocation(setters: Setters): Promise<void> {
           setMapKey((k) => k + 1);
           return;
         }
-        // Permission granted but no cached position — fall through to IP
+        // Permission granted but no cached position — fall through.
       } catch (err: unknown) {
         console.error('[resolveLocation] getLastKnownPositionAsync failed:', err);
-        // Fall through to IP
+        // Fall through.
       }
+    }
+
+    // No live GPS fix → the saved manual base location beats coarse IP / Ireland.
+    if (baseLocation) {
+      setInitialRegion({
+        latitude: baseLocation.lat,
+        longitude: baseLocation.lng,
+        ...OVERRIDE_ZOOM,
+      });
+      setPlaceLabel(baseLocation.label);
+      setLocationSource('saved');
+      setMapKey((k) => k + 1);
+      return;
     }
 
     await resolveViaIp(setInitialRegion, setLocationSource, setMapKey);
@@ -140,7 +161,7 @@ async function resolveViaIp(
  * Pure — exported for testing.
  *
  * Only fires when the chain landed on the Ireland `'default'` (both GPS and IP
- * failed) AND a venue pin is available. GPS/IP/pending are never overridden, and
+ * failed) AND a venue pin is available. GPS/IP/saved/pending are never overridden, and
  * once the source is already `'venue-profile'` it returns null so the override
  * effect can't loop.
  */
@@ -173,12 +194,13 @@ export function useGpsRegion(
 
   useEffect(() => {
     if (!enabled) return;
-    void resolveLocation({
-      setInitialRegion,
-      setGpsPermissionGranted,
-      setLocationSource,
-      setMapKey,
-    });
+    void (async () => {
+      const base = await getBaseLocation();
+      await resolveLocation(
+        { setInitialRegion, setGpsPermissionGranted, setLocationSource, setMapKey, setPlaceLabel },
+        base
+      );
+    })();
   }, [enabled]);
 
   // Venue-only upgrade: if the chain bottomed out at the Ireland default and we
@@ -196,6 +218,8 @@ export function useGpsRegion(
   // Reverse-geocode whenever we have real coordinates (GPS, IP, or the venue
   // pin). Failures are non-fatal — consumers fall back to a source-based label.
   useEffect(() => {
+    // 'saved' carries its stored label — never reverse-geocode or null it.
+    if (locationSource === 'saved') return;
     if (locationSource !== 'gps' && locationSource !== 'ip' && locationSource !== 'venue-profile') {
       setPlaceLabel(null);
       return;

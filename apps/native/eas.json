@@ -27,7 +27,7 @@
         "GOOGLE_IOS_URL_SCHEME": "com.googleusercontent.apps.1057693721951-08nqa00s0ood9pimkpbb5p7njtmm4qal"
       },
       "android": {
-        "buildType": "apk"
+        "buildType": "app-bundle"
       }
     },
     "staging-testflight": {

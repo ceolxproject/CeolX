@@ -3,6 +3,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  KeyboardAvoidingView,
   Platform,
   Pressable,
   ScrollView,
@@ -173,77 +174,85 @@ export default function CreatePostScreen() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#080808' }} edges={['top']}>
-      <View className="flex-row items-center p-5">
-        <Pressable onPress={() => router.back()} hitSlop={8}>
-          <Ionicons name="arrow-back" size={24} color="#fff" />
-        </Pressable>
-      </View>
-
-      <ScrollView contentContainerStyle={{ paddingBottom: 32 }}>
-        <View className="px-6">
-          <Text className="mb-5 text-[28px] font-bold text-white font-urbanist leading-[32px]">
-            {isEditing ? 'Edit Post' : 'Create New Post'}
-          </Text>
-
-          <View className="mb-5">
-            <MediaPickerField
-              key={mediaRefreshKey}
-              mediaUri={media?.uri ?? null}
-              mediaKind={media?.kind}
-              onPick={(asset) =>
-                setMedia({
-                  uri: asset.uri,
-                  mimeType: asset.mimeType,
-                  fileSize: asset.fileSize,
-                  kind: asset.mediaKind ?? 'image',
-                })
-              }
-              onRemove={handleRemoveMedia}
-              isUploading={isUploading}
-              progress={progress}
-            />
-          </View>
-
-          <View className="mb-5">
-            <View className="mb-2 flex-row items-center justify-between">
-              <Text className="text-sm font-bold text-white/80 font-urbanist">Caption</Text>
-              <Text className="text-base font-medium text-[#8D8D8D] font-urbanist">
-                {caption.length}/{CAPTION_MAX}
-              </Text>
-            </View>
-            <TextInput
-              placeholder="Write a caption..."
-              placeholderTextColor="#8D8D8D"
-              multiline
-              maxLength={CAPTION_MAX}
-              value={caption}
-              onChangeText={setCaption}
-              textAlignVertical="top"
-              className="h-[156px] rounded-lg bg-white p-4 text-base font-medium text-black font-urbanist"
-            />
-          </View>
+      {/* Without this the multiline caption sits near the bottom of the scroll
+          and the keyboard covers it — matches the wrapper used on every other
+          form (change-password, events/create). */}
+      <KeyboardAvoidingView behavior="padding" style={{ flex: 1 }}>
+        <View className="flex-row items-center p-5">
+          <Pressable onPress={() => router.back()} hitSlop={8}>
+            <Ionicons name="arrow-back" size={24} color="#fff" />
+          </Pressable>
         </View>
-      </ScrollView>
 
-      <View className="px-6 pb-6">
-        <Pressable
-          onPress={handlePublish}
-          disabled={disabled}
-          className={
-            disabled
-              ? 'h-14 items-center justify-center rounded-full bg-[#6155F5]/50'
-              : 'h-14 items-center justify-center rounded-full bg-[#6155F5]'
-          }
+        <ScrollView
+          contentContainerStyle={{ paddingBottom: 32 }}
+          keyboardShouldPersistTaps="handled"
         >
-          {busy ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text className="text-base font-bold uppercase text-white font-inter tracking-wider">
-              {isEditing ? 'save changes' : 'publish post'}
+          <View className="px-6">
+            <Text className="mb-5 text-[28px] font-bold text-white font-urbanist leading-[32px]">
+              {isEditing ? 'Edit Post' : 'Create New Post'}
             </Text>
-          )}
-        </Pressable>
-      </View>
+
+            <View className="mb-5">
+              <MediaPickerField
+                key={mediaRefreshKey}
+                mediaUri={media?.uri ?? null}
+                mediaKind={media?.kind}
+                onPick={(asset) =>
+                  setMedia({
+                    uri: asset.uri,
+                    mimeType: asset.mimeType,
+                    fileSize: asset.fileSize,
+                    kind: asset.mediaKind ?? 'image',
+                  })
+                }
+                onRemove={handleRemoveMedia}
+                isUploading={isUploading}
+                progress={progress}
+              />
+            </View>
+
+            <View className="mb-5">
+              <View className="mb-2 flex-row items-center justify-between">
+                <Text className="text-sm font-bold text-white/80 font-urbanist">Caption</Text>
+                <Text className="text-base font-medium text-[#8D8D8D] font-urbanist">
+                  {caption.length}/{CAPTION_MAX}
+                </Text>
+              </View>
+              <TextInput
+                placeholder="Write a caption..."
+                placeholderTextColor="#8D8D8D"
+                multiline
+                maxLength={CAPTION_MAX}
+                value={caption}
+                onChangeText={setCaption}
+                textAlignVertical="top"
+                className="h-[156px] rounded-lg bg-white p-4 text-base font-medium text-black font-urbanist"
+              />
+            </View>
+          </View>
+        </ScrollView>
+
+        <View className="px-6 pb-6">
+          <Pressable
+            onPress={handlePublish}
+            disabled={disabled}
+            className={
+              disabled
+                ? 'h-14 items-center justify-center rounded-full bg-[#6155F5]/50'
+                : 'h-14 items-center justify-center rounded-full bg-[#6155F5]'
+            }
+          >
+            {busy ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text className="text-base font-bold uppercase text-white font-inter tracking-wider">
+                {isEditing ? 'save changes' : 'publish post'}
+              </Text>
+            )}
+          </Pressable>
+        </View>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
