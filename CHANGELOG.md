@@ -1,5 +1,70 @@
 # Changelog
 
+<a name="1.0.2"></a>
+
+## 1.0.2 (2026-06-15)
+
+### Added
+
+- ✨ feat(native): make sign-up terms and privacy links open ceolx.com pages [785a2ec]
+- ✨ feat(native): route manual location select to the add-location screen [727bd36]
+- ✨ feat(native): add the add-location screen for manual base location [967f6f5]
+- ✅ test(native): pin no-saved services-off prompt and clarify reprompt docs [b6d63d0]
+- ✨ feat(native): make location reprompt services-aware after a saved pick [bb3f92d]
+- ✨ feat(native): add saved source label fallback for feed location [2474af3]
+- ✅ test(native): cover saved tier under granted-no-fix and venue fallback [f104d27]
+- ✨ feat(native): use saved base location when gps is unavailable [4a4ebd5]
+- ✅ test(native): assert base location write failures propagate [332e2f1]
+- ✨ feat(native): persist manual base location in securestore [d233921]
+- ✨ feat(native): match search suggestions to figma and overlay on feed [80e2bbf]
+- ✨ feat(native): remap singular /event/:id route to discover detail [a790c97]
+- ✨ feat(native): add /event android app-link intent filter [5eade55]
+- ✨ feat(native): add event deep-link landing route that redirects to detail [1e01fe4]
+- ✨ feat(native): add share button to the event detail header [09c48c9]
+- ✨ feat(native): add use-share-event hook for the event share sheet [946d51d]
+- ✨ feat(admin): rewrite /event/\* to the event share page on the api [28182be]
+- ✨ feat(server): advertise /event/\* in app links ownership files [253c3e9]
+- ✨ feat(server): add event share web fallback page at get /event/:id [5ae2e4b]
+- ✨ feat(native): add real-time grouped search suggestions [b3d317f]
+
+### Changed
+
+- 🔧 chore(native): android app-bundle build and split submit scripts [dc849b7]
+- ♻️ refactor(native): remove dead focus-search-on-mount path [00e045c]
+- ♻️ refactor(native): lift location override provider to app layout [f915d69]
+- ♻️ refactor(native): tighten location picker hook public surface [893066d]
+- ♻️ refactor(native): extract shared location picker map hook [5f876a7]
+- ♻️ refactor(server): extract shared share-page shell from post-share [9809c22]
+- 🔧 chore(native): ignore rl-mobile ci credentials json [10eaa58]
+- 🔧 chore(native): ignore rl-mobile ci credentials json [c715670]
+- 🔧 chore(native): add android staging submit profile and ignore ci google services file [c056a2d]
+
+### Fixed
+
+- 🐛 fix(native): keep post caption visible above the keyboard [8b6bc17]
+- 🐛 fix(native): guard add-location save and fix header overlap [ad25b5a]
+- 🐛 fix(native): remove bookings from event analytics and clarify views chart axes [2b1e70d]
+- 🐛 fix(native): dismiss search keyboard on map tap and place select [c57fa5d]
+- 🐛 fix(native): reels post video — 4:5 cover crop, viewport autoplay, real create preview [c1c9e51]
+- 🐛 fix(native): hide stale withdraw button and map raw booking error [26e521d]
+- 🐛 fix(api): allow following profiles with inactive subscription [4790673]
+
+### Miscellaneous
+
+- Merge pull request #117 from Raft-Labs/feature/manual-base-location [c050ab0]
+- 📝 docs(native): correct location override provider mount-location comment [cdb3d6f]
+- 📝 docs(native): add manual base location implementation plan [7173b13]
+- 📝 docs(native): add manual base location design spec [5c3fe64]
+- Merge pull request #116 from Raft-Labs/feature/event-share-button [c17c30d]
+- 📝 docs(server): note event share fallback in app route comment [83c63fc]
+- 📝 docs(docs): add event share button implementation plan [22ee4b5]
+- 📝 docs(docs): add share button for events design spec [9cdcc41]
+- Merge pull request #115 from Raft-Labs/fix/search-realtime-suggestions [4a297f7]
+- Merge branch &#x27;development&#x27; into fix/search-realtime-suggestions [6b2cc6f]
+- Merge pull request #114 from Raft-Labs/fix/bug-fixes [2e84628]
+- Merge branch &#x27;development&#x27; into fix/bug-fixes [5291f01]
+- Merge pull request #113 from Raft-Labs/fix/qa-bugs [ef5f5d1]
+
 <a name="1.0.1"></a>
 
 ## 1.0.1 (2026-06-12)
