@@ -68,14 +68,15 @@ export default function CreatePostScreen() {
     }
   }, [existing.data, isEditing]);
 
-  // Android-only: a freshly-picked image paints black until the picker field
-  // remounts (same issue as the event cover — see create.tsx and Asana
-  // 1215040939202669). Bump a key shortly after a new image is picked to force
-  // that remount. iOS renders fine, so we skip it there. Videos render a static
-  // placeholder, not an <Image>, so they don't need it.
+  // Android-only: a freshly-picked image OR video paints blank until the picker
+  // field remounts (same issue as the event cover — see create.tsx and Asana
+  // 1215040939202669). Bump a key shortly after new media is picked to force
+  // that remount. iOS renders fine, so we skip it there. The video preview is
+  // now a live expo-video VideoView (it used to be a static placeholder), so it
+  // hits the same freshly-picked-uri bug and needs the remount too.
   const [mediaRefreshKey, setMediaRefreshKey] = useState(0);
   useEffect(() => {
-    if (Platform.OS !== 'android' || media?.kind !== 'image' || !media.uri) return;
+    if (Platform.OS !== 'android' || !media?.uri) return;
     const timer = setTimeout(() => setMediaRefreshKey((k) => k + 1), 350);
     return () => clearTimeout(timer);
   }, [media?.uri, media?.kind]);
