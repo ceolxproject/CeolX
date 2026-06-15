@@ -1,5 +1,23 @@
 # Changelog
 
+<a name="1.0.3"></a>
+
+## 1.0.3 (2026-06-15)
+
+### Changed
+
+- 🔧 chore(native): add android staging oauth client sha-1 fingerprint [a4c338c]
+- 🔧 chore(native): build staging android as apk for internal distribution [cd83385]
+
+### Fixed
+
+- 🐛 fix(native): show picked video preview on android create post [d3a19e5]
+- 🐛 fix(native): auto-increment staging android version code for play submission [0f6eeb8]
+
+### Miscellaneous
+
+- 📝 docs(docs): add subscriptions design and summary specs [9ab67dd]
+
 <a name="1.0.2"></a>
 
 ## 1.0.2 (2026-06-15)
