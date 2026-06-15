@@ -6,6 +6,7 @@ import { UserRole } from '@CeolX/shared/enums';
 
 import { appToast } from '@/components/AppToast';
 import { useAuth } from '@/contexts/auth-context';
+import { LocationOverrideProvider } from '@/contexts/location-override-context';
 import { useFcmRegistration } from '@/hooks/use-fcm-registration';
 import { useMe } from '@/hooks/use-me';
 import { trpc } from '@/utils/trpc';
@@ -70,14 +71,17 @@ export default function AppLayout() {
   }
 
   return (
-    <Stack screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="(tabs)" />
-      <Stack.Screen name="events/create" />
-      <Stack.Screen name="events/edit/[eventId]" />
-      <Stack.Screen name="artist/[artistId]" />
-      <Stack.Screen name="venue/[venueId]" />
-      <Stack.Screen name="notifications" />
-      <Stack.Screen name="change-password" />
-    </Stack>
+    <LocationOverrideProvider>
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="add-location" options={{ presentation: 'modal' }} />
+        <Stack.Screen name="events/create" />
+        <Stack.Screen name="events/edit/[eventId]" />
+        <Stack.Screen name="artist/[artistId]" />
+        <Stack.Screen name="venue/[venueId]" />
+        <Stack.Screen name="notifications" />
+        <Stack.Screen name="change-password" />
+      </Stack>
+    </LocationOverrideProvider>
   );
 }

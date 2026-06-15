@@ -14,6 +14,8 @@ function sourceLabel(source: LocationSource): string {
     case 'default':
     case 'pending':
       return 'Ireland';
+    case 'saved':
+      return 'Saved location';
     default: {
       const _exhaustive: never = source;
       return _exhaustive;

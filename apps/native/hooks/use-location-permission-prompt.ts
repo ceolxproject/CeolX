@@ -1,40 +1,47 @@
 import * as Location from 'expo-location';
 import { useCallback, useEffect, useState } from 'react';
 
+import { getBaseLocation } from '@/utils/base-location';
+
 /** Three states to avoid a flash of the map before the permission read resolves. */
 export type LocationPromptState = 'checking' | 'show' | 'done';
 
 type Result = {
   promptState: LocationPromptState;
   /**
-   * True when the user dismissed the priming screen by choosing to set their
-   * location manually. The map reads this as a neutral "focus the search bar on
-   * mount" signal — it never learns *why*, keeping it decoupled from onboarding.
-   */
-  focusSearchOnMount: boolean;
-  /**
    * Call after the user responds to the permission priming screen.
-   * `viaManualSelection` records that they tapped "Select location manually" so
-   * the next surface can drop them straight into the place search.
+   * The `viaManualSelection` routing signal lives on
+   * `LocationPermissionScreen.onDone` — the map reads it there and navigates
+   * directly, so the hook no longer needs to track it.
    */
-  markSeen: (opts?: { viaManualSelection?: boolean }) => Promise<void>;
+  markSeen: () => Promise<void>;
 };
 
 /**
  * Pure decision for whether to show the priming screen.
  *
- * - GRANTED → never prompt again.
- * - not granted (undetermined OR denied) → prompt, but at most once per app
- *   launch (the `shownThisSession` guard). We deliberately re-ask denied users
- *   on each cold start instead of suppressing forever — a one-time "asked" flag
- *   meant a user who denied was never asked again. The actual re-ask (OS dialog
- *   vs Settings deep-link) is handled by LocationPermissionScreen.
+ * - GRANTED → never prompt (GPS resolves silently).
+ * - A saved base location exists → suppress, EXCEPT a one-per-launch "allow your
+ *   location?" upgrade ask when device location services are on AND the OS still
+ *   allows a prompt. Services off / hard-denied → stay silent (use the saved location).
+ * - No saved location → prompt at most once per launch, regardless of canAskAgain
+ *   (re-asking hard-denied users still lets them reach "Select location manually";
+ *   LocationPermissionScreen adapts its CTA to "Open settings" when canAskAgain is false).
  */
 export function resolvePromptState(
   status: Location.PermissionStatus,
-  shownThisSession: boolean
+  canAskAgain: boolean,
+  shownThisSession: boolean,
+  hasSavedLocation: boolean,
+  servicesEnabled: boolean
 ): LocationPromptState {
   if (status === Location.PermissionStatus.GRANTED) return 'done';
+
+  if (hasSavedLocation) {
+    if (servicesEnabled && canAskAgain && !shownThisSession) return 'show';
+    return 'done';
+  }
+
   return shownThisSession ? 'done' : 'show';
 }
 
@@ -52,15 +59,20 @@ let shownThisSession = false;
  */
 export function useLocationPermissionPrompt(): Result {
   const [promptState, setPromptState] = useState<LocationPromptState>('checking');
-  const [focusSearchOnMount, setFocusSearchOnMount] = useState(false);
 
   useEffect(() => {
     async function check() {
       try {
-        const { status } = await Location.getForegroundPermissionsAsync();
-        setPromptState(resolvePromptState(status, shownThisSession));
+        const [{ status, canAskAgain }, base, servicesEnabled] = await Promise.all([
+          Location.getForegroundPermissionsAsync(),
+          getBaseLocation(),
+          Location.hasServicesEnabledAsync(),
+        ]);
+        setPromptState(
+          resolvePromptState(status, canAskAgain, shownThisSession, base !== null, servicesEnabled)
+        );
       } catch {
-        // Permission read failed → don't block the map.
+        // Location checks failed (permission or services read) → don't block the map.
         setPromptState('done');
       }
     }
@@ -68,12 +80,11 @@ export function useLocationPermissionPrompt(): Result {
     void check();
   }, []);
 
-  const markSeen = useCallback((opts?: { viaManualSelection?: boolean }) => {
+  const markSeen = useCallback(() => {
     shownThisSession = true;
-    if (opts?.viaManualSelection) setFocusSearchOnMount(true);
     setPromptState('done');
     return Promise.resolve();
   }, []);
 
-  return { promptState, focusSearchOnMount, markSeen };
+  return { promptState, markSeen };
 }
