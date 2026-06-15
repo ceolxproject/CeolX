@@ -2,7 +2,15 @@ import { Ionicons } from '@expo/vector-icons';
 import { Link, router, useLocalSearchParams } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import { useState } from 'react';
-import { KeyboardAvoidingView, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import {
+  KeyboardAvoidingView,
+  Linking,
+  Pressable,
+  ScrollView,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { signUpSchema } from '@CeolX/shared/validators';
@@ -16,6 +24,9 @@ import { useSocialAuth } from '@/hooks/use-social-auth';
 import { authClient } from '@/lib/auth-client';
 
 type Role = 'spectator' | 'artist' | 'venue';
+
+const TERMS_URL = 'https://ceolx.com/terms';
+const PRIVACY_URL = 'https://ceolx.com/privacy';
 
 export default function SignUpScreen() {
   const { role } = useLocalSearchParams<{ role?: Role }>();
@@ -230,9 +241,14 @@ export default function SignUpScreen() {
               className="mb-4"
               label={
                 <Text className="text-sm text-white/70 leading-5">
-                  I agree with <Text className="text-blue-10">Terms of Service</Text>
+                  I agree with{' '}
+                  <Text className="text-blue-10" onPress={() => Linking.openURL(TERMS_URL)}>
+                    Terms of Service
+                  </Text>
                   {' and '}
-                  <Text className="text-blue-10">Privacy Policy</Text>
+                  <Text className="text-blue-10" onPress={() => Linking.openURL(PRIVACY_URL)}>
+                    Privacy Policy
+                  </Text>
                 </Text>
               }
             />
