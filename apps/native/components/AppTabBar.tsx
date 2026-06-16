@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import type { Tabs } from 'expo-router';
+import { type Tabs, usePathname } from 'expo-router';
 import { cn } from 'heroui-native';
 import type { ComponentProps } from 'react';
 import { Pressable, Text, View } from 'react-native';
@@ -7,7 +7,28 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { UserRole } from '@CeolX/shared/enums';
 
+import { getTabPressActions } from './app-tab-bar.utils';
+
+import { useTabBarVisibility } from '@/contexts/tab-bar-visibility-context';
 import { useMe } from '@/hooks/use-me';
+
+// Nested stack routes inside (tabs) that render full-screen and must hide the tab bar.
+const HIDDEN_TAB_BAR_PATHS = new Set(['/profile/followers', '/profile/following']);
+
+// Dynamic detail routes (event/booking id in the path) that must hide the tab
+// bar. Matched by prefix since the trailing segment is the id. Each tab owns its
+// own copy of a detail route so drilling in stays within that tab's stack.
+const HIDDEN_TAB_BAR_PREFIXES = [
+  '/discover/event/',
+  '/map/event/',
+  '/profile/event/',
+  '/profile/booking/',
+  '/bookings/event/',
+];
+
+const shouldHideTabBar = (pathname: string) =>
+  HIDDEN_TAB_BAR_PATHS.has(pathname) ||
+  HIDDEN_TAB_BAR_PREFIXES.some((prefix) => pathname.startsWith(prefix));
 
 type IoniconsName = ComponentProps<typeof Ionicons>['name'];
 
@@ -21,7 +42,7 @@ type TabConfig = {
 export const TAB_CONFIG: TabConfig[] = [
   { name: 'map', label: 'Map', activeIcon: 'location', inactiveIcon: 'location-outline' },
   { name: 'discover', label: 'Discover', activeIcon: 'home', inactiveIcon: 'home-outline' },
-  { name: 'bookings', label: 'Requests', activeIcon: 'mail', inactiveIcon: 'mail-outline' },
+  { name: 'bookings', label: 'My Events', activeIcon: 'mail', inactiveIcon: 'mail-outline' },
   { name: 'profile', label: 'Profile', activeIcon: 'person', inactiveIcon: 'person-outline' },
 ];
 
@@ -34,12 +55,18 @@ export type AppTabBarProps = TabBarCallbackProps & {
 
 export function AppTabBar({ state, navigation, onFabPress }: AppTabBarProps) {
   const insets = useSafeAreaInsets();
+  const pathname = usePathname();
+  const { hidden } = useTabBarVisibility();
   const { data: me } = useMe();
   const currentRole = me?.currentRole ?? 'spectator';
 
+  // Route-based hide (detail screens) OR an overlay on the current screen asked
+  // to own the bottom (e.g. the map's event preview card / same-location sheet).
+  if (hidden || shouldHideTabBar(pathname)) return null;
+
   const getTabLabel = (tab: TabConfig) => {
     if (tab.name === 'bookings') {
-      return currentRole === UserRole.SPECTATOR ? 'Bookings' : 'Requests';
+      return currentRole === UserRole.SPECTATOR ? 'Bookings' : 'My Events';
     }
     return tab.label;
   };
@@ -54,8 +81,23 @@ export function AppTabBar({ state, navigation, onFabPress }: AppTabBarProps) {
         target: route?.key ?? '',
         canPreventDefault: true,
       });
-      if (!isFocused && !event.defaultPrevented) {
-        navigation.navigate(tab.name);
+
+      // A tab hosts a nested Stack whose history survives tab switches. Reset that
+      // stack to its root list view on press so the tab never reopens a previously
+      // visited detail screen (discover/event/[id], bookings/[bookingId], …).
+      const actions = getTabPressActions({
+        isFocused,
+        defaultPrevented: event.defaultPrevented,
+        tabName: tab.name,
+        nestedStackKey: route?.state?.key,
+      });
+
+      for (const action of actions) {
+        if (action.type === 'popToTop') {
+          navigation.dispatch({ type: 'POP_TO_TOP', target: action.target });
+        } else {
+          navigation.navigate(action.tab);
+        }
       }
     };
 

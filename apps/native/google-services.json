@@ -1,0 +1,46 @@
+{
+  "project_info": {
+    "project_number": "297835449315",
+    "project_id": "ceolx-22bf1",
+    "storage_bucket": "ceolx-22bf1.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:297835449315:android:36f9438430e06a44e06ed6",
+        "android_client_info": {
+          "package_name": "com.ceolx.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "297835449315-btct1vddecjlp90cl96teighh81skqop.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDHRzztviQrBvgBJ9jSYWAtMjBS9tcTTw4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "297835449315-btct1vddecjlp90cl96teighh81skqop.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "297835449315-b74pifj1c9a5sget90lrs59026p1ogge.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.ceolx.app"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

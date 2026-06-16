@@ -1,12 +1,11 @@
 import { router } from 'expo-router';
-import { useMemo, useState } from 'react';
-import { FlatList, Linking, Platform, ScrollView, Text, View } from 'react-native';
+import { useMemo, useRef, useState } from 'react';
+import { FlatList, Linking, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { distanceBetween } from '@CeolX/shared';
 import { EventStatus, UserRole } from '@CeolX/shared/enums';
 
-import { CategoryBadge } from './CategoryBadge';
 import { CollectionEventCard } from './CollectionEventCard';
 import { DescriptionSection } from './DescriptionSection';
 import { EventDetailHeader } from './EventDetailHeader';
@@ -14,14 +13,22 @@ import { EventHeroImage } from './EventHeroImage';
 import { EventInfoRow } from './EventInfoRow';
 import { HostArtistInfoBox } from './HostArtistInfoBox';
 import { LocationMapPreview } from './LocationMapPreview';
+import { OfferBlock } from './OfferBlock';
 import { OwnerActionBar } from './OwnerActionBar';
 import { PerformingArtistCard } from './PerformingArtistCard';
 import { SectionDivider } from './SectionDivider';
 import { StickyBottomBar } from './StickyBottomBar';
 
+import { appToast } from '@/components/AppToast';
+import {
+  addEventToDeviceCalendar,
+  CALENDAR_NO_SYNCED_ACCOUNT,
+  CALENDAR_PERMISSION_DENIED,
+} from '@/hooks/use-add-to-calendar';
 import { useGpsRegion } from '@/hooks/use-gps-region';
 import { useRequestToPerform } from '@/hooks/use-request-to-perform';
 import { useSaveEvent } from '@/hooks/use-save-event';
+import { useShareEvent } from '@/hooks/use-share-event';
 import type { EventDetailData } from '@/types/event-detail';
 
 interface EventDetailViewProps {
@@ -46,9 +53,14 @@ export function EventDetailView({
   onArchive,
 }: EventDetailViewProps) {
   const insets = useSafeAreaInsets();
+  const scrollRef = useRef<ScrollView>(null);
+  // Y offset of the "Performing Artist" section within the scroll content, so
+  // the Host/Artist box's "VIEW ALL" can jump straight to the per-artist cards.
+  const [artistSectionY, setArtistSectionY] = useState(0);
   const [isSaved, setIsSaved] = useState(event.isSaved);
   const { initialRegion, locationSource } = useGpsRegion();
   const { mutate: saveEvent } = useSaveEvent();
+  const shareEvent = useShareEvent();
   const { requestToPerform, isRequesting, hasRequested } = useRequestToPerform();
 
   const distanceKm = useMemo(() => {
@@ -67,21 +79,46 @@ export function EventDetailView({
     saveEvent({ eventId: event.id, saved: newSaved }, { onError: () => setIsSaved(isSaved) });
   };
 
+  const handleShare = () => {
+    void shareEvent(event.id, event.title, formatDetailDate(event.dateStart));
+  };
+
   const handleRequestToPerform = () => {
     requestToPerform(event.id);
   };
 
-  const handleAddToCalendar = () => {
+  const handleAddToCalendar = async () => {
     const start = new Date(event.dateStart);
     const end = event.dateEnd
       ? new Date(event.dateEnd)
       : new Date(start.getTime() + 2 * 60 * 60 * 1000);
-    const startISO = start.toISOString().replace(/-|:|\.\d{3}/g, '');
-    const endISO = end.toISOString().replace(/-|:|\.\d{3}/g, '');
-    const location = event.venueAddress ?? `${event.lat},${event.lng}`;
 
-    const url = `https://www.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(event.title)}&dates=${startISO}/${endISO}&location=${encodeURIComponent(location)}&details=${encodeURIComponent(event.description.slice(0, 200))}`;
-    void Linking.openURL(url);
+    try {
+      await addEventToDeviceCalendar({
+        title: event.title,
+        startDate: start,
+        endDate: end,
+        notes: event.description.slice(0, 200),
+        location: event.venueAddress ?? `${event.lat},${event.lng}`,
+      });
+      appToast.success('Added to calendar');
+    } catch (err) {
+      if (err instanceof Error && err.message === CALENDAR_PERMISSION_DENIED) {
+        appToast.error(
+          'Calendar access needed',
+          'Enable calendar permission in Settings to add events.'
+        );
+      } else if (err instanceof Error && err.message === CALENDAR_NO_SYNCED_ACCOUNT) {
+        appToast.error(
+          'No synced calendar found',
+          Platform.OS === 'android'
+            ? 'Add a Google account in your phone’s Calendar settings, then try again.'
+            : 'Set up a calendar account in Settings, then try again.'
+        );
+      } else {
+        appToast.error('Could not add to calendar', 'Please try again.');
+      }
+    }
   };
 
   const handleViewMap = () => {
@@ -98,20 +135,24 @@ export function EventDetailView({
   return (
     <View className="flex-1 bg-background" style={{ paddingTop: insets.top }}>
       <ScrollView
+        ref={scrollRef}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 16 }}
       >
         {/* Header */}
-        <EventDetailHeader onBack={onBack} isSaved={isSaved} onToggleSave={handleToggleSave} />
-
-        {/* Hero Image */}
-        <EventHeroImage
-          coverImageUrl={event.coverImageUrl ?? undefined}
-          attendeeCount={event.attendeeCount}
+        <EventDetailHeader
+          onBack={onBack}
+          isSaved={isSaved}
+          onToggleSave={handleToggleSave}
+          onShare={handleShare}
         />
 
-        {/* Category badge overlapping image */}
-        <CategoryBadge category={event.category} className="ml-4 -mt-6 z-10" />
+        {/* Hero Image with category + attendee badges */}
+        <EventHeroImage
+          coverImageUrl={event.coverImageUrl ?? undefined}
+          category={event.category}
+          attendeeCount={event.attendeeCount}
+        />
 
         {/* Removal reason banner — visible to owner when admin removed */}
         {isOwner && event.status === EventStatus.REMOVED && event.removalReason && (
@@ -137,7 +178,11 @@ export function EventDetailView({
           <HostArtistInfoBox
             creator={event.creator}
             collaborators={event.collaborators}
-            onViewAll={event.collaborators.length > 3 ? () => {} : undefined}
+            onViewAll={
+              event.collaborators.length > 3
+                ? () => scrollRef.current?.scrollTo({ y: artistSectionY, animated: true })
+                : undefined
+            }
             onPressCreator={(creator) => {
               if (creator.type === UserRole.ARTIST) {
                 router.push(`/(app)/artist/${creator.id}`);
@@ -187,9 +232,16 @@ export function EventDetailView({
           </View>
         </View>
 
+        {/* Offers — only this event's own ad, if it has one */}
+        <OfferBlock
+          adTitle={event.adTitle}
+          eventTitle={event.title}
+          coverImage={event.coverImageUrl ?? null}
+        />
+
         {/* Performing Artists */}
         {event.collaborators.length > 0 && (
-          <>
+          <View onLayout={(e) => setArtistSectionY(e.nativeEvent.layout.y)}>
             <SectionDivider className="mx-4" />
             <Text className="text-xl font-bold text-white font-urbanist px-4 mb-4">
               Performing Artist
@@ -201,14 +253,18 @@ export function EventDetailView({
               renderItem={({ item }) => (
                 <PerformingArtistCard
                   artist={item}
-                  onPress={() => router.push(`/(app)/artist/${item.id}`)}
+                  // External invitees have no profile to open — render a
+                  // non-tappable card by leaving onPress undefined.
+                  onPress={
+                    item.isExternal ? undefined : () => router.push(`/(app)/artist/${item.id}`)
+                  }
                 />
               )}
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={{ paddingHorizontal: 16, gap: 12 }}
               scrollEnabled={event.collaborators.length > 2}
             />
-          </>
+          </View>
         )}
 
         {/* Location Map */}
@@ -230,9 +286,18 @@ export function EventDetailView({
               <Text className="text-xl font-bold text-white font-urbanist">
                 Explore the collection
               </Text>
-              <Text className="text-xs font-bold text-green-10 tracking-wider uppercase font-urbanist">
-                see all
-              </Text>
+              {event.collectionId ? (
+                <Pressable
+                  onPress={() =>
+                    router.push(`/(app)/(tabs)/discover/collection/${event.collectionId}`)
+                  }
+                  hitSlop={8}
+                >
+                  <Text className="text-xs font-bold text-green-10 tracking-wider uppercase font-urbanist">
+                    see all
+                  </Text>
+                </Pressable>
+              ) : null}
             </View>
             <FlatList
               horizontal

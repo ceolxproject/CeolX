@@ -1,12 +1,17 @@
-import { sendEmail } from '@CeolX/email';
+import { getTransport } from '@CeolX/email';
 
-await sendEmail({
-  to: 'priya.y@raftlabs.com',
-  subject: 'Test email',
-  htmlBody: '<h1>Hello from CeolX</h1>',
-  textBody: 'Hello from CeolX',
-  tag: 'email-verification',
+const target = process.env.TEST_EMAIL_TO ?? 'priya.y@raftlabs.com';
+const transport = getTransport();
+const env = process.env.APP_ENV || process.env.NODE_ENV;
+
+await transport.send({
+  from: 'CeolX Staging <noreply@ceolx.ie>',
+  to: target,
+  subject: `Magicbox SMTP smoke test — ${new Date().toISOString()}`,
+  html: '<h1>Hello from CeolX staging</h1><p>If you can read this, Magicbox SMTP is wired up correctly.</p>',
+  text: 'Hello from CeolX staging. Magicbox SMTP is wired up correctly.',
 });
 
-// eslint-disable-next-line no-console
-console.log('Done — check http://localhost:8025');
+console.warn(
+  `[test-email] delivered to ${target} via ${env === 'production' ? 'Postmark' : 'SMTP (' + (process.env.SMTP_HOST ?? 'localhost') + ':' + (process.env.SMTP_PORT ?? '1025') + ')'}`
+);

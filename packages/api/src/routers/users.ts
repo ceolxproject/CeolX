@@ -73,6 +73,8 @@ export const usersRouter = router({
       venueName: string;
       bio: string | null;
       address: string;
+      lat: number | null;
+      lng: number | null;
       county: string | null;
       websiteUrl: string | null;
       phone: string | null;
@@ -122,6 +124,8 @@ export const usersRouter = router({
           venueName: venueProfiles.venueName,
           bio: venueProfiles.bio,
           address: venueProfiles.address,
+          lat: venueProfiles.lat,
+          lng: venueProfiles.lng,
           county: venueProfiles.county,
           websiteUrl: venueProfiles.websiteUrl,
           phone: venueProfiles.phone,
@@ -143,6 +147,9 @@ export const usersRouter = router({
 
         venueProfile = {
           ...profile,
+          // numeric columns come back as strings — expose as numbers for the map
+          lat: profile.lat ? Number(profile.lat) : null,
+          lng: profile.lng ? Number(profile.lng) : null,
           followerCount,
           followingCount,
           socialLinks: socialLinksRecord,
@@ -163,11 +170,24 @@ export const usersRouter = router({
 
   /**
    * Sets domain fields on the BetterAuth user row after a successful sign-up.
-   * Idempotent: safe to retry — always overwrites with the latest values.
+   * One-shot: no-op once consentAt has been written, so a returning OAuth user
+   * who re-enters the signup flow can't overwrite their existing role.
    */
   completeRegistration: protectedProcedure
     .input(completeRegistrationInput)
     .mutation(async ({ ctx, input }) => {
+      const userId = ctx.session.user.id;
+
+      const [existing] = await db
+        .select({ consentAt: user.consentAt })
+        .from(user)
+        .where(eq(user.id, userId))
+        .limit(1);
+
+      if (!existing || existing.consentAt) {
+        return { ok: true };
+      }
+
       await db
         .update(user)
         .set({
@@ -175,7 +195,7 @@ export const usersRouter = router({
           marketingConsent: input.marketingConsent,
           consentAt: new Date(),
         })
-        .where(eq(user.id, ctx.session.user.id));
+        .where(eq(user.id, userId));
 
       return { ok: true };
     }),
@@ -183,15 +203,23 @@ export const usersRouter = router({
   /**
    * M11-T1 — request GDPR account deletion (30-day cooling-off).
    *
-   * Stamps deletion_requested_at + deletion_scheduled_for and enqueues an
-   * `account.anonymize` QStash job delayed by 30 days. Mobile is expected to
+   * Stamps deletion_requested_at + deletion_scheduled_for only. Erasure is
+   * driven by the daily `account.anonymize-sweep` QStash cron, which anonymises
+   * every row whose `deletion_scheduled_for` has elapsed. Mobile is expected to
    * sign the user out immediately after this returns; the next login (if any)
    * silently cancels the deletion via the Better Auth `session.create.after`
-   * hook (clears the scheduled timestamp, which makes the QStash handler a
-   * no-op when it eventually fires).
+   * hook (clears the scheduled timestamp, so the sweep skips the row).
+   *
+   * Deliberately does NO external call on the request path: a previous version
+   * enqueued a 30-day-delayed `account.anonymize` job here, but a 30-day delay
+   * exceeds QStash's free-plan cap, so the publish threw *after* the DB write —
+   * the request failed on the first attempt and only "succeeded" on the second
+   * via the idempotent guard below (which silently skipped scheduling any job).
+   * Moving erasure to the cron makes deletion succeed on the first attempt
+   * regardless of QStash availability (Asana 1215276188230541).
    *
    * Idempotent: a second call while a deletion is already pending returns the
-   * existing scheduled date and does NOT enqueue a duplicate job.
+   * existing scheduled date and does NOT re-stamp.
    */
   requestAccountDeletion: protectedProcedure.mutation(async ({ ctx }) => {
     const userId = ctx.session.user.id;
@@ -217,8 +245,6 @@ export const usersRouter = router({
         deletionCancelledAt: null,
       })
       .where(eq(user.id, userId));
-
-    await ctx.scheduleAccountAnonymize({ userId, requestedAt });
 
     return { scheduledFor };
   }),

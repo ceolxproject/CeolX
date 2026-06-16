@@ -1,9 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { useState } from 'react';
 import { ActivityIndicator, Image, Pressable, Text, View } from 'react-native';
 
 import { PostActionMenu } from './PostActionMenu';
+import { PostVideo } from './PostVideo';
 
 import { useDeletePost } from '@/hooks/use-delete-post';
 import { useSharePost } from '@/hooks/use-share-post';
@@ -16,6 +16,10 @@ export type PostCardPost = {
   caption: string;
   mediaType: string;
   mediaUrl: string | null;
+  // Mux video fields — populated only for mediaType === 'video'. Drive the
+  // processing / error / ready states in <PostVideo>.
+  muxStatus?: string | null;
+  muxPlaybackId?: string | null;
   likeCount: number | null;
   author: {
     id: string;
@@ -32,24 +36,47 @@ type Props = {
   currentUserId: string | null;
   /** Hide the author header row (used on profile Posts tab). */
   hideAuthorHeader?: boolean;
+  /**
+   * Detail-screen mode: render the full caption (no truncation / read-more)
+   * and make the card non-tappable so it can't navigate to itself.
+   */
+  expanded?: boolean;
+  /**
+   * Called after the post is successfully deleted. Lists self-heal via the
+   * shared tombstone set, so they don't need this — it's for the detail screen,
+   * which must navigate away once its post no longer exists.
+   */
+  onDeleted?: () => void;
+  /**
+   * Feed viewport flag forwarded to <PostVideo> — the on-screen card autoplays
+   * muted, off-screen cards freeze. Left undefined on surfaces without viewport
+   * tracking (profile / venue / artist), where videos stay tap-to-play.
+   */
+  activeVideo?: boolean;
 };
 
 const CAPTION_PREVIEW_LIMIT = 120;
 
-export function PostCard({ post, currentUserId, hideAuthorHeader }: Props) {
+export function PostCard({
+  post,
+  currentUserId,
+  hideAuthorHeader,
+  expanded,
+  onDeleted,
+  activeVideo,
+}: Props) {
   const isOwner = currentUserId === post.createdBy;
-  const [liked, setLiked] = useState(post.likedByMe);
-  const [likeCount, setLikeCount] = useState(post.likeCount ?? 0);
+  // Like state is derived straight from props. useTogglePostLike patches the
+  // query cache optimistically, so these values flow back through the feed /
+  // detail data the instant the user taps — no local copy to drift out of sync.
+  const liked = post.likedByMe;
+  const likeCount = post.likeCount ?? 0;
 
   const toggleLike = useTogglePostLike();
   const deletePost = useDeletePost();
   const sharePost = useSharePost();
 
   const onLikePress = () => {
-    // Local flip for responsiveness — server reconciles via invalidation.
-    // (See TODO(priya) in use-toggle-post-like for the full optimistic plan.)
-    setLiked((v) => !v);
-    setLikeCount((c) => (liked ? Math.max(0, c - 1) : c + 1));
     toggleLike.mutate({ postId: post.id });
   };
 
@@ -62,23 +89,21 @@ export function PostCard({ post, currentUserId, hideAuthorHeader }: Props) {
   };
 
   const onDelete = () => {
-    deletePost.mutate({ id: post.id });
+    deletePost.mutate({ id: post.id }, { onSuccess: () => onDeleted?.() });
   };
 
   const openDetail = () => {
     router.push({ pathname: '/(app)/post/[postId]', params: { postId: post.id } });
   };
 
-  const truncated =
-    post.caption.length > CAPTION_PREVIEW_LIMIT
-      ? post.caption.slice(0, CAPTION_PREVIEW_LIMIT) + '…'
-      : post.caption;
-
-  const showReadMore = post.caption.length > CAPTION_PREVIEW_LIMIT;
+  // In expanded (detail) mode show the whole caption; in preview mode truncate
+  // and offer a read-more affordance that opens the detail screen.
+  const showReadMore = !expanded && post.caption.length > CAPTION_PREVIEW_LIMIT;
+  const caption = showReadMore ? post.caption.slice(0, CAPTION_PREVIEW_LIMIT) + '…' : post.caption;
 
   return (
     <Pressable
-      onPress={openDetail}
+      onPress={expanded ? undefined : openDetail}
       className="mb-4 rounded-2xl border border-white/10 bg-[#2a2a2a] p-4"
     >
       {/* Author header */}
@@ -109,6 +134,15 @@ export function PostCard({ post, currentUserId, hideAuthorHeader }: Props) {
           resizeMode="cover"
         />
       )}
+      {post.mediaType === 'video' && (
+        <PostVideo
+          mediaUrl={post.mediaUrl}
+          muxStatus={post.muxStatus ?? null}
+          muxPlaybackId={post.muxPlaybackId ?? null}
+          active={activeVideo}
+          expanded={expanded}
+        />
+      )}
 
       {/* Actions row */}
       <View className="mb-2 flex-row items-center justify-between">
@@ -135,7 +169,7 @@ export function PostCard({ post, currentUserId, hideAuthorHeader }: Props) {
         {!hideAuthorHeader && (
           <Text className="font-bold text-white">{post.author.displayName} </Text>
         )}
-        <Text className="font-light">{truncated}</Text>
+        <Text className="font-light">{caption}</Text>
         {showReadMore && <Text className="font-medium text-[#6155F5]"> …read more</Text>}
       </Text>
     </Pressable>

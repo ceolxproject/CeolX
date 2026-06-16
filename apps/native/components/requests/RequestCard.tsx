@@ -7,7 +7,7 @@ import type { BookingSummary } from '@CeolX/shared';
 import { CATEGORY_LABELS } from '@CeolX/shared';
 import { BookingDirection, BookingStatus, UserRole } from '@CeolX/shared/enums';
 
-import { RequestActions } from './RequestActions';
+import { RequestActions, type RequestAction } from './RequestActions';
 
 import { formatEventDate } from '@/utils/format-event-date';
 import { getMockEventImage, MOCK_PROFILE_IMAGE } from '@/utils/mock-images';
@@ -18,8 +18,9 @@ interface RequestCardProps {
   onAccept?: () => void;
   onReject?: () => void;
   onWithdraw?: () => void;
+  onResend?: () => void;
   onCancel?: () => void;
-  isUpdating?: boolean;
+  pendingAction?: RequestAction | null;
   className?: string;
 }
 
@@ -29,28 +30,58 @@ export function RequestCard({
   onAccept,
   onReject,
   onWithdraw,
+  onResend,
   onCancel,
-  isUpdating,
+  pendingAction,
   className,
 }: RequestCardProps) {
   const categoryLabel = CATEGORY_LABELS[booking.eventCategory] ?? booking.eventCategory;
   const formattedDate = formatEventDate(booking.eventDateStart, booking.eventDateEnd);
   const timeSince = getTimeSince(booking.createdAt);
 
-  const isSentByUser =
-    (userRole === UserRole.VENUE && booking.direction === BookingDirection.VENUE_TO_ARTIST) ||
-    (userRole === UserRole.ARTIST && booking.direction === BookingDirection.ARTIST_TO_VENUE);
+  const isA2A = booking.direction === BookingDirection.ARTIST_TO_ARTIST;
 
-  // "Other party" is always the party that is NOT you, regardless of direction
-  const otherPartyName = userRole === UserRole.VENUE ? booking.artistName : booking.venueName;
-  const otherPartyImage = userRole === UserRole.VENUE ? booking.artistImage : booking.venueImage;
+  // For artist↔artist the server tells us whether the viewer is the inviter
+  // (sender) via viewerIsSender, since both parties are artists.
+  const isSentByUser = isA2A
+    ? booking.viewerIsSender === true
+    : (userRole === UserRole.VENUE && booking.direction === BookingDirection.VENUE_TO_ARTIST) ||
+      (userRole === UserRole.ARTIST && booking.direction === BookingDirection.ARTIST_TO_VENUE);
+
+  // "Other party" is always whoever is NOT the viewer.
+  const otherPartyName = isA2A
+    ? isSentByUser
+      ? booking.artistName // viewer is the inviter → other party is the invited co-artist
+      : (booking.inviterArtistName ?? 'Artist')
+    : userRole === UserRole.VENUE
+      ? booking.artistName
+      : booking.venueName;
+  const otherPartyImage = isA2A
+    ? isSentByUser
+      ? booking.artistImage
+      : booking.inviterArtistImage
+    : userRole === UserRole.VENUE
+      ? booking.artistImage
+      : booking.venueImage;
   const directionLabel = isSentByUser ? 'Sent Request to:' : 'Request Sent by:';
 
   const isAccepted = booking.status === BookingStatus.ACCEPTED;
 
+  // Where the "CONTACT" button opens. For artist↔artist the other party is an
+  // artist, so route to their *user* id (A2A rows have no venue — routing to
+  // /venue/<empty> was the "Page Not Found" bug). Otherwise venue→artist or
+  // artist→venue per the viewer's role.
+  const contactHref = (
+    isA2A
+      ? `/(app)/artist/${isSentByUser ? booking.artistUserId : booking.inviterArtistUserId}`
+      : userRole === UserRole.ARTIST
+        ? `/(app)/venue/${booking.venueUserId}`
+        : `/(app)/artist/${booking.artistUserId}`
+  ) as Parameters<typeof router.push>[0];
+
   return (
     <Pressable
-      onPress={() => router.push(`/(app)/(tabs)/bookings/${booking.id}`)}
+      onPress={() => router.push(`/(app)/(tabs)/profile/booking/${booking.id}`)}
       className={cn(
         'rounded-2xl border border-[rgba(141,141,141,0.4)] bg-[rgba(141,141,141,0.1)] overflow-hidden active:opacity-90',
         className
@@ -116,9 +147,9 @@ export function RequestCard({
               {otherPartyName}
             </Text>
             {isAccepted && (
-              <Pressable>
+              <Pressable onPress={() => router.push(contactHref)} hitSlop={8}>
                 <Text className="text-xs font-bold text-[#D4FC5A] font-urbanist tracking-wide">
-                  {userRole === UserRole.ARTIST ? 'CONTACT VENUE' : 'CONTACT ARTIST'}
+                  {userRole === UserRole.ARTIST && !isA2A ? 'CONTACT VENUE' : 'CONTACT ARTIST'}
                 </Text>
               </Pressable>
             )}
@@ -140,8 +171,9 @@ export function RequestCard({
             onAccept={onAccept}
             onReject={onReject}
             onWithdraw={onWithdraw}
+            onResend={onResend}
             onCancel={onCancel}
-            isUpdating={isUpdating}
+            pendingAction={pendingAction}
           />
         )}
       </View>

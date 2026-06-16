@@ -1,9 +1,9 @@
-import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useCallback, useEffect, useState } from 'react';
+import { useInfiniteQuery } from '@tanstack/react-query';
+import { useCallback } from 'react';
 
 import type { BookingSummary } from '@CeolX/shared';
 
-import { trpc } from '@/utils/trpc';
+import { trpcClient } from '@/utils/trpc';
 
 const PAGE_SIZE = 20;
 
@@ -12,69 +12,55 @@ export type UseBookingsOpts = {
   enabled?: boolean;
 };
 
+// Structural minimum — pagination only depends on counts, not booking fields.
+type PageCounts = { bookings: readonly unknown[]; total: number };
+
+/**
+ * Offset for the next page, or `undefined` when every booking is already loaded.
+ *
+ * Pure + exported so the pagination boundary is unit-testable without a render.
+ * The offset is the running total of bookings fetched so far; we stop once that
+ * reaches the server-reported `total`.
+ */
+export function getNextBookingsOffset(
+  lastPage: PageCounts,
+  allPages: PageCounts[]
+): number | undefined {
+  const loaded = allPages.reduce((sum, page) => sum + page.bookings.length, 0);
+  return loaded < lastPage.total ? loaded : undefined;
+}
+
 export function useBookings({ tab, enabled = true }: UseBookingsOpts) {
-  const queryClient = useQueryClient();
-
-  const [offset, setOffset] = useState(0);
-  const [accumulatedBookings, setAccumulatedBookings] = useState<BookingSummary[]>([]);
-  const [hasNextPage, setHasNextPage] = useState(true);
-  const [total, setTotal] = useState(0);
-
-  const queryInput = { tab, limit: PAGE_SIZE, offset };
-  const queryOptions = trpc.bookings.list.queryOptions(queryInput);
-
-  const { data, isLoading, isError, isFetching, refetch } = useQuery({
-    ...queryOptions,
+  // Keep this query key prefix in sync with the invalidation in use-update-booking.ts
+  // (`[['bookings', 'list']]`) so accept/reject/withdraw refetch this list.
+  const query = useInfiniteQuery({
+    queryKey: [['bookings', 'list'], { tab }],
     enabled,
-    placeholderData: keepPreviousData,
+    initialPageParam: 0,
+    queryFn: ({ pageParam }) =>
+      trpcClient.bookings.list.query({ tab, limit: PAGE_SIZE, offset: pageParam }),
+    getNextPageParam: getNextBookingsOffset,
   });
 
-  useEffect(() => {
-    if (!data || isFetching) return;
-    const newBookings = data.bookings as BookingSummary[];
-    if (offset === 0) {
-      if (
-        accumulatedBookings.length !== newBookings.length ||
-        (newBookings.length > 0 && accumulatedBookings[0]?.id !== newBookings[0]?.id)
-      ) {
-        setAccumulatedBookings(newBookings);
-        setHasNextPage(newBookings.length >= PAGE_SIZE);
-        setTotal(data.total);
-      }
-    } else if (accumulatedBookings.length < offset + newBookings.length) {
-      setAccumulatedBookings((prev) => [...prev, ...newBookings]);
-      setHasNextPage(newBookings.length >= PAGE_SIZE);
-      setTotal(data.total);
-    }
-  }, [data, isFetching]);
+  const bookings = (query.data?.pages.flatMap((page) => page.bookings) ?? []) as BookingSummary[];
+  const total = query.data?.pages[0]?.total ?? 0;
 
   const loadMore = useCallback(() => {
-    if (hasNextPage && !isFetching) {
-      setOffset((prev) => prev + PAGE_SIZE);
+    if (query.hasNextPage && !query.isFetchingNextPage) {
+      void query.fetchNextPage();
     }
-  }, [hasNextPage, isFetching]);
+  }, [query]);
 
   const refresh = useCallback(async () => {
-    setOffset(0);
-    setAccumulatedBookings([]);
-    setHasNextPage(true);
-    await queryClient.invalidateQueries({ queryKey: queryOptions.queryKey });
-    await refetch();
-  }, [queryClient, queryOptions.queryKey, refetch]);
-
-  // Reset accumulated data when tab changes
-  useEffect(() => {
-    setOffset(0);
-    setAccumulatedBookings([]);
-    setHasNextPage(true);
-  }, [tab]);
+    await query.refetch();
+  }, [query]);
 
   return {
-    bookings: accumulatedBookings,
-    isLoading: isLoading && offset === 0,
-    isFetchingNextPage: isFetching && offset > 0,
-    isError,
-    hasNextPage,
+    bookings,
+    isLoading: query.isLoading,
+    isFetchingNextPage: query.isFetchingNextPage,
+    isError: query.isError,
+    hasNextPage: query.hasNextPage ?? false,
     total,
     loadMore,
     refresh,

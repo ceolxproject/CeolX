@@ -17,18 +17,58 @@
     "staging": {
       "distribution": "internal",
       "channel": "staging",
+      "environment": "preview",
+      "autoIncrement": true,
       "env": {
-        "APP_VARIANT": "staging"
+        "APP_VARIANT": "staging",
+        "EXPO_PUBLIC_SERVER_URL": "https://ceol-x-server-git-staging-ceolxproject-6613s-projects.vercel.app",
+        "EXPO_PUBLIC_SHARE_BASE_URL": "https://ceol-x-server-git-staging-ceolxproject-6613s-projects.vercel.app",
+        "EXPO_PUBLIC_SENTRY_DSN": "https://9e5bd61ee5ce285201b7f8d571e27b83@o4511115981750272.ingest.de.sentry.io/4511116008620112",
+        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "1057693721951-rtpisqt4dio7pptsterfaf1ldb6hgpv7.apps.googleusercontent.com",
+        "GOOGLE_IOS_URL_SCHEME": "com.googleusercontent.apps.1057693721951-08nqa00s0ood9pimkpbb5p7njtmm4qal"
       },
       "android": {
-        "buildType": "apk"
+        "buildType": "app-bundle"
+      }
+    },
+    "staging-testflight": {
+      "extends": "staging",
+      "distribution": "store",
+      "autoIncrement": true,
+      "ios": {
+        "resourceClass": "m-medium"
       }
     },
     "production": {
       "distribution": "store",
       "channel": "production",
+      "autoIncrement": true,
+      "ios": {
+        "resourceClass": "m-medium"
+      },
+      "android": {
+        "buildType": "app-bundle"
+      },
       "env": {
-        "APP_VARIANT": "production"
+        "APP_VARIANT": "production",
+        "EXPO_PUBLIC_SERVER_URL": "https://ceol-x-server.vercel.app",
+        "EXPO_PUBLIC_SHARE_BASE_URL": "https://ceol-x-server.vercel.app",
+        "EXPO_PUBLIC_SENTRY_DSN": "https://9e5bd61ee5ce285201b7f8d571e27b83@o4511115981750272.ingest.de.sentry.io/4511116008620112",
+        "EXPO_PUBLIC_CLOUDFRONT_DOMAIN": "d19rrotlpwegt5.cloudfront.net",
+        "EXPO_PUBLIC_GOOGLE_MAPS_API_KEY": "AIzaSyDybj0oQr6XdrcqvsbbDZf_E595ORG18tw",
+        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "297835449315-btct1vddecjlp90cl96teighh81skqop.apps.googleusercontent.com",
+        "GOOGLE_IOS_URL_SCHEME": "com.googleusercontent.apps.297835449315-b74pifj1c9a5sget90lrs59026p1ogge"
+      }
+    }
+  },
+  "submit": {
+    "staging-testflight": {
+      "ios": {}
+    },
+    "staging": {
+      "android": {
+        "track": "internal",
+        "releaseStatus": "draft"
       }
     }
   }

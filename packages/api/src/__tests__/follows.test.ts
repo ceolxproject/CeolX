@@ -150,7 +150,7 @@ describe('follows router', () => {
       });
     });
 
-    it('returns NOT_FOUND when followee has no active profile', async () => {
+    it('returns NOT_FOUND when followee has no public profile (bare spectator)', async () => {
       mockUserFindFirst.mockResolvedValueOnce({ id: 'user-2' });
       mockArtistFindFirst.mockResolvedValueOnce(null);
       mockVenueFindFirst.mockResolvedValueOnce(null);
@@ -158,8 +158,29 @@ describe('follows router', () => {
       const caller = authedCaller('user-1');
       await expect(caller.follow({ followeeId: 'user-2' })).rejects.toMatchObject({
         code: 'NOT_FOUND',
-        message: 'User has no active profile',
+        message: 'User has no public profile',
       });
+    });
+
+    // Regression: an inactive venue (subscription not yet active) is still visible
+    // via venues.byId, so its Follow button must work. Previously follow gated on
+    // isActive=true and 404'd these accounts (e.g. "Vivek Venue"). The follow guard
+    // now checks profile presence only, so an inactive profile is followable.
+    it('creates follow for a followee whose only profile is an inactive venue', async () => {
+      const followRow = {
+        id: 'f-2',
+        followerId: 'user-1',
+        followeeId: 'user-v',
+        createdAt: new Date(),
+      };
+      mockUserFindFirst.mockResolvedValueOnce({ id: 'user-v' });
+      mockArtistFindFirst.mockResolvedValueOnce(null);
+      mockVenueFindFirst.mockResolvedValueOnce({ id: 'vp-1' }); // inactive venue still returned
+      mockInsertReturning.mockResolvedValueOnce([followRow]);
+
+      const caller = authedCaller('user-1');
+      const result = await caller.follow({ followeeId: 'user-v' });
+      expect(result).toEqual(followRow);
     });
 
     it('returns CONFLICT on duplicate follow', async () => {
@@ -255,6 +276,33 @@ describe('follows router', () => {
       expect(result.following[0]?.profileType).toBe('venue');
       expect(result.following[0]?.profile?.profileImageUrl).toBe('https://cdn/venues/kilkee.jpg');
       expect(result.following[0]?.eventsCount).toBe(7);
+    });
+
+    it('excludes the current user from their own following list', async () => {
+      // A self-follow row (legacy data created before the mutation guard existed)
+      // that has a real active profile would survive the profile-presence filter,
+      // so it must be dropped explicitly because it is the viewer themselves.
+      const selfRow = { id: 'f-self', followeeId: 'user-1', createdAt: new Date() };
+      mockSelectChain.mockResolvedValueOnce([selfRow]); // followRows
+      mockSelectChain.mockResolvedValueOnce([{ count: 1 }]); // total
+      mockSelectChain.mockResolvedValueOnce([
+        {
+          id: 'ap-self',
+          userId: 'user-1',
+          displayName: 'Me Myself',
+          profileImageUrl: 'https://cdn/me.jpg',
+          genres: ['trad'],
+          isActive: true,
+        },
+      ]); // artist lookup (self) — gives the row a real profile
+      mockSelectChain.mockResolvedValueOnce([]); // venue lookup
+      // No events-count query is queued: once the self row is filtered out the
+      // list is empty, so getActiveEventsCounts short-circuits without a query.
+
+      const caller = authedCaller('user-1');
+      const result = await caller.getFollowing({ limit: 50, offset: 0 });
+
+      expect(result.following).toHaveLength(0);
     });
   });
 

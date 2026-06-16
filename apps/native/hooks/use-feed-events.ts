@@ -1,12 +1,30 @@
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import type { EventCategory, FeedEvent, FeedQueryInput } from '@CeolX/shared';
+import type { EventCategory, FeedEvent } from '@CeolX/shared';
 import { MAP_DEBOUNCE_MS } from '@CeolX/shared';
+
+import { mergePaginatedEvents } from './merge-paginated-events';
 
 import { trpc } from '@/utils/trpc';
 
 const FEED_PAGE_SIZE = 20;
+
+/**
+ * Resolve a device-local YYYY-MM-DD day to its absolute [start, end) window in
+ * Unix seconds. Computed on-device so the boundaries reflect the user's own
+ * timezone — the server then filters by these instants directly and never has to
+ * guess a timezone (it runs in UTC). End is the start of the next day.
+ */
+function localDayWindowSeconds(ymd: string): { dayStart: number; dayEnd: number } {
+  const [year, month, day] = ymd.split('-').map(Number);
+  const start = new Date(year, month - 1, day);
+  const end = new Date(year, month - 1, day + 1);
+  return {
+    dayStart: Math.floor(start.getTime() / 1000),
+    dayEnd: Math.floor(end.getTime() / 1000),
+  };
+}
 
 export type UseFeedEventsOpts = {
   lat: number;
@@ -18,7 +36,10 @@ export function useFeedEvents({ lat, lng, enabled = true }: UseFeedEventsOpts) {
   const queryClient = useQueryClient();
 
   const [category, setCategory] = useState<EventCategory | undefined>();
-  const [dateRange, setDateRange] = useState<FeedQueryInput['dateRange']>(undefined);
+  // A specific calendar day (YYYY-MM-DD, device-local) picked from the header's
+  // calendar button. Kept as a string for the UI (chip + picker); converted to
+  // an absolute window before it's sent to the server.
+  const [date, setDate] = useState<string | undefined>(undefined);
   const [searchQuery, setSearchQuery] = useState('');
   const [offset, setOffset] = useState(0);
   const [accumulatedEvents, setAccumulatedEvents] = useState<FeedEvent[]>([]);
@@ -26,13 +47,15 @@ export function useFeedEvents({ lat, lng, enabled = true }: UseFeedEventsOpts) {
   const [totalCount, setTotalCount] = useState(0);
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const dayWindow = date ? localDayWindowSeconds(date) : undefined;
   const queryInput = {
     lat,
     lng,
     limit: FEED_PAGE_SIZE,
     offset,
     category,
-    dateRange,
+    dayStart: dayWindow?.dayStart,
+    dayEnd: dayWindow?.dayEnd,
     query: searchQuery.trim() || undefined,
   };
 
@@ -48,23 +71,27 @@ export function useFeedEvents({ lat, lng, enabled = true }: UseFeedEventsOpts) {
   useEffect(() => {
     if (!data || isFetching) return;
     const newEvents = data.events as FeedEvent[];
-    if (offset === 0) {
-      // First page or refresh — replace only if the content actually changed
-      if (
-        accumulatedEvents.length !== newEvents.length ||
-        (newEvents.length > 0 && accumulatedEvents[0]?.id !== newEvents[0]?.id)
-      ) {
-        setAccumulatedEvents(newEvents);
-        setHasNextPage(data.hasNextPage);
-        setTotalCount(data.totalCount);
-      }
-    } else if (accumulatedEvents.length < offset + newEvents.length) {
-      // Subsequent page — append
-      setAccumulatedEvents((prev) => [...prev, ...newEvents]);
+    // First page always reflects the freshest data (so an edited event's cover
+    // image / title updates after the cache is invalidated); later pages append
+    // once. See mergePaginatedEvents — the old shape-only guard left stale
+    // content on screen until an app restart.
+    const merged = mergePaginatedEvents({ offset, prev: accumulatedEvents, incoming: newEvents });
+    if (merged) {
+      setAccumulatedEvents(merged);
       setHasNextPage(data.hasNextPage);
       setTotalCount(data.totalCount);
     }
   }, [data, isFetching]);
+
+  // Reset pagination whenever the feed's location changes — the user picked a new
+  // point in the location sheet, or GPS/IP resolved after the Ireland default.
+  // Without this, a location change would append new events onto the previous
+  // location's accumulated list. Mirrors the reset in onSearch/onCategory/onDate.
+  useEffect(() => {
+    setOffset(0);
+    setAccumulatedEvents([]);
+    setHasNextPage(true);
+  }, [lat, lng]);
 
   const loadMore = useCallback(() => {
     if (hasNextPage && !isFetching) {
@@ -95,8 +122,8 @@ export function useFeedEvents({ lat, lng, enabled = true }: UseFeedEventsOpts) {
     setAccumulatedEvents([]);
   }, []);
 
-  const onDateRangeChange = useCallback((range: FeedQueryInput['dateRange']) => {
-    setDateRange(range);
+  const onDateChange = useCallback((next: string | undefined) => {
+    setDate(next);
     setOffset(0);
     setAccumulatedEvents([]);
   }, []);
@@ -112,8 +139,8 @@ export function useFeedEvents({ lat, lng, enabled = true }: UseFeedEventsOpts) {
     refresh,
     category,
     setCategory: onCategoryChange,
-    dateRange,
-    setDateRange: onDateRangeChange,
+    date,
+    setDate: onDateChange,
     searchQuery,
     onSearch,
   };

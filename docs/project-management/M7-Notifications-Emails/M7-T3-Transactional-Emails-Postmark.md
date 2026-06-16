@@ -55,7 +55,7 @@ No new endpoints. Postmark dispatch is invoked internally by existing endpoints 
 
 - R1.1: Postmark account created; API key stored as `POSTMARK_API_KEY` in environment (dev/staging/prod separate keys)
 - R1.2: Separate message streams for transactional vs marketing (if marketing emails added post-V1)
-- R1.3: Default sender configured: `hello@ceolx.ie` (no-reply address rejected by app logic for user replies)
+- R1.3: Default sender configured: `admin@ceolx.com` (no-reply address rejected by app logic for user replies)
 - R1.4: All templates tested in Postmark staging environment before production promotion
 - R1.5: Bounce and complaint handling enabled: suppress future sends to hard bounces and spam complaints
 
@@ -136,7 +136,7 @@ No new endpoints. Postmark dispatch is invoked internally by existing endpoints 
 - [ ] Event Approved fallback email sent if push notification fails
 - [ ] Event Rejected fallback email sent with rejection reason visible
 - [ ] All emails render correctly on iOS Mail, Gmail, Outlook (tested in Postmark preview)
-- [ ] Sender address is `hello@ceolx.ie` (branded, not Postmark default)
+- [ ] Sender address is `admin@ceolx.com` (branded, not Postmark default)
 - [ ] Bounce and complaint handling enabled; future sends to bounced addresses suppressed
 - [ ] Email dispatch service centralised in `apps/server/services/email.ts`
 
@@ -171,7 +171,7 @@ export async function sendEmail(payload: EmailPayload) {
 
   try {
     const result = await client.sendEmailWithTemplate({
-      From: 'hello@ceolx.ie',
+      From: 'admin@ceolx.com',
       To: to,
       TemplateAlias: templateAlias,
       TemplateModel: templateModel,
@@ -185,7 +185,7 @@ export async function sendEmail(payload: EmailPayload) {
     setTimeout(() => {
       client
         .sendEmailWithTemplate({
-          From: 'hello@ceolx.ie',
+          From: 'admin@ceolx.com',
           To: to,
           TemplateAlias: templateAlias,
           TemplateModel: templateModel,
@@ -342,7 +342,7 @@ POSTMARK_EVENT_REJECTED_TEMPLATE_ID=12350
 **Gotcha 4: Emails sent without branding feel like phishing**
 
 - Issue: Default Postmark sender address or generic copy
-- Fix: Use branded sender `hello@ceolx.ie`, personalize with user's first name, include support footer
+- Fix: Use branded sender `admin@ceolx.com`, personalize with user's first name, include support footer
 
 **Gotcha 5: Email templates not synced across environments**
 

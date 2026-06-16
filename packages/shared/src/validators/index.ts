@@ -1,3 +1,4 @@
+export * from './ads.js';
 export * from './auth.js';
 export * from './users.js';
 export * from './profiles.js';
@@ -8,6 +9,7 @@ export * from './follows.js';
 export * from './posts.js';
 export * from './notifications.js';
 export * from './device-tokens.js';
+export * from './discovery.js';
 export * from './event-analytics.js';
 export * from './admin.js';
 export * from './uploads.js';

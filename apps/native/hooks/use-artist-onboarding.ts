@@ -9,14 +9,31 @@ import {
   createArtistOnboardingSchema,
 } from '@CeolX/shared/validators';
 
+import { appToast } from '@/components/AppToast';
 import type { SocialLinks } from '@/components/onboarding/SocialLinksSection';
 import { useAuth } from '@/contexts/auth-context';
+import { initialStageName } from '@/hooks/use-artist-onboarding.utils';
 import { useMediaUpload } from '@/hooks/use-media-upload';
+import { useOnboardingDraft } from '@/hooks/use-onboarding-draft';
+import { computeStepErrors } from '@/lib/onboarding-validation';
 import { pickSquarePhoto, requestPhotoLibraryPermission } from '@/utils/image-picker';
+import { normalizeOptionalUrl } from '@/utils/normalize-url';
 import { trpc, type RouterOutputs } from '@/utils/trpc';
 import { getTRPCErrorCode, getTRPCErrorMessage } from '@/utils/trpc-error';
 
 type Step = 1 | 2 | 3;
+
+// The slice of onboarding state worth surviving an app kill. Validation/UI
+// state (errors, touched, submitError) is intentionally excluded — it is
+// re-derived from the restored values on the next interaction.
+interface ArtistOnboardingDraft {
+  stageName: string;
+  bio: string;
+  contactEmail: string;
+  socialLinks: SocialLinks;
+  profileImageUri: string | null;
+  currentStep: Step;
+}
 
 // Field paths driving the per-step touched-set policy. On Next-press, every
 // field for the current step is marked touched so validation errors render
@@ -31,7 +48,9 @@ const FIELDS_BY_STEP: Record<Step, readonly string[]> = {
 export function useArtistOnboarding() {
   const { user } = useAuth();
 
-  const [stageName, setStageName] = useState('');
+  // Pre-fill from the registration name so registration → onboarding → profile
+  // start consistent; the artist can still override it (band name).
+  const [stageName, setStageName] = useState(() => initialStageName(user?.name));
   const [bio, setBio] = useState('');
   const [contactEmail, setContactEmail] = useState(user?.email ?? '');
   const [socialLinks, setSocialLinks] = useState<SocialLinks>({
@@ -53,44 +72,70 @@ export function useArtistOnboarding() {
   );
   const { uploadMedia, isUploading: isImageUploading } = useMediaUpload('profile_image');
 
+  // ── Draft persistence (survives app kill / background) ───────────────────
+
+  const { clearDraft } = useOnboardingDraft<ArtistOnboardingDraft>({
+    role: 'artist',
+    userId: user?.id,
+    draft: { stageName, bio, contactEmail, socialLinks, profileImageUri, currentStep },
+    onHydrate: (saved) => {
+      setStageName(saved.stageName ?? '');
+      setBio(saved.bio ?? '');
+      if (saved.contactEmail) setContactEmail(saved.contactEmail);
+      setSocialLinks({
+        INSTAGRAM: '',
+        FACEBOOK: '',
+        TIKTOK: '',
+        YOUTUBE: '',
+        ...(saved.socialLinks as Partial<SocialLinks>),
+      });
+      setProfileImageUri(saved.profileImageUri ?? null);
+      if (saved.currentStep) setCurrentStep(saved.currentStep);
+    },
+  });
+
   // ── Step navigation ─────────────────────────────────────────────────────
+
+  // Normalize bare domains (e.g. `instagram.com/me`) to `https://…` before
+  // validating, so users aren't forced to type the scheme. Empty fields become
+  // undefined (omitted). Mirrors the edit-profile screen's submit boundary.
+  const normalizedSocialLinks = () => ({
+    INSTAGRAM: normalizeOptionalUrl(socialLinks.INSTAGRAM),
+    FACEBOOK: normalizeOptionalUrl(socialLinks.FACEBOOK),
+    TIKTOK: normalizeOptionalUrl(socialLinks.TIKTOK),
+    YOUTUBE: normalizeOptionalUrl(socialLinks.YOUTUBE),
+  });
 
   const buildStepValues = (step: Step) => {
     if (step === 1) return { stageName, contactEmail: contactEmail || undefined };
     if (step === 2) return { bio: bio || undefined };
-    return {
-      socialLinks: {
-        INSTAGRAM: socialLinks.INSTAGRAM || undefined,
-        FACEBOOK: socialLinks.FACEBOOK || undefined,
-        TIKTOK: socialLinks.TIKTOK || undefined,
-        YOUTUBE: socialLinks.YOUTUBE || undefined,
-      },
-    };
+    return { socialLinks: normalizedSocialLinks() };
   };
 
   // Pass an explicit `currentTouched` Set when the caller has just computed a
   // new value; React batches setState so reading `touched` after setTouched in
   // the same handler would return the stale snapshot.
-  const validateStep = (step: Step, currentTouched: Set<string> = touched): boolean => {
+  const validateStep = (
+    step: Step,
+    currentTouched: Set<string> = touched,
+    overrides: Record<string, unknown> = {}
+  ): boolean => {
     const schema =
       step === 1
         ? artistOnboardingStep1Schema
         : step === 2
           ? artistOnboardingStep2Schema
           : artistOnboardingStep3Schema;
-    const result = schema.safeParse(buildStepValues(step));
+    const result = schema.safeParse(buildStepValues(step, overrides));
 
-    setErrors((prev) => {
-      const next = { ...prev };
-      for (const f of FIELDS_BY_STEP[step]) delete next[f];
-      if (!result.success) {
-        for (const issue of result.error.issues) {
-          const field = issue.path.join('.');
-          if (currentTouched.has(field)) next[field] = issue.message;
-        }
-      }
-      return next;
-    });
+    setErrors((prev) =>
+      computeStepErrors({
+        result,
+        stepFields: FIELDS_BY_STEP[step],
+        touched: currentTouched,
+        prevErrors: prev,
+      })
+    );
 
     return result.success;
   };
@@ -152,8 +197,38 @@ export function useArtistOnboarding() {
     }
   };
 
+  const handleRemoveImage = () => {
+    setProfileImageUri(null);
+    setImageError(null);
+  };
+
+  // Once a field has been touched (e.g. a failed Next surfaced its error),
+  // re-validate it on every change so the error clears the instant the value
+  // becomes valid — not only on the next blur or Next-press. The new value is
+  // passed through to validateStep because setState is batched.
+  const handleStageNameChange = (value: string) => {
+    setStageName(value);
+    if (touched.has('stageName')) validateStep(1, touched, { stageName: value });
+  };
+
+  const handleBioChange = (value: string) => {
+    setBio(value);
+    if (touched.has('bio')) validateStep(2, touched, { bio: value || undefined });
+  };
+
   const handleSocialLinkChange = (field: keyof SocialLinks, value: string) => {
-    setSocialLinks((prev) => ({ ...prev, [field]: value }));
+    const nextLinks = { ...socialLinks, [field]: value };
+    setSocialLinks(nextLinks);
+    if (touched.has(`socialLinks.${field}`)) {
+      validateStep(3, touched, {
+        socialLinks: {
+          INSTAGRAM: nextLinks.INSTAGRAM || undefined,
+          FACEBOOK: nextLinks.FACEBOOK || undefined,
+          TIKTOK: nextLinks.TIKTOK || undefined,
+          YOUTUBE: nextLinks.YOUTUBE || undefined,
+        },
+      });
+    }
   };
 
   const handleSubmit = async () => {
@@ -179,12 +254,7 @@ export function useArtistOnboarding() {
       stageName,
       bio: bio || undefined,
       contactEmail: contactEmail || undefined,
-      socialLinks: {
-        INSTAGRAM: socialLinks.INSTAGRAM || undefined,
-        FACEBOOK: socialLinks.FACEBOOK || undefined,
-        TIKTOK: socialLinks.TIKTOK || undefined,
-        YOUTUBE: socialLinks.YOUTUBE || undefined,
-      },
+      socialLinks: normalizedSocialLinks(),
       profileImageUrl,
     });
 
@@ -204,6 +274,9 @@ export function useArtistOnboarding() {
 
     try {
       await createArtistProfile(parsed.data);
+      // Onboarding succeeded — the draft has served its purpose and must not
+      // resurrect on a future sign-up for this account.
+      clearDraft();
       // Optimistically flip onboardingComplete so (app)/_layout's redirect
       // guard doesn't bounce us back on the next mount. invalidate runs in
       // the background to reconcile the rest of the me payload.
@@ -211,12 +284,14 @@ export function useArtistOnboarding() {
         old ? { ...old, onboardingComplete: true } : old
       );
       void queryClient.invalidateQueries({ queryKey: trpc.users.me.queryKey() });
+      appToast.success('Artist profile created', 'Welcome to CeolX!');
       router.replace('/(app)/(tabs)/map');
     } catch (err: unknown) {
       // If the server says the profile already exists, the user has finished
       // onboarding (possibly from a half-failed prior submit). Route them
       // forward instead of dead-ending on the form.
       if (getTRPCErrorCode(err) === 'CONFLICT') {
+        clearDraft();
         queryClient.setQueryData<RouterOutputs['users']['me']>(trpc.users.me.queryKey(), (old) =>
           old ? { ...old, onboardingComplete: true } : old
         );
@@ -235,9 +310,9 @@ export function useArtistOnboarding() {
   return {
     // fields
     stageName,
-    setStageName,
+    setStageName: handleStageNameChange,
     bio,
-    setBio,
+    setBio: handleBioChange,
     contactEmail,
     setContactEmail,
     socialLinks,
@@ -250,7 +325,10 @@ export function useArtistOnboarding() {
     isPending: isPending || isImageUploading,
     // handlers
     handlePickImage,
+    handleRemoveImage,
     handleSubmit,
+    // draft persistence
+    clearDraft,
     // step navigation
     currentStep,
     touched,

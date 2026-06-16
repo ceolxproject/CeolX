@@ -123,7 +123,7 @@ function fakeEventRow(eventId: string) {
     dateStart: new Date('2026-08-02T17:30:00Z'),
     dateEnd: null,
     venueAddress: "Gielty's, Dooagh",
-    category: 'Traditional',
+    category: 'Open Trad Sessions',
     status: 'active',
     createdAt: new Date('2026-04-01T00:00:00Z'),
     updatedAt: new Date('2026-04-01T00:00:00Z'),

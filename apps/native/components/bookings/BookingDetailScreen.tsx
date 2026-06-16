@@ -1,0 +1,258 @@
+import { Ionicons } from '@expo/vector-icons';
+import { useQuery } from '@tanstack/react-query';
+import { router, useLocalSearchParams } from 'expo-router';
+import { useCallback, useState } from 'react';
+import { ActivityIndicator, Image, Pressable, ScrollView, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+
+import { CATEGORY_LABELS } from '@CeolX/shared';
+import { BookingDirection, BookingStatus, UserRole } from '@CeolX/shared/enums';
+
+import { appToast } from '@/components/AppToast';
+import {
+  BOOKING_STATUS_FEEDBACK,
+  RequestActions,
+  type RequestAction,
+} from '@/components/requests/RequestActions';
+import { useResendBooking } from '@/hooks/use-resend-booking';
+import { useUpdateBooking } from '@/hooks/use-update-booking';
+import { authClient } from '@/lib/auth-client';
+import { getBookingActionErrorBody } from '@/utils/booking-error';
+import { formatEventDate } from '@/utils/format-event-date';
+import { trpc } from '@/utils/trpc';
+
+const STATUS_STYLES: Record<string, { bg: string; text: string; label: string }> = {
+  pending: { bg: 'bg-yellow-900/30', text: 'text-yellow-400', label: 'Pending' },
+  accepted: { bg: 'bg-green-900/30', text: 'text-green-400', label: 'Accepted' },
+  rejected: { bg: 'bg-red-900/30', text: 'text-red-400', label: 'Declined' },
+  cancelled: { bg: 'bg-gray-800/30', text: 'text-gray-400', label: 'Cancelled' },
+};
+
+export function BookingDetailScreen() {
+  const { bookingId } = useLocalSearchParams<{ bookingId: string }>();
+  const { data: session } = authClient.useSession();
+  const userRole = (session?.user?.currentRole ?? 'spectator') as 'artist' | 'venue';
+
+  const { data: booking, isLoading } = useQuery(trpc.bookings.byId.queryOptions({ id: bookingId }));
+
+  const updateBooking = useUpdateBooking();
+  const resendBooking = useResendBooking();
+  const [pendingAction, setPendingAction] = useState<RequestAction | null>(null);
+
+  const handleUpdate = useCallback(
+    async (status: 'accepted' | 'rejected' | 'cancelled') => {
+      if (!bookingId) return;
+      const copy = BOOKING_STATUS_FEEDBACK[status];
+      setPendingAction(copy.action);
+      try {
+        await updateBooking.mutateAsync({ id: bookingId, status });
+        appToast.success(copy.success);
+      } catch (err) {
+        appToast.error(copy.error, getBookingActionErrorBody(err));
+      } finally {
+        setPendingAction(null);
+      }
+    },
+    [bookingId, updateBooking]
+  );
+
+  const handleResend = useCallback(async () => {
+    if (!bookingId) return;
+    setPendingAction('resend');
+    try {
+      await resendBooking.mutateAsync({ id: bookingId });
+      appToast.success('Invite resent');
+    } catch (err) {
+      appToast.error(
+        'Could not resend invite',
+        err instanceof Error ? err.message : 'Please try again.'
+      );
+    } finally {
+      setPendingAction(null);
+    }
+  }, [bookingId, resendBooking]);
+
+  if (isLoading || !booking) {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: '#080808' }} edges={['top']}>
+        <View className="flex-1 items-center justify-center">
+          <ActivityIndicator size="large" color="#C8FF2F" />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  const categoryLabel = CATEGORY_LABELS[booking.eventCategory] ?? booking.eventCategory;
+  const formattedDate = formatEventDate(booking.eventDateStart, booking.eventDateEnd);
+  const statusStyle = STATUS_STYLES[booking.status] ?? STATUS_STYLES.pending;
+
+  // For artist↔artist the server tells us whether the viewer is the inviter
+  // (both parties are artists, so role + direction can't distinguish them).
+  const isA2A = booking.direction === BookingDirection.ARTIST_TO_ARTIST;
+  const isSentByUser = isA2A
+    ? booking.viewerIsSender === true
+    : (userRole === UserRole.VENUE && booking.direction === BookingDirection.VENUE_TO_ARTIST) ||
+      (userRole === UserRole.ARTIST && booking.direction === BookingDirection.ARTIST_TO_VENUE);
+
+  // "Other party" is always whoever is NOT the viewer. For A2A that's the other
+  // artist (the invited co-artist if you sent it, else the inviter).
+  const otherPartyName = isA2A
+    ? isSentByUser
+      ? booking.artistName
+      : (booking.inviterArtistName ?? 'Artist')
+    : userRole === UserRole.VENUE
+      ? booking.artistName
+      : booking.venueName;
+  const otherPartyImage = isA2A
+    ? isSentByUser
+      ? booking.artistImage
+      : booking.inviterArtistImage
+    : userRole === UserRole.VENUE
+      ? booking.artistImage
+      : booking.venueImage;
+  const directionLabel = isSentByUser ? 'Sent Request to:' : 'Request Sent by:';
+  const contactLabel = isA2A || userRole === UserRole.VENUE ? 'CONTACT ARTIST' : 'CONTACT VENUE';
+
+  // Where the "CONTACT" button opens. A2A rows have no venue — route to the
+  // other artist's *user* id (routing to /venue/<empty> was the 404 bug).
+  const contactHref = (
+    isA2A
+      ? `/(app)/artist/${isSentByUser ? booking.artistUserId : booking.inviterArtistUserId}`
+      : userRole === UserRole.ARTIST
+        ? `/(app)/venue/${booking.venueUserId}`
+        : `/(app)/artist/${booking.artistUserId}`
+  ) as Parameters<typeof router.push>[0];
+
+  return (
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#080808' }} edges={['top']}>
+      <ScrollView showsVerticalScrollIndicator={false}>
+        {/* Cover image */}
+        <View className="h-[220px] relative">
+          {booking.eventCoverImage ? (
+            <Image
+              source={{ uri: booking.eventCoverImage }}
+              className="absolute inset-0 w-full h-full"
+              resizeMode="cover"
+            />
+          ) : (
+            <View className="absolute inset-0 w-full h-full bg-white/5 items-center justify-center">
+              <Text className="text-5xl">🎵</Text>
+            </View>
+          )}
+
+          {/* Category badge */}
+          <View className="absolute top-3 left-3 bg-[#080808] rounded-xl px-2 py-1.5">
+            <Text className="text-[12px] text-[#C8FF2F] font-semibold tracking-wide uppercase">
+              {categoryLabel}
+            </Text>
+          </View>
+
+          {/* Status badge */}
+          <View className={`absolute top-3 right-3 ${statusStyle.bg} rounded-full px-3 py-1`}>
+            <Text className={`text-[11px] font-semibold ${statusStyle.text}`}>
+              {statusStyle.label}
+            </Text>
+          </View>
+        </View>
+
+        {/* Content */}
+        <View className="px-5 pt-4 pb-8">
+          {/* Event title */}
+          <Text className="text-2xl font-semibold text-white font-urbanist">
+            {booking.eventTitle}
+          </Text>
+
+          {/* Location + date */}
+          <View className="flex-row items-start gap-4 mt-3">
+            <View className="flex-1 flex-row items-center gap-1">
+              <Ionicons name="location-outline" size={14} color="rgba(255,255,255,0.6)" />
+              <Text className="text-xs font-semibold text-white/60 font-urbanist" numberOfLines={1}>
+                {booking.eventVenueAddress ?? 'Location TBC'}
+              </Text>
+            </View>
+            <View className="flex-row items-center gap-1">
+              <Ionicons name="calendar-outline" size={14} color="rgba(255,255,255,0.6)" />
+              <Text className="text-xs font-semibold text-white/60 font-urbanist" numberOfLines={1}>
+                {formattedDate}
+              </Text>
+            </View>
+          </View>
+
+          {/* Divider */}
+          <View className="h-px bg-white/10 my-4" />
+
+          {/* Direction label + other party */}
+          <Text className="text-xs text-white/50 font-urbanist mb-2">{directionLabel}</Text>
+          <View className="flex-row items-center gap-3">
+            {otherPartyImage ? (
+              <Image source={{ uri: otherPartyImage }} className="w-10 h-10 rounded-full" />
+            ) : (
+              <View className="w-10 h-10 rounded-full bg-white/10 items-center justify-center">
+                <Ionicons name="person" size={20} color="rgba(255,255,255,0.4)" />
+              </View>
+            )}
+            <Text className="text-base font-bold text-white font-urbanist flex-1">
+              {otherPartyName}
+            </Text>
+            {booking.status === BookingStatus.ACCEPTED && (
+              <Pressable onPress={() => router.push(contactHref)} hitSlop={8}>
+                <Text className="text-xs font-bold text-[#D4FC5A] font-urbanist tracking-wide">
+                  {contactLabel}
+                </Text>
+              </Pressable>
+            )}
+          </View>
+
+          {/* Accepted confirmation */}
+          {booking.status === BookingStatus.ACCEPTED && (
+            <View className="flex-row items-center gap-2 mt-4 bg-green-900/10 rounded-xl px-3 py-2.5">
+              <Ionicons name="checkmark-circle" size={18} color="#4ADE80" />
+              <Text className="text-xs text-white/80 font-urbanist">
+                Request Accepted on {formatAcceptedDate(booking.updatedAt)}
+              </Text>
+            </View>
+          )}
+
+          {/* Rejected / Cancelled info */}
+          {booking.status === BookingStatus.REJECTED && (
+            <View className="flex-row items-center gap-2 mt-4 bg-red-900/10 rounded-xl px-3 py-2.5">
+              <Ionicons name="close-circle" size={18} color="#F87171" />
+              <Text className="text-xs text-white/80 font-urbanist">
+                Request Rejected on {formatAcceptedDate(booking.updatedAt)}
+              </Text>
+            </View>
+          )}
+
+          {booking.status === BookingStatus.CANCELLED && (
+            <View className="flex-row items-center gap-2 mt-4 bg-gray-800/20 rounded-xl px-3 py-2.5">
+              <Ionicons name="ban" size={18} color="#9CA3AF" />
+              <Text className="text-xs text-white/80 font-urbanist">
+                Cancelled{booking.cancelledByName ? ` by ${booking.cancelledByName}` : ''} on{' '}
+                {formatAcceptedDate(booking.updatedAt)}
+              </Text>
+            </View>
+          )}
+
+          {/* Action buttons for pending */}
+          {booking.status === BookingStatus.PENDING && (
+            <RequestActions
+              booking={booking}
+              userRole={userRole}
+              onAccept={() => handleUpdate(BookingStatus.ACCEPTED)}
+              onReject={() => handleUpdate(BookingStatus.REJECTED)}
+              onWithdraw={() => handleUpdate(BookingStatus.CANCELLED)}
+              onResend={handleResend}
+              onCancel={() => handleUpdate(BookingStatus.CANCELLED)}
+              pendingAction={pendingAction}
+            />
+          )}
+        </View>
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+function formatAcceptedDate(dateStr: string): string {
+  const date = new Date(dateStr);
+  return date.toLocaleString('en-IE', { month: 'short', day: 'numeric', year: 'numeric' });
+}

@@ -24,10 +24,19 @@ export const venuesRouter = router({
         id: venueProfiles.id,
         name: venueProfiles.venueName,
         address: venueProfiles.address,
+        lat: venueProfiles.lat,
+        lng: venueProfiles.lng,
       })
       .from(venueProfiles)
       .orderBy(venueProfiles.venueName);
-    return rows;
+    // numeric columns come back as strings — expose coordinates as numbers so
+    // the event form can pin the map from the venue's stored location directly
+    // (no client-side geocoding of the address string).
+    return rows.map((v) => ({
+      ...v,
+      lat: v.lat !== null ? Number(v.lat) : null,
+      lng: v.lng !== null ? Number(v.lng) : null,
+    }));
   }),
 
   // Fetch venue public profile by id (user ID). Subscription-gated:
@@ -65,15 +74,12 @@ export const venuesRouter = router({
 
     const isOwner = ctx.session?.user?.id === profile.userId;
 
-    // Subscription gating: inactive/cancelled venues return 404 for non-owners
-    if (!isOwner && profile.subscriptionStatus !== 'active') {
-      throw new TRPCError({ code: 'NOT_FOUND', message: 'Venue not found' });
-    }
-
-    // Inactive profiles (is_active = false) return 404 for non-owners
-    if (!isOwner && !profile.isActive) {
-      throw new TRPCError({ code: 'NOT_FOUND', message: 'Venue not found' });
-    }
+    // NOTE: subscription-based visibility gating is intentionally disabled until
+    // the subscription system ships. Venues never reach `subscription_status =
+    // active` / `is_active = true` yet, so the previous owner-only gate 404'd
+    // every venue profile — e.g. a spectator tapping an event host saw "Venue
+    // Not Found". Restore the gate (subscriptionStatus === 'active' && isActive
+    // for non-owners) once subscriptions are live. Asana 1215489113550392.
 
     const { followerCount, followingCount } = await getFollowerCounts(profile.userId);
     const socialLinksRecord = await getSocialLinksRecord(profile.userId);

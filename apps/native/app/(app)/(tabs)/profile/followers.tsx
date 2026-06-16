@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
 import { router } from 'expo-router';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -9,6 +9,7 @@ import {
   Pressable,
   RefreshControl,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -75,7 +76,7 @@ function FollowerRow({
             {isPending ? (
               <ActivityIndicator size="small" color="#fff" />
             ) : (
-              <Text className="text-[12px] font-bold text-white uppercase tracking-wider font-urbanist">
+              <Text className="text-[12px] font-bold text-white uppercase tracking-[0.24px] font-urbanist">
                 Following
               </Text>
             )}
@@ -89,7 +90,7 @@ function FollowerRow({
             {isPending ? (
               <ActivityIndicator size="small" color="#fff" />
             ) : (
-              <Text className="text-[12px] font-bold text-white uppercase tracking-wider font-urbanist">
+              <Text className="text-[12px] font-bold text-white uppercase tracking-[0.24px] font-urbanist">
                 Follow
               </Text>
             )}
@@ -100,16 +101,25 @@ function FollowerRow({
 }
 
 function ItemDivider() {
-  return <View className="h-px bg-gray-10/50 mx-4" />;
+  return <View className="h-px bg-gray-10/50 ml-[73px]" />;
 }
 
 export default function FollowersScreen() {
   const [pendingId, setPendingId] = useState<string | null>(null);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const followMutation = useFollow();
 
   const { data, isLoading, refetch, isRefetching } = useQuery({
     ...trpc.follows.getFollowers.queryOptions({ limit: 50, offset: 0 }),
   });
+
+  const filteredFollowers = useMemo(() => {
+    const followers = data?.followers ?? [];
+    const query = searchQuery.trim().toLowerCase();
+    if (!query) return followers;
+    return followers.filter((item) => item.profile?.displayName?.toLowerCase().includes(query));
+  }, [data?.followers, searchQuery]);
 
   const handleToggle = (followeeId: string, isFollowedBack: boolean) => {
     setPendingId(followeeId);
@@ -119,15 +129,52 @@ export default function FollowersScreen() {
     );
   };
 
+  const toggleSearch = () => {
+    setIsSearchOpen((open) => {
+      if (open) setSearchQuery('');
+      return !open;
+    });
+  };
+
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#333335' }} edges={['top']}>
-      <View className="bg-black px-4 pt-2 pb-4 flex-row items-center justify-between">
-        <Pressable onPress={() => router.back()} hitSlop={12}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#000' }} edges={['top', 'bottom']}>
+      <View className="bg-black h-[96px] justify-center">
+        <Text className="text-[34px] font-bold text-white font-urbanist text-center leading-[41px]">
+          Followers
+        </Text>
+        <Pressable
+          onPress={() => router.back()}
+          hitSlop={12}
+          className="absolute left-1 bottom-3 size-12 items-center justify-center rounded-full"
+        >
           <Ionicons name="arrow-back" size={24} color="#fff" />
         </Pressable>
-        <Text className="text-[34px] font-bold text-white font-urbanist">Followers</Text>
-        <Ionicons name="search" size={22} color="#fff" />
+        <Pressable onPress={toggleSearch} hitSlop={12} className="absolute right-4 bottom-[22px]">
+          <Ionicons name={isSearchOpen ? 'close' : 'search'} size={22} color="#fff" />
+        </Pressable>
       </View>
+
+      {isSearchOpen && (
+        <View className="px-4 pb-3">
+          <View className="flex-row items-center bg-surface rounded-[12px] h-11 px-3">
+            <Ionicons name="search" size={18} color="#8a8a8f" />
+            <TextInput
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              placeholder="Search by name"
+              placeholderTextColor="#8a8a8f"
+              autoFocus
+              autoCorrect={false}
+              className="flex-1 ml-2 text-[15px] text-white font-urbanist"
+            />
+            {searchQuery.length > 0 && (
+              <Pressable onPress={() => setSearchQuery('')} hitSlop={8}>
+                <Ionicons name="close-circle" size={18} color="#8a8a8f" />
+              </Pressable>
+            )}
+          </View>
+        </View>
+      )}
 
       {isLoading ? (
         <View className="flex-1 items-center justify-center">
@@ -135,8 +182,9 @@ export default function FollowersScreen() {
         </View>
       ) : (
         <FlatList
-          data={data?.followers ?? []}
+          data={filteredFollowers}
           keyExtractor={(item) => item.id}
+          keyboardShouldPersistTaps="handled"
           renderItem={({ item }) => (
             <FollowerRow
               item={item}
@@ -148,7 +196,9 @@ export default function FollowersScreen() {
           ListEmptyComponent={
             <View className="py-16 items-center">
               <Text className="text-base text-white/60 text-center font-urbanist">
-                You don&apos;t have any followers yet
+                {searchQuery.trim()
+                  ? `No results for "${searchQuery.trim()}"`
+                  : "You don't have any followers yet"}
               </Text>
             </View>
           }

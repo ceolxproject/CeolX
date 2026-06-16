@@ -40,7 +40,7 @@ const createCaller = t.createCallerFactory(testRouter);
 
 const USER_ID = 'user-test-1';
 
-function buildCtx(scheduleFn = vi.fn(async () => {})): Context {
+function buildCtx(): Context {
   return {
     session: {
       user: {
@@ -69,7 +69,6 @@ function buildCtx(scheduleFn = vi.fn(async () => {})): Context {
       },
     },
     dispatchNotification: vi.fn(async () => {}),
-    scheduleAccountAnonymize: scheduleFn,
   } as unknown as Context;
 }
 
@@ -84,29 +83,21 @@ describe('users.requestAccountDeletion', () => {
     const anonCaller = createCaller({
       session: null,
       dispatchNotification: vi.fn(async () => {}),
-      scheduleAccountAnonymize: vi.fn(async () => {}),
     } as unknown as Context);
 
     await expect(anonCaller.users.requestAccountDeletion()).rejects.toThrow(TRPCError);
   });
 
-  it('schedules the job, persists the timestamps, and returns scheduledFor', async () => {
+  it('persists the timestamps and returns scheduledFor without any external call', async () => {
     mockSelectLimit.mockResolvedValueOnce([{ deletionScheduledFor: null }]);
-    const scheduleFn = vi.fn(async () => {});
 
-    const caller = createCaller(buildCtx(scheduleFn));
+    const caller = createCaller(buildCtx());
     const before = Date.now();
     const result = await caller.users.requestAccountDeletion();
     const after = Date.now();
 
-    expect(scheduleFn).toHaveBeenCalledTimes(1);
-    const scheduleArg = scheduleFn.mock.calls[0]?.[0] as {
-      userId: string;
-      requestedAt: Date;
-    };
-    expect(scheduleArg.userId).toBe(USER_ID);
-    expect(scheduleArg.requestedAt).toBeInstanceOf(Date);
-
+    // Erasure is driven by the daily anonymize-sweep cron, NOT a per-request
+    // job — the request path makes no QStash call (Asana 1215276188230541).
     expect(mockUpdateSet).toHaveBeenCalledTimes(1);
     const setArg = mockUpdateSet.mock.calls[0]?.[0] as Record<string, unknown>;
     expect(setArg.deletionRequestedAt).toBeInstanceOf(Date);
@@ -121,16 +112,14 @@ describe('users.requestAccountDeletion', () => {
     expect(result.scheduledFor).toEqual(setArg.deletionScheduledFor);
   });
 
-  it('is idempotent — returns existing schedule and does NOT republish', async () => {
+  it('is idempotent — returns existing schedule and does NOT re-stamp', async () => {
     const existing = new Date('2026-05-28T00:00:00Z');
     mockSelectLimit.mockResolvedValueOnce([{ deletionScheduledFor: existing }]);
-    const scheduleFn = vi.fn(async () => {});
 
-    const caller = createCaller(buildCtx(scheduleFn));
+    const caller = createCaller(buildCtx());
     const result = await caller.users.requestAccountDeletion();
 
     expect(result.scheduledFor).toEqual(existing);
-    expect(scheduleFn).not.toHaveBeenCalled();
     expect(mockUpdateSet).not.toHaveBeenCalled();
   });
 });

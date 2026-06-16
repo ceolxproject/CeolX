@@ -31,7 +31,7 @@ describe('buildNotification — push surface (matrix copy)', () => {
       persona: 'artist',
       title: 'New booking invite',
       body: 'The Temple Bar invited you to play "Friday Night Trad Session" on Fri 1 May.',
-      route: '/bookings/b-123',
+      route: '/(app)/(tabs)/bookings/b-123',
     });
   });
 
@@ -145,10 +145,34 @@ describe('buildNotification — inApp surface diverges from push', () => {
       { eventId: 'e-1', eventTitle: 'Friday Night Trad' }
     );
     expect(built.persona).toBe('spectator');
-    expect(built.route).toBe('/feed');
+    expect(built.route).toBe('/(app)/(tabs)/discover');
     expect(built.title).toBe('A saved event was removed');
     expect(built.body).toBe(
       '"Friday Night Trad" was removed by moderation and is no longer on CeolX.'
+    );
+  });
+
+  it('A-17 / V-16 creator-delete — both personas, route to the feed, only needs {eventTitle}', () => {
+    const toArtist = buildNotification(
+      NotificationTrigger.EVENT_DELETED_BY_CREATOR_TO_ARTIST,
+      NotificationSurface.PUSH,
+      { eventTitle: 'Friday Night Trad' }
+    );
+    expect(toArtist.persona).toBe('artist');
+    expect(toArtist.type).toBe('event_deleted');
+    expect(toArtist.route).toBe('/(app)/(tabs)/discover');
+    expect(toArtist.body).toBe(
+      'The organiser deleted "Friday Night Trad" — it\'s no longer on CeolX.'
+    );
+
+    const toVenue = buildNotification(
+      NotificationTrigger.EVENT_DELETED_BY_CREATOR_TO_VENUE,
+      NotificationSurface.IN_APP,
+      { eventTitle: 'Friday Night Trad' }
+    );
+    expect(toVenue.persona).toBe('venue');
+    expect(toVenue.body).toBe(
+      '"Friday Night Trad" hosted at your venue was deleted by the organiser.'
     );
   });
 
@@ -205,6 +229,11 @@ describe('buildNotification — placeholder safety', () => {
     NotificationTrigger.BOOKING_WITHDRAWN_TO_ARTIST,
     NotificationTrigger.BOOKING_CANCELLED_TO_ARTIST,
     NotificationTrigger.BOOKING_CANCELLED_TO_VENUE,
+    NotificationTrigger.BOOKING_INVITE_TO_COARTIST,
+    NotificationTrigger.BOOKING_COARTIST_ACCEPTED_TO_INVITER,
+    NotificationTrigger.BOOKING_COARTIST_REJECTED_TO_INVITER,
+    NotificationTrigger.BOOKING_COARTIST_WITHDRAWN_TO_INVITEE,
+    NotificationTrigger.BOOKING_COARTIST_CANCELLED,
   ];
 
   it('every booking-flow trigger has a {bookingId}-bearing route', () => {
@@ -214,19 +243,19 @@ describe('buildNotification — placeholder safety', () => {
     }
   });
 
-  it('event-scoped triggers (collaborator add, hosted-at-venue, moderation) route to /events/:id', () => {
+  it('event-scoped triggers (collaborator add, hosted-at-venue, moderation) route to the discover event screen', () => {
     expect(
       NOTIFICATION_TRIGGERS[NotificationTrigger.ADDED_AS_COLLABORATOR_TO_ARTIST].routeTemplate
-    ).toBe('/events/{eventId}');
+    ).toBe('/(app)/(tabs)/discover/event/{eventId}');
     expect(
       NOTIFICATION_TRIGGERS[NotificationTrigger.EVENT_HOSTED_AT_VENUE_TO_VENUE].routeTemplate
-    ).toBe('/events/{eventId}');
+    ).toBe('/(app)/(tabs)/discover/event/{eventId}');
     expect(
       NOTIFICATION_TRIGGERS[NotificationTrigger.EVENT_REMOVED_BY_ADMIN_TO_ARTIST].routeTemplate
-    ).toBe('/events/{eventId}');
+    ).toBe('/(app)/(tabs)/discover/event/{eventId}');
     expect(
       NOTIFICATION_TRIGGERS[NotificationTrigger.EVENT_RESUBMITTED_TO_VENUE].routeTemplate
-    ).toBe('/events/{eventId}');
+    ).toBe('/(app)/(tabs)/discover/event/{eventId}');
   });
 
   it('throws with the missing key name when vars are incomplete', () => {
@@ -236,6 +265,41 @@ describe('buildNotification — placeholder safety', () => {
         // venueName, eventTitle, date all missing
       })
     ).toThrow(/venueName/);
+  });
+});
+
+// ─── Artist↔artist booking triggers ─────────────────────────────────────────
+
+describe('artist↔artist booking triggers', () => {
+  const vars = {
+    bookingId: 'b1',
+    coArtistName: 'Tune Bomb',
+    eventTitle: 'Trad Night',
+    date: 'Fri 6 Jun',
+  };
+
+  it('builds the co-artist invite push with the inviter name', () => {
+    const n = buildNotification(
+      NotificationTrigger.BOOKING_INVITE_TO_COARTIST,
+      NotificationSurface.PUSH,
+      vars
+    );
+    expect(n.body).toContain('Tune Bomb');
+    expect(n.route).toBe('/(app)/(tabs)/bookings/b1');
+    expect(n.persona).toBe('artist');
+  });
+
+  it('builds accepted / rejected / withdrawn / cancelled to-artist copy', () => {
+    for (const trigger of [
+      NotificationTrigger.BOOKING_COARTIST_ACCEPTED_TO_INVITER,
+      NotificationTrigger.BOOKING_COARTIST_REJECTED_TO_INVITER,
+      NotificationTrigger.BOOKING_COARTIST_WITHDRAWN_TO_INVITEE,
+      NotificationTrigger.BOOKING_COARTIST_CANCELLED,
+    ]) {
+      const n = buildNotification(trigger, NotificationSurface.IN_APP, vars);
+      expect(n.body).toContain('Tune Bomb');
+      expect(n.persona).toBe('artist');
+    }
   });
 });
 

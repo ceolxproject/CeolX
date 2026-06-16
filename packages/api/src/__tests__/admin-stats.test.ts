@@ -69,6 +69,7 @@ describe('shapeUserStats', () => {
       total: 247,
       byPersona: { spectator: 180, artist: 45, venue: 22 },
       newLast7Days: 12,
+      newPrev7Days: 8,
       newLast30Days: 34,
       trend7d: 'up',
       trend30d: 'up',
@@ -214,7 +215,24 @@ describe('shapeTopCategories', () => {
 
   it('handles fewer than 5 categories', () => {
     const result = shapeTopCategories([{ category: 'trad', count: 1 }]);
-    expect(result).toHaveLength(1);
+    expect(result).toEqual([{ category: 'trad', count: 1 }]);
+  });
+
+  it('breaks ties alphabetically for stable ordering', () => {
+    const result = shapeTopCategories([
+      { category: 'rock', count: 1 },
+      { category: 'folk', count: 1 },
+      { category: 'trad', count: 1 },
+    ]);
+    expect(result.map((r) => r.category)).toEqual(['folk', 'rock', 'trad']);
+  });
+
+  it('re-sorts unsorted input defensively', () => {
+    const result = shapeTopCategories([
+      { category: 'folk', count: 4 },
+      { category: 'trad', count: 25 },
+    ]);
+    expect(result.map((r) => r.category)).toEqual(['trad', 'folk']);
   });
 });
 

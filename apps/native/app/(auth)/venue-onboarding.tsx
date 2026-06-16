@@ -1,6 +1,6 @@
 import { router, useNavigation } from 'expo-router';
 import { useEffect } from 'react';
-import { BackHandler, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import { BackHandler, KeyboardAvoidingView, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { OnboardingHeader } from '@/components/onboarding/shared/OnboardingHeader';
@@ -12,15 +12,19 @@ import { Step3SocialMedia } from '@/components/onboarding/venue/Step3SocialMedia
 import { useAuth } from '@/contexts/auth-context';
 import { useDiscardOnboardingBackHandler } from '@/hooks/use-discard-onboarding-back-handler';
 import { useVenueOnboarding } from '@/hooks/use-venue-onboarding';
+import { isBackNavigationAction } from '@/lib/onboarding-navigation';
 
 export default function VenueOnboardingScreen() {
   const { logout } = useAuth();
   const navigation = useNavigation();
   const onboarding = useVenueOnboarding();
-  const { currentStep, goBack, goToStep, goNext, isPending } = onboarding;
+  const { currentStep, goBack, goToStep, goNext, isPending, clearDraft } = onboarding;
 
   const handleLogoutAndExit = () => {
     void (async () => {
+      // Discarding onboarding is a deliberate abandon — drop the saved draft so
+      // it doesn't silently restore on the next sign-up for this account.
+      clearDraft();
       await logout();
       router.replace('/(auth)/sign-in');
     })();
@@ -37,7 +41,11 @@ export default function VenueOnboardingScreen() {
       goBack();
       return true;
     });
+    // Only intercept BACK-type navigation — otherwise the
+    // `router.replace('/(app)/(tabs)/map')` triggered after a successful
+    // submit would also be cancelled and bounce the user back to Step 2.
     const navUnsub = navigation.addListener('beforeRemove', (e) => {
+      if (!isBackNavigationAction(e.data.action.type)) return;
       e.preventDefault();
       goBack();
     });
@@ -48,10 +56,7 @@ export default function VenueOnboardingScreen() {
   }, [currentStep, goBack, navigation]);
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      style={{ flex: 1, backgroundColor: '#080808' }}
-    >
+    <KeyboardAvoidingView behavior="padding" style={{ flex: 1, backgroundColor: '#080808' }}>
       <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
         <OnboardingHeader onLogoutPress={handleLogoutAndExit} />
         <StepIndicator currentStep={currentStep} stepCount={3} onStepPress={goToStep} />

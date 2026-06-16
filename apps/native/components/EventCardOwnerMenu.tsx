@@ -8,9 +8,15 @@ export interface EventCardOwnerActions {
 
 interface EventCardOwnerMenuProps {
   actions: EventCardOwnerActions;
+  /**
+   * Only ACTIVE events can be deleted (the server archives them). Hide the
+   * option for draft/pending/removed events so we never fire a delete the
+   * backend will reject. Defaults to true.
+   */
+  canDelete?: boolean;
 }
 
-export function EventCardOwnerMenu({ actions }: EventCardOwnerMenuProps) {
+export function EventCardOwnerMenu({ actions, canDelete = true }: EventCardOwnerMenuProps) {
   const items: AnchoredMenuItem[] = [
     {
       label: 'Edit',
@@ -24,19 +30,22 @@ export function EventCardOwnerMenu({ actions }: EventCardOwnerMenuProps) {
       onPress: actions.onAnalytics,
       testID: 'event-card-owner-menu-analytics',
     },
-    {
+  ];
+
+  if (canDelete) {
+    items.push({
       label: 'Delete',
       icon: 'trash-outline',
       destructive: true,
       onPress: actions.onArchive,
       testID: 'event-card-owner-menu-delete',
       confirm: {
-        title: 'Archive Event',
+        title: 'Delete Event',
         message: 'This will remove the event from the map and feed. This action cannot be undone.',
-        confirmLabel: 'Archive',
+        confirmLabel: 'Delete',
       },
-    },
-  ];
+    });
+  }
 
   return <AnchoredMenu items={items} accessibilityLabel="Manage event" />;
 }

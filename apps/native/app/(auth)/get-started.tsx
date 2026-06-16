@@ -11,7 +11,7 @@ const concertBg = require('@/assets/images/concert-bg.jpg') as number;
 export default function GetStartedScreen() {
   const handleGetStarted = async () => {
     await SecureStore.setItemAsync('hasSeenOnboarding', 'true');
-    router.push('/(auth)/who-are-you');
+    router.push('/(auth)/sign-in');
   };
 
   return (

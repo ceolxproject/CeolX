@@ -25,7 +25,103 @@ import type { DispatchNotificationInput } from '../../context';
 import { creatorProcedure, protectedProcedure, publicProcedure } from '../../index';
 import { syncEventToTypesense, removeEventFromTypesense } from '../../services/event-sync';
 
+import { resolveEventCoordinates, resolveProfileImageUrl } from './helpers';
 import { recordEventView } from './view-tracking';
+
+type DbTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+/**
+ * Withdraw the current pending artist→venue request for an event (if any) and
+ * detach its collaborator rows. Used when an artist switches or drops the
+ * registered venue on edit, so a stale request can't linger. (Asana 1215189395180422)
+ */
+async function cancelPendingVenueRequest(tx: DbTransaction, eventId: string, userId: string) {
+  const prior = await tx.query.bookings.findFirst({
+    where: and(
+      eq(bookings.eventId, eventId),
+      eq(bookings.direction, BookingDirection.ARTIST_TO_VENUE),
+      eq(bookings.status, BookingStatus.PENDING)
+    ),
+  });
+  if (!prior) return;
+  await tx
+    .update(bookings)
+    .set({ status: BookingStatus.CANCELLED, cancelledBy: userId, updatedAt: new Date() })
+    .where(eq(bookings.id, prior.id));
+  await tx.delete(eventCollaborators).where(eq(eventCollaborators.bookingId, prior.id));
+}
+
+/** Look up a registered venue's stored pin so events can inherit it. */
+const lookupVenueCoords = async (venueId: string) => {
+  const [venue] = await db
+    .select({ lat: venueProfiles.lat, lng: venueProfiles.lng })
+    .from(venueProfiles)
+    .where(eq(venueProfiles.id, venueId))
+    .limit(1);
+  return venue ?? null;
+};
+
+/**
+ * A row in `event_collaborators` only counts as a *confirmed performer* — i.e.
+ * something the event detail screen should surface in its Artist / Performing
+ * Artist sections — when it is a real platform artist (so `artistProfileId` is
+ * set, which excludes venue-participant rows and unregistered email invites)
+ * AND it either has no booking (legacy auto-confirmed direct-add) or a booking
+ * the artist has accepted. Pending invites, external email invites, and venue
+ * rows are intentionally hidden until accepted. Mirrors the rule in
+ * `bookings.confirmedEvents`. See CLAUDE.md (confirmed collaborator = ACCEPTED).
+ */
+export function isConfirmedPerformer(
+  collaborator: { artistProfileId: string | null; bookingId: string | null },
+  acceptedBookingIds: Set<string>
+): boolean {
+  if (collaborator.artistProfileId === null) return false;
+  return collaborator.bookingId === null || acceptedBookingIds.has(collaborator.bookingId);
+}
+
+/**
+ * An *external invitee* is an outside-platform performer added by name/email:
+ * `artistProfileId` is null (no account), `venueProfileId` is null (not a venue
+ * participant row), and an `invitedName` was supplied. These can't accept an
+ * invite in-app, so we surface them as confirmed-looking, **non-tappable** cards
+ * (placeholder image, no /artist/:id link). Excludes venue-participant rows,
+ * which are also account-less but carry a `venueProfileId`.
+ */
+export function isExternalInvitee(collaborator: {
+  artistProfileId: string | null;
+  venueProfileId: string | null;
+  invitedName: string | null;
+}): boolean {
+  return (
+    collaborator.artistProfileId === null &&
+    collaborator.venueProfileId === null &&
+    collaborator.invitedName !== null
+  );
+}
+
+/**
+ * The outside-platform invitees of an event, shaped for the edit form's
+ * `unregisteredCollaborators` field. Uses the same `isExternalInvitee`
+ * definition as the display list, so only genuine name/email invites qualify.
+ *
+ * This deliberately excludes account-less *venue-participant* rows (which carry
+ * a `venueProfileId` and no `invitedName`). The previous loose
+ * `!c.artistProfileId` filter let those through as `{ name: '', email: '' }`,
+ * which the edit form then re-submitted — failing the create/edit schema's
+ * `name.min(1)` rule with "Too small expected string to have >=1".
+ */
+export function toUnregisteredCollaborators(
+  collaborators: Array<{
+    artistProfileId: string | null;
+    venueProfileId: string | null;
+    invitedName: string | null;
+    invitedEmail: string | null;
+  }>
+): Array<{ name: string; email: string }> {
+  return collaborators
+    .filter(isExternalInvitee)
+    .map((c) => ({ name: c.invitedName ?? '', email: c.invitedEmail ?? '' }));
+}
 
 export const byId = publicProcedure
   .input(z.object({ id: z.string().uuid() }))
@@ -63,6 +159,10 @@ export const byId = publicProcedure
       .map((c) => c.artistProfileId)
       .filter((id): id is string => id !== null);
 
+    const collaboratorBookingIds = event.collaborators
+      .map((c) => c.bookingId)
+      .filter((id): id is string => id !== null);
+
     const [
       collaboratorProfiles,
       collaboratorUsers,
@@ -72,6 +172,7 @@ export const byId = publicProcedure
       relatedEvents,
       creatorArtistProfile,
       creatorVenueProfile,
+      acceptedBookings,
     ] = await Promise.all([
       // stageName + genre for each collaborator
       collaboratorUserIds.length > 0
@@ -81,7 +182,9 @@ export const byId = publicProcedure
             .where(inArray(artistProfiles.userId, collaboratorUserIds))
         : Promise.resolve([]),
 
-      // profile image (user.image) for each collaborator
+      // user.image for each collaborator — only a fallback; the uploaded
+      // profile picture in artist_profiles.profileImageUrl takes precedence
+      // (see resolveProfileImageUrl). Asana 1215429148917917
       collaboratorUserIds.length > 0
         ? db
             .select({ id: user.id, image: user.image })
@@ -144,11 +247,36 @@ export const byId = publicProcedure
       db.query.venueProfiles.findFirst({
         where: eq(venueProfiles.userId, event.createdBy),
       }),
+
+      // which of this event's collaborator bookings are accepted — drives the
+      // confirmed-performer filter so pending invites stay hidden
+      collaboratorBookingIds.length > 0
+        ? db
+            .select({ id: bookings.id })
+            .from(bookings)
+            .where(
+              and(
+                inArray(bookings.id, collaboratorBookingIds),
+                eq(bookings.status, BookingStatus.ACCEPTED)
+              )
+            )
+        : Promise.resolve([]),
     ]);
 
     const profileByUserId = new Map(collaboratorProfiles.map((p) => [p.userId, p]));
     const userImageById = new Map(collaboratorUsers.map((u) => [u.id, u.image]));
     const countByUserId = new Map(collaboratorEventCounts.map((r) => [r.artistProfileId, r.count]));
+
+    const acceptedBookingIds = new Set(acceptedBookings.map((b) => b.id));
+
+    // Rows the UI may show: confirmed performers (accepted bookings + legacy
+    // auto-confirmed direct-adds) and outside-platform invitees (shown as
+    // non-tappable name cards). Excludes pending platform invites and
+    // venue-participant rows. (Asana — event detail showed broken "Invited
+    // Artist" cards that navigated nowhere.)
+    const displayCollaborators = event.collaborators.filter(
+      (c) => isConfirmedPerformer(c, acceptedBookingIds) || isExternalInvitee(c)
+    );
 
     return {
       id: event.id,
@@ -178,12 +306,19 @@ export const byId = publicProcedure
           creatorVenueProfile?.venueName ??
           event.creator?.name ??
           'Unknown',
-        imageUrl: event.creator?.image ?? null,
+        imageUrl: resolveProfileImageUrl(
+          creatorArtistProfile ?? creatorVenueProfile,
+          event.creator?.image
+        ),
         type: creatorArtistProfile ? UserRole.ARTIST : UserRole.VENUE,
       },
-      collaborators: event.collaborators.map((c) => {
+      // Confirmed performers + external invitees. Platform rows carry the
+      // artist's user id as `id` (a valid /artist/:id target); external rows
+      // carry the collaborator row id and `isExternal: true` so the client
+      // renders a non-tappable placeholder card.
+      collaborators: displayCollaborators.map((c) => {
         if (!c.artistProfileId) {
-          // Non-platform artist (invited by name/email, no user account yet)
+          // Outside-platform invitee — name only, no account/profile to link to.
           return {
             id: c.id,
             stageName: c.invitedName ?? 'Invited Artist',
@@ -193,19 +328,20 @@ export const byId = publicProcedure
             isExternal: true,
           };
         }
-        const profile = profileByUserId.get(c.artistProfileId);
+        const artistUserId = c.artistProfileId;
+        const profile = profileByUserId.get(artistUserId);
         return {
-          id: c.artistProfileId,
+          id: artistUserId,
           stageName: profile?.stageName ?? 'Unknown Artist',
-          genre: profile?.genre ?? null,
-          profileImageUrl: userImageById.get(c.artistProfileId) ?? null,
-          eventCount: countByUserId.get(c.artistProfileId) ?? 0,
+          // `genres` (text[]) is the live field; fall back to the deprecated
+          // singular `genre` column for legacy profiles.
+          genre: profile?.genres?.[0] ?? profile?.genre ?? null,
+          profileImageUrl: resolveProfileImageUrl(profile, userImageById.get(artistUserId)),
+          eventCount: countByUserId.get(artistUserId) ?? 0,
           isExternal: false,
         };
       }),
-      unregisteredCollaborators: event.collaborators
-        .filter((c) => !c.artistProfileId)
-        .map((c) => ({ name: c.invitedName ?? '', email: c.invitedEmail ?? '' })),
+      unregisteredCollaborators: toUnregisteredCollaborators(event.collaborators),
       collection: event.collection
         ? { id: event.collection.id, name: event.collection.name }
         : null,
@@ -223,23 +359,30 @@ export const byId = publicProcedure
   });
 
 export const create = creatorProcedure.input(createEventSchema).mutation(async ({ input, ctx }) => {
-  const { collaborators, platformInvites, unregisteredCollaborators, ...eventData } = input;
+  const { platformInvites, unregisteredCollaborators, ...eventData } = input;
 
   const isVenue = ctx.session.user.currentRole === UserRole.VENUE;
 
-  // Venue events must have at least one confirmed platform collaborator
-  if (isVenue && (!collaborators || collaborators.length === 0)) {
-    throw new TRPCError({
-      code: 'BAD_REQUEST',
-      message: 'Venue events must have at least one confirmed collaborator',
-    });
-  }
+  // Exclude the creator from their own invite list (artists could otherwise
+  // search and invite themselves). platformInvites carry userIds.
+  const inviteUserIds = (platformInvites ?? []).filter((id) => id !== ctx.userId);
 
   // Ad fields are venue-only — strip them for non-venue creators
   if (!isVenue) {
     eventData.adTitle = undefined;
     eventData.adDescription = undefined;
   }
+
+  // An artist tagging a registered venue must get the venue's consent first: the
+  // event is held at pending_review (off map/feed) until the venue accepts the
+  // request. A venue creating its own event, or an artist using a free-text
+  // address (no profile to consent), goes live immediately. (Asana 1215189395180422)
+  const heldForVenueApproval = !isVenue && !!eventData.venueId;
+
+  // Resolve real coordinates before persisting — explicit pin first, else the
+  // selected venue's stored pin. Throws if neither resolves, so we never write
+  // the (0,0) fallback that made events vanish from the map and feed.
+  const { lat, lng } = await resolveEventCoordinates(eventData, lookupVenueCoords);
 
   // Collected inside the transaction; fired after commit so a rollback
   // doesn't leave us with phantom notifications. See M7-T1 dispatcher.
@@ -254,8 +397,8 @@ export const create = creatorProcedure.input(createEventSchema).mutation(async (
         coverImage: eventData.coverImage ?? null,
         dateStart: new Date(eventData.dateStart),
         dateEnd: eventData.dateEnd ? new Date(eventData.dateEnd) : null,
-        lat: eventData.lat?.toString() ?? '0',
-        lng: eventData.lng?.toString() ?? '0',
+        lat,
+        lng,
         venueId: eventData.venueId ?? null,
         venueAddress: eventData.venueAddress ?? null,
         category: eventData.category,
@@ -265,83 +408,12 @@ export const create = creatorProcedure.input(createEventSchema).mutation(async (
         adTitle: eventData.adTitle ?? null,
         adDescription: eventData.adDescription ?? null,
         createdBy: ctx.userId,
-        status: EventStatus.ACTIVE,
+        status: heldForVenueApproval ? EventStatus.PENDING_REVIEW : EventStatus.ACTIVE,
       })
       .returning();
 
     const inserted = rows[0];
     if (!inserted) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Insert failed' });
-
-    // For venue events: create bookings + collaborator rows in the same transaction
-    // For artist events: insert collaborators directly (no booking needed for own performance)
-    if (collaborators && collaborators.length > 0) {
-      if (isVenue) {
-        // Look up venue profile for booking FK
-        const venueProfile = await tx.query.venueProfiles.findFirst({
-          where: eq(venueProfiles.userId, ctx.userId),
-          columns: { id: true, venueName: true },
-        });
-
-        // Look up artist profiles by userId (collaborators array contains user IDs from artists.search)
-        const artistProfileRows = await tx
-          .select({
-            id: artistProfiles.id,
-            userId: artistProfiles.userId,
-            stageName: artistProfiles.stageName,
-          })
-          .from(artistProfiles)
-          .where(inArray(artistProfiles.userId, collaborators));
-
-        if (!venueProfile)
-          throw new TRPCError({ code: 'NOT_FOUND', message: 'Venue profile not found' });
-
-        for (const ap of artistProfileRows) {
-          // Collaborators are confirmed performers — booking is auto-accepted
-          const [booking] = await tx
-            .insert(bookings)
-            .values({
-              artistId: ap.id,
-              venueId: venueProfile.id,
-              eventId: inserted.id,
-              status: BookingStatus.ACCEPTED,
-              direction: BookingDirection.VENUE_TO_ARTIST,
-            })
-            .returning();
-
-          if (!booking)
-            throw new TRPCError({
-              code: 'INTERNAL_SERVER_ERROR',
-              message: 'Booking insert failed',
-            });
-
-          await tx.insert(eventCollaborators).values({
-            eventId: inserted.id,
-            artistProfileId: ap.userId,
-            bookingId: booking.id,
-          });
-
-          // Matrix A-13 — Artist auto-confirmed as a Venue's collaborator.
-          pendingDispatches.push({
-            trigger: NotificationTrigger.ADDED_AS_COLLABORATOR_TO_ARTIST,
-            recipientUserId: ap.userId,
-            vars: {
-              eventId: inserted.id,
-              eventTitle: inserted.title,
-              venueName: venueProfile.venueName,
-              date: formatNotificationDate(inserted.dateStart),
-            },
-          });
-        }
-      } else {
-        // Artist adding collaborators to own event — no booking, direct insert
-        await tx.insert(eventCollaborators).values(
-          collaborators.map((artistId) => ({
-            eventId: inserted.id,
-            artistProfileId: artistId,
-          }))
-        );
-      }
-    }
 
     // Insert non-platform (invited) artists as eventCollaborators rows
     if (unregisteredCollaborators && unregisteredCollaborators.length > 0) {
@@ -354,26 +426,23 @@ export const create = creatorProcedure.input(createEventSchema).mutation(async (
       );
     }
 
-    // Platform invites (venue only) — create pending bookings for invited artists
-    if (platformInvites && platformInvites.length > 0 && isVenue) {
-      const confirmedSet = new Set(collaborators ?? []);
-      const inviteUserIds = platformInvites.filter((id) => !confirmedSet.has(id));
+    // Platform invites → pending bookings for invited artists.
+    if (inviteUserIds.length > 0) {
+      const inviteProfiles = await tx
+        .select({
+          id: artistProfiles.id,
+          userId: artistProfiles.userId,
+          stageName: artistProfiles.stageName,
+        })
+        .from(artistProfiles)
+        .where(inArray(artistProfiles.userId, inviteUserIds));
 
-      if (inviteUserIds.length > 0) {
+      if (isVenue) {
+        // ── Venue → Artist (existing behaviour) ──
         const venueProfile = await tx.query.venueProfiles.findFirst({
           where: eq(venueProfiles.userId, ctx.userId),
           columns: { id: true, venueName: true },
         });
-
-        const inviteProfiles = await tx
-          .select({
-            id: artistProfiles.id,
-            userId: artistProfiles.userId,
-            stageName: artistProfiles.stageName,
-          })
-          .from(artistProfiles)
-          .where(inArray(artistProfiles.userId, inviteUserIds));
-
         if (venueProfile) {
           for (const ap of inviteProfiles) {
             const [booking] = await tx
@@ -386,14 +455,12 @@ export const create = creatorProcedure.input(createEventSchema).mutation(async (
                 direction: BookingDirection.VENUE_TO_ARTIST,
               })
               .returning();
-
             if (booking) {
               await tx.insert(eventCollaborators).values({
                 eventId: inserted.id,
                 artistProfileId: ap.userId,
                 bookingId: booking.id,
               });
-
               // Matrix A-09 — Venue invited Artist (booking is PENDING here).
               pendingDispatches.push({
                 trigger: NotificationTrigger.BOOKING_INVITE_TO_ARTIST,
@@ -409,10 +476,51 @@ export const create = creatorProcedure.input(createEventSchema).mutation(async (
             }
           }
         }
+      } else {
+        // ── Artist → Artist (new) ──
+        const creatorProfile = await tx.query.artistProfiles.findFirst({
+          where: eq(artistProfiles.userId, ctx.userId),
+          columns: { id: true, stageName: true },
+        });
+        if (creatorProfile) {
+          for (const ap of inviteProfiles) {
+            const [booking] = await tx
+              .insert(bookings)
+              .values({
+                artistId: ap.id,
+                inviterArtistId: creatorProfile.id,
+                venueId: null,
+                eventId: inserted.id,
+                status: BookingStatus.PENDING,
+                direction: BookingDirection.ARTIST_TO_ARTIST,
+              })
+              .returning();
+            if (booking) {
+              await tx.insert(eventCollaborators).values({
+                eventId: inserted.id,
+                artistProfileId: ap.userId,
+                bookingId: booking.id,
+              });
+              pendingDispatches.push({
+                trigger: NotificationTrigger.BOOKING_INVITE_TO_COARTIST,
+                recipientUserId: ap.userId,
+                vars: {
+                  bookingId: booking.id,
+                  coArtistName: creatorProfile.stageName,
+                  eventTitle: inserted.title,
+                  date: formatNotificationDate(inserted.dateStart),
+                },
+              });
+            }
+          }
+        }
       }
     }
 
-    // Artist creates event with a venue → auto-create confirmed booking
+    // Artist tags a registered venue → create a PENDING request the venue must
+    // accept. The event stays pending_review until then; the venue sees the
+    // request under Requests, and accepting it (bookings.update) flips the event
+    // live. Mirrors the venue→artist invite rule. (Asana 1215189395180422)
     if (!isVenue && eventData.venueId) {
       const venueProfile = await tx.query.venueProfiles.findFirst({
         where: eq(venueProfiles.id, eventData.venueId),
@@ -431,13 +539,15 @@ export const create = creatorProcedure.input(createEventSchema).mutation(async (
             artistId: artistProfile.id,
             venueId: venueProfile.id,
             eventId: inserted.id,
-            status: BookingStatus.ACCEPTED,
+            status: BookingStatus.PENDING,
             direction: BookingDirection.ARTIST_TO_VENUE,
           })
           .returning();
 
         if (booking) {
-          // Add artist as collaborator with booking link (for confirmedEvents query)
+          // Link both participants to the pending booking. confirmedEvents only
+          // surfaces rows whose booking is accepted, so neither side shows this
+          // as confirmed until the venue accepts.
           await tx.insert(eventCollaborators).values([
             {
               eventId: inserted.id,
@@ -451,16 +561,15 @@ export const create = creatorProcedure.input(createEventSchema).mutation(async (
             },
           ]);
 
-          // Off-matrix — Artist creating an event at this Venue's space
-          // auto-confirms the booking. Flag for Pratiksha's matrix audit.
+          // V-09 — Venue received a booking request from the artist.
           pendingDispatches.push({
-            trigger: NotificationTrigger.EVENT_HOSTED_AT_VENUE_TO_VENUE,
+            trigger: NotificationTrigger.BOOKING_REQUEST_TO_VENUE,
             recipientUserId: venueProfile.userId,
             vars: {
-              eventId: inserted.id,
-              eventTitle: inserted.title,
-              artistName: artistProfile.stageName,
+              bookingId: booking.id,
               venueName: venueProfile.venueName,
+              artistName: artistProfile.stageName,
+              eventTitle: inserted.title,
               date: formatNotificationDate(inserted.dateStart),
             },
           });
@@ -475,10 +584,19 @@ export const create = creatorProcedure.input(createEventSchema).mutation(async (
   // would leave us with phantom inbox rows + push notifications otherwise.
   await Promise.all(pendingDispatches.map((d) => ctx.dispatchNotification(d)));
 
-  // Sync to Typesense so event appears on map/feed immediately
-  await syncEventToTypesense(event).catch(() => {
-    // Non-blocking — event is in DB, Typesense sync can be retried
-  });
+  // Sync to Typesense so the event appears on map/feed immediately. Skip while
+  // held for venue approval — a pending_review event must stay off the map/feed
+  // until the venue accepts (bookings.update syncs it then). Non-blocking, but
+  // we must NOT swallow the error silently: a failed sync means a live event is
+  // invisible, so the cause needs to surface in logs for ops to act on.
+  if (event.status === EventStatus.ACTIVE) {
+    await syncEventToTypesense(event).catch((err: unknown) => {
+      console.warn(
+        `[events.create] Typesense sync failed for event ${event.id} — it will not appear on map/feed until re-synced:`,
+        err instanceof Error ? `${err.name}: ${err.message}` : err
+      );
+    });
+  }
 
   return event;
 });
@@ -502,13 +620,42 @@ export const update = protectedProcedure
       throw new TRPCError({ code: 'FORBIDDEN', message: 'Cannot edit an archived event' });
     }
 
-    const { collaborators, platformInvites, unregisteredCollaborators, ...updateData } = input.data;
+    const { platformInvites, unregisteredCollaborators, ...updateData } = input.data;
     const isVenue = ctx.session.user.currentRole === UserRole.VENUE;
 
     // Ad fields are venue-only — strip them for non-venue creators
     if (!isVenue) {
       updateData.adTitle = undefined;
       updateData.adDescription = undefined;
+    }
+
+    // An artist adding/switching to a registered venue on edit must get that
+    // venue's consent, exactly like create: hold the event at pending_review and
+    // raise a pending request. Dropping the venue from a held event releases it
+    // back to active. (Asana 1215189395180422)
+    const addsRegisteredVenue =
+      !isVenue &&
+      updateData.venueId !== undefined &&
+      updateData.venueId !== null &&
+      updateData.venueId !== event.venueId;
+    const releasesHeldVenue =
+      !isVenue &&
+      !addsRegisteredVenue &&
+      event.status === EventStatus.PENDING_REVIEW &&
+      updateData.venueId !== undefined &&
+      updateData.venueId !== event.venueId;
+
+    // Resolve coordinates: an explicit pin always wins; otherwise, if the
+    // creator switches to a different registered venue, inherit that venue's
+    // stored pin so the event's location stays consistent. Never write (0,0).
+    let resolvedCoords: { lat: string; lng: string } | null = null;
+    if (updateData.lat !== undefined && updateData.lng !== undefined) {
+      resolvedCoords = { lat: updateData.lat.toString(), lng: updateData.lng.toString() };
+    } else if (updateData.venueId !== undefined && updateData.venueId !== event.venueId) {
+      const venue = await lookupVenueCoords(updateData.venueId);
+      if (venue && venue.lat !== null && venue.lng !== null) {
+        resolvedCoords = { lat: venue.lat, lng: venue.lng };
+      }
     }
 
     // Collected inside the transaction; fired after commit so a rollback
@@ -523,8 +670,10 @@ export const update = protectedProcedure
       if (updateData.coverImage !== undefined) setValues.coverImage = updateData.coverImage;
       if (updateData.dateStart !== undefined) setValues.dateStart = new Date(updateData.dateStart);
       if (updateData.dateEnd !== undefined) setValues.dateEnd = new Date(updateData.dateEnd);
-      if (updateData.lat !== undefined) setValues.lat = updateData.lat.toString();
-      if (updateData.lng !== undefined) setValues.lng = updateData.lng.toString();
+      if (resolvedCoords) {
+        setValues.lat = resolvedCoords.lat;
+        setValues.lng = resolvedCoords.lng;
+      }
       if (updateData.venueId !== undefined) setValues.venueId = updateData.venueId;
       if (updateData.venueAddress !== undefined) setValues.venueAddress = updateData.venueAddress;
       if (updateData.category !== undefined) setValues.category = updateData.category;
@@ -540,6 +689,13 @@ export const update = protectedProcedure
       if (isResubmit) {
         setValues.status = EventStatus.ACTIVE;
         setValues.removalReason = null;
+      }
+
+      // Hold for venue approval / release back to live based on the venue change.
+      if (addsRegisteredVenue) {
+        setValues.status = EventStatus.PENDING_REVIEW;
+      } else if (releasesHeldVenue) {
+        setValues.status = EventStatus.ACTIVE;
       }
 
       const rows = await tx
@@ -566,100 +722,63 @@ export const update = protectedProcedure
         });
       }
 
-      // Update collaborators if provided — for venues, create bookings for new additions
-      // Removal is handled through the booking flow (reject/withdraw/cancel), not event edit
-      if (collaborators !== undefined) {
-        if (isVenue) {
-          // Get existing collaborator artist profile IDs (via their booking artist IDs)
-          const existingCollabs = await tx.query.eventCollaborators.findMany({
-            where: eq(eventCollaborators.eventId, input.id),
-            columns: { artistProfileId: true, bookingId: true },
-          });
+      // Artist added/switched a registered venue → cancel any prior pending venue
+      // request and raise a fresh one. The event is already held at pending_review
+      // (setValues above); accepting the request later flips it live.
+      if (addsRegisteredVenue && updateData.venueId) {
+        const venueProfile = await tx.query.venueProfiles.findFirst({
+          where: eq(venueProfiles.id, updateData.venueId),
+          columns: { id: true, userId: true, venueName: true },
+        });
+        const artistProfile = await tx.query.artistProfiles.findFirst({
+          where: eq(artistProfiles.userId, ctx.userId),
+          columns: { id: true, stageName: true },
+        });
 
-          // Find which artist profile IDs already have collaborator rows
-          // artistProfileId is user.id; collaborators array has artistProfiles.id
-          // Look up artist profiles to map between the two
-          const existingArtistUserIds = new Set(
-            existingCollabs.map((c) => c.artistProfileId).filter((id): id is string => id !== null)
-          );
+        if (venueProfile && artistProfile) {
+          await cancelPendingVenueRequest(tx, input.id, ctx.userId);
 
-          // Look up all requested artist profiles by userId (collaborators array contains user IDs)
-          const requestedProfiles =
-            collaborators.length > 0
-              ? await tx
-                  .select({
-                    id: artistProfiles.id,
-                    userId: artistProfiles.userId,
-                    stageName: artistProfiles.stageName,
-                  })
-                  .from(artistProfiles)
-                  .where(inArray(artistProfiles.userId, collaborators))
-              : [];
+          const [booking] = await tx
+            .insert(bookings)
+            .values({
+              artistId: artistProfile.id,
+              venueId: venueProfile.id,
+              eventId: input.id,
+              status: BookingStatus.PENDING,
+              direction: BookingDirection.ARTIST_TO_VENUE,
+            })
+            .returning();
 
-          // Only create bookings for truly new collaborators
-          const newProfiles = requestedProfiles.filter(
-            (ap) => !existingArtistUserIds.has(ap.userId)
-          );
+          if (booking) {
+            await tx.insert(eventCollaborators).values([
+              { eventId: input.id, artistProfileId: ctx.userId, bookingId: booking.id },
+              { eventId: input.id, venueProfileId: venueProfile.id, bookingId: booking.id },
+            ]);
 
-          if (newProfiles.length > 0) {
-            const venueProfile = await tx.query.venueProfiles.findFirst({
-              where: eq(venueProfiles.userId, ctx.userId),
-              columns: { id: true, venueName: true },
-            });
-            if (!venueProfile)
-              throw new TRPCError({ code: 'NOT_FOUND', message: 'Venue profile not found' });
-
-            for (const ap of newProfiles) {
-              // Collaborators are confirmed performers — booking is auto-accepted
-              const [booking] = await tx
-                .insert(bookings)
-                .values({
-                  artistId: ap.id,
-                  venueId: venueProfile.id,
-                  eventId: input.id,
-                  status: BookingStatus.ACCEPTED,
-                  direction: BookingDirection.VENUE_TO_ARTIST,
-                })
-                .returning();
-
-              if (!booking)
-                throw new TRPCError({
-                  code: 'INTERNAL_SERVER_ERROR',
-                  message: 'Booking insert failed',
-                });
-
-              await tx.insert(eventCollaborators).values({
-                eventId: input.id,
-                artistProfileId: ap.userId,
+            pendingDispatches.push({
+              trigger: NotificationTrigger.BOOKING_REQUEST_TO_VENUE,
+              recipientUserId: venueProfile.userId,
+              vars: {
                 bookingId: booking.id,
-              });
-
-              // Matrix A-13 — Artist auto-confirmed as a Venue's collaborator.
-              pendingDispatches.push({
-                trigger: NotificationTrigger.ADDED_AS_COLLABORATOR_TO_ARTIST,
-                recipientUserId: ap.userId,
-                vars: {
-                  eventId: input.id,
-                  eventTitle: result.title,
-                  venueName: venueProfile.venueName,
-                  date: formatNotificationDate(result.dateStart),
-                },
-              });
-            }
-          }
-        } else {
-          // Artist editing own event — simple replace (no booking flow)
-          await tx.delete(eventCollaborators).where(eq(eventCollaborators.eventId, input.id));
-          if (collaborators.length > 0) {
-            await tx.insert(eventCollaborators).values(
-              collaborators.map((artistId) => ({
-                eventId: input.id,
-                artistProfileId: artistId,
-              }))
-            );
+                venueName: venueProfile.venueName,
+                artistName: artistProfile.stageName,
+                eventTitle: result.title,
+                date: formatNotificationDate(result.dateStart),
+              },
+            });
           }
         }
+      } else if (releasesHeldVenue) {
+        // Venue dropped from a held event → withdraw the pending request; the
+        // event is released to active by setValues above + Typesense sync below.
+        await cancelPendingVenueRequest(tx, input.id, ctx.userId);
       }
+
+      // Confirmed collaborators are no longer set from the event form — a venue
+      // performer becomes confirmed only by accepting a pending invite through
+      // the booking flow. Edits therefore never touch confirmed collaborator
+      // rows; existing ones (incl. legacy auto-confirmed performers) are left
+      // intact. Only the invite paths below are managed here.
 
       // Update non-platform (invited) collaborators — replace all on edit
       if (unregisteredCollaborators !== undefined) {
@@ -691,8 +810,11 @@ export const update = protectedProcedure
         }
       }
 
-      // Platform invites (venue only) — create pending bookings for newly invited artists
-      if (platformInvites !== undefined && platformInvites.length > 0 && isVenue) {
+      // Platform invites — create pending bookings for newly invited artists.
+      // Venue → VENUE_TO_ARTIST (performer invite); artist → ARTIST_TO_ARTIST
+      // (co-artist invite). Self is excluded; already-collaborating artists are
+      // skipped so re-saving the form doesn't duplicate invites.
+      if (platformInvites !== undefined && platformInvites.length > 0) {
         const existingCollabs = await tx.query.eventCollaborators.findMany({
           where: eq(eventCollaborators.eventId, input.id),
           columns: { artistProfileId: true },
@@ -701,14 +823,11 @@ export const update = protectedProcedure
           existingCollabs.map((c) => c.artistProfileId).filter((id): id is string => id !== null)
         );
 
-        const newInviteUserIds = platformInvites.filter((id) => !existingArtistUserIds.has(id));
+        const newInviteUserIds = platformInvites.filter(
+          (id) => id !== ctx.userId && !existingArtistUserIds.has(id)
+        );
 
         if (newInviteUserIds.length > 0) {
-          const venueProfile = await tx.query.venueProfiles.findFirst({
-            where: eq(venueProfiles.userId, ctx.userId),
-            columns: { id: true, venueName: true },
-          });
-
           const inviteProfiles = await tx
             .select({
               id: artistProfiles.id,
@@ -718,38 +837,86 @@ export const update = protectedProcedure
             .from(artistProfiles)
             .where(inArray(artistProfiles.userId, newInviteUserIds));
 
-          if (venueProfile) {
-            for (const ap of inviteProfiles) {
-              const [booking] = await tx
-                .insert(bookings)
-                .values({
-                  artistId: ap.id,
-                  venueId: venueProfile.id,
-                  eventId: input.id,
-                  status: BookingStatus.PENDING,
-                  direction: BookingDirection.VENUE_TO_ARTIST,
-                })
-                .returning();
+          if (isVenue) {
+            const venueProfile = await tx.query.venueProfiles.findFirst({
+              where: eq(venueProfiles.userId, ctx.userId),
+              columns: { id: true, venueName: true },
+            });
 
-              if (booking) {
-                await tx.insert(eventCollaborators).values({
-                  eventId: input.id,
-                  artistProfileId: ap.userId,
-                  bookingId: booking.id,
-                });
+            if (venueProfile) {
+              for (const ap of inviteProfiles) {
+                const [booking] = await tx
+                  .insert(bookings)
+                  .values({
+                    artistId: ap.id,
+                    venueId: venueProfile.id,
+                    eventId: input.id,
+                    status: BookingStatus.PENDING,
+                    direction: BookingDirection.VENUE_TO_ARTIST,
+                  })
+                  .returning();
 
-                // Matrix A-09 — Venue invited Artist (booking is PENDING here).
-                pendingDispatches.push({
-                  trigger: NotificationTrigger.BOOKING_INVITE_TO_ARTIST,
-                  recipientUserId: ap.userId,
-                  vars: {
+                if (booking) {
+                  await tx.insert(eventCollaborators).values({
+                    eventId: input.id,
+                    artistProfileId: ap.userId,
                     bookingId: booking.id,
-                    venueName: venueProfile.venueName,
-                    artistName: ap.stageName,
-                    eventTitle: result.title,
-                    date: formatNotificationDate(result.dateStart),
-                  },
-                });
+                  });
+
+                  // Matrix A-09 — Venue invited Artist (booking is PENDING here).
+                  pendingDispatches.push({
+                    trigger: NotificationTrigger.BOOKING_INVITE_TO_ARTIST,
+                    recipientUserId: ap.userId,
+                    vars: {
+                      bookingId: booking.id,
+                      venueName: venueProfile.venueName,
+                      artistName: ap.stageName,
+                      eventTitle: result.title,
+                      date: formatNotificationDate(result.dateStart),
+                    },
+                  });
+                }
+              }
+            }
+          } else {
+            const creatorProfile = await tx.query.artistProfiles.findFirst({
+              where: eq(artistProfiles.userId, ctx.userId),
+              columns: { id: true, stageName: true },
+            });
+
+            if (creatorProfile) {
+              for (const ap of inviteProfiles) {
+                const [booking] = await tx
+                  .insert(bookings)
+                  .values({
+                    artistId: ap.id,
+                    inviterArtistId: creatorProfile.id,
+                    venueId: null,
+                    eventId: input.id,
+                    status: BookingStatus.PENDING,
+                    direction: BookingDirection.ARTIST_TO_ARTIST,
+                  })
+                  .returning();
+
+                if (booking) {
+                  await tx.insert(eventCollaborators).values({
+                    eventId: input.id,
+                    artistProfileId: ap.userId,
+                    bookingId: booking.id,
+                  });
+
+                  // Co-artist invite — pending until the invitee accepts.
+                  pendingDispatches.push({
+                    trigger: NotificationTrigger.BOOKING_INVITE_TO_COARTIST,
+                    recipientUserId: ap.userId,
+                    vars: {
+                      bookingId: booking.id,
+                      coArtistName: creatorProfile.stageName,
+                      eventTitle: result.title,
+                      date: formatNotificationDate(result.dateStart),
+                    },
+                  });
+                }
               }
             }
           }
@@ -759,11 +926,22 @@ export const update = protectedProcedure
       return result;
     });
 
-    // Sync to Typesense if event is active
+    // Sync to Typesense if event is active. Non-blocking, but log failures —
+    // a silently failed sync leaves the event out of the map/feed.
     if (updated.status === EventStatus.ACTIVE) {
-      await syncEventToTypesense(updated).catch(() => {});
+      await syncEventToTypesense(updated).catch((err: unknown) => {
+        console.warn(
+          `[events.update] Typesense sync failed for event ${updated.id}:`,
+          err instanceof Error ? `${err.name}: ${err.message}` : err
+        );
+      });
     } else {
-      await removeEventFromTypesense(updated.id).catch(() => {});
+      await removeEventFromTypesense(updated.id).catch((err: unknown) => {
+        console.warn(
+          `[events.update] Typesense removal failed for event ${updated.id}:`,
+          err instanceof Error ? `${err.name}: ${err.message}` : err
+        );
+      });
     }
 
     // Fire collected dispatches after the transaction commits.
@@ -802,6 +980,48 @@ export const archive = protectedProcedure
 
     await removeEventFromTypesense(input.id).catch(() => {});
 
+    // Tell the linked counterparty their event was deleted. The other side of
+    // any still-live booking (a venue's invited/confirmed artist, or the venue
+    // an artist tagged) loses the event silently otherwise. Best-effort fan-out
+    // — a dispatch outage must not fail the delete (mirrors admin/moderation).
+    const linked = await db
+      .select({
+        artistUserId: artistProfiles.userId,
+        venueUserId: venueProfiles.userId,
+      })
+      .from(bookings)
+      .leftJoin(artistProfiles, eq(artistProfiles.id, bookings.artistId))
+      .leftJoin(venueProfiles, eq(venueProfiles.id, bookings.venueId))
+      .where(
+        and(
+          eq(bookings.eventId, input.id),
+          inArray(bookings.status, [BookingStatus.PENDING, BookingStatus.ACCEPTED])
+        )
+      );
+
+    const artistRecipients = new Set<string>();
+    const venueRecipients = new Set<string>();
+    for (const row of linked) {
+      if (row.artistUserId && row.artistUserId !== ctx.userId)
+        artistRecipients.add(row.artistUserId);
+      if (row.venueUserId && row.venueUserId !== ctx.userId) venueRecipients.add(row.venueUserId);
+    }
+
+    const dispatches: DispatchNotificationInput[] = [
+      ...[...artistRecipients].map((recipientUserId) => ({
+        trigger: NotificationTrigger.EVENT_DELETED_BY_CREATOR_TO_ARTIST,
+        recipientUserId,
+        vars: { eventTitle: event.title },
+      })),
+      ...[...venueRecipients].map((recipientUserId) => ({
+        trigger: NotificationTrigger.EVENT_DELETED_BY_CREATOR_TO_VENUE,
+        recipientUserId,
+        vars: { eventTitle: event.title },
+      })),
+    ];
+
+    await Promise.all(dispatches.map((d) => ctx.dispatchNotification(d).catch(() => {})));
+
     return updated;
   });
 
@@ -811,6 +1031,15 @@ export const getMyEvents = creatorProcedure
   .input(myEventsQuerySchema)
   .query(async ({ input, ctx }) => {
     const { limit, offset } = input;
+
+    // Archived events are a soft-delete from the creator's perspective — once
+    // they delete an event it should drop out of My Events entirely (Asana
+    // 1215489535915818). All other statuses (draft/pending/active/removed) stay
+    // so the creator can still manage or resubmit them.
+    const ownAndNotArchived = and(
+      eq(events.createdBy, ctx.userId),
+      ne(events.status, EventStatus.ARCHIVED)
+    );
 
     const [rows, countResult] = await Promise.all([
       db
@@ -830,14 +1059,14 @@ export const getMyEvents = creatorProcedure
           joinedCount: sql<number>`(SELECT count(*)::int FROM ${savedEvents} WHERE ${savedEvents.eventId} = ${events.id})`,
         })
         .from(events)
-        .where(eq(events.createdBy, ctx.userId))
+        .where(ownAndNotArchived)
         .orderBy(desc(events.createdAt))
         .limit(limit)
         .offset(offset),
       db
         .select({ count: sql<number>`count(*)::int` })
         .from(events)
-        .where(eq(events.createdBy, ctx.userId)),
+        .where(ownAndNotArchived),
     ]);
 
     const totalCount = countResult[0]?.count ?? 0;

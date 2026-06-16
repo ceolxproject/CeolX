@@ -6,12 +6,13 @@ import { UserRole } from '@CeolX/shared/enums';
 
 import { appToast } from '@/components/AppToast';
 import { useAuth } from '@/contexts/auth-context';
+import { LocationOverrideProvider } from '@/contexts/location-override-context';
 import { useFcmRegistration } from '@/hooks/use-fcm-registration';
 import { useMe } from '@/hooks/use-me';
 import { trpc } from '@/utils/trpc';
 
 export default function AppLayout() {
-  const { user, isGuest, isLoading } = useAuth();
+  const { user, isGuest, isLoading, isCompletingRegistration } = useAuth();
 
   // Register the device with FCM and wire foreground/background/cold-start
   // listeners (M7-T1). The hook is a no-op until the user is authenticated.
@@ -46,7 +47,9 @@ export default function AppLayout() {
     });
   }, [meData?.deletionCancelledNotice, acknowledgeNotice]);
 
-  if (isLoading || (!!user && !isGuest && meLoading)) {
+  // Hold rendering while pendingRegistration is being consumed — otherwise the
+  // spectator default flashes before completeRegistration patches the role.
+  if (isLoading || isCompletingRegistration || (!!user && !isGuest && meLoading)) {
     return null;
   }
 
@@ -68,13 +71,17 @@ export default function AppLayout() {
   }
 
   return (
-    <Stack screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="(tabs)" />
-      <Stack.Screen name="events/create" />
-      <Stack.Screen name="events/edit/[eventId]" />
-      <Stack.Screen name="artist/[artistId]" />
-      <Stack.Screen name="venue/[venueId]" />
-      <Stack.Screen name="notifications" />
-    </Stack>
+    <LocationOverrideProvider>
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="add-location" options={{ presentation: 'modal' }} />
+        <Stack.Screen name="events/create" />
+        <Stack.Screen name="events/edit/[eventId]" />
+        <Stack.Screen name="artist/[artistId]" />
+        <Stack.Screen name="venue/[venueId]" />
+        <Stack.Screen name="notifications" />
+        <Stack.Screen name="change-password" />
+      </Stack>
+    </LocationOverrideProvider>
   );
 }

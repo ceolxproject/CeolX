@@ -5,6 +5,7 @@ export default function DiscoverStack() {
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="index" />
       <Stack.Screen name="event/[eventId]" />
+      <Stack.Screen name="collection/[id]" />
     </Stack>
   );
 }

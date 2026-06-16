@@ -4,7 +4,7 @@ import * as SecureStore from 'expo-secure-store';
 import { useState } from 'react';
 import {
   KeyboardAvoidingView,
-  Platform,
+  Linking,
   Pressable,
   ScrollView,
   Text,
@@ -19,9 +19,14 @@ import { AppButton } from '@/components/AppButton';
 import { CeolxLogo } from '@/components/CeolxLogo';
 import { CheckboxField } from '@/components/CheckboxField';
 import { SocialLoginButtons } from '@/components/SocialLoginButtons';
+import { useAuth } from '@/contexts/auth-context';
+import { useSocialAuth } from '@/hooks/use-social-auth';
 import { authClient } from '@/lib/auth-client';
 
 type Role = 'spectator' | 'artist' | 'venue';
+
+const TERMS_URL = 'https://ceolx.com/terms';
+const PRIVACY_URL = 'https://ceolx.com/privacy';
 
 export default function SignUpScreen() {
   const { role } = useLocalSearchParams<{ role?: Role }>();
@@ -33,60 +38,104 @@ export default function SignUpScreen() {
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [tosAccepted, setTosAccepted] = useState(false);
   const [marketingOptIn, setMarketingOptIn] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { signInWithGoogle, signInWithApple } = useSocialAuth();
+  const { continueAsGuest } = useAuth();
+
+  const handleSkip = async () => {
+    await continueAsGuest();
+    router.replace('/(app)/(tabs)/map');
+  };
 
   const handleSignUp = async () => {
-    setError(null);
+    setErrors({});
+    setSubmitError(null);
 
     const parsed = signUpSchema.safeParse({ name, email, password, confirmPassword: password });
     if (!parsed.success) {
-      setError(parsed.error.issues[0]?.message ?? 'Invalid input');
+      // Map every zod issue to its field path so the message renders next to
+      // the field that triggered it (P2 #B3 — password errors used to appear
+      // above the Full Name field).
+      const fieldErrors: Record<string, string> = {};
+      for (const issue of parsed.error.issues) {
+        const field = issue.path.join('.') || '_form';
+        if (!fieldErrors[field]) fieldErrors[field] = issue.message;
+      }
+      setErrors(fieldErrors);
       return;
     }
     if (!tosAccepted) {
-      setError('You must accept the Terms of Service and Privacy Policy');
+      setSubmitError('You must accept the Terms of Service and Privacy Policy');
       return;
     }
 
-    const { data, error: authError } = await authClient.signUp.email({
-      name,
-      email,
-      password,
-      currentRole,
-    });
+    setIsSubmitting(true);
+    try {
+      const { data, error: authError } = await authClient.signUp.email({
+        name,
+        email,
+        password,
+        currentRole,
+      });
 
-    if (authError) {
-      if (authError.status === 409 || authError.message?.toLowerCase().includes('already')) {
-        setError('An account with this email already exists');
-      } else {
-        setError(authError.message ?? 'Sign up failed. Please try again.');
+      if (authError) {
+        // The server's before-hook throws an "already exists" APIError for a
+        // duplicate email (Asana 1215616181509943); surface its message verbatim
+        // next to the email field so the copy stays owned by the backend.
+        const message = authError.message ?? '';
+        if (authError.status === 409 || message.toLowerCase().includes('already')) {
+          setErrors({ email: message || 'An account with this email already exists.' });
+        } else {
+          setSubmitError(message || 'Sign up failed. Please try again.');
+        }
+        return;
       }
-      return;
-    }
 
-    if (data) {
-      // Store registration data so verify-email screen can call completeRegistration
-      // after the email is verified and BetterAuth has created a session.
-      await SecureStore.setItemAsync(
-        'pendingRegistration',
-        JSON.stringify({ currentRole, marketingConsent: marketingOptIn })
-      );
-    }
+      if (data) {
+        // Store registration data so verify-email screen can call completeRegistration
+        // after the email is verified and BetterAuth has created a session.
+        await SecureStore.setItemAsync(
+          'pendingRegistration',
+          JSON.stringify({ currentRole, marketingConsent: marketingOptIn })
+        );
+      }
 
-    await SecureStore.setItemAsync('pendingVerificationEmail', email);
-    router.replace('/(auth)/verify-email');
+      await SecureStore.setItemAsync('pendingVerificationEmail', email);
+      router.replace('/(auth)/verify-email');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  const handleSkip = async () => {
-    await SecureStore.setItemAsync('isGuest', 'true');
-    router.replace('/(app)/(tabs)/map');
+  // Social sign-up must accept Terms & Privacy first, exactly like the email
+  // button above — otherwise an account could be created without consent, which
+  // breaks the GDPR "ToS accepted at sign-up" requirement (Asana 1215188822147991).
+  const handleSocialSignUp = (provider: 'google' | 'apple') => {
+    setErrors({});
+    setSubmitError(null);
+    if (!tosAccepted) {
+      setSubmitError('You must accept the Terms of Service and Privacy Policy');
+      return;
+    }
+    const opts = { currentRole, marketingConsent: marketingOptIn };
+    if (provider === 'google') {
+      void signInWithGoogle(opts);
+    } else {
+      void signInWithApple(opts);
+    }
   };
 
   return (
     <View style={{ flex: 1, backgroundColor: '#080808' }}>
       <SafeAreaView style={{ flex: 1 }}>
         <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          // 'padding' on both platforms gives consistent behaviour: the
+          // ScrollView gets extra bottom padding equal to the keyboard height,
+          // so a focused input near the bottom stays scrollable above the
+          // keyboard instead of being covered by it.
+          behavior="padding"
           style={{ flex: 1 }}
         >
           <ScrollView
@@ -113,11 +162,15 @@ export default function SignUpScreen() {
               </Text>
             </Text>
 
-            <SocialLoginButtons separator="Or sign up with" />
+            <SocialLoginButtons
+              separator="Or sign up with"
+              onGooglePress={() => handleSocialSignUp('google')}
+              onApplePress={() => handleSocialSignUp('apple')}
+            />
 
-            {error ? (
+            {submitError ? (
               <View className="bg-error/15 rounded-lg p-3 mb-4">
-                <Text className="text-error text-sm">{error}</Text>
+                <Text className="text-error text-sm">{submitError}</Text>
               </View>
             ) : null}
 
@@ -126,13 +179,14 @@ export default function SignUpScreen() {
               <Text className="text-sm font-bold text-white/80">Full Name</Text>
               <TextInput
                 className="bg-white rounded-lg h-[52px] px-4 text-base text-black"
-                placeholder="Your full name"
-                placeholderTextColor="rgba(255,255,255,0.4)"
+                placeholder="Enter your full name"
+                placeholderTextColor="#8d8d8d"
                 autoCapitalize="words"
                 autoComplete="name"
                 value={name}
                 onChangeText={setName}
               />
+              {errors.name && <Text className="text-error text-xs mt-1">{errors.name}</Text>}
             </View>
 
             {/* Email */}
@@ -140,14 +194,15 @@ export default function SignUpScreen() {
               <Text className="text-sm font-bold text-white/80">Email Address</Text>
               <TextInput
                 className="bg-white rounded-lg h-[52px] px-4 text-base text-black"
-                placeholder="you@example.com"
-                placeholderTextColor="rgba(255,255,255,0.4)"
+                placeholder="Enter your email address"
+                placeholderTextColor="#8d8d8d"
                 keyboardType="email-address"
                 autoCapitalize="none"
                 autoComplete="email"
                 value={email}
                 onChangeText={setEmail}
               />
+              {errors.email && <Text className="text-error text-xs mt-1">{errors.email}</Text>}
             </View>
 
             {/* Password */}
@@ -156,8 +211,8 @@ export default function SignUpScreen() {
               <View className="flex-row items-center">
                 <TextInput
                   className="flex-1 bg-white rounded-lg h-[52px] px-4 text-base text-black"
-                  placeholder="Min 8 chars, uppercase, number, symbol"
-                  placeholderTextColor="rgba(255,255,255,0.4)"
+                  placeholder="Enter your password"
+                  placeholderTextColor="#8d8d8d"
                   secureTextEntry={!passwordVisible}
                   autoComplete="new-password"
                   value={password}
@@ -174,6 +229,9 @@ export default function SignUpScreen() {
                   />
                 </Pressable>
               </View>
+              {errors.password && (
+                <Text className="text-error text-xs mt-1">{errors.password}</Text>
+              )}
             </View>
 
             {/* Checkboxes */}
@@ -183,9 +241,14 @@ export default function SignUpScreen() {
               className="mb-4"
               label={
                 <Text className="text-sm text-white/70 leading-5">
-                  I agree with <Text className="text-blue-10">Terms of Service</Text>
+                  I agree with{' '}
+                  <Text className="text-blue-10" onPress={() => Linking.openURL(TERMS_URL)}>
+                    Terms of Service
+                  </Text>
                   {' and '}
-                  <Text className="text-blue-10">Privacy Policy</Text>
+                  <Text className="text-blue-10" onPress={() => Linking.openURL(PRIVACY_URL)}>
+                    Privacy Policy
+                  </Text>
                 </Text>
               }
             />
@@ -200,6 +263,7 @@ export default function SignUpScreen() {
             {/* Register button */}
             <AppButton
               variant="primary"
+              isLoading={isSubmitting}
               onPress={handleSignUp}
               className="w-full rounded-full py-[18px] mt-2 mb-6"
             >

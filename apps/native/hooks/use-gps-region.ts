@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import { env } from '@CeolX/env/native';
 import { IRELAND_INITIAL_REGION } from '@CeolX/shared';
 
+import { type BaseLocation, getBaseLocation } from '@/utils/base-location';
+
 type MapRegion = {
   latitude: number;
   longitude: number;
@@ -11,23 +13,43 @@ type MapRegion = {
   longitudeDelta: number;
 };
 
-export type LocationSource = 'gps' | 'ip' | 'default' | 'pending';
+export type LocationSource = 'gps' | 'ip' | 'default' | 'pending' | 'venue-profile' | 'saved';
 
 type GpsRegionResult = {
   initialRegion: MapRegion;
   gpsPermissionGranted: boolean;
   locationSource: LocationSource;
+  /** Reverse-geocoded city/town for the resolved coordinates. `null` while pending or on failure. */
+  placeLabel: string | null;
   /** Increment to remount MapView after region changes */
   mapKey: number;
 };
 
 const GPS_ZOOM = { latitudeDelta: 0.5, longitudeDelta: 0.5 };
+// Town-level zoom for a manually chosen location — matches the map's
+// place-search recenter so the override lands at the same scale.
+const OVERRIDE_ZOOM = { latitudeDelta: 0.15, longitudeDelta: 0.15 };
+
+/**
+ * Resolve the map's initial region. A manual location override (shared with the
+ * Feed) wins over the GPS/IP fallback region; otherwise the GPS region is used
+ * unchanged. Pure — the param is structural (`{ lat, lng }`) so this helper stays
+ * decoupled from the Feed's location type.
+ */
+export function resolveMapInitialRegion(
+  override: { lat: number; lng: number } | null,
+  gpsRegion: MapRegion
+): MapRegion {
+  if (!override) return gpsRegion;
+  return { latitude: override.lat, longitude: override.lng, ...OVERRIDE_ZOOM };
+}
 
 type Setters = {
   setInitialRegion: (r: MapRegion) => void;
   setGpsPermissionGranted: (v: boolean) => void;
   setLocationSource: (s: LocationSource) => void;
   setMapKey: (fn: (k: number) => number) => void;
+  setPlaceLabel: (label: string | null) => void;
 };
 
 /**
@@ -37,11 +59,16 @@ type Setters = {
  * The permission dialog is the responsibility of LocationPermissionScreen.
  *
  * 1. GPS granted + position available → user's location
- * 2. GPS denied or undetermined (or no position) → IP geolocation via server proxy
- * 3. IP fails → Ireland centre (53.1424, -7.6921)
+ * 2. No live GPS fix + saved base location exists → saved manual location
+ * 3. GPS denied or undetermined (or no position, no saved) → IP geolocation via server proxy
+ * 4. IP fails → Ireland centre (53.1424, -7.6921)
  */
-export async function resolveLocation(setters: Setters): Promise<void> {
-  const { setInitialRegion, setGpsPermissionGranted, setLocationSource, setMapKey } = setters;
+export async function resolveLocation(
+  setters: Setters,
+  baseLocation: BaseLocation | null = null
+): Promise<void> {
+  const { setInitialRegion, setGpsPermissionGranted, setLocationSource, setMapKey, setPlaceLabel } =
+    setters;
 
   try {
     const { status } = await Location.getForegroundPermissionsAsync();
@@ -61,11 +88,24 @@ export async function resolveLocation(setters: Setters): Promise<void> {
           setMapKey((k) => k + 1);
           return;
         }
-        // Permission granted but no cached position — fall through to IP
+        // Permission granted but no cached position — fall through.
       } catch (err: unknown) {
         console.error('[resolveLocation] getLastKnownPositionAsync failed:', err);
-        // Fall through to IP
+        // Fall through.
       }
+    }
+
+    // No live GPS fix → the saved manual base location beats coarse IP / Ireland.
+    if (baseLocation) {
+      setInitialRegion({
+        latitude: baseLocation.lat,
+        longitude: baseLocation.lng,
+        ...OVERRIDE_ZOOM,
+      });
+      setPlaceLabel(baseLocation.label);
+      setLocationSource('saved');
+      setMapKey((k) => k + 1);
+      return;
     }
 
     await resolveViaIp(setInitialRegion, setLocationSource, setMapKey);
@@ -117,26 +157,94 @@ async function resolveViaIp(
 }
 
 /**
+ * Decide whether a resolved location should be upgraded to the venue pin.
+ * Pure — exported for testing.
+ *
+ * Only fires when the chain landed on the Ireland `'default'` (both GPS and IP
+ * failed) AND a venue pin is available. GPS/IP/saved/pending are never overridden, and
+ * once the source is already `'venue-profile'` it returns null so the override
+ * effect can't loop.
+ */
+export function applyVenueFallback(
+  locationSource: LocationSource,
+  venueFallback: { latitude: number; longitude: number } | null
+): { region: MapRegion; source: LocationSource } | null {
+  if (locationSource !== 'default' || !venueFallback) return null;
+  return {
+    region: { ...venueFallback, ...GPS_ZOOM },
+    source: 'venue-profile',
+  };
+}
+
+/**
  * Resolves the initial map region using a three-step fallback chain.
  *
  * @param enabled - Delay resolution while the location permission priming
  *   screen is visible. Defaults to true.
  */
-export function useGpsRegion(enabled = true): GpsRegionResult {
+export function useGpsRegion(
+  enabled = true,
+  venueFallback: { latitude: number; longitude: number } | null = null
+): GpsRegionResult {
   const [initialRegion, setInitialRegion] = useState<MapRegion>(IRELAND_INITIAL_REGION);
   const [gpsPermissionGranted, setGpsPermissionGranted] = useState(false);
   const [locationSource, setLocationSource] = useState<LocationSource>('pending');
+  const [placeLabel, setPlaceLabel] = useState<string | null>(null);
   const [mapKey, setMapKey] = useState(0);
 
   useEffect(() => {
     if (!enabled) return;
-    void resolveLocation({
-      setInitialRegion,
-      setGpsPermissionGranted,
-      setLocationSource,
-      setMapKey,
-    });
+    void (async () => {
+      const base = await getBaseLocation();
+      await resolveLocation(
+        { setInitialRegion, setGpsPermissionGranted, setLocationSource, setMapKey, setPlaceLabel },
+        base
+      );
+    })();
   }, [enabled]);
 
-  return { initialRegion, gpsPermissionGranted, locationSource, mapKey };
+  // Venue-only upgrade: if the chain bottomed out at the Ireland default and we
+  // have the venue's saved pin, recenter on it. Self-heals if `useMe()` resolves
+  // after the chain (Ireland → pin). Keyed on the pin's coords, not object
+  // identity, so a fresh-but-equal fallback object won't re-fire.
+  useEffect(() => {
+    const upgrade = applyVenueFallback(locationSource, venueFallback);
+    if (!upgrade) return;
+    setInitialRegion(upgrade.region);
+    setLocationSource(upgrade.source);
+    setMapKey((k) => k + 1);
+  }, [locationSource, venueFallback?.latitude, venueFallback?.longitude]);
+
+  // Reverse-geocode whenever we have real coordinates (GPS, IP, or the venue
+  // pin). Failures are non-fatal — consumers fall back to a source-based label.
+  useEffect(() => {
+    // 'saved' carries its stored label — never reverse-geocode or null it.
+    if (locationSource === 'saved') return;
+    if (locationSource !== 'gps' && locationSource !== 'ip' && locationSource !== 'venue-profile') {
+      setPlaceLabel(null);
+      return;
+    }
+
+    let cancelled = false;
+    Location.reverseGeocodeAsync({
+      latitude: initialRegion.latitude,
+      longitude: initialRegion.longitude,
+    })
+      .then((results) => {
+        if (cancelled) return;
+        const first = results[0];
+        if (!first) return;
+        const label = first.city ?? first.subregion ?? first.region;
+        if (label) setPlaceLabel(label);
+      })
+      .catch((err: unknown) => {
+        console.warn('[useGpsRegion] reverseGeocodeAsync failed:', err);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [initialRegion.latitude, initialRegion.longitude, locationSource]);
+
+  return { initialRegion, gpsPermissionGranted, locationSource, placeLabel, mapKey };
 }
