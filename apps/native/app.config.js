@@ -9,7 +9,7 @@ const pkg = require('./package.json');
 const VARIANT = process.env.APP_VARIANT ?? 'production';
 const IS_STAGING = VARIANT === 'staging';
 
-const PROD_BUNDLE_ID = 'ie.ceolx.app';
+const PROD_BUNDLE_ID = 'com.ceolx.app';
 const STAGING_BUNDLE_ID = 'com.raftlabs.ceolx.staging';
 
 // REVERSED_CLIENT_ID from the iOS OAuth client (see GoogleService-Info.plist),
