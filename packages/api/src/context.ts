@@ -19,32 +19,22 @@ export type DispatchNotificationInput = {
 
 export type DispatchNotificationFn = (input: DispatchNotificationInput) => Promise<void>;
 
-// ─── Account-deletion scheduler (M11-T1) ─────────────────────────────────────
-// `users.requestAccountDeletion` calls this to enqueue the 30-day-delayed
-// `account.anonymize` job. Real impl lives in apps/server (depends on QStash);
-// tests inject vi.fn().
+// ─── Account-deletion erasure (M11-T1) ───────────────────────────────────────
+// `users.requestAccountDeletion` only stamps the deletion timestamps. Erasure
+// is driven by the daily `account.anonymize-sweep` QStash cron, so the request
+// path needs no injected scheduler (Asana 1215276188230541).
 // ─────────────────────────────────────────────────────────────────────────────
-
-export type ScheduleAccountAnonymizeFn = (input: {
-  userId: string;
-  requestedAt: Date;
-}) => Promise<void>;
 
 export type CreateContextOptions = {
   context: HonoContext;
   dispatchNotification: DispatchNotificationFn;
-  scheduleAccountAnonymize: ScheduleAccountAnonymizeFn;
 };
 
-export async function createContext({
-  context,
-  dispatchNotification,
-  scheduleAccountAnonymize,
-}: CreateContextOptions) {
+export async function createContext({ context, dispatchNotification }: CreateContextOptions) {
   const session = await auth.api.getSession({
     headers: context.req.raw.headers,
   });
-  return { session, dispatchNotification, scheduleAccountAnonymize };
+  return { session, dispatchNotification };
 }
 
 export type Context = Awaited<ReturnType<typeof createContext>>;

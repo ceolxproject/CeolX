@@ -1,90 +1,34 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Alert,
+  KeyboardAvoidingView,
+  Pressable,
+  Text,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { EventCategory } from '@CeolX/shared';
 import { EventStatus, UserRole } from '@CeolX/shared/enums';
 
-import { AppTabBar, TAB_CONFIG } from '@/components/AppTabBar';
+import { appToast } from '@/components/AppToast';
 import { BasicDetailsStep } from '@/components/events/BasicDetailsStep';
 import { DateVenueStep } from '@/components/events/DateVenueStep';
 import { StepIndicator } from '@/components/events/StepIndicator';
 import { TicketAdsStep } from '@/components/events/TicketAdsStep';
 import { useEventById } from '@/hooks/use-event-by-id';
 import { useEventForm } from '@/hooks/use-event-form';
-import type { CollaboratorArtist } from '@/hooks/use-event-form';
 import { useMe } from '@/hooks/use-me';
+
+/** The fully-loaded event — the form is only mounted once this exists. */
+type LoadedEvent = NonNullable<ReturnType<typeof useEventById>['data']>;
 
 export default function EditEventScreen() {
   const { eventId } = useLocalSearchParams<{ eventId: string }>();
-  const router = useRouter();
-  const insets = useSafeAreaInsets();
-  const { data: me } = useMe();
-  const isVenue = me?.currentRole === UserRole.VENUE;
-  const [showManualAddress, setShowManualAddress] = useState(false);
-
   const { data: event, isLoading } = useEventById({ id: eventId });
-
-  const form = useEventForm({
-    eventId,
-    initialData: event
-      ? {
-          title: event.title,
-          description: event.description,
-          coverImageUri: event.coverImage ?? null,
-          category: event.category as EventCategory,
-          collectionId: event.collectionId ?? '',
-          collaborators: event.collaborators.map((c) => c.id),
-          collaboratorArtists: event.collaborators.map(
-            (c): CollaboratorArtist => ({
-              id: c.id,
-              stageName: c.stageName,
-              genre: c.genre,
-              image: c.profileImageUrl ?? null,
-            })
-          ),
-          platformInvites: [],
-          unregisteredCollaborators: event.unregisteredCollaborators ?? [],
-          dateStart: new Date(event.dateStart),
-          dateEnd: event.dateEnd ? new Date(event.dateEnd) : null,
-          startTime: new Date(event.dateStart),
-          endTime: event.dateEnd ? new Date(event.dateEnd) : null,
-          lat: event.lat,
-          lng: event.lng,
-          venueAddress: event.venueAddress ?? '',
-          venueId: event.venueId ?? '',
-          ticketPrice: event.ticketPrice ? String(event.ticketPrice / 100) : '',
-          ticketLink: event.ticketLink ?? '',
-          ticketQuantity: '',
-          adTitle: event.adTitle ?? '',
-          adDescription: event.adDescription ?? '',
-        }
-      : undefined,
-    onSuccess: () => {
-      Alert.alert('Success', 'Event updated successfully!', [
-        { text: 'Done', onPress: () => router.back() },
-      ]);
-    },
-    isVenue,
-  });
-
-  const handleBackPress = () => {
-    Alert.alert('Leave without saving?', 'Your unsaved changes will be lost.', [
-      { text: 'Stay', style: 'cancel' },
-      { text: 'Leave', style: 'destructive', onPress: () => router.back() },
-    ]);
-  };
-
-  const tabBarState = {
-    index: -1,
-    routes: TAB_CONFIG.map((t) => ({ key: t.name, name: t.name })),
-  };
-  const tabBarNavigation = {
-    emit: () => ({ defaultPrevented: false }),
-    navigate: (name: string) => router.replace(`/(app)/(tabs)/${name}`),
-  };
 
   if (isLoading) {
     return (
@@ -105,13 +49,68 @@ export default function EditEventScreen() {
   if (event.status === EventStatus.ARCHIVED) {
     return (
       <View className="flex-1 bg-background items-center justify-center px-5">
-        <Text className="text-center text-lg text-white">Cannot edit an archived event.</Text>
+        <Text className="text-center text-lg text-white">Cannot edit a deleted event.</Text>
       </View>
     );
   }
 
+  // The form reads `initialData` exactly once, at mount, via useState
+  // initializers. Mounting it only here — after the event has loaded — is what
+  // guarantees those initializers see real values. (Rendering the form while
+  // the query was still loading seeded every field from `undefined`, so the
+  // form stayed empty until the cache made a reopen resolve synchronously.)
+  return <EditEventForm event={event} eventId={eventId} />;
+}
+
+function EditEventForm({ event, eventId }: { event: LoadedEvent; eventId: string }) {
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const { data: me } = useMe();
+  const isVenue = me?.currentRole === UserRole.VENUE;
+  const [showManualAddress, setShowManualAddress] = useState(false);
+
+  const form = useEventForm({
+    eventId,
+    initialData: {
+      title: event.title,
+      description: event.description,
+      coverImageUri: event.coverImage ?? null,
+      category: event.category as EventCategory,
+      collectionId: event.collectionId ?? '',
+      platformInvites: [],
+      unregisteredCollaborators: event.unregisteredCollaborators ?? [],
+      dateStart: new Date(event.dateStart),
+      dateEnd: event.dateEnd ? new Date(event.dateEnd) : null,
+      startTime: new Date(event.dateStart),
+      endTime: event.dateEnd ? new Date(event.dateEnd) : null,
+      lat: event.lat,
+      lng: event.lng,
+      venueAddress: event.venueAddress ?? '',
+      venueId: event.venueId ?? '',
+      ticketPrice: event.ticketPrice ? String(event.ticketPrice / 100) : '',
+      ticketLink: event.ticketLink ?? '',
+      ticketQuantity: '',
+      adTitle: event.adTitle ?? '',
+      adDescription: event.adDescription ?? '',
+    },
+    onSuccess: () => {
+      appToast.success('Event updated', 'Your changes are saved.');
+      router.back();
+    },
+  });
+
+  const handleBackPress = () => {
+    Alert.alert('Leave without saving?', 'Your unsaved changes will be lost.', [
+      { text: 'Stay', style: 'cancel' },
+      { text: 'Leave', style: 'destructive', onPress: () => router.back() },
+    ]);
+  };
+
   return (
-    <View className="flex-1 bg-background" style={{ paddingTop: insets.top }}>
+    <View
+      className="flex-1 bg-background"
+      style={{ paddingTop: insets.top, paddingBottom: insets.bottom }}
+    >
       {/* Header */}
       <View className="flex-row items-center px-5 pt-4 pb-1">
         <Pressable onPress={handleBackPress} hitSlop={8} className="mr-3">
@@ -136,23 +135,25 @@ export default function EditEventScreen() {
       </View>
 
       {/* Form steps */}
-      <View className="flex-1 mt-2">
+      {/* See create.tsx for why this KeyboardAvoidingView matters — the search
+          inputs inside Collaborator/InviteArtist pickers otherwise lose their
+          dropdown results behind the keyboard. */}
+      <KeyboardAvoidingView behavior="padding" style={{ flex: 1, marginTop: 8 }}>
         {form.currentStep === 1 && (
           <BasicDetailsStep
             title={form.title}
             onTitleChange={form.setTitle}
+            onTitleBlur={() => form.handleBlur('title')}
             description={form.description}
             onDescriptionChange={form.setDescription}
+            onDescriptionBlur={() => form.handleBlur('description')}
             coverImageUri={form.coverImageUri}
             onPickImage={form.pickCoverImage}
+            onRemoveImage={() => form.setCoverImageUri(null)}
             category={form.category}
             onCategoryChange={form.setCategory}
             collectionId={form.collectionId}
             onCollectionIdChange={form.setCollectionId}
-            collaborators={form.collaborators}
-            onCollaboratorsChange={form.setCollaborators}
-            collaboratorArtists={form.collaboratorArtists}
-            onCollaboratorArtistsChange={form.setCollaboratorArtists}
             platformInvites={form.platformInvites}
             onPlatformInvitesChange={form.setPlatformInvites}
             unregisteredCollaborators={form.unregisteredCollaborators}
@@ -160,6 +161,7 @@ export default function EditEventScreen() {
             errors={form.errors}
             onContinue={form.goNext}
             isVenue={isVenue}
+            myUserId={me?.id}
           />
         )}
 
@@ -179,6 +181,7 @@ export default function EditEventScreen() {
             }}
             venueAddress={form.venueAddress}
             onVenueAddressChange={form.setVenueAddress}
+            venueId={form.venueId}
             onVenueIdChange={form.setVenueId}
             showManualAddress={showManualAddress}
             onToggleManualAddress={() => setShowManualAddress(!showManualAddress)}
@@ -187,6 +190,8 @@ export default function EditEventScreen() {
             onBack={form.goBack}
             isVenue={isVenue}
             myVenueAddress={me?.venueAddress}
+            myVenueLat={me?.venueProfile?.lat ?? null}
+            myVenueLng={me?.venueProfile?.lng ?? null}
             isEditing
           />
         )}
@@ -209,15 +214,7 @@ export default function EditEventScreen() {
             isVenue={isVenue}
           />
         )}
-      </View>
-
-      {/* Bottom tab bar */}
-      <AppTabBar
-        state={tabBarState as never}
-        descriptors={{}}
-        navigation={tabBarNavigation as never}
-        insets={{ top: 0, bottom: 0, left: 0, right: 0 }}
-      />
+      </KeyboardAvoidingView>
     </View>
   );
 }

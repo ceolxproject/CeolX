@@ -36,7 +36,14 @@ export default function PostDetailScreen() {
           </View>
         )}
 
-        {post && <PostCard post={post} currentUserId={me?.id ?? null} />}
+        {post && (
+          <PostCard
+            post={post}
+            currentUserId={me?.id ?? null}
+            expanded
+            onDeleted={() => router.back()}
+          />
+        )}
       </ScrollView>
     </SafeAreaView>
   );

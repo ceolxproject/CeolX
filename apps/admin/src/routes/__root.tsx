@@ -31,7 +31,7 @@ function RootComponent() {
         attribute="class"
         defaultTheme="light"
         disableTransitionOnChange
-        storageKey="ceolx-admin-theme"
+        storageKey="ceolx-admin-theme-v2"
       >
         <Outlet />
         <Toaster richColors />

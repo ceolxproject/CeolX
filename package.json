@@ -32,7 +32,31 @@
     "lint": "turbo run lint",
     "lint:fix": "turbo run lint:fix",
     "format": "prettier --write \"**/*.{ts,tsx,json,md}\"",
-    "format:check": "prettier --check \"**/*.{ts,tsx,json,md}\""
+    "format:check": "prettier --check \"**/*.{ts,tsx,json,md}\"",
+    "release": "standard-version -a",
+    "release:first": "standard-version -a --first-release"
+  },
+  "standard-version": {
+    "packageFiles": [
+      {
+        "filename": "apps/native/package.json",
+        "type": "json"
+      }
+    ],
+    "bumpFiles": [
+      {
+        "filename": "apps/native/package.json",
+        "type": "json"
+      }
+    ],
+    "skip": {
+      "changelog": true
+    },
+    "releaseCommitMessageFormat": "🔖 chore(release): {{currentTag}}",
+    "scripts": {
+      "postbump": "cd apps/native && pnpm exec gitmoji-changelog update --output ../../CHANGELOG.md",
+      "precommit": "git add CHANGELOG.md"
+    }
   },
   "dependencies": {
     "@CeolX/env": "workspace:*",
@@ -54,10 +78,12 @@
     "eslint-plugin-import": "^2.31.0",
     "eslint-plugin-react": "^7.37.0",
     "eslint-plugin-react-hooks": "^5.0.0",
+    "gitmoji-changelog": "^2.3.0",
     "globals": "^17.4.0",
     "husky": "^9.1.7",
     "lint-staged": "^16.4.0",
     "prettier": "^3.0.0",
+    "standard-version": "^9.5.0",
     "turbo": "^2.8.12",
     "typescript": "^5",
     "typescript-eslint": "^8.57.2",
@@ -78,7 +104,12 @@
   "pnpm": {
     "overrides": {
       "envx-cli>chalk": "4.1.2",
-      "rolldown": "1.0.0-beta.52"
+      "rolldown": "1.0.0-beta.52",
+      "react": "19.2.0",
+      "react-dom": "19.2.0",
+      "@expo/dom-webview": "55.0.6",
+      "@react-email/components>react-dom": "19.2.0",
+      "@react-email/render>react-dom": "19.2.0"
     },
     "onlyBuiltDependencies": [
       "esbuild",

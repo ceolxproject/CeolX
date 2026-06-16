@@ -1,0 +1,62 @@
+{
+  "project_info": {
+    "project_number": "1057693721951",
+    "project_id": "ceolx-staging",
+    "storage_bucket": "ceolx-staging.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1057693721951:android:5b2c2d485612b9d44a02ea",
+        "android_client_info": {
+          "package_name": "com.raftlabs.ceolx.staging"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "1057693721951-a2fu2duh5hqi0jd7vbsq6rvuadg7d4q3.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.raftlabs.ceolx.staging",
+            "certificate_hash": "26bb253b370cc98a5d4da0c0d1b9754cbb696ace"
+          }
+        },
+        {
+          "client_id": "1057693721951-krr0sh25maractb6bbqh2kl5bc3hqpsg.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.raftlabs.ceolx.staging",
+            "certificate_hash": "45131ee00f9c8619ae652d15d0aaac9489f8fd46"
+          }
+        },
+        {
+          "client_id": "1057693721951-rtpisqt4dio7pptsterfaf1ldb6hgpv7.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDmDs6U8OzQ1crMuITwethdH2cBhuYvw9s"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1057693721951-rtpisqt4dio7pptsterfaf1ldb6hgpv7.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "1057693721951-08nqa00s0ood9pimkpbb5p7njtmm4qal.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.raftlabs.ceolx.staging"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

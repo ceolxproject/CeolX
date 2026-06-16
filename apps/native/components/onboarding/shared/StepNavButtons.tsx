@@ -43,7 +43,7 @@ export function StepNavButtons({
         disabled={isPending}
         accessibilityRole="button"
         accessibilityLabel={primaryLabel}
-        className="items-center justify-center rounded-full py-4"
+        className="items-center justify-center rounded-full py-4 px-4"
         style={{
           backgroundColor: isPending ? '#4d42cc' : '#6155F5',
           flex: showBack ? 2 : 1,
@@ -53,12 +53,16 @@ export function StepNavButtons({
           <ActivityIndicator size="small" color="#fff" />
         ) : (
           <Text
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            minimumFontScale={0.75}
             style={{
               color: '#fff',
               fontSize: 16,
               fontWeight: '700',
               letterSpacing: 1,
               textTransform: 'uppercase',
+              textAlign: 'center',
             }}
           >
             {primaryLabel}

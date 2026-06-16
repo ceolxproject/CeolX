@@ -1,21 +1,14 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Link, router } from 'expo-router';
-import * as SecureStore from 'expo-secure-store';
 import { useState } from 'react';
-import {
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  ScrollView,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { KeyboardAvoidingView, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppButton } from '@/components/AppButton';
 import { CeolxLogo } from '@/components/CeolxLogo';
 import { SocialLoginButtons } from '@/components/SocialLoginButtons';
+import { useAuth } from '@/contexts/auth-context';
+import { useSocialAuth } from '@/hooks/use-social-auth';
 import { authClient } from '@/lib/auth-client';
 
 // ── Types ────────────────────────────────────────────────────────────
@@ -33,6 +26,8 @@ export default function SignInScreen() {
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorState, setErrorState] = useState<ErrorState>(null);
+  const { signInWithGoogle, signInWithApple } = useSocialAuth();
+  const { continueAsGuest } = useAuth();
 
   const handleSignIn = async () => {
     setErrorState(null);
@@ -71,17 +66,14 @@ export default function SignInScreen() {
   };
 
   const handleSkip = async () => {
-    await SecureStore.setItemAsync('isGuest', 'true');
+    await continueAsGuest();
     router.replace('/(app)/(tabs)/map');
   };
 
   return (
     <View style={{ flex: 1, backgroundColor: '#0d0c0f' }}>
       <SafeAreaView style={{ flex: 1 }}>
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={{ flex: 1 }}
-        >
+        <KeyboardAvoidingView behavior="padding" style={{ flex: 1 }}>
           {/* Header — Urbanist Bold 12 */}
           <View className="flex-row justify-between items-center p-5 bg-surface-dark">
             <CeolxLogo />
@@ -105,7 +97,14 @@ export default function SignInScreen() {
               Login to your account
             </Text>
 
-            <SocialLoginButtons separator="Or sign in with" />
+            <SocialLoginButtons
+              separator="Or sign in with"
+              // Wrap in arrows — Pressable would otherwise pass the press event
+              // as the `signupOptions` argument, writing a corrupt
+              // pendingRegistration. Sign-in has no role to pass.
+              onGooglePress={() => signInWithGoogle()}
+              onApplePress={() => signInWithApple()}
+            />
 
             {/* Error / warning banners */}
             {errorState?.type === 'unverified' ? (
@@ -134,7 +133,7 @@ export default function SignInScreen() {
               </Text>
               <TextInput
                 className="bg-white rounded-lg h-[52px] px-4 text-base font-sans font-medium text-black leading-5"
-                placeholder="james@gmail.com"
+                placeholder="Enter your email address"
                 placeholderTextColor="#8d8d8d"
                 keyboardType="email-address"
                 autoCapitalize="none"
@@ -152,7 +151,7 @@ export default function SignInScreen() {
               <View className="flex-row items-center">
                 <TextInput
                   className="flex-1 bg-white rounded-lg h-[52px] px-4 text-base font-sans font-medium text-black leading-5"
-                  placeholder="Enter Password"
+                  placeholder="Enter your password"
                   placeholderTextColor="#8d8d8d"
                   secureTextEntry={!passwordVisible}
                   autoComplete="current-password"

@@ -1,6 +1,7 @@
-import { router } from 'expo-router';
+import * as Sentry from '@sentry/react-native';
+import { router, useIsFocused } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Dimensions, StyleSheet, View } from 'react-native';
 import { Circle, Path, Svg } from 'react-native-svg';
 
@@ -46,28 +47,47 @@ function sparkPath(cx: number, cy: number, r: number): string {
  */
 export default function SplashScreen() {
   const { user, isLoading } = useAuth();
+  // This screen is the (auth) group anchor, so a deep-link cold-start (e.g.
+  // ceolx://reset-password?token=…) mounts it *underneath* the linked screen.
+  // Without this guard its auto-redirect timer below would fire while
+  // reset-password is on top and replace it with sign-in, dropping the token.
+  // Only navigate when the splash is the screen actually in focus.
+  const isFocused = useIsFocused();
+  const [hasSeenOnboarding, setHasSeenOnboarding] = useState<boolean | null>(null);
 
   useEffect(() => {
-    if (isLoading) return;
+    SecureStore.getItemAsync('hasSeenOnboarding')
+      .then((value) => setHasSeenOnboarding(value === 'true'))
+      .catch(() => setHasSeenOnboarding(false));
+  }, []);
 
-    const navigate = async () => {
-      if (user) {
-        router.replace('/(app)/(tabs)/map');
-        return;
-      }
+  useEffect(() => {
+    // Only route once the session has resolved AND this splash is the actually
+    // focused screen (nothing — e.g. a deep-linked reset-password — sits on top).
+    // The navigator is kept mounted at all times (app/_layout, (auth)/_layout),
+    // so Expo Router restores a cold-start deep link deterministically and this
+    // anchor is reliably unfocused while one is active. No timer / no useURL
+    // guard: both were patches for the remount race that is now gone.
+    if (isLoading || !isFocused || hasSeenOnboarding === null) return;
 
-      const hasSeen = await SecureStore.getItemAsync('hasSeenOnboarding');
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+    const target = user
+      ? '/(app)/(tabs)/map'
+      : hasSeenOnboarding
+        ? '/(auth)/sign-in'
+        : '/(auth)/get-started';
 
-      if (hasSeen === 'true') {
-        router.replace('/(auth)/sign-in');
-      } else {
-        router.replace('/(auth)/get-started');
-      }
-    };
+    // Breadcrumb so any stray bounce is diagnosable from Sentry: a deep-linked
+    // screen on top would have made this effect bail on !isFocused, so a redirect
+    // logged here when a deep link was expected pinpoints a focus/restore gap.
+    Sentry.addBreadcrumb({
+      category: 'navigation',
+      level: 'info',
+      message: 'splash redirect',
+      data: { target, hasUser: !!user, hasSeenOnboarding },
+    });
 
-    void navigate();
-  }, [isLoading, user]);
+    router.replace(target);
+  }, [isLoading, user, isFocused, hasSeenOnboarding]);
 
   return (
     <View className="flex-1 bg-[#0d0c0f] items-center justify-center">

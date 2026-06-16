@@ -15,6 +15,8 @@ export function PerformingArtistCard({ artist, onPress, className }: PerformingA
   return (
     <Pressable
       onPress={onPress}
+      // No handler (external invitee) → non-interactive, no press feedback.
+      disabled={!onPress}
       className={cn(
         'w-[138px] h-[177px] rounded-lg border border-[#3a3a3a] bg-[rgba(141,141,141,0.3)] overflow-hidden items-center',
         className
@@ -46,11 +48,14 @@ export function PerformingArtistCard({ artist, onPress, className }: PerformingA
         </Text>
       )}
 
-      {/* Event count pill */}
-      <View className="flex-row items-center bg-white/20 rounded-full px-2 py-1 gap-0.5 mt-auto mb-3">
-        <Ionicons name="ticket-outline" size={12} color="#CED1D8" />
-        <Text className="text-[13px] text-[#CED1D8] font-sans">{artist.eventCount} events</Text>
-      </View>
+      {/* Event count pill — only for registered platform artists.
+          External/unregistered performers have no profile, so no event history to show. */}
+      {!artist.isExternal && (
+        <View className="flex-row items-center bg-white/20 rounded-full px-2 py-1 gap-0.5 mt-auto mb-3">
+          <Ionicons name="ticket-outline" size={12} color="#CED1D8" />
+          <Text className="text-[13px] text-[#CED1D8] font-sans">{artist.eventCount} events</Text>
+        </View>
+      )}
     </Pressable>
   );
 }

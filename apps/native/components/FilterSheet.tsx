@@ -1,55 +1,28 @@
-import { Ionicons } from '@expo/vector-icons';
 import { cn } from 'heroui-native';
-import { useCallback } from 'react';
+import { useEffect, useState } from 'react';
 import { Modal, Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-// ─── Theme palettes ─────────────────────────────────────────────────────────
+// ─── Palette (single dark sheet — Figma node 1:3817) ─────────────────────────
 
-const PALETTES = {
-  dark: {
-    bg: 'bg-[#1a1a1a]',
-    headerBorder: 'border-white/10',
-    footerBorder: 'border-white/10',
-    titleText: 'text-white',
-    sectionText: 'text-white',
-    closeIconColor: '#ffffff',
-    chipDefault: 'bg-white/5 border-white/10',
-    chipDefaultText: 'text-white/60',
-    chipActive: 'bg-[#C8FF2F]/20 border-[#C8FF2F]',
-    chipActiveText: 'text-[#C8FF2F]',
-    clearText: 'text-white/60',
-    applyBg: 'bg-[#C8FF2F]',
-    applyText: 'text-black',
-  },
-  light: {
-    bg: 'bg-white',
-    headerBorder: 'border-[#E0E0E0]',
-    footerBorder: 'border-[#E0E0E0]',
-    titleText: 'text-[#1A1A1A]',
-    sectionText: 'text-[#1A1A1A]',
-    closeIconColor: '#1A1A1A',
-    chipDefault: 'bg-[#F5F5F5] border-[#F5F5F5]',
-    chipDefaultText: 'text-[#666666]',
-    chipActive: 'bg-[#EDE9FF] border-[#662FFF]',
-    chipActiveText: 'text-[#662FFF]',
-    clearText: 'text-[#1A1A1A]',
-    applyBg: 'bg-[#662FFF]',
-    applyText: 'text-white',
-  },
-} as const;
+const SHEET_BG = '#2b2b2b';
+const HANDLE = '#8d8d8d';
+const CHIP_ACTIVE = '#d4fc5a'; // selected pill (lime)
+const APPLY_BG = '#6155f5'; // purple CTA
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
 export interface FilterSection {
   /** Unique key matching the filter record key */
   key: string;
-  /** Section heading text */
+  /** Section heading text (shown only when more than one section is present) */
   label: string;
   /** Available option values */
   options: readonly string[];
   /** Optional display labels for options (key → label). Falls back to raw value. */
   labels?: Record<string, string>;
+  /** Label for the "clear this filter" chip. Defaults to "All". */
+  allLabel?: string;
 }
 
 interface FilterSheetProps {
@@ -57,103 +30,82 @@ interface FilterSheetProps {
   /** Current filter state — keys match section keys, values are selected option or undefined */
   filters: Record<string, string | undefined>;
   sections: FilterSection[];
-  variant: 'light' | 'dark';
   onApply: (filters: Record<string, string | undefined>) => void;
   onClose: () => void;
 }
 
 // ─── Component ──────────────────────────────────────────────────────────────
 
-export function FilterSheet({
-  visible,
-  filters,
-  sections,
-  variant,
-  onApply,
-  onClose,
-}: FilterSheetProps) {
+export function FilterSheet({ visible, filters, sections, onApply, onClose }: FilterSheetProps) {
   const insets = useSafeAreaInsets();
-  const palette = PALETTES[variant];
 
-  const toggle = useCallback(
-    (key: string, value: string) => {
-      const next = { ...filters };
-      if (next[key] === value) {
-        delete next[key];
-      } else {
-        next[key] = value;
-      }
-      onApply(next);
-    },
-    [filters, onApply]
-  );
+  // Staged selection — chips edit this local copy; nothing is committed to the
+  // parent until "Apply filters". Re-seeded from `filters` each time the sheet opens.
+  const [draft, setDraft] = useState(filters);
+  useEffect(() => {
+    if (visible) setDraft(filters);
+  }, [visible, filters]);
 
-  const clearAll = useCallback(() => onApply({}), [onApply]);
+  const select = (key: string, value: string | undefined) => {
+    setDraft((prev) => {
+      const next = { ...prev };
+      if (value === undefined) delete next[key];
+      else next[key] = value;
+      return next;
+    });
+  };
 
-  const hasFilters = Object.values(filters).some(Boolean);
+  const handleApply = () => {
+    onApply(draft);
+    onClose();
+  };
+
+  const showHeadings = sections.length > 1;
 
   return (
-    <Modal
-      visible={visible}
-      animationType="slide"
-      presentationStyle="pageSheet"
-      onRequestClose={onClose}
-    >
-      <View className={cn('flex-1', palette.bg)} style={{ paddingTop: insets.top + 8 }}>
-        {/* Header */}
-        <View
-          className={cn(
-            'flex-row items-center justify-between px-5 py-3 border-b',
-            palette.headerBorder
-          )}
-        >
-          <Text className={cn('text-lg font-bold font-urbanist', palette.titleText)}>Filters</Text>
-          <Pressable onPress={onClose} hitSlop={12}>
-            <Ionicons name="close" size={24} color={palette.closeIconColor} />
-          </Pressable>
+    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
+      {/* Dimmed backdrop — tap to dismiss without applying */}
+      <Pressable className="flex-1 bg-black/60" onPress={onClose} />
+
+      <View
+        className="rounded-t-3xl px-6 pt-3"
+        style={{ backgroundColor: SHEET_BG, paddingBottom: insets.bottom + 16 }}
+      >
+        {/* Drag handle */}
+        <View className="items-center pb-4">
+          <View className="h-1 w-9 rounded-full" style={{ backgroundColor: HANDLE }} />
         </View>
 
+        <Text className="text-2xl font-semibold text-white font-urbanist mb-5">Filters</Text>
+
         <ScrollView
-          className="flex-1"
-          contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 20, paddingBottom: 40 }}
           showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingBottom: 8 }}
+          style={{ maxHeight: 360 }}
         >
           {sections.map((section, sectionIdx) => (
-            <View key={section.key}>
-              <Text
-                className={cn(
-                  'text-[15px] font-semibold font-urbanist mb-3',
-                  sectionIdx > 0 && 'mt-5',
-                  palette.sectionText
-                )}
-              >
-                {section.label}
-              </Text>
+            <View key={section.key} className={cn(sectionIdx > 0 && 'mt-5')}>
+              {showHeadings && (
+                <Text className="text-[15px] font-semibold text-white font-urbanist mb-3">
+                  {section.label}
+                </Text>
+              )}
               <View className="flex-row flex-wrap gap-2">
+                {/* "All" chip — active when this filter key is unset */}
+                <Chip
+                  label={section.allLabel ?? 'All'}
+                  isActive={draft[section.key] === undefined}
+                  onPress={() => select(section.key, undefined)}
+                />
                 {section.options.map((option) => {
-                  const isActive = filters[section.key] === option;
-                  const displayLabel = section.labels?.[option] ?? option;
-
+                  const isActive = draft[section.key] === option;
                   return (
-                    <Pressable
+                    <Chip
                       key={option}
-                      className={cn(
-                        'px-[14px] py-2 rounded-full border-[1.5px]',
-                        isActive ? palette.chipActive : palette.chipDefault
-                      )}
-                      onPress={() => toggle(section.key, option)}
-                    >
-                      <Text
-                        className={cn(
-                          'text-[13px] font-medium font-urbanist',
-                          isActive
-                            ? cn(palette.chipActiveText, 'font-semibold')
-                            : palette.chipDefaultText
-                        )}
-                      >
-                        {displayLabel}
-                      </Text>
-                    </Pressable>
+                      label={section.labels?.[option] ?? option}
+                      isActive={isActive}
+                      onPress={() => select(section.key, isActive ? undefined : option)}
+                    />
                   );
                 })}
               </View>
@@ -161,35 +113,39 @@ export function FilterSheet({
           ))}
         </ScrollView>
 
-        {/* Footer */}
-        <View
-          className={cn('flex-row items-center px-5 pt-3 gap-3 border-t', palette.footerBorder)}
-          style={{ paddingBottom: insets.bottom + 12 }}
+        {/* Apply CTA */}
+        <Pressable
+          className="h-12 rounded-full items-center justify-center mt-5"
+          style={{ backgroundColor: APPLY_BG }}
+          onPress={handleApply}
         >
-          {hasFilters ? (
-            <Pressable className="flex-1 h-12 justify-center items-center" onPress={clearAll}>
-              <Text
-                className={cn(
-                  'text-[15px] font-semibold underline font-urbanist',
-                  palette.clearText
-                )}
-              >
-                Clear all
-              </Text>
-            </Pressable>
-          ) : (
-            <View className="flex-1 h-12" />
-          )}
-          <Pressable
-            className={cn('flex-1 h-12 rounded-full items-center justify-center', palette.applyBg)}
-            onPress={onClose}
-          >
-            <Text className={cn('text-[15px] font-semibold font-urbanist', palette.applyText)}>
-              Show results
-            </Text>
-          </Pressable>
-        </View>
+          <Text className="text-white text-base font-bold font-urbanist tracking-wide uppercase">
+            Apply filters
+          </Text>
+        </Pressable>
       </View>
     </Modal>
+  );
+}
+
+// ─── Chip ─────────────────────────────────────────────────────────────────────
+
+function Chip({
+  label,
+  isActive,
+  onPress,
+}: {
+  label: string;
+  isActive: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      className={cn('px-5 py-1.5 rounded-2xl', !isActive && 'bg-white')}
+      style={isActive ? { backgroundColor: CHIP_ACTIVE } : undefined}
+    >
+      <Text className="text-[13px] font-semibold text-black font-urbanist">{label}</Text>
+    </Pressable>
   );
 }

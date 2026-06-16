@@ -5,6 +5,7 @@ import { artistsRouter } from './artists';
 import { bookingsRouter } from './bookings';
 import { collectionsRouter } from './collections';
 import { deviceTokensRouter } from './device-tokens';
+import { discoveryRouter } from './discovery';
 import { eventsRouter } from './events';
 import { followsRouter } from './follows';
 import { notificationsRouter } from './notifications';
@@ -26,6 +27,7 @@ export const appRouter = router({
   follows: followsRouter,
   notifications: notificationsRouter,
   deviceTokens: deviceTokensRouter,
+  discovery: discoveryRouter,
   posts: postsRouter,
   stripe: stripeRouter,
   uploads: uploadsRouter,

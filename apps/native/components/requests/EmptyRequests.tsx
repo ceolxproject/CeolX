@@ -11,7 +11,7 @@ export function EmptyRequests({ tab }: EmptyRequestsProps) {
       <Ionicons name="mail-outline" size={48} color="rgba(255,255,255,0.2)" />
       <Text className="text-white/40 text-center text-sm font-urbanist mt-4">
         {tab === 'sent'
-          ? 'No sent requests yet. Add collaborators to your events to send booking invitations.'
+          ? 'No sent requests yet. Invite artists to your events to send booking invitations.'
           : 'No received requests yet. Venues will send you booking invitations here.'}
       </Text>
     </View>

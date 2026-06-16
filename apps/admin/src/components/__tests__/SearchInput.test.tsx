@@ -32,6 +32,21 @@ describe('SearchInput', () => {
       expect(onChange).toHaveBeenCalledWith('abc');
       expect(onChange).toHaveBeenCalledTimes(1);
     });
+
+    it('does not fire onChange on a parent re-render when the value is unchanged', () => {
+      // Reproduces the pagination bug: parents pass an inline onChange that
+      // changes identity every render. Re-rendering must not re-emit onChange
+      // (which would clobber sibling state like the current page).
+      const onChange = vi.fn();
+      const { rerender } = render(<SearchInput value="" onChange={onChange} />);
+
+      // Simulate a parent re-render (e.g. page state changed) with a brand-new
+      // onChange function identity but the same controlled value.
+      rerender(<SearchInput value="" onChange={vi.fn(onChange)} />);
+      vi.runAllTimers();
+
+      expect(onChange).not.toHaveBeenCalled();
+    });
   });
 
   it('does not show clear button when value is empty', () => {

@@ -122,9 +122,16 @@ vi.mock('@CeolX/db/schema/auth', () => ({
 
 const mockRemoveFromTypesense = vi.fn(async () => {});
 const mockSyncToTypesense = vi.fn(async () => {});
+const mockBulkSync = vi.fn(() => Promise.resolve({ synced: 0 }));
 vi.mock('../services/event-sync', () => ({
   removeEventFromTypesense: (id: string) => mockRemoveFromTypesense(id),
   syncEventToTypesense: (event: unknown) => mockSyncToTypesense(event),
+  bulkSyncEventsToTypesense: () => mockBulkSync(),
+}));
+// admin.resyncEvents pulls typesense-collections into the router import graph;
+// mock it so the real module (which validates Typesense env at load) stays out.
+vi.mock('../lib/typesense-collections', () => ({
+  ensureEventsCollection: vi.fn(async () => {}),
 }));
 
 // Mock the audit helper so tests assert "audit was attempted" without

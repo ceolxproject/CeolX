@@ -7,34 +7,22 @@ import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
 
 import { createContext } from '@CeolX/api/context';
+import { ensureEventsCollection } from '@CeolX/api/lib/typesense-collections';
 import { appRouter } from '@CeolX/api/routers/index';
 import { auth } from '@CeolX/auth';
 import { rateLimiter, RATE_LIMIT_TIERS } from '@CeolX/cache';
 import '@CeolX/env/server'; // validates required env vars at startup
 
 import { isAllowedOrigin } from './config/cors';
-import { publishJob } from './jobs/publish';
 import { errorHandler } from './middleware/errorHandler';
+import appLinksRoute from './routes/app-links';
+import eventShareRoute from './routes/event-share';
 import locationRoutes from './routes/location';
+import postShareRoute from './routes/post-share';
+import resetPasswordRoute from './routes/reset-password';
+import verifyEmailRoute from './routes/verify-email';
 import webhooksRoutes from './routes/webhooks';
 import { dispatchNotification } from './services/notifications-dispatcher';
-
-// Inline scheduler for the M11-T1 30-day account-anonymise job.
-// publishJob is server-only (depends on QStash + env), so we inject it
-// through ctx instead of letting packages/api depend on apps/server.
-const scheduleAccountAnonymize = async ({
-  userId,
-  requestedAt,
-}: {
-  userId: string;
-  requestedAt: Date;
-}) => {
-  await publishJob(
-    'account.anonymize',
-    { userId, requestedAt: requestedAt.toISOString() },
-    { delay: '30d' }
-  );
-};
 
 export function buildApp() {
   const app = new Hono();
@@ -72,14 +60,26 @@ export function buildApp() {
   app.use('/api/auth/*', rateLimiter(RATE_LIMIT_TIERS.authLogin));
   app.on(['POST', 'GET'], '/api/auth/*', (c) => auth.handler(c.req.raw));
 
+  // HTTPS bridges for transactional-email buttons — email clients drop
+  // ceolx:// hrefs, so these pages return an HTML auto-redirect into the app.
+  app.route('/', verifyEmailRoute);
+  app.route('/', resetPasswordRoute);
+
+  // App Links / Universal Links ownership files + the shared-post and
+  // shared-event web fallbacks. ceolx.ie (admin) rewrites /.well-known/*,
+  // /post/*, and /event/* here. No auth, no rate limit — these are public and
+  // hit by OS verifiers + social crawlers.
+  app.route('/', appLinksRoute);
+  app.route('/', postShareRoute);
+  app.route('/', eventShareRoute);
+
   // tRPC — all feature procedures (events, artists, bookings, admin) live in packages/api
   app.use('/trpc/*', rateLimiter(RATE_LIMIT_TIERS.authenticatedGeneral));
   app.use(
     '/trpc/*',
     trpcServer({
       router: appRouter,
-      createContext: (_opts, context) =>
-        createContext({ context, dispatchNotification, scheduleAccountAnonymize }),
+      createContext: (_opts, context) => createContext({ context, dispatchNotification }),
       onError: ({ error, path }) => {
         if (error.code === 'INTERNAL_SERVER_ERROR') {
           Sentry.captureException(error, {
@@ -120,3 +120,18 @@ export function buildApp() {
 }
 
 export const app = buildApp();
+
+// Ensure the Typesense `events` collection exists once per server instance.
+// Fire-and-forget and idempotent (no-op when the collection is already there),
+// so a freshly provisioned or swapped Typesense cluster self-heals on the first
+// cold start instead of requiring a manual collection-create. Failures are
+// logged, never thrown — a Typesense hiccup must not stop the app from booting.
+// Skipped under test (no real Typesense, and tests import this module).
+if (process.env.NODE_ENV !== 'test') {
+  void ensureEventsCollection().catch((err: unknown) => {
+    console.warn(
+      '[startup] ensureEventsCollection failed — events search may be unavailable until a resync:',
+      err instanceof Error ? `${err.name}: ${err.message}` : err
+    );
+  });
+}

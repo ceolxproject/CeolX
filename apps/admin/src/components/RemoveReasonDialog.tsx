@@ -38,25 +38,35 @@ export function RemoveReasonDialog({ open, onOpenChange, onConfirm }: RemoveReas
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Remove Event</DialogTitle>
-          <DialogDescription>
+      <DialogContent className="space-y-4 pb-5">
+        <DialogHeader className="space-y-2">
+          <DialogTitle className="text-xl">Remove Event</DialogTitle>
+          <DialogDescription className="leading-relaxed">
             Provide a reason for removal. The creator will be notified and can edit and resubmit.
           </DialogDescription>
         </DialogHeader>
-        <Textarea
-          value={reason}
-          onChange={(e) => setReason(e.target.value)}
-          placeholder="Explain why this event is being removed (min 10 characters)…"
-          className="min-h-[100px]"
-          aria-label="Removal reason"
-        />
-        <DialogFooter>
-          <Button variant="outline" onClick={() => handleOpenChange(false)}>
+        <div className="space-y-1.5">
+          <Textarea
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            placeholder="Explain why this event is being removed…"
+            className="min-h-30 resize-none"
+            aria-label="Removal reason"
+          />
+          <p className="text-xs text-muted-foreground text-right tabular-nums">
+            {trimmed.length}/{MIN_REASON_LENGTH} characters
+          </p>
+        </div>
+        <DialogFooter className="gap-2">
+          <Button variant="outline" onClick={() => handleOpenChange(false)} className="min-w-24">
             Cancel
           </Button>
-          <Button variant="destructive" onClick={handleConfirm} disabled={!isValid}>
+          <Button
+            variant="destructive"
+            onClick={handleConfirm}
+            disabled={!isValid}
+            className="min-w-24"
+          >
             Remove Event
           </Button>
         </DialogFooter>

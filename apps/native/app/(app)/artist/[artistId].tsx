@@ -111,12 +111,14 @@ export default function ArtistProfileScreen() {
             <ProfileHeader
               displayName={profile.displayName}
               subtitle={profile.genres.length > 0 ? profile.genres.join(' | ') : null}
+              secondarySubtitle={profile.bio}
               profileImageUrl={profile.profileImageUrl}
               followerCount={profile.followerCount}
               followingCount={profile.followingCount}
               isOwner={profile.isOwner}
               isFollowing={isFollowing}
               socialLinks={profile.socialLinks}
+              contactEmail={profile.contactEmail}
               onEditPress={() => router.push('/(app)/(tabs)/profile/edit')}
               onSettingsPress={profile.isOwner ? () => settingsRef.current?.present() : undefined}
               onFollowPress={!profile.isOwner ? onFollowPress : undefined}

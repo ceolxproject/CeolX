@@ -9,10 +9,14 @@ import {
   venueOnboardingStep3Schema,
 } from '@CeolX/shared/validators';
 
+import { appToast } from '@/components/AppToast';
 import type { VenueLinks } from '@/components/onboarding/VenueLinksSection';
 import { useAuth } from '@/contexts/auth-context';
 import { useMediaUpload } from '@/hooks/use-media-upload';
+import { useOnboardingDraft } from '@/hooks/use-onboarding-draft';
+import { computeStepErrors } from '@/lib/onboarding-validation';
 import { pickSquarePhoto, requestPhotoLibraryPermission } from '@/utils/image-picker';
+import { normalizeOptionalUrl } from '@/utils/normalize-url';
 import { trpc, type RouterOutputs } from '@/utils/trpc';
 import { getTRPCErrorCode, getTRPCErrorMessage } from '@/utils/trpc-error';
 
@@ -20,9 +24,24 @@ const BIO_MAX = 50;
 
 type Step = 1 | 2 | 3;
 
+// The slice of onboarding state worth surviving an app kill. Validation/UI
+// state (errors, touched, submitError) is intentionally excluded — it is
+// re-derived from the restored values on the next interaction.
+interface VenueOnboardingDraft {
+  venueName: string;
+  bio: string;
+  address: string;
+  lat: number | null;
+  lng: number | null;
+  contactEmail: string;
+  venueLinks: VenueLinks;
+  profileImageUri: string | null;
+  currentStep: Step;
+}
+
 const FIELDS_BY_STEP: Record<Step, readonly string[]> = {
   1: ['venueName', 'contactEmail'],
-  2: ['address', 'bio'],
+  2: ['address', 'lat', 'lng', 'bio'],
   3: ['venueLinks.WEBSITE', 'venueLinks.INSTAGRAM', 'venueLinks.FACEBOOK', 'venueLinks.TWITTER'],
 };
 
@@ -33,7 +52,10 @@ interface UseVenueOnboardingReturn {
   setBio: (v: string) => void;
   BIO_MAX: number;
   address: string;
-  setAddress: (v: string) => void;
+  lat: number | null;
+  lng: number | null;
+  /** Set venue location from the map pin (lat/lng mandatory; address derived). */
+  setLocation: (loc: { lat: number; lng: number; address: string }) => void;
   contactEmail: string;
   setContactEmail: (v: string) => void;
   venueLinks: VenueLinks;
@@ -44,7 +66,9 @@ interface UseVenueOnboardingReturn {
   submitError: string | null;
   isPending: boolean;
   handlePickImage: () => Promise<void>;
+  handleRemoveImage: () => void;
   handleSubmit: () => Promise<void>;
+  clearDraft: () => void;
   currentStep: Step;
   touched: Set<string>;
   goNext: () => Promise<void>;
@@ -59,6 +83,8 @@ export function useVenueOnboarding(): UseVenueOnboardingReturn {
   const [venueName, setVenueName] = useState('');
   const [bio, setBio] = useState('');
   const [address, setAddress] = useState('');
+  const [lat, setLat] = useState<number | null>(null);
+  const [lng, setLng] = useState<number | null>(null);
   const [contactEmail, setContactEmail] = useState(user?.email ?? '');
   const [venueLinks, setVenueLinks] = useState<VenueLinks>({
     WEBSITE: '',
@@ -79,41 +105,81 @@ export function useVenueOnboarding(): UseVenueOnboardingReturn {
   );
   const { uploadMedia, isUploading: isImageUploading } = useMediaUpload('profile_image');
 
+  // ── Draft persistence (survives app kill / background) ───────────────────
+
+  const { clearDraft } = useOnboardingDraft<VenueOnboardingDraft>({
+    role: 'venue',
+    userId: user?.id,
+    draft: {
+      venueName,
+      bio,
+      address,
+      lat,
+      lng,
+      contactEmail,
+      venueLinks,
+      profileImageUri,
+      currentStep,
+    },
+    onHydrate: (saved) => {
+      setVenueName(saved.venueName ?? '');
+      setBio(saved.bio ?? '');
+      setAddress(saved.address ?? '');
+      setLat(saved.lat ?? null);
+      setLng(saved.lng ?? null);
+      if (saved.contactEmail) setContactEmail(saved.contactEmail);
+      setVenueLinks({
+        WEBSITE: '',
+        INSTAGRAM: '',
+        FACEBOOK: '',
+        TWITTER: '',
+        ...(saved.venueLinks as Partial<VenueLinks>),
+      });
+      setProfileImageUri(saved.profileImageUri ?? null);
+      if (saved.currentStep) setCurrentStep(saved.currentStep);
+    },
+  });
+
   // ── Step navigation ─────────────────────────────────────────────────────
+
+  // Normalize bare domains (e.g. `instagram.com/me`) to `https://…` before
+  // validating, so users aren't forced to type the scheme. Empty fields become
+  // undefined (omitted). Mirrors the edit-profile screen's submit boundary.
+  const normalizedVenueLinks = () => ({
+    WEBSITE: normalizeOptionalUrl(venueLinks.WEBSITE),
+    INSTAGRAM: normalizeOptionalUrl(venueLinks.INSTAGRAM),
+    FACEBOOK: normalizeOptionalUrl(venueLinks.FACEBOOK),
+    TWITTER: normalizeOptionalUrl(venueLinks.TWITTER),
+  });
 
   const buildStepValues = (step: Step) => {
     if (step === 1) return { venueName, contactEmail: contactEmail || undefined };
-    if (step === 2) return { address, bio: bio || undefined };
-    return {
-      venueLinks: {
-        WEBSITE: venueLinks.WEBSITE || undefined,
-        INSTAGRAM: venueLinks.INSTAGRAM || undefined,
-        FACEBOOK: venueLinks.FACEBOOK || undefined,
-        TWITTER: venueLinks.TWITTER || undefined,
-      },
-    };
+    if (step === 2)
+      return { address, lat: lat ?? undefined, lng: lng ?? undefined, bio: bio || undefined };
+    return { venueLinks: normalizedVenueLinks() };
   };
 
-  const validateStep = (step: Step, currentTouched: Set<string> = touched): boolean => {
+  const validateStep = (
+    step: Step,
+    currentTouched: Set<string> = touched,
+    overrides: Record<string, unknown> = {}
+  ): boolean => {
     const schema =
       step === 1
         ? venueOnboardingStep1Schema
         : step === 2
           ? venueOnboardingStep2Schema
           : venueOnboardingStep3Schema;
-    const result = schema.safeParse(buildStepValues(step));
+    const result = schema.safeParse(buildStepValues(step, overrides));
 
-    setErrors((prev) => {
-      const next = { ...prev };
-      for (const f of FIELDS_BY_STEP[step]) delete next[f];
-      if (!result.success) {
-        for (const issue of result.error.issues) {
-          const field = issue.path.join('.');
-          if (currentTouched.has(field)) next[field] = issue.message;
-        }
-      }
-      return next;
-    });
+    setErrors((prev) =>
+      computeStepErrors({
+        result,
+        stepFields: FIELDS_BY_STEP[step],
+        touched: currentTouched,
+        prevErrors: prev,
+      })
+    );
 
     return result.success;
   };
@@ -129,6 +195,31 @@ export function useVenueOnboarding(): UseVenueOnboardingReturn {
     const next = touched.has(field) ? touched : new Set(touched).add(field);
     if (next !== touched) setTouched(next);
     validateStep(currentStep, next);
+  };
+
+  // Set the venue location from the map pin. A pin always yields valid
+  // coordinates and a non-empty address, so clear the location errors directly
+  // rather than re-running validateStep against not-yet-committed state.
+  const setLocation = ({
+    lat: newLat,
+    lng: newLng,
+    address: newAddress,
+  }: {
+    lat: number;
+    lng: number;
+    address: string;
+  }) => {
+    setLat(newLat);
+    setLng(newLng);
+    setAddress(newAddress);
+    setTouched((prev) => new Set(prev).add('lat').add('lng').add('address'));
+    setErrors((prev) => {
+      const next = { ...prev };
+      delete next.lat;
+      delete next.lng;
+      delete next.address;
+      return next;
+    });
   };
 
   const goNext = async () => {
@@ -156,8 +247,33 @@ export function useVenueOnboarding(): UseVenueOnboardingReturn {
 
   // ── Existing handlers ───────────────────────────────────────────────────
 
+  // Once a field has been touched (e.g. a failed Next surfaced its error),
+  // re-validate it on every change so the error clears the instant the value
+  // becomes valid — not only on the next blur or Next-press. The new value is
+  // passed through to validateStep because setState is batched.
+  const handleVenueNameChange = (value: string) => {
+    setVenueName(value);
+    if (touched.has('venueName')) validateStep(1, touched, { venueName: value });
+  };
+
+  const handleBioChange = (value: string) => {
+    setBio(value);
+    if (touched.has('bio')) validateStep(2, touched, { bio: value || undefined });
+  };
+
   const handleVenueLinkChange = (field: keyof VenueLinks, value: string) => {
-    setVenueLinks((prev) => ({ ...prev, [field]: value }));
+    const nextLinks = { ...venueLinks, [field]: value };
+    setVenueLinks(nextLinks);
+    if (touched.has(`venueLinks.${field}`)) {
+      validateStep(3, touched, {
+        venueLinks: {
+          WEBSITE: nextLinks.WEBSITE || undefined,
+          INSTAGRAM: nextLinks.INSTAGRAM || undefined,
+          FACEBOOK: nextLinks.FACEBOOK || undefined,
+          TWITTER: nextLinks.TWITTER || undefined,
+        },
+      });
+    }
   };
 
   const handlePickImage = async () => {
@@ -177,6 +293,11 @@ export function useVenueOnboarding(): UseVenueOnboardingReturn {
     } catch {
       setImageError("Couldn't open the photo library. Please try again.");
     }
+  };
+
+  const handleRemoveImage = () => {
+    setProfileImageUri(null);
+    setImageError(null);
   };
 
   const handleSubmit = async () => {
@@ -201,14 +322,11 @@ export function useVenueOnboarding(): UseVenueOnboardingReturn {
     const parsed = createVenueOnboardingSchema.safeParse({
       venueName,
       address,
+      lat: lat ?? undefined,
+      lng: lng ?? undefined,
       bio: bio || undefined,
       contactEmail: contactEmail || undefined,
-      venueLinks: {
-        WEBSITE: venueLinks.WEBSITE || undefined,
-        INSTAGRAM: venueLinks.INSTAGRAM || undefined,
-        FACEBOOK: venueLinks.FACEBOOK || undefined,
-        TWITTER: venueLinks.TWITTER || undefined,
-      },
+      venueLinks: normalizedVenueLinks(),
       profileImageUrl,
     });
 
@@ -227,6 +345,9 @@ export function useVenueOnboarding(): UseVenueOnboardingReturn {
 
     try {
       await createVenueProfile(parsed.data);
+      // Onboarding succeeded — the draft has served its purpose and must not
+      // resurrect on a future sign-up for this account.
+      clearDraft();
       // Optimistically flip onboardingComplete so (app)/_layout's redirect
       // guard doesn't bounce us back on the next mount. invalidate runs in
       // the background to reconcile the rest of the me payload.
@@ -234,12 +355,14 @@ export function useVenueOnboarding(): UseVenueOnboardingReturn {
         old ? { ...old, onboardingComplete: true } : old
       );
       void queryClient.invalidateQueries({ queryKey: trpc.users.me.queryKey() });
+      appToast.success('Venue profile created', 'Welcome to CeolX!');
       router.replace('/(app)/(tabs)/map');
     } catch (err: unknown) {
       // If the server says the profile already exists, the user has finished
       // onboarding (possibly from a half-failed prior submit). Route them
       // forward instead of dead-ending on the form.
       if (getTRPCErrorCode(err) === 'CONFLICT') {
+        clearDraft();
         queryClient.setQueryData<RouterOutputs['users']['me']>(trpc.users.me.queryKey(), (old) =>
           old ? { ...old, onboardingComplete: true } : old
         );
@@ -258,12 +381,14 @@ export function useVenueOnboarding(): UseVenueOnboardingReturn {
   return {
     // fields
     venueName,
-    setVenueName,
+    setVenueName: handleVenueNameChange,
     bio,
-    setBio,
+    setBio: handleBioChange,
     BIO_MAX,
     address,
-    setAddress,
+    lat,
+    lng,
+    setLocation,
     contactEmail,
     setContactEmail,
     venueLinks,
@@ -276,7 +401,10 @@ export function useVenueOnboarding(): UseVenueOnboardingReturn {
     isPending: isPending || isImageUploading,
     // handlers
     handlePickImage,
+    handleRemoveImage,
     handleSubmit,
+    // draft persistence
+    clearDraft,
     // step navigation
     currentStep,
     touched,

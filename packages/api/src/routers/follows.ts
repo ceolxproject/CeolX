@@ -1,5 +1,5 @@
 import { TRPCError } from '@trpc/server';
-import { and, desc, eq, inArray, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, ne, sql } from 'drizzle-orm';
 
 import { db } from '@CeolX/db';
 import { user } from '@CeolX/db/schema/auth';
@@ -45,7 +45,7 @@ export const followsRouter = router({
    * Follow a user. Validates:
    * 1. Not self-follow
    * 2. Followee user exists
-   * 3. Followee has at least one active profile (artist or venue)
+   * 3. Followee has a public profile (artist or venue) — i.e. is not a bare spectator
    * 4. Not a duplicate (unique constraint)
    */
   follow: protectedProcedure.input(followSchema).mutation(async ({ ctx, input }) => {
@@ -63,19 +63,27 @@ export const followsRouter = router({
       throw new TRPCError({ code: 'NOT_FOUND', message: 'User not found' });
     }
 
+    // Existence check only — intentionally NOT gated on `isActive` / subscription
+    // status. Subscription-based visibility is deferred until the subscription
+    // system ships (see venues.byId, Asana 1215489113550392), so profiles render
+    // for non-owners while inactive. Requiring an *active* profile here diverged
+    // from that read path: a spectator could open an inactive venue/artist profile
+    // but got a 404 on Follow. Gate only on profile presence — spectators have
+    // neither row, so they stay unfollowable. Restore the active gate alongside the
+    // read-path gate once subscriptions are live.
     const [artistProfile, venueProfile] = await Promise.all([
       db.query.artistProfiles.findFirst({
-        where: and(eq(artistProfiles.userId, followeeId), eq(artistProfiles.isActive, true)),
+        where: eq(artistProfiles.userId, followeeId),
         columns: { id: true },
       }),
       db.query.venueProfiles.findFirst({
-        where: and(eq(venueProfiles.userId, followeeId), eq(venueProfiles.isActive, true)),
+        where: eq(venueProfiles.userId, followeeId),
         columns: { id: true },
       }),
     ]);
 
     if (!artistProfile && !venueProfile) {
-      throw new TRPCError({ code: 'NOT_FOUND', message: 'User has no active profile' });
+      throw new TRPCError({ code: 'NOT_FOUND', message: 'User has no public profile' });
     }
 
     try {
@@ -127,7 +135,9 @@ export const followsRouter = router({
         createdAt: follows.createdAt,
       })
       .from(follows)
-      .where(eq(follows.followerId, ctx.userId))
+      // Exclude any self-follow row (legacy data predating the mutation guard) —
+      // a user must never appear in their own Following list.
+      .where(and(eq(follows.followerId, ctx.userId), ne(follows.followeeId, ctx.userId)))
       .orderBy(desc(follows.createdAt))
       .limit(limit + 1)
       .offset(offset);
@@ -191,6 +201,8 @@ export const followsRouter = router({
 
     const filtered = following.filter((f) => {
       if (!f.profile) return false;
+      // Defensive: never surface the viewer themselves in their own list.
+      if (f.followeeId === ctx.userId) return false;
       if (profileType && f.profileType !== profileType) return false;
       return true;
     });

@@ -3,19 +3,44 @@ const { getDefaultConfig } = require('expo/metro-config');
 const { withSentryConfig } = require('@sentry/react-native/metro');
 const { withUniwindConfig } = require('uniwind/metro');
 const { wrapWithReanimatedMetroConfig } = require('react-native-reanimated/metro-config');
+const path = require('node:path');
+
+// Pin Expo's notion of the Metro server root to the project (apps/native)
+// _before_ getDefaultConfig reads it. By default Expo points serverRoot at the
+// pnpm workspace root, which causes Metro 0.83's Server.js to compute the
+// entry's originModulePath as `${workspaceRoot}/.`. TreeFS normalises that to
+// `../../.` relative to the project root and the resulting hierarchical lookup
+// trips the "Unexpectedly escaped traversal" invariant during
+// `expo export:embed --eager`. Setting this env var keeps serverRoot ==
+// projectRoot, but disables Expo's automatic monorepo watchFolders, so we
+// reinstate those manually below.
+process.env.EXPO_NO_METRO_WORKSPACE_ROOT = '1';
+
+const projectRoot = __dirname;
+const workspaceRoot = path.resolve(projectRoot, '../..');
 
 /** @type {import('expo/metro-config').MetroConfig} */
-const config = getDefaultConfig(__dirname);
+const config = getDefaultConfig(projectRoot);
 
-// TypeScript ESM packages (e.g. packages/shared) use `.js` extensions in their
-// import paths as required by the TS compiler. Metro resolves imports literally
-// and can't find the `.js` files (which don't exist — only `.ts` does). This
-// resolver retries with the `.ts` / `.tsx` extension when a `.js` import fails.
+config.watchFolders = [workspaceRoot];
+config.resolver.nodeModulesPaths = [
+  path.resolve(projectRoot, 'node_modules'),
+  path.resolve(workspaceRoot, 'node_modules'),
+];
+// Leave hierarchical lookup ENABLED. pnpm's isolated mode puts a package's
+// peer/runtime deps inside its own `.pnpm/<hash>/node_modules/` directory
+// (e.g. `whatwg-fetch` sits next to `@expo/metro-runtime` inside its isolated
+// node_modules). Without the walk-up Metro can't find them.
+
 const defaultResolveRequest = config.resolver.resolveRequest;
 config.resolver.resolveRequest = (context, moduleName, platform) => {
   try {
     return (defaultResolveRequest ?? context.resolveRequest)(context, moduleName, platform);
   } catch (error) {
+    // TypeScript ESM workspace packages (packages/shared etc.) use `.js`
+    // extensions in their import paths as the TS compiler requires. Metro
+    // resolves imports literally and can't find the `.js` files (only `.ts`
+    // exists), so retry with the source extensions when the literal lookup fails.
     if (moduleName.endsWith('.js')) {
       const tsName = moduleName.slice(0, -3) + '.ts';
       try {
@@ -34,6 +59,23 @@ const uniwindConfig = withUniwindConfig(wrapWithReanimatedMetroConfig(config), {
   dtsFile: './uniwind-types.d.ts',
 });
 
-// withSentryConfig enables automatic debug ID injection and source map handling
-// for accurate crash reports in the Sentry ceolx-mobile project.
-module.exports = withSentryConfig(uniwindConfig);
+// Sentry's metro serializer (@sentry/react-native 7.11) calls
+// `bundleCode.match(...)` on the inner serializer's output. With Metro 0.83
+// the export output isn't the `{code, map}` shape Sentry expects, so
+// `bundleCode` is undefined and `determineDebugIdFromBundleSource` crashes.
+// This hits EVERY export path:
+//   - `expo export:embed` — EAGER_BUNDLE phase (`--eager`) and the Gradle
+//     `:app:createBundleReleaseJsAndAssets` fallback during native builds.
+//   - plain `expo export` — run by `eas update` to produce OTA bundles.
+// Skip the Sentry wrapper for any export invocation. The dev server still gets
+// debug-id injection; the trade-off is that exported/OTA bundles carry no
+// Sentry debug IDs, so OTA JS stack traces aren't source-mapped in Sentry.
+const isExport = process.argv.some(
+  (arg) =>
+    arg === 'export' ||
+    arg === 'export:embed' ||
+    arg.endsWith('/export') ||
+    arg.endsWith('/export:embed')
+);
+
+module.exports = isExport ? uniwindConfig : withSentryConfig(uniwindConfig);

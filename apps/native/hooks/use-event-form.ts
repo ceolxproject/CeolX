@@ -1,11 +1,18 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { launchImageLibraryAsync, requestMediaLibraryPermissionsAsync } from 'expo-image-picker';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Alert } from 'react-native';
 
 import type { EventCategory } from '@CeolX/shared';
+import { isValidCoordinate } from '@CeolX/shared';
 import { createEventSchema } from '@CeolX/shared/validators';
 
+import type { ArtistResult } from '@/components/events/ArtistSearchRow';
+import {
+  combineDateAndTime,
+  endDateTimeError,
+  platformInviteIds,
+} from '@/hooks/use-event-form.utils';
 import { keyFromCdnUrl, useMediaDelete } from '@/hooks/use-media-delete';
 import { useMediaUpload } from '@/hooks/use-media-upload';
 import { trpc } from '@/utils/trpc';
@@ -14,15 +21,6 @@ import { trpc } from '@/utils/trpc';
 // Types
 // ---------------------------------------------------------------------------
 
-/** Full artist object stored alongside collaborator IDs so the picker can
- *  re-hydrate its chip display after the component remounts (step navigation). */
-export type CollaboratorArtist = {
-  id: string;
-  stageName: string;
-  genre: string | null;
-  image: string | null;
-};
-
 export interface EventFormData {
   // Step 1 — Basic Details
   title: string;
@@ -30,9 +28,10 @@ export interface EventFormData {
   coverImageUri: string | null;
   category: EventCategory | '';
   collectionId: string;
-  collaborators: string[];
-  collaboratorArtists: CollaboratorArtist[];
-  platformInvites: string[];
+  // Full artist display objects (not just IDs) so the invite chips persist
+  // across step changes — the picker unmounts between steps, so holding the
+  // display data there lost it on back-navigation. IDs are derived at submit.
+  platformInvites: ArtistResult[];
   unregisteredCollaborators: Array<{ name: string; email: string }>;
 
   // Step 2 — Date & Venue
@@ -55,6 +54,33 @@ export interface EventFormData {
 
 type Step = 1 | 2 | 3;
 
+// Which wizard step owns each schema field. Used to route final-schema errors
+// back to the step that actually renders the offending field, so a server-side
+// rule (e.g. dateEnd >= dateStart) lands where the user can see and fix it
+// rather than always dumping them on step 1.
+const FIELD_STEP: Record<string, Step> = {
+  title: 1,
+  description: 1,
+  coverImage: 1,
+  category: 1,
+  collectionId: 1,
+  platformInvites: 1,
+  unregisteredCollaborators: 1,
+  dateStart: 2,
+  dateEnd: 2,
+  startTime: 2,
+  endTime: 2,
+  lat: 2,
+  lng: 2,
+  venueId: 2,
+  venueAddress: 2,
+  ticketPrice: 3,
+  ticketLink: 3,
+  ticketQuantity: 3,
+  adTitle: 3,
+  adDescription: 3,
+};
+
 interface UseEventFormOptions {
   /** If provided, the form operates in edit mode. */
   eventId?: string;
@@ -62,8 +88,6 @@ interface UseEventFormOptions {
   initialData?: EventFormData;
   /** Called after a successful create or update. */
   onSuccess?: () => void;
-  /** Current user role — used to enforce persona-specific mandatory fields. */
-  isVenue?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -77,8 +101,6 @@ function defaults(initial?: EventFormData): EventFormData {
     coverImageUri: initial?.coverImageUri ?? null,
     category: initial?.category ?? '',
     collectionId: initial?.collectionId ?? '',
-    collaborators: initial?.collaborators ?? [],
-    collaboratorArtists: initial?.collaboratorArtists ?? [],
     platformInvites: initial?.platformInvites ?? [],
     unregisteredCollaborators: initial?.unregisteredCollaborators ?? [],
 
@@ -100,15 +122,31 @@ function defaults(initial?: EventFormData): EventFormData {
 }
 
 /**
- * Merge a Date (date portion) with a Date (time portion) into an ISO-8601
- * datetime string. Returns undefined when either part is missing.
+ * Validate that the optional end time does not fall before the start time.
+ * Both times are anchored to the same event date (dateStart) and compared as
+ * full ISO datetimes — mirroring how the submit payload is built — so the
+ * per-step check can never drift from what's actually saved. Equal times are
+ * allowed, matching the shared schema's `dateEnd >= dateStart` rule.
+ *
+ * Returns the error message when the end is strictly earlier, otherwise
+ * undefined (including when any of the three inputs is missing — nothing to
+ * compare yet). Exported for unit testing.
+ *
+ * NOTE: The live form now validates end time via `endDateTimeError` (which
+ * also accounts for a separate end date). This single-date variant is retained
+ * for the `use-event-form.test.ts` unit suite; prefer `endDateTimeError` for
+ * new call sites.
  */
-function combineDateAndTime(date: Date | null, time: Date | null): string | undefined {
-  if (!date || !time) return undefined;
-
-  const combined = new Date(date);
-  combined.setHours(time.getHours(), time.getMinutes(), time.getSeconds(), 0);
-  return combined.toISOString();
+export function endTimeBeforeStartError(
+  dateStart: Date | null,
+  startTime: Date | null,
+  endTime: Date | null
+): string | undefined {
+  if (!dateStart || !startTime || !endTime) return undefined;
+  const start = combineDateAndTime(dateStart, startTime);
+  const end = combineDateAndTime(dateStart, endTime);
+  if (start && end && end < start) return 'End time cannot be before the start time';
+  return undefined;
 }
 
 /**
@@ -139,7 +177,6 @@ function parseQuantity(value: string): number | undefined {
 
 export function useEventForm(options?: UseEventFormOptions) {
   const isEditing = !!options?.eventId;
-  const isVenue = options?.isVenue ?? false;
   const queryClient = useQueryClient();
 
   const init = defaults(options?.initialData);
@@ -153,11 +190,7 @@ export function useEventForm(options?: UseEventFormOptions) {
   const [coverImageUri, setCoverImageUri] = useState<string | null>(init.coverImageUri);
   const [category, setCategory] = useState<EventCategory | ''>(init.category);
   const [collectionId, setCollectionId] = useState(init.collectionId);
-  const [collaborators, setCollaborators] = useState<string[]>(init.collaborators);
-  const [collaboratorArtists, setCollaboratorArtists] = useState<CollaboratorArtist[]>(
-    init.collaboratorArtists
-  );
-  const [platformInvites, setPlatformInvites] = useState<string[]>(init.platformInvites);
+  const [platformInvites, setPlatformInvites] = useState<ArtistResult[]>(init.platformInvites);
   const [unregisteredCollaborators, setUnregisteredCollaborators] = useState<
     Array<{ name: string; email: string }>
   >(init.unregisteredCollaborators);
@@ -181,6 +214,16 @@ export function useEventForm(options?: UseEventFormOptions) {
 
   // Validation errors (keyed by field path)
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  // Fields the user has interacted with — a text field they've left (blurred),
+  // or a picker/date/location they've chosen a value for. Drives the
+  // "stay silent until they leave a field, then keep it live" behaviour: only
+  // touched fields are validated in real time, so we never nag mid-typing.
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
+
+  const markTouched = useCallback((field: string) => {
+    setTouched((prev) => (prev[field] ? prev : { ...prev, [field]: true }));
+  }, []);
 
   // Mutations
   const createMutation = useMutation(trpc.events.create.mutationOptions());
@@ -220,58 +263,124 @@ export function useEventForm(options?: UseEventFormOptions) {
   }, []);
 
   // ---------------------------------------------------------------------------
-  // Validation helpers (per-step)
+  // Validation — one rule per field, shared by blur, change and the Next gate
   // ---------------------------------------------------------------------------
 
-  const validateStep1 = useCallback((): boolean => {
-    const stepErrors: Record<string, string> = {};
+  // Returns the error message for a single field, or undefined when valid.
+  // On-blur, on-change (for touched fields) and the on-Next step checks all go
+  // through here so the rules can never drift apart.
+  const fieldError = useCallback(
+    (field: string): string | undefined => {
+      switch (field) {
+        case 'title': {
+          const value = title.trim();
+          if (!value || value.length < 3) return 'Title must be at least 3 characters';
+          if (value.length > 150) return 'Title must be at most 150 characters';
+          return undefined;
+        }
+        case 'description': {
+          const value = description.trim();
+          if (!value || value.length < 10) return 'Description must be at least 10 characters';
+          if (value.length > 2000) return 'Description must be at most 2000 characters';
+          return undefined;
+        }
+        case 'category':
+          return category ? undefined : 'Category is required';
+        case 'dateStart':
+          return dateStart ? undefined : 'Start date is required';
+        case 'startTime':
+          return startTime ? undefined : 'Start time is required';
+        case 'endTime':
+          // End time is optional, but when set it must not precede the start.
+          // Surfaced here (not just in the final schema) so the error renders
+          // live under End Time on step 2 and blocks the step's Continue gate.
+          return endDateTimeError(dateStart, startTime, dateEnd, endTime);
+        case 'lat':
+          // Map and feed are coordinate-driven, so an event needs a real pin.
+          // A free-text address alone is not enough — the user must drop a pin
+          // or pick a registered venue (whose stored pin the server inherits).
+          // isValidCoordinate also rejects null-island (0,0), so a failed
+          // geocode can no longer slip through as a "valid" location.
+          return !isValidCoordinate(lat, lng) && !venueId
+            ? 'A location pin or a registered venue is required'
+            : undefined;
+        default:
+          return undefined;
+      }
+    },
+    [title, description, category, dateStart, dateEnd, startTime, endTime, lat, lng, venueId]
+  );
 
-    if (!title.trim() || title.trim().length < 3) {
-      stepErrors.title = 'Title must be at least 3 characters';
-    } else if (title.trim().length > 150) {
-      stepErrors.title = 'Title must be at most 150 characters';
-    }
+  // Re-validate every already-touched field whenever any value changes, so an
+  // error clears the instant the user fixes it (and updates if still invalid).
+  // Untouched fields are skipped — they stay silent until the user reaches them.
+  useEffect(() => {
+    setErrors((prev) => {
+      const next = { ...prev };
+      let changed = false;
+      for (const field of Object.keys(touched)) {
+        const err = fieldError(field);
+        if (err) {
+          if (next[field] !== err) {
+            next[field] = err;
+            changed = true;
+          }
+        } else if (field in next) {
+          delete next[field];
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, [touched, fieldError]);
 
-    if (!description.trim() || description.trim().length < 10) {
-      stepErrors.description = 'Description must be at least 10 characters';
-    } else if (description.trim().length > 2000) {
-      stepErrors.description = 'Description must be at most 2000 characters';
-    }
+  // Text fields validate when the user leaves them; the effect above then keeps
+  // them live as the user edits to fix the error.
+  const handleBlur = useCallback(
+    (field: string) => {
+      markTouched(field);
+    },
+    [markTouched]
+  );
 
-    if (!category) {
-      stepErrors.category = 'Category is required';
-    }
+  // The Next / Submit gate: validate a set of fields together, mark them all
+  // touched (so later edits re-validate in real time) and merge the result into
+  // the error map.
+  const validateFields = useCallback(
+    (fields: string[]): boolean => {
+      const computed = fields.map((field) => [field, fieldError(field)] as const);
+      const ok = computed.every(([, err]) => !err);
 
-    if (isVenue && collaborators.length === 0) {
-      stepErrors.collaborators = 'At least one confirmed collaborator is required for venue events';
-    }
+      setErrors((prev) => {
+        const next = { ...prev };
+        for (const [field, err] of computed) {
+          if (err) next[field] = err;
+          else delete next[field];
+        }
+        return next;
+      });
+      setTouched((prev) => {
+        const next = { ...prev };
+        for (const field of fields) next[field] = true;
+        return next;
+      });
+      return ok;
+    },
+    [fieldError]
+  );
 
-    setErrors(stepErrors);
-    return Object.keys(stepErrors).length === 0;
-  }, [title, description, category, isVenue, collaborators]);
+  const validateStep1 = useCallback(
+    (): boolean => validateFields(['title', 'description', 'category']),
+    [validateFields]
+  );
 
-  const validateStep2 = useCallback((): boolean => {
-    const stepErrors: Record<string, string> = {};
-
-    if (!dateStart) {
-      stepErrors.dateStart = 'Start date is required';
-    }
-
-    if (!startTime) {
-      stepErrors.startTime = 'Start time is required';
-    }
-
-    if ((lat === null || lng === null) && !venueAddress.trim()) {
-      stepErrors.lat = 'Either a location pin or venue address is required';
-    }
-
-    setErrors(stepErrors);
-    return Object.keys(stepErrors).length === 0;
-  }, [dateStart, startTime, lat, lng, venueAddress]);
+  const validateStep2 = useCallback(
+    (): boolean => validateFields(['dateStart', 'startTime', 'endTime', 'lat']),
+    [validateFields]
+  );
 
   const validateStep3 = useCallback((): boolean => {
     // All Step 3 fields are optional — always valid.
-    setErrors({});
     return true;
   }, []);
 
@@ -287,6 +396,70 @@ export function useEventForm(options?: UseEventFormOptions) {
         return false;
     }
   }, [currentStep, validateStep1, validateStep2, validateStep3]);
+
+  // Discrete fields (pickers, date/time, location) have no "blur" — choosing a
+  // value IS the interaction, so mark them touched on change. The effect then
+  // validates immediately, clearing the error the moment a value is selected.
+  const handleCategoryChange = useCallback(
+    (value: EventCategory) => {
+      setCategory(value);
+      markTouched('category');
+    },
+    [markTouched]
+  );
+
+  const handleDateStartChange = useCallback(
+    (value: Date) => {
+      setDateStart(value);
+      markTouched('dateStart');
+    },
+    [markTouched]
+  );
+
+  const handleStartTimeChange = useCallback(
+    (value: Date) => {
+      setStartTime(value);
+      markTouched('startTime');
+    },
+    [markTouched]
+  );
+
+  // End time is a discrete picker too — mark it touched on change so the
+  // "must be after start time" rule validates live, and clears the instant
+  // the user picks a valid (or empty) value.
+  const handleEndTimeChange = useCallback(
+    (value: Date | null) => {
+      setEndTime(value);
+      markTouched('endTime');
+    },
+    [markTouched]
+  );
+
+  // Both the map pin and the free-text venue address satisfy the same "lat"
+  // location rule, so either one being set clears that error.
+  const handleLatChange = useCallback(
+    (value: number | null) => {
+      setLat(value);
+      markTouched('lat');
+    },
+    [markTouched]
+  );
+
+  const handleLngChange = useCallback(
+    (value: number | null) => {
+      setLng(value);
+      markTouched('lat');
+    },
+    [markTouched]
+  );
+
+  const handleVenueAddressChange = useCallback(
+    (value: string) => {
+      setVenueAddress(value);
+      markTouched('lat');
+    },
+    [markTouched]
+  );
 
   // ---------------------------------------------------------------------------
   // Navigation
@@ -362,8 +535,7 @@ export function useEventForm(options?: UseEventFormOptions) {
       ticketPrice: priceToCents(ticketPrice),
       ticketQuantity: parseQuantity(ticketQuantity),
       collectionId: collectionId || undefined,
-      collaborators: collaborators.length > 0 ? collaborators : undefined,
-      platformInvites: platformInvites.length > 0 ? platformInvites : undefined,
+      platformInvites: platformInviteIds(platformInvites),
       unregisteredCollaborators:
         unregisteredCollaborators.length > 0 ? unregisteredCollaborators : undefined,
       adTitle: adTitle.trim() || undefined,
@@ -375,12 +547,20 @@ export function useEventForm(options?: UseEventFormOptions) {
 
     if (!parsed.success) {
       const fieldErrors: Record<string, string> = {};
+      // Route to the earliest step that owns a failing field, so the errors are
+      // actually visible (the date/time and location rules live on step 2, not 1).
+      let targetStep: Step = 3;
       for (const issue of parsed.error.issues) {
-        fieldErrors[issue.path.join('.')] = issue.message;
+        let key = issue.path.join('.');
+        // dateEnd has no control of its own on the form — the user edits End
+        // Time, so surface its rule there where step 2 already renders it.
+        if (key === 'dateEnd') key = 'endTime';
+        fieldErrors[key] = issue.message;
+        const step = FIELD_STEP[key] ?? 1;
+        if (step < targetStep) targetStep = step;
       }
       setErrors(fieldErrors);
-      // Navigate back to step 1 so the field errors are actually visible
-      setCurrentStep(1);
+      setCurrentStep(targetStep);
       Alert.alert(
         'Invalid event data',
         parsed.error.issues[0]?.message ?? 'Please check all fields.'
@@ -443,7 +623,7 @@ export function useEventForm(options?: UseEventFormOptions) {
     ticketPrice,
     ticketQuantity,
     collectionId,
-    collaborators,
+    platformInvites,
     unregisteredCollaborators,
     adTitle,
     adDescription,
@@ -469,13 +649,9 @@ export function useEventForm(options?: UseEventFormOptions) {
     isUploadingCover: coverUpload.isUploading,
     coverUploadProgress: coverUpload.progress,
     category,
-    setCategory,
+    setCategory: handleCategoryChange,
     collectionId,
     setCollectionId,
-    collaborators,
-    setCollaborators,
-    collaboratorArtists,
-    setCollaboratorArtists,
     platformInvites,
     setPlatformInvites,
     unregisteredCollaborators,
@@ -483,19 +659,19 @@ export function useEventForm(options?: UseEventFormOptions) {
 
     // Step 2 — Date & Venue
     dateStart,
-    setDateStart,
+    setDateStart: handleDateStartChange,
     dateEnd,
     setDateEnd,
     startTime,
-    setStartTime,
+    setStartTime: handleStartTimeChange,
     endTime,
-    setEndTime,
+    setEndTime: handleEndTimeChange,
     lat,
-    setLat,
+    setLat: handleLatChange,
     lng,
-    setLng,
+    setLng: handleLngChange,
     venueAddress,
-    setVenueAddress,
+    setVenueAddress: handleVenueAddressChange,
     venueId,
     setVenueId,
 
@@ -514,6 +690,7 @@ export function useEventForm(options?: UseEventFormOptions) {
     // Wizard state
     currentStep,
     errors,
+    handleBlur,
     isEditing,
     isPending,
 

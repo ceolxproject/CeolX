@@ -46,6 +46,14 @@ export const MOCK_EVENT_DETAIL: EventDetailData = {
       profileImageUrl: undefined,
       eventCount: 32,
     },
+    {
+      id: 'artist-4',
+      stageName: 'Niamh Dunne',
+      genre: null,
+      profileImageUrl: undefined,
+      eventCount: 0,
+      isExternal: true,
+    },
   ],
   collection: {
     id: 'collection-1',

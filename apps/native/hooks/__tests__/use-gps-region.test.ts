@@ -35,11 +35,15 @@ vi.mock('react', () => ({
   useState: vi.fn(),
 }));
 
+vi.mock('@/utils/base-location', () => ({
+  getBaseLocation: vi.fn(),
+}));
+
 const fetchSpy = vi.fn<typeof globalThis.fetch>();
 vi.stubGlobal('fetch', fetchSpy);
 
 // Import after all mocks
-import { resolveLocation } from '../use-gps-region';
+import { applyVenueFallback, resolveLocation, resolveMapInitialRegion } from '../use-gps-region';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -51,6 +55,7 @@ function createSetters() {
     setGpsPermissionGranted: vi.fn(),
     setLocationSource: vi.fn(),
     setMapKey: vi.fn(),
+    setPlaceLabel: vi.fn(),
   };
 }
 
@@ -168,5 +173,113 @@ describe('resolveLocation', () => {
     await resolveLocation(setters);
 
     expect(setters.setLocationSource).toHaveBeenCalledWith('default');
+  });
+
+  it('uses the saved base location when permission denied and a base location exists', async () => {
+    mockGetForegroundPermissionsAsync.mockResolvedValue({ status: 'denied' });
+    const setters = createSetters();
+
+    await resolveLocation(setters, { lat: 51.9, lng: -8.47, label: 'Cork City' });
+
+    expect(setters.setLocationSource).toHaveBeenCalledWith('saved');
+    expect(setters.setInitialRegion).toHaveBeenCalledWith(
+      expect.objectContaining({ latitude: 51.9, longitude: -8.47 })
+    );
+    expect(setters.setPlaceLabel).toHaveBeenCalledWith('Cork City');
+    expect(fetchSpy).not.toHaveBeenCalled(); // saved beats IP
+  });
+
+  it('prefers a live GPS fix over the saved base location', async () => {
+    mockGetForegroundPermissionsAsync.mockResolvedValue({ status: 'granted' });
+    mockGetLastKnownPositionAsync.mockResolvedValue({
+      coords: { latitude: 53.35, longitude: -6.26 },
+    });
+    const setters = createSetters();
+
+    await resolveLocation(setters, { lat: 51.9, lng: -8.47, label: 'Cork City' });
+
+    expect(setters.setLocationSource).toHaveBeenCalledWith('gps');
+    expect(setters.setLocationSource).not.toHaveBeenCalledWith('saved');
+  });
+
+  it('falls back to IP when there is no GPS fix and no saved location', async () => {
+    mockGetForegroundPermissionsAsync.mockResolvedValue({ status: 'denied' });
+    fetchSpy.mockResolvedValueOnce(
+      new Response(JSON.stringify({ ok: true, latitude: 51.9, longitude: -8.47 }), { status: 200 })
+    );
+    const setters = createSetters();
+
+    await resolveLocation(setters, null);
+
+    expect(setters.setLocationSource).toHaveBeenCalledWith('ip');
+  });
+
+  it('uses the saved base location when granted but no position is available', async () => {
+    mockGetForegroundPermissionsAsync.mockResolvedValue({ status: 'granted' });
+    mockGetLastKnownPositionAsync.mockResolvedValue(null);
+    const setters = createSetters();
+
+    await resolveLocation(setters, { lat: 51.9, lng: -8.47, label: 'Cork City' });
+
+    expect(setters.setLocationSource).toHaveBeenCalledWith('saved');
+    expect(setters.setPlaceLabel).toHaveBeenCalledWith('Cork City');
+    expect(fetchSpy).not.toHaveBeenCalled(); // saved beats IP even when permission was granted
+  });
+});
+
+describe('applyVenueFallback', () => {
+  const pin = { latitude: 53.27, longitude: -9.05 };
+
+  it('upgrades the Ireland default to the venue pin', () => {
+    expect(applyVenueFallback('default', pin)).toEqual({
+      region: { latitude: 53.27, longitude: -9.05, latitudeDelta: 0.5, longitudeDelta: 0.5 },
+      source: 'venue-profile',
+    });
+  });
+
+  it('does not override a live GPS fix', () => {
+    expect(applyVenueFallback('gps', pin)).toBeNull();
+  });
+
+  it('does not override a saved base location', () => {
+    expect(applyVenueFallback('saved', pin)).toBeNull();
+  });
+
+  it('does not override an IP fix', () => {
+    expect(applyVenueFallback('ip', pin)).toBeNull();
+  });
+
+  it('does nothing while resolution is pending', () => {
+    expect(applyVenueFallback('pending', pin)).toBeNull();
+  });
+
+  it('does nothing once already on the venue pin (no re-fire loop)', () => {
+    expect(applyVenueFallback('venue-profile', pin)).toBeNull();
+  });
+
+  it('returns null when there is no venue pin', () => {
+    expect(applyVenueFallback('default', null)).toBeNull();
+  });
+});
+
+describe('resolveMapInitialRegion', () => {
+  const gpsRegion = {
+    latitude: 53.35,
+    longitude: -6.26,
+    latitudeDelta: 0.5,
+    longitudeDelta: 0.5,
+  };
+
+  it('falls back to the GPS region when there is no override', () => {
+    expect(resolveMapInitialRegion(null, gpsRegion)).toBe(gpsRegion);
+  });
+
+  it('centres on the manual override at town-level zoom when one is set', () => {
+    expect(resolveMapInitialRegion({ lat: 51.9, lng: -8.47 }, gpsRegion)).toEqual({
+      latitude: 51.9,
+      longitude: -8.47,
+      latitudeDelta: 0.15,
+      longitudeDelta: 0.15,
+    });
   });
 });

@@ -11,6 +11,8 @@ import { eventAnalyticsInputSchema, trackTicketClickInputSchema } from '@CeolX/s
 
 import { protectedProcedure, publicProcedure } from '../../index';
 
+import { resolveProfileImageUrl } from './helpers';
+
 // ─── Public mutations ────────────────────────────────────────────────────────
 
 // Public — anyone clicking an external ticket link counts. Idempotently
@@ -165,6 +167,7 @@ export const analytics = protectedProcedure
           artistProfileId: eventCollaborators.artistProfileId,
           invitedEmail: eventCollaborators.invitedEmail,
           stageName: artistProfiles.stageName,
+          profileImageUrl: artistProfiles.profileImageUrl,
           userImage: user.image,
         })
         .from(eventCollaborators)
@@ -193,7 +196,10 @@ export const analytics = protectedProcedure
             {
               artistProfileId: r.artistProfileId,
               stageName: r.stageName ?? 'Unknown Artist',
-              profileImageUrl: r.userImage ?? null,
+              profileImageUrl: resolveProfileImageUrl(
+                { profileImageUrl: r.profileImageUrl },
+                r.userImage
+              ),
             },
           ]
         : []

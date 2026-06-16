@@ -4,35 +4,37 @@ import { Image, Pressable, ScrollView, Text, TextInput, View } from 'react-nativ
 
 import type { EventCategory } from '@CeolX/shared';
 
+import type { ArtistResult } from './ArtistSearchRow';
 import { CategoryPicker } from './CategoryPicker';
-import { CollaboratorPicker } from './CollaboratorPicker';
 import { CollectionPicker } from './CollectionPicker';
+import { FieldLabel } from './FieldLabel';
 import { InviteArtistPicker } from './InviteArtistPicker';
-
-import type { CollaboratorArtist } from '@/hooks/use-event-form';
 
 type Props = {
   title: string;
   onTitleChange: (v: string) => void;
+  /** Validate the title once the user leaves the field (real-time validation). */
+  onTitleBlur?: () => void;
   description: string;
   onDescriptionChange: (v: string) => void;
+  /** Validate the description once the user leaves the field. */
+  onDescriptionBlur?: () => void;
   coverImageUri: string | null;
   onPickImage: () => void;
+  onRemoveImage: () => void;
   category: EventCategory | '';
   onCategoryChange: (v: EventCategory) => void;
   collectionId: string;
   onCollectionIdChange: (v: string) => void;
-  collaborators: string[];
-  onCollaboratorsChange: (ids: string[]) => void;
-  collaboratorArtists: CollaboratorArtist[];
-  onCollaboratorArtistsChange: (artists: CollaboratorArtist[]) => void;
-  platformInvites: string[];
-  onPlatformInvitesChange: (ids: string[]) => void;
+  platformInvites: ArtistResult[];
+  onPlatformInvitesChange: (artists: ArtistResult[]) => void;
   unregisteredCollaborators: Array<{ name: string; email: string }>;
   onUnregisteredCollaboratorsChange: (invites: Array<{ name: string; email: string }>) => void;
   errors: Record<string, string>;
   onContinue: () => void;
   isVenue: boolean;
+  /** Current user's id — excluded from the invite search so a creator can't invite themselves. */
+  myUserId?: string;
 };
 
 const MAX_DESCRIPTION_LENGTH = 2000;
@@ -40,18 +42,17 @@ const MAX_DESCRIPTION_LENGTH = 2000;
 export function BasicDetailsStep({
   title,
   onTitleChange,
+  onTitleBlur,
   description,
   onDescriptionChange,
+  onDescriptionBlur,
   coverImageUri,
   onPickImage,
+  onRemoveImage,
   category,
   onCategoryChange,
   collectionId,
   onCollectionIdChange,
-  collaborators,
-  onCollaboratorsChange,
-  collaboratorArtists,
-  onCollaboratorArtistsChange,
   platformInvites,
   onPlatformInvitesChange,
   unregisteredCollaborators,
@@ -59,6 +60,7 @@ export function BasicDetailsStep({
   errors,
   onContinue,
   isVenue,
+  myUserId,
 }: Props) {
   return (
     <ScrollView
@@ -69,7 +71,10 @@ export function BasicDetailsStep({
     >
       {/* ── Event Title ── */}
       <View className="gap-2">
-        <Text className="text-sm font-semibold text-gray-3 font-urbanist">Event Title</Text>
+        <FieldLabel
+          label="Event Title"
+          hint="The name of your event as it appears on the map, feed and event page. Keep it short and descriptive."
+        />
         <TextInput
           className={cn(
             'rounded-lg border bg-surface px-4 py-3 text-sm text-white font-urbanist',
@@ -79,6 +84,7 @@ export function BasicDetailsStep({
           placeholderTextColor="#8d8d8d"
           value={title}
           onChangeText={onTitleChange}
+          onBlur={onTitleBlur}
           maxLength={120}
         />
         {errors.title && <Text className="text-xs text-error font-urbanist">{errors.title}</Text>}
@@ -86,15 +92,32 @@ export function BasicDetailsStep({
 
       {/* ── Event Banner / Image ── */}
       <View className="gap-2">
-        <Text className="text-sm font-semibold text-gray-3 font-urbanist">Event Banner/Image</Text>
+        <FieldLabel
+          label="Event Banner/Image"
+          hint="The cover image shown on your event card and detail page. PNG or JPEG, max 100kb."
+        />
         <Pressable onPress={onPickImage}>
           {coverImageUri ? (
-            <View className="rounded-xl overflow-hidden">
-              <Image
-                source={{ uri: coverImageUri }}
-                className="w-full h-44 rounded-xl"
-                resizeMode="cover"
-              />
+            <View className="h-44 rounded-xl overflow-hidden">
+              {/* The image must be a normal flow child (h-full w-full), NOT
+                  absolute inset-0. On Android, an absolutely-positioned <Image>
+                  contributes nothing to layout, so when it's revealed inside an
+                  already-mounted step (after picking) it attaches before its
+                  frame resolves — Fresco requests a 0-sized bitmap and never
+                  repaints, so the picked image stayed blank until a full remount
+                  (going to step 2 and back). A flow child is measured on
+                  insertion, so Fresco gets real bounds immediately. Same pattern
+                  as the post MediaPickerField preview. (Asana 1215040939202669) */}
+              <Image source={{ uri: coverImageUri }} className="h-full w-full" resizeMode="cover" />
+              {/* Tap the image to replace; tap ✕ to clear. Stops propagation so
+                  removing doesn't also re-open the picker. */}
+              <Pressable
+                onPress={onRemoveImage}
+                hitSlop={10}
+                className="absolute right-2 top-2 h-8 w-8 items-center justify-center rounded-full bg-black/60"
+              >
+                <Ionicons name="close" size={18} color="#fff" />
+              </Pressable>
             </View>
           ) : (
             <View
@@ -121,7 +144,10 @@ export function BasicDetailsStep({
       {/* ── Event Description ── */}
       <View className="gap-2">
         <View className="flex-row items-center justify-between">
-          <Text className="text-sm font-semibold text-gray-3 font-urbanist">Event Description</Text>
+          <FieldLabel
+            label="Event Description"
+            hint="Tell fans what to expect — the acts, the vibe, and any details they should know before they go."
+          />
           <Text className="text-xs text-gray-7 font-urbanist">
             {description.length}/{MAX_DESCRIPTION_LENGTH}
           </Text>
@@ -139,6 +165,7 @@ export function BasicDetailsStep({
               onDescriptionChange(text);
             }
           }}
+          onBlur={onDescriptionBlur}
           multiline
           textAlignVertical="top"
           maxLength={MAX_DESCRIPTION_LENGTH}
@@ -150,7 +177,10 @@ export function BasicDetailsStep({
 
       {/* ── Category ── */}
       <View className="gap-2">
-        <Text className="text-sm font-semibold text-gray-3 font-urbanist">Category</Text>
+        <FieldLabel
+          label="Category"
+          hint="Pick the type of event so the right audience can discover it when filtering the map and feed."
+        />
         <CategoryPicker value={category} onChange={onCategoryChange} error={errors.category} />
       </View>
 
@@ -159,26 +189,14 @@ export function BasicDetailsStep({
         <CollectionPicker collectionId={collectionId} onCollectionIdChange={onCollectionIdChange} />
       )}
 
-      {/* ── Collaborators + Invite Artists — Venues only ── */}
-      {isVenue && (
-        <>
-          <CollaboratorPicker
-            collaborators={collaborators}
-            onCollaboratorsChange={onCollaboratorsChange}
-            initialSelectedArtists={collaboratorArtists}
-            onCollaboratorObjectsChange={onCollaboratorArtistsChange}
-            isRequired
-            error={errors.collaborators}
-          />
-
-          <InviteArtistPicker
-            platformInvites={platformInvites}
-            onPlatformInvitesChange={onPlatformInvitesChange}
-            unregisteredInvites={unregisteredCollaborators}
-            onUnregisteredInvitesChange={onUnregisteredCollaboratorsChange}
-          />
-        </>
-      )}
+      {/* ── Invite Artists — Venues invite performers, Artists invite co-artists ── */}
+      <InviteArtistPicker
+        platformInvites={platformInvites}
+        onPlatformInvitesChange={onPlatformInvitesChange}
+        unregisteredInvites={unregisteredCollaborators}
+        onUnregisteredInvitesChange={onUnregisteredCollaboratorsChange}
+        myUserId={myUserId}
+      />
 
       {/* ── Continue Button ── */}
       <Pressable

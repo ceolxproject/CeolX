@@ -1,5 +1,5 @@
 import { TRPCError } from '@trpc/server';
-import { and, eq, ilike, inArray } from 'drizzle-orm';
+import { and, eq, ilike, inArray, or } from 'drizzle-orm';
 import { z } from 'zod';
 
 import { db } from '@CeolX/db';
@@ -14,20 +14,24 @@ import { artistProcedure, protectedProcedure, publicProcedure, router } from '..
 import { getFollowerCounts, getSocialLinksRecord, upsertSocialLinks } from './_profile-helpers';
 
 export const artistsRouter = router({
-  // Search active artist profiles by stage name — used by CollaboratorPicker / InviteArtistPicker
-  search: publicProcedure
+  // Search artist profiles by stage name OR account name — used by InviteArtistPicker.
+  // Protected: only authenticated users (venues inviting artists) may enumerate
+  // artists, and the result exposes the account name (personal data) — GDPR.
+  search: protectedProcedure
     .input(z.object({ q: z.string().min(1).max(100) }))
     .query(async ({ input }) => {
+      const term = `%${input.q}%`;
       const results = await db
         .select({
           id: artistProfiles.userId,
           stageName: artistProfiles.stageName,
           genre: artistProfiles.genre,
           image: user.image,
+          name: user.name,
         })
         .from(artistProfiles)
         .innerJoin(user, eq(artistProfiles.userId, user.id))
-        .where(ilike(artistProfiles.stageName, `%${input.q}%`))
+        .where(or(ilike(artistProfiles.stageName, term), ilike(user.name, term)))
         .limit(10);
 
       return { artists: results };

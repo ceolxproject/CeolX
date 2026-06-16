@@ -13,13 +13,17 @@ import { typesenseClient } from '../../lib/typesense';
 import { buildDateFilter } from './helpers';
 
 export const getFeed = publicProcedure.input(feedQuerySchema).query(async ({ input, ctx }) => {
-  const { lat, lng, limit, offset, category, query, dateRange } = input;
+  const { lat, lng, limit, offset, category, query, dayStart, dayEnd } = input;
   const userId = ctx.session?.user?.id ?? null;
   const nowUnix = Math.floor(Date.now() / 1000);
 
   const categoryFilter = category ? ` && category:=${category}` : '';
   const searchQuery = query?.trim() || '*';
-  const dateFilter = buildDateFilter(dateRange, nowUnix);
+  // A picked calendar day arrives as an absolute [start, end) window from the
+  // client; only treat it as set when both bounds are present.
+  const day =
+    dayStart !== undefined && dayEnd !== undefined ? { start: dayStart, end: dayEnd } : undefined;
+  const dateFilter = buildDateFilter(nowUnix, day);
 
   try {
     const [typesenseResult, followedIds, savedEventIds] = await Promise.all([
@@ -28,7 +32,9 @@ export const getFeed = publicProcedure.input(feedQuerySchema).query(async ({ inp
         .documents()
         .search({
           q: searchQuery,
-          query_by: 'title,category,venue_address',
+          // creator_name is included so tapping an artist/venue name suggestion
+          // (discovery.suggest) surfaces that creator's events, not just title hits.
+          query_by: 'title,category,venue_address,creator_name',
           // 100 km radius matches MAX_DISTANCE_KM in feed-ranking.ts
           filter_by:
             `location:(${lat},${lng},100 km)` + ` && status:=active` + dateFilter + categoryFilter,
@@ -39,6 +45,17 @@ export const getFeed = publicProcedure.input(feedQuerySchema).query(async ({ inp
           // Fetch a large batch so the in-memory ranker has enough signal.
           // 250 is Typesense's per_page ceiling.
           per_page: 250,
+        })
+        // Typesense Cloud outages (ENOTFOUND, connection refused, timeout) used to
+        // fail the entire feed with a 500. Degrade to an empty result set instead
+        // so the rest of the app keeps working; the warning surfaces the cause in
+        // Vercel logs for ops to fix the cluster / env var.
+        .catch((err: unknown) => {
+          console.warn(
+            '[events.getFeed] typesense unreachable, returning empty feed:',
+            err instanceof Error ? `${err.name}: ${err.message}` : err
+          );
+          return { hits: [] };
         }),
       userId
         ? db

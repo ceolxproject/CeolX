@@ -12,16 +12,21 @@ interface FeedHeaderProps {
   onLocationPress?: () => void;
   onCalendarPress?: () => void;
   onFilterPress?: () => void;
+  /** Highlights the calendar button when a date filter is applied. */
+  calendarActive?: boolean;
+  /** Highlights the filter button when a category filter is applied. */
+  filterActive?: boolean;
   className?: string;
 }
 
 export function FeedHeader({
   locationText = 'Ireland',
-  onBookmarkPress,
   onNotificationPress,
   onLocationPress,
   onCalendarPress,
   onFilterPress,
+  calendarActive = false,
+  filterActive = false,
   className,
 }: FeedHeaderProps) {
   return (
@@ -31,9 +36,6 @@ export function FeedHeader({
         <CeolxLogo fontSize={18} letterSpacing={2} />
 
         <View className="flex-row items-center gap-4">
-          <Pressable onPress={onBookmarkPress} hitSlop={8}>
-            <Ionicons name="bookmark-outline" size={22} color="#FFFFFF" />
-          </Pressable>
           {onNotificationPress && <BellWithBadge onPress={onNotificationPress} />}
         </View>
       </View>
@@ -60,16 +62,30 @@ export function FeedHeader({
           <Pressable
             onPress={onCalendarPress}
             hitSlop={8}
-            className="w-10 h-10 rounded-full bg-[#1d1d1d] items-center justify-center"
+            className={cn(
+              'w-10 h-10 rounded-full items-center justify-center',
+              calendarActive ? 'bg-[#C8FF2F]' : 'bg-[#1d1d1d]'
+            )}
           >
-            <Ionicons name="calendar-outline" size={20} color="#FFFFFF" />
+            <Ionicons
+              name="calendar-outline"
+              size={20}
+              color={calendarActive ? '#080808' : '#FFFFFF'}
+            />
           </Pressable>
           <Pressable
             onPress={onFilterPress}
             hitSlop={8}
-            className="w-10 h-10 rounded-full bg-[#1d1d1d] items-center justify-center"
+            className={cn(
+              'w-10 h-10 rounded-full items-center justify-center',
+              filterActive ? 'bg-[#C8FF2F]' : 'bg-[#1d1d1d]'
+            )}
           >
-            <Ionicons name="options-outline" size={20} color="#FFFFFF" />
+            <Ionicons
+              name="options-outline"
+              size={20}
+              color={filterActive ? '#080808' : '#FFFFFF'}
+            />
           </Pressable>
         </View>
       </View>

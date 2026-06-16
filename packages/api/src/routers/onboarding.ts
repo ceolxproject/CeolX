@@ -4,7 +4,10 @@ import { eq } from 'drizzle-orm';
 import { db } from '@CeolX/db';
 import { user } from '@CeolX/db/schema/auth';
 import { artistProfiles, profileSocialLinks, venueProfiles } from '@CeolX/db/schema/users';
-import { sendVenueActivationEmail } from '@CeolX/email';
+// TEMP (Asana 1215188774672224): subscriptions are not enabled yet, so the
+// venue/artist activation ("subscribe") email is disabled. Re-enable this
+// import together with the dispatch in createVenueProfile when Stripe goes live.
+// import { sendVenueActivationEmail } from '@CeolX/email';
 import { SubscriptionStatus, UserRole } from '@CeolX/shared';
 import {
   createArtistOnboardingSchema,
@@ -15,7 +18,8 @@ import { protectedProcedure, router } from '../index';
 
 // Always points to the admin app's Stripe checkout page (R4.3 — the URL
 // lives in email only, never inside the mobile app, per Apple Rule 3.1.1).
-const VENUE_ACTIVATION_URL = 'https://ceolx.ie/subscribe';
+// TEMP (Asana 1215188774672224): unused while the activation email is disabled.
+// const VENUE_ACTIVATION_URL = 'https://ceolx.ie/subscribe';
 
 function isUniqueConstraintError(err: unknown): boolean {
   return (
@@ -66,6 +70,7 @@ export const onboardingRouter = router({
             stageName: input.stageName,
             bio: input.bio ?? null,
             contactEmail: input.contactEmail ?? null,
+            profileImageUrl: input.profileImageUrl ?? null,
             genre: null,
             isActive: true,
           });
@@ -140,8 +145,12 @@ export const onboardingRouter = router({
             userId,
             venueName: input.venueName,
             address: input.address,
+            // numeric columns are written as strings (matches venues.ts update path)
+            lat: String(input.lat),
+            lng: String(input.lng),
             bio: input.bio ?? null,
             contactEmail: input.contactEmail ?? null,
+            profileImageUrl: input.profileImageUrl ?? null,
             subscriptionStatus: SubscriptionStatus.INACTIVE,
             isActive: false,
           });
@@ -175,16 +184,21 @@ export const onboardingRouter = router({
 
       // R4.* + R8.5 — dispatch venue activation email. Failure must NOT
       // roll back profile creation, so we log and continue.
-      try {
-        await sendVenueActivationEmail({
-          to: ctx.session.user.email,
-          userName: ctx.session.user.name ?? '',
-          venueName: input.venueName,
-          activationUrl: VENUE_ACTIVATION_URL,
-        });
-      } catch (emailErr) {
-        console.error('[onboarding.createVenueProfile] venue activation email failed', emailErr);
-      }
+      //
+      // TEMP (Asana 1215188774672224): subscriptions are not enabled yet, so we
+      // do NOT send the activation ("subscribe") email — venues/artists should
+      // not receive subscription-related mail until Stripe goes live. Re-enable
+      // this block (and the @CeolX/email import above) when subscriptions ship.
+      // try {
+      //   await sendVenueActivationEmail({
+      //     to: ctx.session.user.email,
+      //     userName: ctx.session.user.name ?? '',
+      //     venueName: input.venueName,
+      //     activationUrl: VENUE_ACTIVATION_URL,
+      //   });
+      // } catch (emailErr) {
+      //   console.error('[onboarding.createVenueProfile] venue activation email failed', emailErr);
+      // }
 
       return { ok: true };
     }),

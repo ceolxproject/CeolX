@@ -11,6 +11,15 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@CeolX/ui/components/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger } from '@CeolX/ui/components/select';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@CeolX/ui/components/table';
 
 import { PageHeader } from '../../../components/PageHeader';
 import { RemoveReasonDialog } from '../../../components/RemoveReasonDialog';
@@ -122,108 +131,134 @@ function EventModerationPage() {
     <div className="space-y-6">
       <PageHeader
         title="Event Moderation"
-        subtitle="Review live events. Remove content that violates platform policies — the creator can edit and resubmit."
+        subtitle="Review live events. Remove content that violates platform policies. The creator can edit and resubmit."
       />
 
-      <div className="flex flex-wrap items-center gap-3">
-        <label className="flex items-center gap-2 text-sm">
-          <span className="text-gray-600">Status</span>
-          <select
-            className="h-9 rounded border border-gray-300 bg-white px-2 text-sm"
-            value={status}
-            onChange={(e) => setStatus(e.target.value as StatusFilter)}
-          >
-            {STATUS_OPTIONS.map((opt) => (
-              <option key={opt.value} value={opt.value}>
-                {opt.label}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <label className="flex items-center gap-2 text-sm">
-          <span className="text-gray-600">Creator</span>
-          <select
-            className="h-9 rounded border border-gray-300 bg-white px-2 text-sm"
-            value={persona}
-            onChange={(e) => setPersona(e.target.value as PersonaFilter)}
-          >
-            {PERSONA_OPTIONS.map((opt) => (
-              <option key={opt.value} value={opt.value}>
-                {opt.label}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <div className="flex-1 min-w-[200px] max-w-sm">
+      <div className="flex flex-wrap items-center gap-3 pr-2">
+        <div className="flex-1 min-w-56 max-w-sm">
           <SearchInput value={q} onChange={setQ} placeholder="Search events by title…" />
         </div>
 
-        <span className="text-sm text-gray-500 ml-auto">
+        <div className="flex items-center gap-2 text-sm">
+          <span className="text-muted-foreground">Status</span>
+          <Select value={status} onValueChange={(v) => setStatus(v as StatusFilter)}>
+            <SelectTrigger className="w-48">
+              {STATUS_OPTIONS.find((o) => o.value === status)?.label}
+            </SelectTrigger>
+            <SelectContent>
+              {STATUS_OPTIONS.map((opt) => (
+                <SelectItem key={opt.value} value={opt.value}>
+                  {opt.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="flex items-center gap-2 text-sm">
+          <span className="text-muted-foreground">Creator</span>
+          <Select value={persona} onValueChange={(v) => setPersona(v as PersonaFilter)}>
+            <SelectTrigger className="w-48">
+              {PERSONA_OPTIONS.find((o) => o.value === persona)?.label}
+            </SelectTrigger>
+            <SelectContent>
+              {PERSONA_OPTIONS.map((opt) => (
+                <SelectItem key={opt.value} value={opt.value}>
+                  {opt.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <span className="text-sm text-muted-foreground ml-auto">
           {listQuery.isLoading ? 'Loading…' : `${total} ${total === 1 ? 'event' : 'events'}`}
         </span>
       </div>
 
-      <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-        <table className="w-full text-sm text-left">
-          <thead className="bg-gray-50 border-b border-gray-200">
-            <tr>
-              <th className="px-4 py-3 font-medium text-gray-600">Cover</th>
-              <th className="px-4 py-3 font-medium text-gray-600">Title</th>
-              <th className="px-4 py-3 font-medium text-gray-600">Category</th>
-              <th className="px-4 py-3 font-medium text-gray-600">Creator</th>
-              <th className="px-4 py-3 font-medium text-gray-600">Date</th>
-              <th className="px-4 py-3 font-medium text-gray-600">Location</th>
-              <th className="px-4 py-3 font-medium text-gray-600">Status</th>
-              <th className="px-4 py-3 font-medium text-gray-600 text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
+      <div className="rounded-lg border border-border bg-card overflow-hidden">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Cover</TableHead>
+              <TableHead>Title</TableHead>
+              <TableHead>Category</TableHead>
+              <TableHead>Creator</TableHead>
+              <TableHead>Date</TableHead>
+              <TableHead>Location</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead className="text-right">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {listQuery.isError ? (
-              <tr>
-                <td colSpan={8} className="px-4 py-8 text-center text-red-500">
+              <TableRow>
+                <TableCell colSpan={8} className="text-center text-destructive py-8">
                   Failed to load events. {listQuery.error.message}
-                </td>
-              </tr>
+                </TableCell>
+              </TableRow>
             ) : events.length === 0 && !listQuery.isLoading ? (
-              <tr>
-                <td colSpan={8} className="px-4 py-8 text-center text-gray-400">
+              <TableRow>
+                <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
                   No events match the current filters.
-                </td>
-              </tr>
+                </TableCell>
+              </TableRow>
             ) : (
               events.map((ev) => (
-                <tr
+                <TableRow
                   key={ev.id}
-                  className="border-b border-gray-100 last:border-0 hover:bg-gray-50 cursor-pointer"
+                  className="cursor-pointer"
                   onClick={() => setDetailTarget(ev)}
                 >
-                  <td className="px-4 py-3">
+                  <TableCell>
                     {ev.coverImage ? (
-                      <img src={ev.coverImage} alt="" className="h-10 w-10 rounded object-cover" />
+                      <img
+                        src={ev.coverImage}
+                        alt=""
+                        className="h-11 w-11 rounded-lg object-cover ring-1 ring-zinc-200 shadow-sm"
+                      />
                     ) : (
-                      <div className="h-10 w-10 rounded bg-gray-100" aria-hidden />
+                      <div
+                        className="h-11 w-11 rounded-lg bg-linear-to-br from-zinc-100 to-zinc-200 ring-1 ring-zinc-200 flex items-center justify-center text-zinc-400 shadow-sm"
+                        aria-hidden
+                      >
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="1.75"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          className="h-4 w-4"
+                        >
+                          <rect width="18" height="18" x="3" y="3" rx="2" ry="2" />
+                          <circle cx="9" cy="9" r="2" />
+                          <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
+                        </svg>
+                      </div>
                     )}
-                  </td>
-                  <td className="px-4 py-3 font-medium text-gray-900">{ev.title}</td>
-                  <td className="px-4 py-3 text-gray-700 capitalize">
-                    {ev.category ? ev.category.replace(/_/g, ' ') : '—'}
-                  </td>
-                  <td className="px-4 py-3 text-gray-700">
+                  </TableCell>
+                  <TableCell className="font-medium">{ev.title}</TableCell>
+                  <TableCell className="capitalize">
+                    {ev.category ? ev.category.replace(/_/g, ' ') : '-'}
+                  </TableCell>
+                  <TableCell>
                     <div>{ev.creator.name ?? 'Unknown'}</div>
-                    <div className="text-xs text-gray-500 capitalize">
-                      {ev.creator.persona ?? '—'}
+                    <div className="text-xs text-muted-foreground capitalize">
+                      {ev.creator.persona ?? '-'}
                     </div>
-                  </td>
-                  <td className="px-4 py-3 text-gray-700">{formatDateTime(ev.dateStart)}</td>
-                  <td className="px-4 py-3 text-gray-700 max-w-xs truncate">
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {formatDateTime(ev.dateStart)}
+                  </TableCell>
+                  <TableCell className="text-muted-foreground max-w-xs truncate">
                     {ev.venueAddress ?? `${ev.lat}, ${ev.lng}`}
-                  </td>
-                  <td className="px-4 py-3">
+                  </TableCell>
+                  <TableCell>
                     <StatusBadge status={ev.status} />
-                  </td>
-                  <td className="px-4 py-3 text-right">
+                  </TableCell>
+                  <TableCell className="text-right">
                     {ev.status === 'active' ? (
                       <Button
                         variant="destructive"
@@ -249,14 +284,14 @@ function EventModerationPage() {
                         Restore
                       </Button>
                     ) : (
-                      <span className="text-xs text-gray-400">—</span>
+                      <span className="text-xs text-muted-foreground/70">-</span>
                     )}
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               ))
             )}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
       </div>
 
       <RemoveReasonDialog
@@ -273,14 +308,14 @@ function EventModerationPage() {
           if (!open) setDetailTarget(null);
         }}
       >
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
           {detailTarget && (
-            <>
-              <DialogHeader>
+            <div className="space-y-6">
+              <DialogHeader className="space-y-2">
                 <DialogTitle>{detailTarget.title}</DialogTitle>
                 <DialogDescription>
                   Created by {detailTarget.creator.name ?? 'Unknown'} (
-                  <span className="capitalize">{detailTarget.creator.persona ?? '—'}</span>) on{' '}
+                  <span className="capitalize">{detailTarget.creator.persona ?? '-'}</span>) on{' '}
                   {formatDateTime(detailTarget.createdAt)}
                 </DialogDescription>
               </DialogHeader>
@@ -288,38 +323,50 @@ function EventModerationPage() {
                 <img
                   src={detailTarget.coverImage}
                   alt=""
-                  className="w-full max-h-64 rounded object-cover"
+                  className="w-full max-h-64 rounded-md object-cover"
                 />
               )}
-              <dl className="grid grid-cols-2 gap-3 text-sm">
-                <div>
-                  <dt className="text-gray-500">Status</dt>
+              <dl className="grid grid-cols-2 gap-x-6 gap-y-5 text-sm">
+                <div className="flex flex-col gap-1.5">
+                  <dt className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                    Status
+                  </dt>
                   <dd>
                     <StatusBadge status={detailTarget.status} />
                   </dd>
                 </div>
-                <div>
-                  <dt className="text-gray-500">Event date</dt>
-                  <dd className="text-gray-900">{formatDateTime(detailTarget.dateStart)}</dd>
+                <div className="flex flex-col gap-1.5">
+                  <dt className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                    Event date
+                  </dt>
+                  <dd className="text-foreground">{formatDateTime(detailTarget.dateStart)}</dd>
                 </div>
-                <div className="col-span-2">
-                  <dt className="text-gray-500">Location</dt>
-                  <dd className="text-gray-900">
-                    {detailTarget.venueAddress ?? '—'} ({detailTarget.lat}, {detailTarget.lng})
+                <div className="col-span-2 flex flex-col gap-1.5">
+                  <dt className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                    Location
+                  </dt>
+                  <dd className="text-foreground">
+                    {detailTarget.venueAddress ?? '-'} ({detailTarget.lat}, {detailTarget.lng})
                   </dd>
                 </div>
-                <div className="col-span-2">
-                  <dt className="text-gray-500">Description</dt>
-                  <dd className="text-gray-900 whitespace-pre-wrap">{detailTarget.description}</dd>
+                <div className="col-span-2 flex flex-col gap-1.5">
+                  <dt className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                    Description
+                  </dt>
+                  <dd className="text-foreground whitespace-pre-wrap leading-relaxed">
+                    {detailTarget.description}
+                  </dd>
                 </div>
                 {detailTarget.removalReason && (
-                  <div className="col-span-2">
-                    <dt className="text-gray-500">Removal reason</dt>
-                    <dd className="text-red-700">{detailTarget.removalReason}</dd>
+                  <div className="col-span-2 flex flex-col gap-1.5">
+                    <dt className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                      Removal reason
+                    </dt>
+                    <dd className="text-destructive">{detailTarget.removalReason}</dd>
                   </div>
                 )}
               </dl>
-            </>
+            </div>
           )}
         </DialogContent>
       </Dialog>

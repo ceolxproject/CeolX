@@ -52,6 +52,12 @@ export function getBoundingBox(lat: number, lng: number, radiusKm: number): Boun
 
 /**
  * Returns true if lat/lng are finite numbers within valid geographic bounds.
+ *
+ * Rejects null-island (0, 0): it's a point in the Atlantic that no real venue
+ * occupies, and it's the value events were left with when geocoding silently
+ * failed — which made them disappear from the map/feed (they fell outside every
+ * viewport bounding box). Treating it as invalid stops those ghost events at
+ * the door instead of letting them save as "in range".
  */
 export function isValidCoordinate(lat: unknown, lng: unknown): boolean {
   return (
@@ -62,7 +68,8 @@ export function isValidCoordinate(lat: unknown, lng: unknown): boolean {
     lat >= -90 &&
     lat <= 90 &&
     lng >= -180 &&
-    lng <= 180
+    lng <= 180 &&
+    !(lat === 0 && lng === 0)
   );
 }
 

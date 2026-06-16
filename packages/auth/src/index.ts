@@ -1,6 +1,7 @@
 import { expo } from '@better-auth/expo';
 import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
+import { createAuthMiddleware } from 'better-auth/api';
 
 import { db } from '@CeolX/db';
 import * as schema from '@CeolX/db/schema/auth';
@@ -8,8 +9,9 @@ import { sendPasswordResetEmail, sendVerificationEmail } from '@CeolX/email';
 import { env } from '@CeolX/env/server';
 
 import { generateAppleClientSecret } from './apple-secret.js';
-import { buildVerificationDeepLink } from './email-utils';
+import { buildDeepLinkBridgeUrl, buildVerificationBridgeUrl } from './email-utils';
 import { onSessionCreated } from './login-hook.js';
+import { assertEmailAvailable } from './signup-hook.js';
 
 export const auth = betterAuth({
   database: drizzleAdapter(db, {
@@ -18,7 +20,7 @@ export const auth = betterAuth({
   }),
   trustedOrigins: [
     ...env.CORS_ALLOWED_ORIGINS.split('|'),
-    'CeolX://',
+    'ceolx://',
     'https://appleid.apple.com',
     ...(env.NODE_ENV === 'development' ? ['exp://', 'exp://**', 'exp://192.168.*.*:*/**'] : []),
   ],
@@ -27,8 +29,10 @@ export const auth = betterAuth({
     requireEmailVerification: true,
     resetPasswordTokenExpiresIn: 900, // 15 minutes
     sendResetPassword: async ({ user, token }) => {
-      const deepLink = `ceolx://reset-password?token=${token}`;
-      await sendPasswordResetEmail(user.email, deepLink);
+      // Email clients drop custom-scheme links, so point at the HTTPS bridge
+      // on our server which redirects to ceolx://reset-password?token=...
+      const bridgeUrl = buildDeepLinkBridgeUrl('reset-password', token, env.BETTER_AUTH_URL);
+      await sendPasswordResetEmail(user.email, bridgeUrl, user.name ?? '');
     },
   },
   user: {
@@ -52,12 +56,31 @@ export const auth = betterAuth({
       },
     },
   },
+  hooks: {
+    // Reject sign-up with an already-registered email *before* Better Auth's
+    // enumeration-protection silently returns success and sends a verification
+    // email. Without this, re-registering an existing email (e.g. switching
+    // roles) showed a misleading "verification sent" screen (Asana 1215616181509943).
+    before: createAuthMiddleware(async (ctx) => {
+      if (ctx.path === '/sign-up/email') {
+        const body = ctx.body as { email?: unknown } | undefined;
+        await assertEmailAvailable(body?.email);
+      }
+    }),
+  },
   emailVerification: {
     sendOnSignUp: true,
     expiresIn: 60 * 60 * 24, // 24 hours
+    // Create a session the moment the email is verified. The mobile app makes
+    // the verifyEmail call itself, so the Set-Cookie lands in the app's cookie
+    // store — letting verify-email.tsx route straight into onboarding/the app
+    // instead of bouncing to sign-in for a fresh signup. (Asana 1215273331307886)
+    autoSignInAfterVerification: true,
     sendVerificationEmail: async ({ user, url }) => {
-      const deepLink = buildVerificationDeepLink(url);
-      await sendVerificationEmail(user.email, deepLink, user.name ?? '');
+      // Email clients drop custom-scheme links, so point at the HTTPS bridge
+      // on our server which redirects to ceolx://verify-email?token=...
+      const bridgeUrl = buildVerificationBridgeUrl(url, env.BETTER_AUTH_URL);
+      await sendVerificationEmail(user.email, bridgeUrl, user.name ?? '');
     },
   },
   rateLimit: {
@@ -73,8 +96,23 @@ export const auth = betterAuth({
     ...(env.GOOGLE_OAUTH_CLIENT_ID && env.GOOGLE_OAUTH_CLIENT_SECRET
       ? {
           google: {
-            clientId: env.GOOGLE_OAUTH_CLIENT_ID,
+            // Accept the web client id plus the native iOS/Android client ids
+            // as valid idToken audiences. BetterAuth types clientId as a string,
+            // but the runtime verifier accepts an array — so one provider
+            // validates tokens from BOTH the legacy web redirect and the native
+            // Google Sign-In SDK (which mints the token with the web id as aud).
+            clientId: [
+              env.GOOGLE_OAUTH_CLIENT_ID,
+              env.GOOGLE_OAUTH_IOS_CLIENT_ID,
+              env.GOOGLE_OAUTH_ANDROID_CLIENT_ID,
+            ].filter(Boolean) as unknown as string,
             clientSecret: env.GOOGLE_OAUTH_CLIENT_SECRET,
+            // Never auto-create an account for an unknown Google identity. A
+            // brand-new user tapping Google on the Login screen must instead go
+            // through Who-are-you → sign-up (role + ToS). The sign-up path opts
+            // back in with `requestSignUp: true`; the sign-in path omits it, so
+            // the server refuses to create a row (Asana 1215188822147991).
+            disableImplicitSignUp: true,
           },
         }
       : {}),
@@ -90,7 +128,11 @@ export const auth = betterAuth({
           return {
             apple: async () => ({
               clientId,
-              appBundleIdentifier: 'ie.ceolx.app',
+              appBundleIdentifier: env.APPLE_APP_BUNDLE_IDENTIFIER ?? 'ie.ceolx.app',
+              // Same gate as Google: an unknown Apple identity is not auto-signed
+              // up. The idToken sign-in path returns OAUTH_LINK_ERROR instead of
+              // creating a spectator row (Asana 1215188822147991).
+              disableImplicitSignUp: true,
               clientSecret: await generateAppleClientSecret({
                 clientId,
                 teamId,

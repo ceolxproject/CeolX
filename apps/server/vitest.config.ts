@@ -16,6 +16,7 @@ export default defineConfig({
       NODE_ENV: 'test',
       TYPESENSE_HOST: 'localhost',
       TYPESENSE_API_KEY: 'test',
+      GOOGLE_MAPS_API_KEY: 'test-google-key',
     },
   },
 });
