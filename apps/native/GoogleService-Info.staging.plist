@@ -3,21 +3,23 @@
 <plist version="1.0">
 <dict>
 	<key>CLIENT_ID</key>
-	<string>297835449315-b74pifj1c9a5sget90lrs59026p1ogge.apps.googleusercontent.com</string>
+	<string>1057693721951-08nqa00s0ood9pimkpbb5p7njtmm4qal.apps.googleusercontent.com</string>
 	<key>REVERSED_CLIENT_ID</key>
-	<string>com.googleusercontent.apps.297835449315-b74pifj1c9a5sget90lrs59026p1ogge</string>
+	<string>com.googleusercontent.apps.1057693721951-08nqa00s0ood9pimkpbb5p7njtmm4qal</string>
+	<key>ANDROID_CLIENT_ID</key>
+	<string>1057693721951-krr0sh25maractb6bbqh2kl5bc3hqpsg.apps.googleusercontent.com</string>
 	<key>API_KEY</key>
-	<string>AIzaSyDdMC8pPw3fXb3owDV_40UVVwI1ign-RnY</string>
+	<string>AIzaSyDm0X2bOxOjtTU8h1lH78UVjF-vdq5H1f4</string>
 	<key>GCM_SENDER_ID</key>
-	<string>297835449315</string>
+	<string>1057693721951</string>
 	<key>PLIST_VERSION</key>
 	<string>1</string>
 	<key>BUNDLE_ID</key>
-	<string>com.ceolx.app</string>
+	<string>com.raftlabs.ceolx.staging</string>
 	<key>PROJECT_ID</key>
-	<string>ceolx-22bf1</string>
+	<string>ceolx-staging</string>
 	<key>STORAGE_BUCKET</key>
-	<string>ceolx-22bf1.firebasestorage.app</string>
+	<string>ceolx-staging.firebasestorage.app</string>
 	<key>IS_ADS_ENABLED</key>
 	<false></false>
 	<key>IS_ANALYTICS_ENABLED</key>
@@ -29,6 +31,6 @@
 	<key>IS_SIGNIN_ENABLED</key>
 	<true></true>
 	<key>GOOGLE_APP_ID</key>
-	<string>1:297835449315:ios:8ef697f2cf8d0aaae06ed6</string>
+	<string>1:1057693721951:ios:8f78232dc6d3bc964a02ea</string>
 </dict>
 </plist>
