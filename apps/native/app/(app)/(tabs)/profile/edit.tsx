@@ -13,7 +13,12 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { UserRole } from '@CeolX/shared/enums';
-import { isRealDomain, socialLinksSchema, venueLinksSchema } from '@CeolX/shared/validators';
+import {
+  BIO_MAX_LENGTH,
+  isRealDomain,
+  socialLinksSchema,
+  venueLinksSchema,
+} from '@CeolX/shared/validators';
 
 import { appToast } from '@/components/AppToast';
 import { LocationPicker, type PickedLocation } from '@/components/LocationPicker';
@@ -336,9 +341,11 @@ export default function EditProfileScreen() {
             style={{ textAlignVertical: 'top' }}
             value={bio}
             onChangeText={setBio}
-            maxLength={2000}
+            maxLength={BIO_MAX_LENGTH}
           />
-          <Text className="text-xs text-white/40 mb-4 self-end">{bio.length}/2000</Text>
+          <Text className="text-xs text-white/40 mb-4 self-end">
+            {bio.length}/{BIO_MAX_LENGTH}
+          </Text>
 
           {/* Artist-only: Genres */}
           {!isVenue && (

@@ -106,10 +106,13 @@ export function useArtistOnboarding() {
     YOUTUBE: normalizeOptionalUrl(socialLinks.YOUTUBE),
   });
 
-  const buildStepValues = (step: Step) => {
-    if (step === 1) return { stageName, contactEmail: contactEmail || undefined };
-    if (step === 2) return { bio: bio || undefined };
-    return { socialLinks: normalizedSocialLinks() };
+  // `overrides` carry not-yet-committed values (a field that just changed but
+  // whose setState hasn't flushed) and win over the state-derived base, so
+  // change-handler validation sees the new value rather than the stale one.
+  const buildStepValues = (step: Step, overrides: Record<string, unknown> = {}) => {
+    if (step === 1) return { stageName, contactEmail: contactEmail || undefined, ...overrides };
+    if (step === 2) return { bio: bio || undefined, ...overrides };
+    return { socialLinks: normalizedSocialLinks(), ...overrides };
   };
 
   // Pass an explicit `currentTouched` Set when the caller has just computed a
