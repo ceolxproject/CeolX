@@ -41,15 +41,24 @@ export function FeedHeader({
       </View>
 
       {/* Row 2: Location + filter/sort buttons */}
-      <View className="flex-row items-center justify-between">
-        <Pressable onPress={onLocationPress} className="flex-row items-center gap-1">
-          <View className="flex-col">
+      <View className="flex-row items-center justify-between gap-3">
+        {/* flex-1 lets the location block claim the remaining row width and
+            truncate inside it, rather than expanding and pushing the buttons
+            off-screen. */}
+        <Pressable onPress={onLocationPress} className="flex-1 flex-row items-center gap-1">
+          <View className="flex-1 flex-col">
             <View className="flex-row items-center gap-1">
               <Ionicons name="location-outline" size={14} color="#8D8D8D" />
               <Text className="text-xs text-[#8D8D8D] font-urbanist">Your location</Text>
             </View>
             <View className="flex-row items-center gap-1 mt-0.5">
-              <Text className="text-[15px] font-medium text-white font-urbanist">
+              {/* Single line, tail-truncated so only the start of a long address
+                  shows and the chevron stays visible (cf. the reference design). */}
+              <Text
+                numberOfLines={1}
+                ellipsizeMode="tail"
+                className="flex-1 text-[15px] font-medium text-white font-urbanist"
+              >
                 {locationText}
               </Text>
               <Ionicons name="chevron-down" size={12} color="#FFFFFF" />
@@ -58,7 +67,9 @@ export function FeedHeader({
         </Pressable>
 
         {/* Left: calendar — Right: filter sliders (matches Figma node 1:3349) */}
-        <View className="flex-row items-center gap-2">
+        {/* shrink-0 keeps both buttons at full size and on-screen no matter how
+            long the address is. */}
+        <View className="flex-row items-center gap-2 shrink-0">
           <Pressable
             onPress={onCalendarPress}
             hitSlop={8}
