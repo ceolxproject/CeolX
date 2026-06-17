@@ -173,6 +173,7 @@ export const byId = publicProcedure
       creatorArtistProfile,
       creatorVenueProfile,
       acceptedBookings,
+      viewerPendingRows,
     ] = await Promise.all([
       // stageName + genre for each collaborator
       collaboratorUserIds.length > 0
@@ -261,6 +262,26 @@ export const byId = publicProcedure
               )
             )
         : Promise.resolve([]),
+
+      // Does the viewing artist already have a PENDING performance request on
+      // this event? Drives the "Request to Perform" vs "Request Sent" CTA. A
+      // withdrawn/declined request is not pending, so the button returns —
+      // letting the artist ask again. (Asana 1215700058851990, bugs #4/#5)
+      userId
+        ? db
+            .select({ id: bookings.id })
+            .from(bookings)
+            .innerJoin(artistProfiles, eq(bookings.artistId, artistProfiles.id))
+            .where(
+              and(
+                eq(bookings.eventId, input.id),
+                eq(artistProfiles.userId, userId),
+                eq(bookings.direction, BookingDirection.ARTIST_TO_VENUE),
+                eq(bookings.status, BookingStatus.PENDING)
+              )
+            )
+            .limit(1)
+        : Promise.resolve([]),
     ]);
 
     const profileByUserId = new Map(collaboratorProfiles.map((p) => [p.userId, p]));
@@ -346,6 +367,9 @@ export const byId = publicProcedure
         ? { id: event.collection.id, name: event.collection.name }
         : null,
       isSaved: !!savedRow,
+      // True only while the viewer has a still-pending performance request on
+      // this event — flips back to false on withdraw/decline so the CTA resets.
+      viewerHasPendingRequest: viewerPendingRows.length > 0,
       attendeeCount,
       relatedEvents: relatedEvents.map((e) => ({
         id: e.id,

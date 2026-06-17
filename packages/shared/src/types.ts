@@ -135,6 +135,14 @@ export interface BookingSummary {
   eventDateStart: string;
   eventDateEnd?: string;
   eventVenueAddress?: string;
+  /**
+   * Current lifecycle status of the linked event. When the event has been
+   * deleted (archived) or taken down (removed), collaboration/request cards
+   * render a disabled "no longer available" state instead of live actions.
+   * Falls back to `archived` when the event row is missing (orphaned booking),
+   * which fails safe by disabling the card. Asana 1215700058852004.
+   */
+  eventStatus: EventStatus;
   createdAt: string;
   updatedAt: string;
 }

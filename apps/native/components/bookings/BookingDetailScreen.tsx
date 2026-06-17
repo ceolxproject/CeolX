@@ -5,7 +5,7 @@ import { useCallback, useState } from 'react';
 import { ActivityIndicator, Image, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { CATEGORY_LABELS } from '@CeolX/shared';
+import { CATEGORY_LABELS, isEventUnavailableForCollaboration } from '@CeolX/shared';
 import { BookingDirection, BookingStatus, UserRole } from '@CeolX/shared/enums';
 
 import { appToast } from '@/components/AppToast';
@@ -86,6 +86,11 @@ export function BookingDetailScreen() {
   const formattedDate = formatEventDate(booking.eventDateStart, booking.eventDateEnd);
   const statusStyle = STATUS_STYLES[booking.status] ?? STATUS_STYLES.pending;
 
+  // Event deleted by the creator (archived) or removed by admin → show a notice
+  // and suppress all actions. RequestActions also bails out for this case, and
+  // the server rejects any mutation against it. (Asana 1215700058852004)
+  const isEventDeleted = isEventUnavailableForCollaboration(booking.eventStatus);
+
   // For artist↔artist the server tells us whether the viewer is the inviter
   // (both parties are artists, so role + direction can't distinguish them).
   const isA2A = booking.direction === BookingDirection.ARTIST_TO_ARTIST;
@@ -161,6 +166,16 @@ export function BookingDetailScreen() {
           <Text className="text-2xl font-semibold text-white font-urbanist">
             {booking.eventTitle}
           </Text>
+
+          {/* Deleted-event notice */}
+          {isEventDeleted && (
+            <View className="flex-row items-center gap-2 mt-3 bg-red-900/10 rounded-xl px-3 py-2.5">
+              <Ionicons name="alert-circle-outline" size={18} color="#F87171" />
+              <Text className="text-xs text-white/80 font-urbanist flex-1">
+                This event is no longer available — it was deleted by the venue.
+              </Text>
+            </View>
+          )}
 
           {/* Location + date */}
           <View className="flex-row items-start gap-4 mt-3">

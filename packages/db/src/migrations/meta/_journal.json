@@ -148,6 +148,13 @@
       "when": 1780600412553,
       "tag": "20260604191332_short_changeling",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1781700910454,
+      "tag": "20260617125510_kind_northstar",
+      "breakpoints": true
     }
   ]
 }

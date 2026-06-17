@@ -54,6 +54,11 @@ export const NotificationTrigger = {
   EVENT_DELETED_BY_CREATOR_TO_ARTIST: 'event_deleted_by_creator_to_artist',
   EVENT_DELETED_BY_CREATOR_TO_VENUE: 'event_deleted_by_creator_to_venue',
   SAVED_EVENT_REMOVED_TO_SAVERS: 'saved_event_removed_to_savers',
+  // Share Interest — lightweight artist↔venue collaboration discovery, not
+  // tied to any event. The route points to the SENDER's profile so the
+  // recipient can tap through and view who's interested.
+  COLLAB_INTEREST_TO_VENUE: 'collab_interest_to_venue',
+  COLLAB_INTEREST_TO_ARTIST: 'collab_interest_to_artist',
 } as const;
 
 export type NotificationTrigger = (typeof NotificationTrigger)[keyof typeof NotificationTrigger];
@@ -473,6 +478,41 @@ export const NOTIFICATION_TRIGGERS: Record<NotificationTrigger, TriggerDefinitio
     inApp: {
       title: 'A saved event was removed',
       body: '"{eventTitle}" was removed by moderation. Browse the feed for similar events.',
+    },
+    email: null,
+  },
+  // Off-matrix — Share Interest. An artist signalled interest in a venue.
+  // Routes to the artist's profile ({artistUserId}). Flag for Pratiksha's
+  // matrix audit (note: off-matrix-collaboration-interest).
+  [NotificationTrigger.COLLAB_INTEREST_TO_VENUE]: {
+    matrixRef: 'off-matrix-collaboration-interest',
+    type: 'collaboration_interest',
+    persona: 'venue',
+    routeTemplate: '/(app)/artist/{artistUserId}',
+    push: {
+      title: 'New collaboration interest',
+      body: '{artistName} is interested in collaborating with you. View their profile and plan your next event.',
+    },
+    inApp: {
+      title: 'New collaboration interest',
+      body: '{artistName} is interested in collaborating with you. View their profile and plan your next event.',
+    },
+    email: null,
+  },
+  // Off-matrix — Share Interest. A venue signalled interest in an artist.
+  // Routes to the venue's profile ({venueUserId}).
+  [NotificationTrigger.COLLAB_INTEREST_TO_ARTIST]: {
+    matrixRef: 'off-matrix-collaboration-interest',
+    type: 'collaboration_interest',
+    persona: 'artist',
+    routeTemplate: '/(app)/venue/{venueUserId}',
+    push: {
+      title: 'New collaboration interest',
+      body: '{venueName} is interested in collaborating with you. View their profile and explore a possible performance.',
+    },
+    inApp: {
+      title: 'New collaboration interest',
+      body: '{venueName} is interested in collaborating with you. View their profile and explore a possible performance.',
     },
     email: null,
   },

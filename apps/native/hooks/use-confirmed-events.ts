@@ -1,6 +1,8 @@
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useState } from 'react';
 
+import type { EventStatus } from '@CeolX/shared/enums';
+
 import { mergePaginatedEvents } from './merge-paginated-events';
 
 import { trpc } from '@/utils/trpc';
@@ -15,7 +17,7 @@ type ConfirmedEvent = {
   dateEnd: string | null;
   category: string;
   venueAddress: string | null;
-  status: string;
+  status: EventStatus;
   bookingId: string | null;
 };
 

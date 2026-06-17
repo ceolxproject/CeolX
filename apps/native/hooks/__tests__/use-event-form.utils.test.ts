@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-import { combineDateAndTime, endDateTimeError, platformInviteIds } from '../use-event-form.utils';
+import {
+  combineDateAndTime,
+  endDateTimeError,
+  platformInviteIds,
+  unregisteredCollaboratorsPayload,
+} from '../use-event-form.utils';
 
 // A fixed calendar day, plus a helper to build a Date carrying only a time.
 const DAY = new Date(2026, 5, 10);
@@ -79,5 +84,36 @@ describe('platformInviteIds', () => {
 
   it('returns undefined for an empty selection so the optional field is omitted', () => {
     expect(platformInviteIds([])).toBeUndefined();
+  });
+});
+
+describe('unregisteredCollaboratorsPayload', () => {
+  // External (email) invitees are replaced wholesale by the server, but only
+  // when the field is actually sent. These guard the absent-vs-empty rule that
+  // lets a venue remove the last invited artist while editing.
+  // (Asana 1215700058851952)
+  const invite = (email: string) => ({ name: email, email: `${email}@x.com` });
+
+  it('omits an empty selection on create (optional field stays absent)', () => {
+    expect(unregisteredCollaboratorsPayload([], false)).toBeUndefined();
+  });
+
+  it('sends an empty array on edit so removing the last invitee persists (the bug)', () => {
+    expect(unregisteredCollaboratorsPayload([], true)).toEqual([]);
+  });
+
+  it('sends the remaining invitees on edit when some are kept', () => {
+    expect(unregisteredCollaboratorsPayload([invite('a')], true)).toEqual([invite('a')]);
+  });
+
+  it('sends a non-empty selection on create', () => {
+    expect(unregisteredCollaboratorsPayload([invite('a')], false)).toEqual([invite('a')]);
+  });
+
+  it('returns a fresh array, not the caller’s reference', () => {
+    const input = [invite('a')];
+    const out = unregisteredCollaboratorsPayload(input, true);
+    expect(out).not.toBe(input);
+    expect(out).toEqual(input);
   });
 });

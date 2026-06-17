@@ -579,6 +579,92 @@ describe('bookings.update', () => {
   });
 });
 
+// ─── deleted event accessibility (Asana 1215700058852004) ───────────────────
+// When a venue deletes (archives) an event, its bookings stay reachable through
+// the collaboration/request cards. The list/byId reads must still surface them
+// (disabled, not removed) with the event status, and `update` must reject any
+// action against an event that's no longer active.
+
+describe('bookings — deleted/removed event', () => {
+  const archivedBooking = { ...mockBooking, event: { ...mockEvent, status: 'archived' } };
+  const removedBooking = { ...mockBooking, event: { ...mockEvent, status: 'removed' } };
+
+  it('blocks artist accepting a booking on an archived event', async () => {
+    const caller = createCaller(authedContext('artist', ARTIST_USER_ID));
+    mockBookingsFindFirst.mockResolvedValueOnce(archivedBooking);
+
+    await expectTRPCError(
+      caller.bookings.update({ id: BOOKING_ID, status: 'accepted' }),
+      'BAD_REQUEST'
+    );
+  });
+
+  it('blocks venue withdrawing a booking on an archived event', async () => {
+    const caller = createCaller(authedContext('venue', VENUE_USER_ID));
+    mockBookingsFindFirst.mockResolvedValueOnce(archivedBooking);
+
+    await expectTRPCError(
+      caller.bookings.update({ id: BOOKING_ID, status: 'cancelled' }),
+      'BAD_REQUEST'
+    );
+  });
+
+  it('blocks actions on an admin-removed event', async () => {
+    const caller = createCaller(authedContext('artist', ARTIST_USER_ID));
+    mockBookingsFindFirst.mockResolvedValueOnce(removedBooking);
+
+    await expectTRPCError(
+      caller.bookings.update({ id: BOOKING_ID, status: 'rejected' }),
+      'BAD_REQUEST'
+    );
+  });
+
+  it('still allows venue to accept a pending_review artist_to_venue booking (allow-list regression)', async () => {
+    const pendingReviewBooking = {
+      ...mockBooking,
+      direction: 'artist_to_venue',
+      event: { ...mockEvent, status: 'pending_review' },
+    };
+    const caller = createCaller(authedContext('venue', VENUE_USER_ID));
+    mockBookingsFindFirst.mockResolvedValueOnce(pendingReviewBooking);
+    mockUpdateReturning.mockResolvedValueOnce([{ ...pendingReviewBooking, status: 'accepted' }]);
+
+    const result = await caller.bookings.update({ id: BOOKING_ID, status: 'accepted' });
+    expect(result.status).toBe('accepted');
+  });
+
+  it('list keeps an archived-event booking and surfaces eventStatus', async () => {
+    const caller = createCaller(authedContext('venue', VENUE_USER_ID));
+    mockVenuesFindFirst.mockResolvedValueOnce({ id: VENUE_PROFILE_ID });
+    mockSelectWhere.mockReturnValueOnce({
+      then: (cb: (v: unknown[]) => void) => cb([{ count: 1 }]),
+    });
+    mockBookingsFindMany.mockResolvedValueOnce([archivedBooking]);
+    mockSelectWhere.mockReturnValueOnce({
+      then: (cb: (v: unknown[]) => void) =>
+        cb([
+          { id: ARTIST_USER_ID, image: 'artist.jpg' },
+          { id: VENUE_USER_ID, image: 'venue.jpg' },
+        ]),
+    });
+
+    const result = await caller.bookings.list({ tab: 'sent' });
+    expect(result.bookings).toHaveLength(1);
+    expect(result.bookings[0]?.eventStatus).toBe('archived');
+  });
+
+  it('byId returns eventStatus and does not 404 for an archived event', async () => {
+    const caller = createCaller(authedContext('artist', ARTIST_USER_ID));
+    mockBookingsFindFirst.mockResolvedValueOnce(archivedBooking);
+    mockUserFindFirst.mockResolvedValueOnce({ image: 'artist.jpg' });
+    mockUserFindFirst.mockResolvedValueOnce({ image: 'venue.jpg' });
+
+    const result = await caller.bookings.byId({ id: BOOKING_ID });
+    expect(result.id).toBe(BOOKING_ID);
+    expect(result.eventStatus).toBe('archived');
+  });
+});
+
 // ─── bookings.list ───────────────────────────────────────────────────────────
 
 describe('bookings.list', () => {
@@ -650,6 +736,74 @@ describe('bookings.byId', () => {
   });
 });
 
+// ─── profile-image precedence (Asana 1215700058851990, bug #1) ───────────────
+// Uploaded avatars live in artist_profiles / venue_profiles (`profileImageUrl`);
+// the BetterAuth `user.image` column is only populated for Google/Apple logins.
+// A venue that uploaded a photo but signed up with email has user.image = null,
+// so the collaboration request was showing no picture. The profile image must
+// win, falling back to user.image only for social-login accounts without one.
+
+describe('bookings — profile image precedence', () => {
+  const VENUE_UPLOADED = 'https://cdn.ceolx.ie/venue-upload.jpg';
+  const ARTIST_UPLOADED = 'https://cdn.ceolx.ie/artist-upload.jpg';
+
+  it('byId surfaces the venue profileImageUrl when user.image is null', async () => {
+    const booking = {
+      ...mockBooking,
+      venue: { ...mockVenueProfile, profileImageUrl: VENUE_UPLOADED },
+      artist: { ...mockArtistProfile, profileImageUrl: ARTIST_UPLOADED },
+    };
+    const caller = createCaller(authedContext('artist', ARTIST_USER_ID));
+    mockBookingsFindFirst.mockResolvedValueOnce(booking);
+    mockUserFindFirst.mockResolvedValueOnce({ image: null }); // artist user (email signup)
+    mockUserFindFirst.mockResolvedValueOnce({ image: null }); // venue user (email signup)
+
+    const result = await caller.bookings.byId({ id: BOOKING_ID });
+    expect(result.venueImage).toBe(VENUE_UPLOADED);
+    expect(result.artistImage).toBe(ARTIST_UPLOADED);
+  });
+
+  it('byId prefers the uploaded profile image over the social-login user.image', async () => {
+    const booking = {
+      ...mockBooking,
+      venue: { ...mockVenueProfile, profileImageUrl: VENUE_UPLOADED },
+    };
+    const caller = createCaller(authedContext('artist', ARTIST_USER_ID));
+    mockBookingsFindFirst.mockResolvedValueOnce(booking);
+    mockUserFindFirst.mockResolvedValueOnce({ image: 'oauth-artist.jpg' });
+    mockUserFindFirst.mockResolvedValueOnce({ image: 'oauth-venue.jpg' });
+
+    const result = await caller.bookings.byId({ id: BOOKING_ID });
+    expect(result.venueImage).toBe(VENUE_UPLOADED);
+  });
+
+  it('list surfaces the venue profileImageUrl when user.image is null', async () => {
+    const booking = {
+      ...mockBooking,
+      venue: { ...mockVenueProfile, profileImageUrl: VENUE_UPLOADED },
+      artist: { ...mockArtistProfile, profileImageUrl: ARTIST_UPLOADED },
+    };
+    const caller = createCaller(authedContext('venue', VENUE_USER_ID));
+    mockVenuesFindFirst.mockResolvedValueOnce({ id: VENUE_PROFILE_ID });
+
+    mockSelectWhere.mockReturnValueOnce({
+      then: (cb: (v: unknown[]) => void) => cb([{ count: 1 }]),
+    });
+    mockBookingsFindMany.mockResolvedValueOnce([booking]);
+    mockSelectWhere.mockReturnValueOnce({
+      then: (cb: (v: unknown[]) => void) =>
+        cb([
+          { id: ARTIST_USER_ID, image: null },
+          { id: VENUE_USER_ID, image: null },
+        ]),
+    });
+
+    const result = await caller.bookings.list({ tab: 'sent' });
+    expect(result.bookings[0]?.venueImage).toBe(VENUE_UPLOADED);
+    expect(result.bookings[0]?.artistImage).toBe(ARTIST_UPLOADED);
+  });
+});
+
 // ─── bookings artist_to_artist (co-artist) ───────────────────────────────────
 
 describe('bookings.update — artist_to_artist', () => {
@@ -664,7 +818,7 @@ describe('bookings.update — artist_to_artist', () => {
       expect.objectContaining({
         trigger: NotificationTrigger.BOOKING_COARTIST_ACCEPTED_TO_INVITER,
         recipientUserId: INVITER_USER_ID,
-        vars: expect.objectContaining({ coArtistName: 'Celtic Thunder' }),
+        vars: expect.objectContaining({ coArtistName: 'Celtic Thunder' }) as unknown,
       })
     );
   });
@@ -690,7 +844,7 @@ describe('bookings.update — artist_to_artist', () => {
       expect.objectContaining({
         trigger: NotificationTrigger.BOOKING_COARTIST_WITHDRAWN_TO_INVITEE,
         recipientUserId: ARTIST_USER_ID,
-        vars: expect.objectContaining({ coArtistName: 'Tune Bomb' }),
+        vars: expect.objectContaining({ coArtistName: 'Tune Bomb' }) as unknown,
       })
     );
   });
@@ -725,7 +879,8 @@ describe('bookings.list — artist_to_artist tabs', () => {
 
     const result = await caller.bookings.list({ tab: 'received' });
     expect(result.bookings).toHaveLength(1);
-    const row = result.bookings[0]!;
+    const row = result.bookings[0];
+    if (!row) throw new Error('expected a booking row');
     expect(row.direction).toBe('artist_to_artist');
     expect(row.inviterArtistName).toBe('Tune Bomb');
     expect(row.inviterArtistId).toBe(INVITER_PROFILE_ID);
@@ -756,7 +911,8 @@ describe('bookings.list — artist_to_artist tabs', () => {
     });
 
     const result = await caller.bookings.list({ tab: 'sent' });
-    const row = result.bookings[0]!;
+    const row = result.bookings[0];
+    if (!row) throw new Error('expected a booking row');
     expect(row.viewerIsSender).toBe(true);
   });
 });
@@ -825,9 +981,37 @@ describe('bookings.resend', () => {
       expect.objectContaining({
         trigger: NotificationTrigger.BOOKING_INVITE_TO_COARTIST,
         recipientUserId: ARTIST_USER_ID,
-        vars: expect.objectContaining({ coArtistName: 'Tune Bomb' }),
+        vars: expect.objectContaining({ coArtistName: 'Tune Bomb' }) as unknown,
       })
     );
+  });
+
+  // ─── resend cooldown (Asana 1215700058851990, bug #2) ──────────────────────
+  // A pending row's updatedAt is its "last sent at" (create or resend). Resending
+  // inside the 24h window is rejected as spam; the bump keeps the window rolling.
+
+  it('throws TOO_MANY_REQUESTS when resent inside the cooldown window', async () => {
+    const caller = createCaller(authedContext('venue', VENUE_USER_ID));
+    // updatedAt = now → well inside the 24h cooldown.
+    mockBookingsFindFirst.mockResolvedValueOnce({ ...mockBooking, updatedAt: new Date() });
+
+    await expectTRPCError(caller.bookings.resend({ id: BOOKING_ID }), 'TOO_MANY_REQUESTS');
+    expect(mockDispatchNotification).not.toHaveBeenCalled();
+  });
+
+  it('allows resend once the cooldown has elapsed and bumps the last-sent timestamp', async () => {
+    const caller = createCaller(authedContext('venue', VENUE_USER_ID));
+    // mockBooking.updatedAt is 2026-04-12 — far outside the window.
+    mockBookingsFindFirst.mockResolvedValueOnce(mockBooking);
+    const updateSpy = mockDb.update as ReturnType<typeof vi.fn>;
+    updateSpy.mockClear();
+
+    const result = await caller.bookings.resend({ id: BOOKING_ID });
+
+    expect(result).toEqual({ id: BOOKING_ID, success: true });
+    expect(mockDispatchNotification).toHaveBeenCalled();
+    // The row's updatedAt is rewritten so the next resend is gated 24h from now.
+    expect(updateSpy).toHaveBeenCalled();
   });
 });
 

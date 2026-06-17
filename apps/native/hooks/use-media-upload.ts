@@ -9,6 +9,7 @@ import {
 } from '@CeolX/shared/validators';
 
 import { trpc } from '@/utils/trpc';
+import { toProgressFraction } from '@/utils/upload-progress';
 
 type Asset = {
   uri: string;
@@ -49,7 +50,7 @@ function putWithProgress(
     xhr.open('PUT', url);
     xhr.setRequestHeader('Content-Type', contentType);
     xhr.upload.onprogress = (e) => {
-      if (e.lengthComputable && onProgress) onProgress(e.loaded / e.total);
+      if (e.lengthComputable && onProgress) onProgress(toProgressFraction(e.loaded, e.total));
     };
     xhr.onload = () =>
       xhr.status >= 200 && xhr.status < 300

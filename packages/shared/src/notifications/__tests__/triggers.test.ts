@@ -303,6 +303,47 @@ describe('artist↔artist booking triggers', () => {
   });
 });
 
+// ─── Collaboration interest (Share Interest, off-matrix) ─────────────────────
+
+describe('buildNotification — collaboration interest', () => {
+  it('artist → venue carries the artist name and routes to the artist profile', () => {
+    const n = buildNotification(
+      NotificationTrigger.COLLAB_INTEREST_TO_VENUE,
+      NotificationSurface.PUSH,
+      { artistName: 'Celtic Thunder', artistUserId: 'artist-user-1' }
+    );
+    expect(n).toEqual({
+      type: 'collaboration_interest',
+      persona: 'venue',
+      title: 'New collaboration interest',
+      body: 'Celtic Thunder is interested in collaborating with you. View their profile and plan your next event.',
+      route: '/(app)/artist/artist-user-1',
+    });
+  });
+
+  it('venue → artist carries the venue name and routes to the venue profile', () => {
+    const n = buildNotification(
+      NotificationTrigger.COLLAB_INTEREST_TO_ARTIST,
+      NotificationSurface.IN_APP,
+      { venueName: 'The Temple Bar', venueUserId: 'venue-user-1' }
+    );
+    expect(n.type).toBe('collaboration_interest');
+    expect(n.persona).toBe('artist');
+    expect(n.body).toBe(
+      'The Temple Bar is interested in collaborating with you. View their profile and explore a possible performance.'
+    );
+    expect(n.route).toBe('/(app)/venue/venue-user-1');
+  });
+
+  it('throws when a required name var is missing', () => {
+    expect(() =>
+      buildNotification(NotificationTrigger.COLLAB_INTEREST_TO_VENUE, NotificationSurface.PUSH, {
+        artistUserId: 'artist-user-1',
+      })
+    ).toThrow(/artistName/);
+  });
+});
+
 // ─── Date formatter ──────────────────────────────────────────────────────────
 
 describe('formatNotificationDate', () => {

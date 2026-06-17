@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useState } from 'react';
 
 import { trpc } from '@/utils/trpc';
+import { toProgressFraction } from '@/utils/upload-progress';
 
 type VideoAsset = {
   uri: string;
@@ -29,7 +30,7 @@ function putToMux(url: string, blob: Blob, onProgress?: (fraction: number) => vo
     const xhr = new XMLHttpRequest();
     xhr.open('PUT', url);
     xhr.upload.onprogress = (e) => {
-      if (e.lengthComputable && onProgress) onProgress(e.loaded / e.total);
+      if (e.lengthComputable && onProgress) onProgress(toProgressFraction(e.loaded, e.total));
     };
     xhr.onload = () =>
       xhr.status >= 200 && xhr.status < 300

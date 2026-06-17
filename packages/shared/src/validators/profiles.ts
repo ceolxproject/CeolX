@@ -2,6 +2,20 @@ import { z } from 'zod';
 
 import type { SOCIAL_PLATFORMS } from '../enums';
 
+// Single source of truth for the bio/short-description character cap. Both the
+// onboarding wizard and the Edit Profile screen (Artist + Venue) must use this
+// so the two flows can never diverge again (Asana 1215717564020178).
+export const BIO_MAX_LENGTH = 50;
+
+// Optional bio field with the shared cap. `label` tailors the message ("Bio" on
+// artist screens, "Description" on venue screens) while the limit stays unified.
+const bioField = (label: 'Bio' | 'Description' = 'Bio') =>
+  z
+    .string()
+    .max(BIO_MAX_LENGTH, `${label} must be ${BIO_MAX_LENGTH} characters or less`)
+    .trim()
+    .optional();
+
 // ── Artist onboarding (initial profile creation — follows Figma design) ───────
 
 // Real-domain check: valid URL whose host has ≥1 dot and non-empty labels.
@@ -93,7 +107,7 @@ export const venueOnboardingStep2Schema = z.object({
   // creation and navigation all rely on coordinates, not the address text.
   lat: z.number({ message: 'Pin your venue on the map' }).min(-90).max(90),
   lng: z.number({ message: 'Pin your venue on the map' }).min(-180).max(180),
-  bio: z.string().max(50, 'Description must be 50 characters or less').trim().optional(),
+  bio: bioField('Description'),
 });
 
 export const venueOnboardingStep3Schema = z.object({
@@ -116,7 +130,7 @@ export const artistOnboardingStep1Schema = z.object({
 });
 
 export const artistOnboardingStep2Schema = z.object({
-  bio: z.string().max(50, 'Bio must be 50 characters or less').trim().optional(),
+  bio: bioField(),
 });
 
 export const artistOnboardingStep3Schema = z.object({
@@ -135,7 +149,7 @@ export type SocialLinks = z.infer<typeof socialLinksSchema>;
 
 export const artistProfileSchema = z.object({
   stageName: z.string().min(1, 'Stage name is required').max(100).trim(),
-  bio: z.string().max(1000).trim().optional(),
+  bio: bioField(),
   genre: z.string().min(1, 'Genre is required').max(50),
   profileImageUrl: z.string().url().optional(),
 });
@@ -143,7 +157,7 @@ export const artistProfileSchema = z.object({
 /** Input schema for artists.updateMe — all fields optional (partial update). */
 export const updateArtistProfileSchema = z.object({
   displayName: z.string().min(1).max(100).trim().optional(),
-  bio: z.string().max(2000).trim().optional(),
+  bio: bioField(),
   genres: z.array(z.string().max(50)).max(10).optional(),
   location: z.string().max(255).trim().optional(),
   // null clears the stored image (remove photo); undefined leaves it unchanged.
@@ -155,14 +169,14 @@ export const updateArtistProfileSchema = z.object({
 export const venueProfileSchema = z.object({
   venueName: z.string().min(1, 'Venue name is required').max(100).trim(),
   address: z.string().min(1, 'Address is required').max(300).trim(),
-  bio: z.string().max(1000).trim().optional(),
+  bio: bioField('Description'),
   profileImageUrl: z.string().url().optional(),
 });
 
 /** Input schema for venues.updateMe — all fields optional (partial update). */
 export const updateVenueProfileSchema = z.object({
   displayName: z.string().min(1).max(150).trim().optional(), // maps to venueName in DB
-  bio: z.string().max(2000).trim().optional(),
+  bio: bioField('Description'),
   address: z.string().max(255).trim().optional(),
   county: z.string().max(100).trim().optional(),
   lat: z.number().min(-90).max(90).optional(),

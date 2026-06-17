@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import type { BottomSheetModal } from '@gorhom/bottom-sheet';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useRef, useState } from 'react';
-import { ActivityIndicator, Alert, FlatList, Pressable, RefreshControl, View } from 'react-native';
+import { ActivityIndicator, FlatList, Pressable, RefreshControl, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BellWithBadge } from '@/components/notifications/BellWithBadge';
@@ -18,6 +18,7 @@ import { useAuth } from '@/contexts/auth-context';
 import { useArtistProfile } from '@/hooks/use-artist-profile';
 import { useMe } from '@/hooks/use-me';
 import { useProfileFollowHandler } from '@/hooks/use-profile-follow-handler';
+import { useShareInterest } from '@/hooks/use-share-interest';
 import { useUserPosts } from '@/hooks/use-user-posts';
 
 type ProfileTab = 'events' | 'posts';
@@ -48,7 +49,9 @@ export default function ArtistProfileScreen() {
   const [activeTab, setActiveTab] = useState<ProfileTab>('events');
   const settingsRef = useRef<BottomSheetModal>(null);
   const { logout } = useAuth();
+  const { data: me } = useMe();
   const { isFollowing, onFollowPress } = useProfileFollowHandler(profile);
+  const { shareInterest } = useShareInterest();
 
   if (isLoading) {
     return (
@@ -125,10 +128,10 @@ export default function ArtistProfileScreen() {
               onFollowersPress={() => router.push('/(app)/(tabs)/profile/following')}
               onFollowingPress={() => router.push('/(app)/(tabs)/profile/following')}
               secondaryCta={
-                !profile.isOwner
+                !profile.isOwner && me?.currentRole === 'venue'
                   ? {
-                      label: 'Invite',
-                      onPress: () => Alert.alert('Coming Soon', 'Invite feature coming soon.'),
+                      label: 'Share Interest',
+                      onPress: () => shareInterest(profile.userId),
                     }
                   : undefined
               }

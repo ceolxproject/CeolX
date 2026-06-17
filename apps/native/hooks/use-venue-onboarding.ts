@@ -20,8 +20,6 @@ import { normalizeOptionalUrl } from '@/utils/normalize-url';
 import { trpc, type RouterOutputs } from '@/utils/trpc';
 import { getTRPCErrorCode, getTRPCErrorMessage } from '@/utils/trpc-error';
 
-const BIO_MAX = 50;
-
 type Step = 1 | 2 | 3;
 
 // The slice of onboarding state worth surviving an app kill. Validation/UI
@@ -50,7 +48,6 @@ interface UseVenueOnboardingReturn {
   setVenueName: (v: string) => void;
   bio: string;
   setBio: (v: string) => void;
-  BIO_MAX: number;
   address: string;
   lat: number | null;
   lng: number | null;
@@ -152,11 +149,20 @@ export function useVenueOnboarding(): UseVenueOnboardingReturn {
     TWITTER: normalizeOptionalUrl(venueLinks.TWITTER),
   });
 
-  const buildStepValues = (step: Step) => {
-    if (step === 1) return { venueName, contactEmail: contactEmail || undefined };
+  // `overrides` carry not-yet-committed values (a field that just changed but
+  // whose setState hasn't flushed) and win over the state-derived base, so
+  // change-handler validation sees the new value rather than the stale one.
+  const buildStepValues = (step: Step, overrides: Record<string, unknown> = {}) => {
+    if (step === 1) return { venueName, contactEmail: contactEmail || undefined, ...overrides };
     if (step === 2)
-      return { address, lat: lat ?? undefined, lng: lng ?? undefined, bio: bio || undefined };
-    return { venueLinks: normalizedVenueLinks() };
+      return {
+        address,
+        lat: lat ?? undefined,
+        lng: lng ?? undefined,
+        bio: bio || undefined,
+        ...overrides,
+      };
+    return { venueLinks: normalizedVenueLinks(), ...overrides };
   };
 
   const validateStep = (
@@ -384,7 +390,6 @@ export function useVenueOnboarding(): UseVenueOnboardingReturn {
     setVenueName: handleVenueNameChange,
     bio,
     setBio: handleBioChange,
-    BIO_MAX,
     address,
     lat,
     lng,
