@@ -35,8 +35,9 @@ FCM push) and logs the interest for cooldown purposes.
 - The Artist-profile secondary button is **renamed `Invite` → `Share Interest`** so both
   directions are symmetric. (There is no event context on a profile, so the old "Invite"
   label could not drive the event-booking invite flow anyway.)
-- A **24h cooldown** prevents a sender from spamming the same recipient, mirroring the
-  existing booking-resend cooldown (`RESEND_COOLDOWN_MS`).
+- A **24h cooldown** prevents a sender from spamming the same recipient, via a dedicated
+  `SHARE_INTEREST_COOLDOWN_MS` constant (the booking-resend cooldown it was modelled on
+  lives in an unmerged branch, so this feature ships its own).
 - Only **artist ↔ venue** may send: an artist viewing a venue, or a venue viewing an
   artist. Spectators and same-persona viewers (artist→artist, venue→venue) never see the
   button, and the server rejects them defensively.
@@ -116,7 +117,7 @@ no profile and is handled by step 3). Steps:
    - else `BAD_REQUEST` ("Share Interest is only between artists and venues.")
      Confirm the recipient profile row exists (defensive).
 4. **Cooldown** — latest `collaboration_interests` row for `(sender, recipient)`; if
-   `now - created_at < RESEND_COOLDOWN_MS` → `TOO_MANY_REQUESTS`
+   `now - created_at < SHARE_INTEREST_COOLDOWN_MS` → `TOO_MANY_REQUESTS`
    ("You've already shared interest recently.").
 5. **Insert** one `collaboration_interests` row.
 6. **Dispatch** via `ctx.dispatchNotification`:
@@ -159,7 +160,7 @@ Server (`packages/api`, mirroring the `bookings` router tests — inject `db` +
 - venue → artist dispatches `COLLAB_INTEREST_TO_ARTIST` with `{ venueName, venueUserId }`.
 - rejects self-interest.
 - rejects recipient of the same / non-opposite persona (e.g. spectator, artist→artist).
-- cooldown: second call within `RESEND_COOLDOWN_MS` throws `TOO_MANY_REQUESTS`; a call
+- cooldown: second call within `SHARE_INTEREST_COOLDOWN_MS` throws `TOO_MANY_REQUESTS`; a call
   after the window succeeds (control `Date.now`).
 - a row is inserted on success.
 
