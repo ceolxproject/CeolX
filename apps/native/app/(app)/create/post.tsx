@@ -57,16 +57,27 @@ export default function CreatePostScreen() {
   // spinner the instant it's tapped instead of only once the mutation fires.
   const [isPublishing, setIsPublishing] = useState(false);
 
-  // Seed form when editing an existing post.
+  // Seed form when editing an existing post. Both image and video posts carry
+  // a ready mediaUrl (S3/CloudFront for images, the Mux HLS .m3u8 for video) —
+  // seed either so the creator sees their existing media in the edit screen
+  // instead of an empty picker (Asana 1215484454792689). Video is shown
+  // read-only: its media is Mux-managed and is never swapped on edit (see
+  // planPostMediaUpdate + handlePublish). A still-transcoding video has no
+  // mediaUrl yet, so it falls through to the read-only "processing" state.
   useEffect(() => {
     if (!isEditing || !existing.data) return;
-    setCaption(existing.data.caption);
-    if (existing.data.mediaType === 'image' && existing.data.mediaUrl) {
-      setMedia({ uri: existing.data.mediaUrl, cdnUrl: existing.data.mediaUrl, kind: 'image' });
+    const { caption: existingCaption, mediaType, mediaUrl } = existing.data;
+    setCaption(existingCaption);
+    if ((mediaType === 'image' || mediaType === 'video') && mediaUrl) {
+      setMedia({ uri: mediaUrl, cdnUrl: mediaUrl, kind: mediaType });
     } else {
       setMedia(null);
     }
   }, [existing.data, isEditing]);
+
+  // A video post's media is locked on edit — it can't be removed or replaced,
+  // so the picker is presented read-only (no remove button, tapping is inert).
+  const isVideoEdit = isEditing && existing.data?.mediaType === 'video';
 
   // Android-only: a freshly-picked image OR video paints blank until the picker
   // field remounts (same issue as the event cover — see create.tsx and Asana
@@ -210,6 +221,7 @@ export default function CreatePostScreen() {
                 onRemove={handleRemoveMedia}
                 isUploading={isUploading}
                 progress={progress}
+                readOnly={isVideoEdit}
               />
             </View>
 
