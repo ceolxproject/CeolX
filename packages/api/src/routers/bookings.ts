@@ -12,6 +12,7 @@ import {
   type BookingStatus as BookingStatusType,
   EventStatus,
   formatNotificationDate,
+  isEventUnavailableForCollaboration,
   NotificationTrigger,
   RESEND_COOLDOWN_MS,
   UserRole,
@@ -233,6 +234,7 @@ export const bookingsRouter = router({
       eventDateStart: event.dateStart.toISOString(),
       eventDateEnd: event.dateEnd?.toISOString() ?? undefined,
       eventVenueAddress: event.venueAddress ?? undefined,
+      eventStatus: event.status,
       createdAt: result.createdAt.toISOString(),
       updatedAt: result.updatedAt.toISOString(),
     };
@@ -412,6 +414,19 @@ export const bookingsRouter = router({
 
     if (!isInvitedArtist && !isInviterArtist && !isVenue) {
       throw new TRPCError({ code: 'FORBIDDEN', message: 'You are not a party to this booking' });
+    }
+
+    // 2b. Block all actions once the linked event is gone. A deleted (archived)
+    // or admin-removed event leaves its bookings reachable through the
+    // collaboration/request cards; without this guard a stale client could
+    // still accept/reject/withdraw against an event that no longer exists.
+    // (Asana 1215700058852004) — the UI disables these buttons too, this is the
+    // server-side backstop.
+    if (booking.event && isEventUnavailableForCollaboration(booking.event.status)) {
+      throw new TRPCError({
+        code: 'BAD_REQUEST',
+        message: 'This event is no longer available',
+      });
     }
 
     // 3. State machine validation
@@ -844,6 +859,8 @@ export const bookingsRouter = router({
           eventDateStart: row.event?.dateStart?.toISOString() ?? '',
           eventDateEnd: row.event?.dateEnd?.toISOString() ?? undefined,
           eventVenueAddress: row.event?.venueAddress ?? undefined,
+          // No event row → treat as deleted so the card fails safe (disabled).
+          eventStatus: row.event?.status ?? EventStatus.ARCHIVED,
           createdAt: row.createdAt.toISOString(),
           updatedAt: row.updatedAt.toISOString(),
         };
@@ -927,6 +944,8 @@ export const bookingsRouter = router({
         eventDateStart: booking.event?.dateStart?.toISOString() ?? '',
         eventDateEnd: booking.event?.dateEnd?.toISOString() ?? undefined,
         eventVenueAddress: booking.event?.venueAddress ?? undefined,
+        // No event row → treat as deleted so the detail screen fails safe.
+        eventStatus: booking.event?.status ?? EventStatus.ARCHIVED,
         createdAt: booking.createdAt.toISOString(),
         updatedAt: booking.updatedAt.toISOString(),
         cancelledByName: booking.cancelledByUser?.name ?? null,

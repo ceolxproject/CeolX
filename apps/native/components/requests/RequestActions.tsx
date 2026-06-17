@@ -1,7 +1,11 @@
 import { cn } from 'heroui-native';
 import { ActivityIndicator, Alert, Pressable, Text, View } from 'react-native';
 
-import { RESEND_COOLDOWN_MS, type BookingSummary } from '@CeolX/shared';
+import {
+  isEventUnavailableForCollaboration,
+  RESEND_COOLDOWN_MS,
+  type BookingSummary,
+} from '@CeolX/shared';
 import { BookingDirection, BookingStatus, UserRole } from '@CeolX/shared/enums';
 
 /** A pending-request action that can be in flight (drives per-button feedback). */
@@ -46,6 +50,10 @@ export function RequestActions({
   pendingAction,
 }: RequestActionsProps) {
   if (booking.status !== BookingStatus.PENDING) return null;
+
+  // Event deleted/removed → no actions are valid (the server rejects them too).
+  // The card/detail screen shows the "no longer available" notice instead.
+  if (isEventUnavailableForCollaboration(booking.eventStatus)) return null;
 
   const isSentByUser =
     booking.direction === BookingDirection.ARTIST_TO_ARTIST

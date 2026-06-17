@@ -287,6 +287,7 @@ function MyEventsTab() {
               category={event.category}
               venueAddress={event.venueAddress}
               bookingId={event.bookingId}
+              eventStatus={event.status}
               onCancel={handleCancelBooking}
               onPress={() => router.push(`/(app)/(tabs)/profile/event/${event.id}`)}
             />

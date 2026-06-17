@@ -579,6 +579,92 @@ describe('bookings.update', () => {
   });
 });
 
+// ─── deleted event accessibility (Asana 1215700058852004) ───────────────────
+// When a venue deletes (archives) an event, its bookings stay reachable through
+// the collaboration/request cards. The list/byId reads must still surface them
+// (disabled, not removed) with the event status, and `update` must reject any
+// action against an event that's no longer active.
+
+describe('bookings — deleted/removed event', () => {
+  const archivedBooking = { ...mockBooking, event: { ...mockEvent, status: 'archived' } };
+  const removedBooking = { ...mockBooking, event: { ...mockEvent, status: 'removed' } };
+
+  it('blocks artist accepting a booking on an archived event', async () => {
+    const caller = createCaller(authedContext('artist', ARTIST_USER_ID));
+    mockBookingsFindFirst.mockResolvedValueOnce(archivedBooking);
+
+    await expectTRPCError(
+      caller.bookings.update({ id: BOOKING_ID, status: 'accepted' }),
+      'BAD_REQUEST'
+    );
+  });
+
+  it('blocks venue withdrawing a booking on an archived event', async () => {
+    const caller = createCaller(authedContext('venue', VENUE_USER_ID));
+    mockBookingsFindFirst.mockResolvedValueOnce(archivedBooking);
+
+    await expectTRPCError(
+      caller.bookings.update({ id: BOOKING_ID, status: 'cancelled' }),
+      'BAD_REQUEST'
+    );
+  });
+
+  it('blocks actions on an admin-removed event', async () => {
+    const caller = createCaller(authedContext('artist', ARTIST_USER_ID));
+    mockBookingsFindFirst.mockResolvedValueOnce(removedBooking);
+
+    await expectTRPCError(
+      caller.bookings.update({ id: BOOKING_ID, status: 'rejected' }),
+      'BAD_REQUEST'
+    );
+  });
+
+  it('still allows venue to accept a pending_review artist_to_venue booking (allow-list regression)', async () => {
+    const pendingReviewBooking = {
+      ...mockBooking,
+      direction: 'artist_to_venue',
+      event: { ...mockEvent, status: 'pending_review' },
+    };
+    const caller = createCaller(authedContext('venue', VENUE_USER_ID));
+    mockBookingsFindFirst.mockResolvedValueOnce(pendingReviewBooking);
+    mockUpdateReturning.mockResolvedValueOnce([{ ...pendingReviewBooking, status: 'accepted' }]);
+
+    const result = await caller.bookings.update({ id: BOOKING_ID, status: 'accepted' });
+    expect(result.status).toBe('accepted');
+  });
+
+  it('list keeps an archived-event booking and surfaces eventStatus', async () => {
+    const caller = createCaller(authedContext('venue', VENUE_USER_ID));
+    mockVenuesFindFirst.mockResolvedValueOnce({ id: VENUE_PROFILE_ID });
+    mockSelectWhere.mockReturnValueOnce({
+      then: (cb: (v: unknown[]) => void) => cb([{ count: 1 }]),
+    });
+    mockBookingsFindMany.mockResolvedValueOnce([archivedBooking]);
+    mockSelectWhere.mockReturnValueOnce({
+      then: (cb: (v: unknown[]) => void) =>
+        cb([
+          { id: ARTIST_USER_ID, image: 'artist.jpg' },
+          { id: VENUE_USER_ID, image: 'venue.jpg' },
+        ]),
+    });
+
+    const result = await caller.bookings.list({ tab: 'sent' });
+    expect(result.bookings).toHaveLength(1);
+    expect(result.bookings[0]?.eventStatus).toBe('archived');
+  });
+
+  it('byId returns eventStatus and does not 404 for an archived event', async () => {
+    const caller = createCaller(authedContext('artist', ARTIST_USER_ID));
+    mockBookingsFindFirst.mockResolvedValueOnce(archivedBooking);
+    mockUserFindFirst.mockResolvedValueOnce({ image: 'artist.jpg' });
+    mockUserFindFirst.mockResolvedValueOnce({ image: 'venue.jpg' });
+
+    const result = await caller.bookings.byId({ id: BOOKING_ID });
+    expect(result.id).toBe(BOOKING_ID);
+    expect(result.eventStatus).toBe('archived');
+  });
+});
+
 // ─── bookings.list ───────────────────────────────────────────────────────────
 
 describe('bookings.list', () => {
