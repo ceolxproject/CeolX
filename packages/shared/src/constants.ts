@@ -112,3 +112,9 @@ export const FCM_NOTIFICATION_CLICK_ACTION = 'FLUTTER_NOTIFICATION_CLICK';
 // API pagination defaults
 export const DEFAULT_PAGE_LIMIT = 20;
 export const MAX_PAGE_LIMIT = 100;
+
+// Bookings — minimum wait before a pending invite/request can be resent.
+// Anchored on bookings.updatedAt, which for a pending row only moves on
+// creation (first send) or a resend, so it reads as "last sent at".
+// (Asana 1215700058851990 — anti-spam on resend.)
+export const RESEND_COOLDOWN_MS = 24 * 60 * 60 * 1000; // 24 hours

@@ -13,6 +13,7 @@ import {
   EventStatus,
   formatNotificationDate,
   NotificationTrigger,
+  RESEND_COOLDOWN_MS,
   UserRole,
 } from '@CeolX/shared';
 import {
@@ -599,6 +600,22 @@ export const bookingsRouter = router({
         });
       }
 
+      // Anti-spam: block resends inside the cooldown window. For a pending row
+      // updatedAt is the last time the invite was sent (create or prior resend),
+      // so this also covers resending too soon after the original invitation.
+      const sinceLastSent = Date.now() - booking.updatedAt.getTime();
+      if (sinceLastSent < RESEND_COOLDOWN_MS) {
+        throw new TRPCError({
+          code: 'TOO_MANY_REQUESTS',
+          message: 'Recently sent — please wait before sending again.',
+        });
+      }
+
+      // Bump updatedAt so the cooldown window rolls forward from this resend.
+      // Safe on a pending row: no status change rides along, so the booking
+      // stays pending and updatedAt keeps meaning "last sent at".
+      await db.update(bookings).set({ updatedAt: new Date() }).where(eq(bookings.id, booking.id));
+
       const eventTitle = booking.event?.title ?? 'event';
       const date = formatNotificationDate(booking.event?.dateStart ?? new Date());
 
@@ -809,10 +826,8 @@ export const bookingsRouter = router({
           inviterArtistUserId: row.inviterArtist?.userId,
           inviterArtistName: row.inviterArtist?.stageName,
           inviterArtistImage: row.inviterArtist
-            ? (resolveProfileImageUrl(
-                row.inviterArtist,
-                imageMap.get(row.inviterArtist.userId)
-              ) ?? undefined)
+            ? (resolveProfileImageUrl(row.inviterArtist, imageMap.get(row.inviterArtist.userId)) ??
+              undefined)
             : undefined,
           // For the caller's perspective on a co-artist row: are they the inviter?
           viewerIsSender: isA2A ? row.inviterArtist?.id === profileId : undefined,

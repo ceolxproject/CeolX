@@ -899,6 +899,34 @@ describe('bookings.resend', () => {
       })
     );
   });
+
+  // ─── resend cooldown (Asana 1215700058851990, bug #2) ──────────────────────
+  // A pending row's updatedAt is its "last sent at" (create or resend). Resending
+  // inside the 24h window is rejected as spam; the bump keeps the window rolling.
+
+  it('throws TOO_MANY_REQUESTS when resent inside the cooldown window', async () => {
+    const caller = createCaller(authedContext('venue', VENUE_USER_ID));
+    // updatedAt = now → well inside the 24h cooldown.
+    mockBookingsFindFirst.mockResolvedValueOnce({ ...mockBooking, updatedAt: new Date() });
+
+    await expectTRPCError(caller.bookings.resend({ id: BOOKING_ID }), 'TOO_MANY_REQUESTS');
+    expect(mockDispatchNotification).not.toHaveBeenCalled();
+  });
+
+  it('allows resend once the cooldown has elapsed and bumps the last-sent timestamp', async () => {
+    const caller = createCaller(authedContext('venue', VENUE_USER_ID));
+    // mockBooking.updatedAt is 2026-04-12 — far outside the window.
+    mockBookingsFindFirst.mockResolvedValueOnce(mockBooking);
+    const updateSpy = mockDb.update as ReturnType<typeof vi.fn>;
+    updateSpy.mockClear();
+
+    const result = await caller.bookings.resend({ id: BOOKING_ID });
+
+    expect(result).toEqual({ id: BOOKING_ID, success: true });
+    expect(mockDispatchNotification).toHaveBeenCalled();
+    // The row's updatedAt is rewritten so the next resend is gated 24h from now.
+    expect(updateSpy).toHaveBeenCalled();
+  });
 });
 
 // ─── bookings.searchArtists ──────────────────────────────────────────────────
