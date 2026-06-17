@@ -732,7 +732,7 @@ describe('bookings.update — artist_to_artist', () => {
       expect.objectContaining({
         trigger: NotificationTrigger.BOOKING_COARTIST_ACCEPTED_TO_INVITER,
         recipientUserId: INVITER_USER_ID,
-        vars: expect.objectContaining({ coArtistName: 'Celtic Thunder' }),
+        vars: expect.objectContaining({ coArtistName: 'Celtic Thunder' }) as unknown,
       })
     );
   });
@@ -758,7 +758,7 @@ describe('bookings.update — artist_to_artist', () => {
       expect.objectContaining({
         trigger: NotificationTrigger.BOOKING_COARTIST_WITHDRAWN_TO_INVITEE,
         recipientUserId: ARTIST_USER_ID,
-        vars: expect.objectContaining({ coArtistName: 'Tune Bomb' }),
+        vars: expect.objectContaining({ coArtistName: 'Tune Bomb' }) as unknown,
       })
     );
   });
@@ -793,7 +793,8 @@ describe('bookings.list — artist_to_artist tabs', () => {
 
     const result = await caller.bookings.list({ tab: 'received' });
     expect(result.bookings).toHaveLength(1);
-    const row = result.bookings[0]!;
+    const row = result.bookings[0];
+    if (!row) throw new Error('expected a booking row');
     expect(row.direction).toBe('artist_to_artist');
     expect(row.inviterArtistName).toBe('Tune Bomb');
     expect(row.inviterArtistId).toBe(INVITER_PROFILE_ID);
@@ -824,7 +825,8 @@ describe('bookings.list — artist_to_artist tabs', () => {
     });
 
     const result = await caller.bookings.list({ tab: 'sent' });
-    const row = result.bookings[0]!;
+    const row = result.bookings[0];
+    if (!row) throw new Error('expected a booking row');
     expect(row.viewerIsSender).toBe(true);
   });
 });
@@ -893,7 +895,7 @@ describe('bookings.resend', () => {
       expect.objectContaining({
         trigger: NotificationTrigger.BOOKING_INVITE_TO_COARTIST,
         recipientUserId: ARTIST_USER_ID,
-        vars: expect.objectContaining({ coArtistName: 'Tune Bomb' }),
+        vars: expect.objectContaining({ coArtistName: 'Tune Bomb' }) as unknown,
       })
     );
   });
