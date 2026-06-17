@@ -25,6 +25,7 @@ import { SettingsBottomSheet } from '@/components/SettingsBottomSheet';
 import { useAuth } from '@/contexts/auth-context';
 import { useMe } from '@/hooks/use-me';
 import { useProfileFollowHandler } from '@/hooks/use-profile-follow-handler';
+import { useShareInterest } from '@/hooks/use-share-interest';
 import { useUserPosts } from '@/hooks/use-user-posts';
 import { useVenueProfile } from '@/hooks/use-venue-profile';
 
@@ -77,7 +78,9 @@ export default function VenueProfileScreen() {
   const [activeTab, setActiveTab] = useState<ProfileTab>('events');
   const settingsRef = useRef<BottomSheetModal>(null);
   const { logout } = useAuth();
+  const { data: me } = useMe();
   const { isFollowing, onFollowPress } = useProfileFollowHandler(profile);
+  const { shareInterest } = useShareInterest();
 
   if (isLoading) {
     return (
@@ -169,11 +172,10 @@ export default function VenueProfileScreen() {
               onFollowersPress={() => router.push('/(app)/(tabs)/profile/following')}
               onFollowingPress={() => router.push('/(app)/(tabs)/profile/following')}
               secondaryCta={
-                !profile.isOwner
+                !profile.isOwner && me?.currentRole === 'artist'
                   ? {
                       label: 'Share Interest',
-                      onPress: () =>
-                        Alert.alert('Coming Soon', 'Share interest feature coming soon.'),
+                      onPress: () => shareInterest(profile.userId),
                     }
                   : undefined
               }
