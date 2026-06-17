@@ -120,4 +120,38 @@ describe('StickyBottomBar', () => {
     expect(labels.some((l) => l.includes('Request to Perform'))).toBe(true);
     expect(labels.some((l) => l.includes('Book Ticket'))).toBe(false);
   });
+
+  // ── Request state contract (Asana 1215700058851990, bugs #4/#5) ────────────
+  // The button shown is driven entirely by `hasExistingRequest`. A withdrawn
+  // request flips the server's viewerHasPendingRequest to false, so the artist
+  // must get an actionable "Request to Perform" back — never a stuck "Request
+  // Sent" placeholder.
+
+  it('shows the disabled Request Sent state while a request is pending', () => {
+    const tree = StickyBottomBar({
+      ...baseProps,
+      isArtist: true,
+      isVenueEvent: true,
+      hasExistingRequest: true,
+    });
+    const allLabels = [
+      ...collect(tree, 'Pressable').map((p) => textContent(p.props?.children)),
+      ...collect(tree, 'View').map((v) => textContent(v.props?.children)),
+    ];
+    expect(allLabels.some((l) => l.includes('Request Sent'))).toBe(true);
+    // The actionable button must NOT be present while pending.
+    const pressableLabels = collect(tree, 'Pressable').map((p) => textContent(p.props?.children));
+    expect(pressableLabels.some((l) => l.includes('Request to Perform'))).toBe(false);
+  });
+
+  it('restores the actionable Request to Perform button once the request is gone (withdrawn)', () => {
+    const tree = StickyBottomBar({
+      ...baseProps,
+      isArtist: true,
+      isVenueEvent: true,
+      hasExistingRequest: false,
+    });
+    const pressableLabels = collect(tree, 'Pressable').map((p) => textContent(p.props?.children));
+    expect(pressableLabels.some((l) => l.includes('Request to Perform'))).toBe(true);
+  });
 });

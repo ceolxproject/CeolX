@@ -56,6 +56,10 @@ export interface EventDetailData {
   collaborators: EventDetailArtist[];
   collection?: { id: string; name: string } | null;
   isSaved: boolean;
+  /** True while the viewing artist has a still-pending performance request on
+   *  this event. Drives the "Request to Perform" ↔ "Request Sent" CTA; resets
+   *  to false after a withdraw so the artist can ask again. */
+  viewerHasPendingRequest: boolean;
   attendeeCount: number;
   relatedEvents: RelatedEvent[];
 }
