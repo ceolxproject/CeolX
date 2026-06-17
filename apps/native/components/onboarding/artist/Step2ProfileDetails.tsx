@@ -1,6 +1,6 @@
 import { Text, TextInput, View } from 'react-native';
 
-const BIO_MAX = 50;
+import { BIO_MAX_LENGTH } from '@CeolX/shared/validators';
 
 interface Step2ProfileDetailsProps {
   bio: string;
@@ -25,7 +25,7 @@ export function Step2ProfileDetails({ bio, setBio, errors, handleBlur }: Step2Pr
         <View className="flex-row items-center justify-between">
           <Text className="text-sm font-bold text-white/80">Short Bio (optional)</Text>
           <Text className="text-base text-gray-10">
-            {bio.length}/{BIO_MAX}
+            {bio.length}/{BIO_MAX_LENGTH}
           </Text>
         </View>
         <TextInput
@@ -36,7 +36,7 @@ export function Step2ProfileDetails({ bio, setBio, errors, handleBlur }: Step2Pr
           onChangeText={setBio}
           onBlur={() => handleBlur('bio')}
           multiline
-          maxLength={BIO_MAX}
+          maxLength={BIO_MAX_LENGTH}
           // minHeight (not height) lets the box grow with each new line so the
           // earliest lines stay visible instead of scrolling out of view.
           style={{ minHeight: 120, textAlignVertical: 'top' }}

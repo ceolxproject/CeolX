@@ -1,8 +1,8 @@
 import { Text, TextInput, View } from 'react-native';
 
-import { LocationPicker, type PickedLocation } from '@/components/LocationPicker';
+import { BIO_MAX_LENGTH } from '@CeolX/shared/validators';
 
-const BIO_MAX = 50;
+import { LocationPicker, type PickedLocation } from '@/components/LocationPicker';
 
 interface Step2ProfileDetailsProps {
   bio: string;
@@ -47,7 +47,7 @@ export function Step2ProfileDetails({
           <View className="flex-row items-center justify-between">
             <Text className="text-sm font-bold text-white/80">Short Description (optional)</Text>
             <Text className="text-base text-gray-10">
-              {bio.length}/{BIO_MAX}
+              {bio.length}/{BIO_MAX_LENGTH}
             </Text>
           </View>
           <TextInput
@@ -58,7 +58,7 @@ export function Step2ProfileDetails({
             onChangeText={setBio}
             onBlur={() => handleBlur('bio')}
             multiline
-            maxLength={BIO_MAX}
+            maxLength={BIO_MAX_LENGTH}
             // minHeight (not height) lets the box grow with each new line so the
             // earliest lines stay visible instead of scrolling out of view.
             style={{ minHeight: 72, textAlignVertical: 'top' }}
