@@ -118,3 +118,7 @@ export const MAX_PAGE_LIMIT = 100;
 // creation (first send) or a resend, so it reads as "last sent at".
 // (Asana 1215700058851990 — anti-spam on resend.)
 export const RESEND_COOLDOWN_MS = 24 * 60 * 60 * 1000; // 24 hours
+
+// Collaboration — "Share Interest" anti-spam cooldown. Blocks re-sending
+// interest to the same recipient within this window (M? — Asana 1215700058851992).
+export const SHARE_INTEREST_COOLDOWN_MS = 24 * 60 * 60 * 1000; // 24 hours
