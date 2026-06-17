@@ -61,7 +61,7 @@ export function EventDetailView({
   const { initialRegion, locationSource } = useGpsRegion();
   const { mutate: saveEvent } = useSaveEvent();
   const shareEvent = useShareEvent();
-  const { requestToPerform, isRequesting, hasRequested } = useRequestToPerform();
+  const { requestToPerform, isRequesting } = useRequestToPerform();
 
   const distanceKm = useMemo(() => {
     if (locationSource === 'pending') return undefined;
@@ -326,7 +326,7 @@ export function EventDetailView({
           isVenueEvent={event.creator.type === UserRole.VENUE}
           isCollaborator={isCollaborator}
           isRequesting={isRequesting}
-          hasExistingRequest={hasRequested}
+          hasExistingRequest={event.viewerHasPendingRequest}
           onRequestToPerform={handleRequestToPerform}
         />
       )}

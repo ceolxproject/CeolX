@@ -47,6 +47,10 @@ export function useUpdateBooking() {
       // "Cannot transition from cancelled to cancelled" backend error.
       void queryClient.invalidateQueries({ queryKey: [['bookings', 'list']] });
       void queryClient.invalidateQueries({ queryKey: [['bookings', 'byId']] });
+      // Withdrawing/declining clears the artist's pending request, so the event
+      // detail's "Request to Perform" CTA must recompute (it's gated on the
+      // server's viewerHasPendingRequest). (Asana 1215700058851990, bugs #4/#5)
+      void queryClient.invalidateQueries({ queryKey: [['events', 'byId']] });
     },
   });
 }

@@ -13,6 +13,7 @@ import {
   EventStatus,
   formatNotificationDate,
   NotificationTrigger,
+  RESEND_COOLDOWN_MS,
   UserRole,
 } from '@CeolX/shared';
 import {
@@ -33,6 +34,8 @@ import {
   venueProcedure,
 } from '../index';
 import { syncEventToTypesense } from '../services/event-sync';
+
+import { resolveProfileImageUrl } from './events/helpers';
 
 // ─── Valid state transitions (enforced at application layer) ──────────────────
 //   pending  → accepted  (artist only)
@@ -218,11 +221,11 @@ export const bookingsRouter = router({
       artistId: artistProfile.id,
       artistUserId: artistProfile.userId,
       artistName: artistProfile.stageName,
-      artistImage: artistUser?.image ?? undefined,
+      artistImage: resolveProfileImageUrl(artistProfile, artistUser?.image) ?? undefined,
       venueId: venueProfile.id,
       venueUserId: venueProfile.userId,
       venueName: venueProfile.venueName,
-      venueImage: venueUser?.image ?? undefined,
+      venueImage: resolveProfileImageUrl(venueProfile, venueUser?.image) ?? undefined,
       eventId: event.id,
       eventTitle: event.title,
       eventCoverImage: event.coverImage ?? undefined,
@@ -364,11 +367,11 @@ export const bookingsRouter = router({
         artistId: artistProfile.id,
         artistUserId: artistProfile.userId,
         artistName: artistProfile.stageName,
-        artistImage: artistUser?.image ?? undefined,
+        artistImage: resolveProfileImageUrl(artistProfile, artistUser?.image) ?? undefined,
         venueId: venueProfile.id,
         venueUserId: venueProfile.userId,
         venueName: venueProfile.venueName,
-        venueImage: venueUser?.image ?? undefined,
+        venueImage: resolveProfileImageUrl(venueProfile, venueUser?.image) ?? undefined,
         eventId: event.id,
         eventTitle: event.title,
         eventCoverImage: event.coverImage ?? undefined,
@@ -597,6 +600,22 @@ export const bookingsRouter = router({
         });
       }
 
+      // Anti-spam: block resends inside the cooldown window. For a pending row
+      // updatedAt is the last time the invite was sent (create or prior resend),
+      // so this also covers resending too soon after the original invitation.
+      const sinceLastSent = Date.now() - booking.updatedAt.getTime();
+      if (sinceLastSent < RESEND_COOLDOWN_MS) {
+        throw new TRPCError({
+          code: 'TOO_MANY_REQUESTS',
+          message: 'Recently sent — please wait before sending again.',
+        });
+      }
+
+      // Bump updatedAt so the cooldown window rolls forward from this resend.
+      // Safe on a pending row: no status change rides along, so the booking
+      // stays pending and updatedAt keeps meaning "last sent at".
+      await db.update(bookings).set({ updatedAt: new Date() }).where(eq(bookings.id, booking.id));
+
       const eventTitle = booking.event?.title ?? 'event';
       const date = formatNotificationDate(booking.event?.dateStart ?? new Date());
 
@@ -801,19 +820,23 @@ export const bookingsRouter = router({
           artistId: row.artist.id,
           artistUserId: row.artist.userId,
           artistName: row.artist.stageName,
-          artistImage: imageMap.get(row.artist.userId) ?? undefined,
+          artistImage:
+            resolveProfileImageUrl(row.artist, imageMap.get(row.artist.userId)) ?? undefined,
           inviterArtistId: row.inviterArtist?.id,
           inviterArtistUserId: row.inviterArtist?.userId,
           inviterArtistName: row.inviterArtist?.stageName,
           inviterArtistImage: row.inviterArtist
-            ? (imageMap.get(row.inviterArtist.userId) ?? undefined)
+            ? (resolveProfileImageUrl(row.inviterArtist, imageMap.get(row.inviterArtist.userId)) ??
+              undefined)
             : undefined,
           // For the caller's perspective on a co-artist row: are they the inviter?
           viewerIsSender: isA2A ? row.inviterArtist?.id === profileId : undefined,
           venueId: row.venue?.id ?? '',
           venueUserId: row.venue?.userId ?? '',
           venueName: row.venue?.venueName ?? '',
-          venueImage: row.venue ? (imageMap.get(row.venue.userId) ?? undefined) : undefined,
+          venueImage: row.venue
+            ? (resolveProfileImageUrl(row.venue, imageMap.get(row.venue.userId)) ?? undefined)
+            : undefined,
           eventId: row.event?.id ?? '',
           eventTitle: row.event?.title ?? '',
           eventCoverImage: row.event?.coverImage ?? undefined,
@@ -886,16 +909,17 @@ export const bookingsRouter = router({
         artistId: booking.artist.id,
         artistUserId: booking.artist.userId,
         artistName: booking.artist.stageName,
-        artistImage: artistUser?.image ?? undefined,
+        artistImage: resolveProfileImageUrl(booking.artist, artistUser?.image) ?? undefined,
         inviterArtistId: booking.inviterArtist?.id,
         inviterArtistUserId: booking.inviterArtist?.userId,
         inviterArtistName: booking.inviterArtist?.stageName,
-        inviterArtistImage: inviterUser?.image ?? undefined,
+        inviterArtistImage:
+          resolveProfileImageUrl(booking.inviterArtist, inviterUser?.image) ?? undefined,
         viewerIsSender: isA2A ? booking.inviterArtist?.userId === ctx.userId : undefined,
         venueId: booking.venue?.id ?? '',
         venueUserId: booking.venue?.userId ?? '',
         venueName: booking.venue?.venueName ?? '',
-        venueImage: venueUser?.image ?? undefined,
+        venueImage: resolveProfileImageUrl(booking.venue, venueUser?.image) ?? undefined,
         eventId: booking.event?.id ?? '',
         eventTitle: booking.event?.title ?? '',
         eventCoverImage: booking.event?.coverImage ?? undefined,
@@ -917,6 +941,7 @@ export const bookingsRouter = router({
         stageName: artistProfiles.stageName,
         genre: artistProfiles.genre,
         userId: artistProfiles.userId,
+        profileImageUrl: artistProfiles.profileImageUrl,
       })
       .from(artistProfiles)
       .where(
@@ -945,7 +970,7 @@ export const bookingsRouter = router({
         userId: r.userId,
         stageName: r.stageName,
         genre: r.genre,
-        image: imageMap.get(r.userId) ?? null,
+        image: resolveProfileImageUrl(r, imageMap.get(r.userId)),
       })),
     };
   }),

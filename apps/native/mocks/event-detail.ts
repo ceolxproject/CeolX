@@ -60,6 +60,7 @@ export const MOCK_EVENT_DETAIL: EventDetailData = {
     name: 'Achill Island Sessions',
   },
   isSaved: false,
+  viewerHasPendingRequest: false,
   attendeeCount: 180,
   relatedEvents: [
     {
