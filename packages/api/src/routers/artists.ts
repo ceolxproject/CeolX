@@ -1,5 +1,5 @@
 import { TRPCError } from '@trpc/server';
-import { and, eq, ilike, inArray, or } from 'drizzle-orm';
+import { and, eq, ilike, inArray, isNull, or, sql } from 'drizzle-orm';
 import { z } from 'zod';
 
 import { db } from '@CeolX/db';
@@ -109,7 +109,12 @@ export const artistsRouter = router({
         and(eq(events.createdBy, profile.userId), inArray(events.status, ['active', 'archived']))
       );
 
-    // Events where artist is a collaborator (via event_collaborators)
+    // Events where artist is a *confirmed* collaborator. A row is created at
+    // invite time linked to a PENDING booking, so we must gate on acceptance:
+    // show only rows with no booking (legacy direct-add, pre-31/05/2026) or an
+    // accepted booking. Pending/declined/cancelled invites stay off the public
+    // profile. Mirrors bookings.confirmedEvents / isConfirmedPerformer.
+    // (Asana 1215700058851964)
     const collaboratedEvents = await db
       .select({
         id: events.id,
@@ -126,7 +131,15 @@ export const artistsRouter = router({
       .where(
         and(
           eq(eventCollaborators.artistProfileId, profile.userId),
-          inArray(events.status, ['active', 'archived'])
+          inArray(events.status, ['active', 'archived']),
+          or(
+            isNull(eventCollaborators.bookingId),
+            sql`EXISTS (
+              SELECT 1 FROM bookings b
+              WHERE b.id = ${eventCollaborators.bookingId}
+              AND b.status = 'accepted'
+            )`
+          )
         )
       );
 
