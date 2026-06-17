@@ -12,6 +12,7 @@ import {
   combineDateAndTime,
   endDateTimeError,
   platformInviteIds,
+  unregisteredCollaboratorsPayload,
 } from '@/hooks/use-event-form.utils';
 import { keyFromCdnUrl, useMediaDelete } from '@/hooks/use-media-delete';
 import { useMediaUpload } from '@/hooks/use-media-upload';
@@ -536,8 +537,10 @@ export function useEventForm(options?: UseEventFormOptions) {
       ticketQuantity: parseQuantity(ticketQuantity),
       collectionId: collectionId || undefined,
       platformInvites: platformInviteIds(platformInvites),
-      unregisteredCollaborators:
-        unregisteredCollaborators.length > 0 ? unregisteredCollaborators : undefined,
+      unregisteredCollaborators: unregisteredCollaboratorsPayload(
+        unregisteredCollaborators,
+        isEditing
+      ),
       adTitle: adTitle.trim() || undefined,
       adDescription: adDescription.trim() || undefined,
     };
