@@ -34,6 +34,8 @@ import {
 } from '../index';
 import { syncEventToTypesense } from '../services/event-sync';
 
+import { resolveProfileImageUrl } from './events/helpers';
+
 // ─── Valid state transitions (enforced at application layer) ──────────────────
 //   pending  → accepted  (artist only)
 //   pending  → rejected  (artist only)
@@ -218,11 +220,11 @@ export const bookingsRouter = router({
       artistId: artistProfile.id,
       artistUserId: artistProfile.userId,
       artistName: artistProfile.stageName,
-      artistImage: artistUser?.image ?? undefined,
+      artistImage: resolveProfileImageUrl(artistProfile, artistUser?.image) ?? undefined,
       venueId: venueProfile.id,
       venueUserId: venueProfile.userId,
       venueName: venueProfile.venueName,
-      venueImage: venueUser?.image ?? undefined,
+      venueImage: resolveProfileImageUrl(venueProfile, venueUser?.image) ?? undefined,
       eventId: event.id,
       eventTitle: event.title,
       eventCoverImage: event.coverImage ?? undefined,
@@ -364,11 +366,11 @@ export const bookingsRouter = router({
         artistId: artistProfile.id,
         artistUserId: artistProfile.userId,
         artistName: artistProfile.stageName,
-        artistImage: artistUser?.image ?? undefined,
+        artistImage: resolveProfileImageUrl(artistProfile, artistUser?.image) ?? undefined,
         venueId: venueProfile.id,
         venueUserId: venueProfile.userId,
         venueName: venueProfile.venueName,
-        venueImage: venueUser?.image ?? undefined,
+        venueImage: resolveProfileImageUrl(venueProfile, venueUser?.image) ?? undefined,
         eventId: event.id,
         eventTitle: event.title,
         eventCoverImage: event.coverImage ?? undefined,
@@ -801,19 +803,25 @@ export const bookingsRouter = router({
           artistId: row.artist.id,
           artistUserId: row.artist.userId,
           artistName: row.artist.stageName,
-          artistImage: imageMap.get(row.artist.userId) ?? undefined,
+          artistImage:
+            resolveProfileImageUrl(row.artist, imageMap.get(row.artist.userId)) ?? undefined,
           inviterArtistId: row.inviterArtist?.id,
           inviterArtistUserId: row.inviterArtist?.userId,
           inviterArtistName: row.inviterArtist?.stageName,
           inviterArtistImage: row.inviterArtist
-            ? (imageMap.get(row.inviterArtist.userId) ?? undefined)
+            ? (resolveProfileImageUrl(
+                row.inviterArtist,
+                imageMap.get(row.inviterArtist.userId)
+              ) ?? undefined)
             : undefined,
           // For the caller's perspective on a co-artist row: are they the inviter?
           viewerIsSender: isA2A ? row.inviterArtist?.id === profileId : undefined,
           venueId: row.venue?.id ?? '',
           venueUserId: row.venue?.userId ?? '',
           venueName: row.venue?.venueName ?? '',
-          venueImage: row.venue ? (imageMap.get(row.venue.userId) ?? undefined) : undefined,
+          venueImage: row.venue
+            ? (resolveProfileImageUrl(row.venue, imageMap.get(row.venue.userId)) ?? undefined)
+            : undefined,
           eventId: row.event?.id ?? '',
           eventTitle: row.event?.title ?? '',
           eventCoverImage: row.event?.coverImage ?? undefined,
@@ -886,16 +894,17 @@ export const bookingsRouter = router({
         artistId: booking.artist.id,
         artistUserId: booking.artist.userId,
         artistName: booking.artist.stageName,
-        artistImage: artistUser?.image ?? undefined,
+        artistImage: resolveProfileImageUrl(booking.artist, artistUser?.image) ?? undefined,
         inviterArtistId: booking.inviterArtist?.id,
         inviterArtistUserId: booking.inviterArtist?.userId,
         inviterArtistName: booking.inviterArtist?.stageName,
-        inviterArtistImage: inviterUser?.image ?? undefined,
+        inviterArtistImage:
+          resolveProfileImageUrl(booking.inviterArtist, inviterUser?.image) ?? undefined,
         viewerIsSender: isA2A ? booking.inviterArtist?.userId === ctx.userId : undefined,
         venueId: booking.venue?.id ?? '',
         venueUserId: booking.venue?.userId ?? '',
         venueName: booking.venue?.venueName ?? '',
-        venueImage: venueUser?.image ?? undefined,
+        venueImage: resolveProfileImageUrl(booking.venue, venueUser?.image) ?? undefined,
         eventId: booking.event?.id ?? '',
         eventTitle: booking.event?.title ?? '',
         eventCoverImage: booking.event?.coverImage ?? undefined,
@@ -917,6 +926,7 @@ export const bookingsRouter = router({
         stageName: artistProfiles.stageName,
         genre: artistProfiles.genre,
         userId: artistProfiles.userId,
+        profileImageUrl: artistProfiles.profileImageUrl,
       })
       .from(artistProfiles)
       .where(
@@ -945,7 +955,7 @@ export const bookingsRouter = router({
         userId: r.userId,
         stageName: r.stageName,
         genre: r.genre,
-        image: imageMap.get(r.userId) ?? null,
+        image: resolveProfileImageUrl(r, imageMap.get(r.userId)),
       })),
     };
   }),

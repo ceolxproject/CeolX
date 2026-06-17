@@ -650,6 +650,74 @@ describe('bookings.byId', () => {
   });
 });
 
+// ─── profile-image precedence (Asana 1215700058851990, bug #1) ───────────────
+// Uploaded avatars live in artist_profiles / venue_profiles (`profileImageUrl`);
+// the BetterAuth `user.image` column is only populated for Google/Apple logins.
+// A venue that uploaded a photo but signed up with email has user.image = null,
+// so the collaboration request was showing no picture. The profile image must
+// win, falling back to user.image only for social-login accounts without one.
+
+describe('bookings — profile image precedence', () => {
+  const VENUE_UPLOADED = 'https://cdn.ceolx.ie/venue-upload.jpg';
+  const ARTIST_UPLOADED = 'https://cdn.ceolx.ie/artist-upload.jpg';
+
+  it('byId surfaces the venue profileImageUrl when user.image is null', async () => {
+    const booking = {
+      ...mockBooking,
+      venue: { ...mockVenueProfile, profileImageUrl: VENUE_UPLOADED },
+      artist: { ...mockArtistProfile, profileImageUrl: ARTIST_UPLOADED },
+    };
+    const caller = createCaller(authedContext('artist', ARTIST_USER_ID));
+    mockBookingsFindFirst.mockResolvedValueOnce(booking);
+    mockUserFindFirst.mockResolvedValueOnce({ image: null }); // artist user (email signup)
+    mockUserFindFirst.mockResolvedValueOnce({ image: null }); // venue user (email signup)
+
+    const result = await caller.bookings.byId({ id: BOOKING_ID });
+    expect(result.venueImage).toBe(VENUE_UPLOADED);
+    expect(result.artistImage).toBe(ARTIST_UPLOADED);
+  });
+
+  it('byId prefers the uploaded profile image over the social-login user.image', async () => {
+    const booking = {
+      ...mockBooking,
+      venue: { ...mockVenueProfile, profileImageUrl: VENUE_UPLOADED },
+    };
+    const caller = createCaller(authedContext('artist', ARTIST_USER_ID));
+    mockBookingsFindFirst.mockResolvedValueOnce(booking);
+    mockUserFindFirst.mockResolvedValueOnce({ image: 'oauth-artist.jpg' });
+    mockUserFindFirst.mockResolvedValueOnce({ image: 'oauth-venue.jpg' });
+
+    const result = await caller.bookings.byId({ id: BOOKING_ID });
+    expect(result.venueImage).toBe(VENUE_UPLOADED);
+  });
+
+  it('list surfaces the venue profileImageUrl when user.image is null', async () => {
+    const booking = {
+      ...mockBooking,
+      venue: { ...mockVenueProfile, profileImageUrl: VENUE_UPLOADED },
+      artist: { ...mockArtistProfile, profileImageUrl: ARTIST_UPLOADED },
+    };
+    const caller = createCaller(authedContext('venue', VENUE_USER_ID));
+    mockVenuesFindFirst.mockResolvedValueOnce({ id: VENUE_PROFILE_ID });
+
+    mockSelectWhere.mockReturnValueOnce({
+      then: (cb: (v: unknown[]) => void) => cb([{ count: 1 }]),
+    });
+    mockBookingsFindMany.mockResolvedValueOnce([booking]);
+    mockSelectWhere.mockReturnValueOnce({
+      then: (cb: (v: unknown[]) => void) =>
+        cb([
+          { id: ARTIST_USER_ID, image: null },
+          { id: VENUE_USER_ID, image: null },
+        ]),
+    });
+
+    const result = await caller.bookings.list({ tab: 'sent' });
+    expect(result.bookings[0]?.venueImage).toBe(VENUE_UPLOADED);
+    expect(result.bookings[0]?.artistImage).toBe(ARTIST_UPLOADED);
+  });
+});
+
 // ─── bookings artist_to_artist (co-artist) ───────────────────────────────────
 
 describe('bookings.update — artist_to_artist', () => {
