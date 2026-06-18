@@ -2,11 +2,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { cn } from 'heroui-native';
 import { Text, View } from 'react-native';
 
-import { CATEGORY_LABELS } from '@CeolX/shared';
 import { EventStatus } from '@CeolX/shared/enums';
 
 import { BaseEventCard } from './BaseEventCard';
 import { EventCardOwnerMenu, type EventCardOwnerActions } from './EventCardOwnerMenu';
+import { EventCollectionBadge } from './EventCollectionBadge';
 
 interface ProfileEventCardProps {
   id: string;
@@ -16,6 +16,8 @@ interface ProfileEventCardProps {
   dateEnd?: string | null;
   category: string;
   venueAddress: string | null;
+  /** Name of the collection this event belongs to — shown as the top-left tag. */
+  collectionName?: string | null;
   status?: string;
   joinedCount?: number;
   ownerActions?: EventCardOwnerActions;
@@ -30,13 +32,13 @@ export function ProfileEventCard({
   dateEnd,
   category,
   venueAddress,
+  collectionName,
   status,
   joinedCount,
   ownerActions,
   onPress,
   className,
 }: ProfileEventCardProps) {
-  const categoryLabel = CATEGORY_LABELS[category] ?? category;
   const showJoinedBadge = typeof joinedCount === 'number' && joinedCount > 0;
 
   return (
@@ -49,13 +51,7 @@ export function ProfileEventCard({
       venueAddress={venueAddress}
       onPress={onPress}
       className={className}
-      topLeftBadge={
-        <View className="bg-[#080808] rounded-xl px-2 py-1.5">
-          <Text className="text-[12px] text-[#C8FF2F] font-semibold tracking-wide uppercase">
-            {categoryLabel}
-          </Text>
-        </View>
-      }
+      topLeftBadge={collectionName ? <EventCollectionBadge name={collectionName} /> : undefined}
       topRightBadge={
         ownerActions ? (
           <EventCardOwnerMenu actions={ownerActions} canDelete={status === EventStatus.ACTIVE} />

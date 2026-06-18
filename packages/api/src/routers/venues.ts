@@ -4,7 +4,7 @@ import { z } from 'zod';
 
 import { db } from '@CeolX/db';
 import { user } from '@CeolX/db/schema/auth';
-import { events } from '@CeolX/db/schema/events';
+import { collections, events } from '@CeolX/db/schema/events';
 import { follows } from '@CeolX/db/schema/social';
 import { venueProfiles } from '@CeolX/db/schema/users';
 import { updateVenueProfileSchema } from '@CeolX/shared/validators';
@@ -109,8 +109,10 @@ export const venuesRouter = router({
         venueAddress: events.venueAddress,
         category: events.category,
         status: events.status,
+        collectionName: collections.name,
       })
       .from(events)
+      .leftJoin(collections, eq(events.collectionId, collections.id))
       .where(
         and(
           or(eq(events.venueId, profile.id), eq(events.createdBy, profile.userId)),

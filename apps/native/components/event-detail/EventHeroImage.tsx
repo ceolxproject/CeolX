@@ -4,11 +4,14 @@ import { Image, Text, View } from 'react-native';
 
 import { CategoryBadge } from './CategoryBadge';
 
+import { EventCollectionBadge } from '@/components/EventCollectionBadge';
 import { getMockEventImage } from '@/utils/mock-images';
 
 interface EventHeroImageProps {
   coverImageUrl?: string;
   category: string;
+  /** Name of the collection this event belongs to — shown as the top-left tag. */
+  collectionName?: string | null;
   attendeeCount: number;
   className?: string;
 }
@@ -16,6 +19,7 @@ interface EventHeroImageProps {
 export function EventHeroImage({
   coverImageUrl,
   category,
+  collectionName,
   attendeeCount,
   className,
 }: EventHeroImageProps) {
@@ -26,6 +30,13 @@ export function EventHeroImage({
         className="absolute inset-0 w-full h-full"
         resizeMode="cover"
       />
+
+      {/* Collection tag — top-left over the cover (category sits bottom-left) */}
+      {collectionName ? (
+        <View className="absolute top-3 left-4">
+          <EventCollectionBadge name={collectionName} />
+        </View>
+      ) : null}
 
       {/* Category + attendee badges, aligned on one line over the image */}
       <View className="absolute bottom-3 left-4 right-4 flex-row items-center justify-between">

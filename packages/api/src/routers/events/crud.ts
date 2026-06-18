@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { db } from '@CeolX/db';
 import { user } from '@CeolX/db/schema/auth';
 import { bookings } from '@CeolX/db/schema/bookings';
-import { eventCollaborators, events, savedEvents } from '@CeolX/db/schema/events';
+import { collections, eventCollaborators, events, savedEvents } from '@CeolX/db/schema/events';
 import { artistProfiles, venueProfiles } from '@CeolX/db/schema/users';
 import {
   BookingDirection,
@@ -1079,10 +1079,12 @@ export const getMyEvents = creatorProcedure
           removalReason: events.removalReason,
           venueAddress: events.venueAddress,
           createdAt: events.createdAt,
+          collectionName: collections.name,
           // M11-T3 — saves count for the "X Joined" badge
           joinedCount: sql<number>`(SELECT count(*)::int FROM ${savedEvents} WHERE ${savedEvents.eventId} = ${events.id})`,
         })
         .from(events)
+        .leftJoin(collections, eq(events.collectionId, collections.id))
         .where(ownAndNotArchived)
         .orderBy(desc(events.createdAt))
         .limit(limit)
@@ -1104,6 +1106,7 @@ export const getMyEvents = creatorProcedure
         rejectionReason: e.rejectionReason ?? null,
         removalReason: e.removalReason ?? null,
         venueAddress: e.venueAddress ?? null,
+        collectionName: e.collectionName ?? null,
       })),
       totalCount,
       hasNextPage: offset + limit < totalCount,

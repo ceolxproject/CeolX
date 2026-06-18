@@ -11,6 +11,7 @@ type ProfileEvent = {
   dateEnd: Date | string | null;
   category: string;
   venueAddress: string | null;
+  collectionName?: string | null;
 };
 
 type EventsTabProps = {
@@ -44,6 +45,7 @@ export function EventsTab({ upcomingEvents, pastEvents }: EventsTabProps) {
               dateEnd={event.dateEnd ? new Date(event.dateEnd).toISOString() : null}
               category={event.category}
               venueAddress={event.venueAddress}
+              collectionName={event.collectionName}
               onPress={() => router.push(`/(app)/events/${event.id}`)}
             />
           ))}
@@ -65,6 +67,7 @@ export function EventsTab({ upcomingEvents, pastEvents }: EventsTabProps) {
               dateEnd={event.dateEnd ? new Date(event.dateEnd).toISOString() : null}
               category={event.category}
               venueAddress={event.venueAddress}
+              collectionName={event.collectionName}
               status="archived"
               onPress={() => router.push(`/(app)/events/${event.id}`)}
             />

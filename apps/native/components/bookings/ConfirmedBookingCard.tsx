@@ -3,10 +3,11 @@ import { cn } from 'heroui-native';
 import { useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, Text, View } from 'react-native';
 
-import { CATEGORY_LABELS, isEventUnavailableForCollaboration } from '@CeolX/shared';
+import { isEventUnavailableForCollaboration } from '@CeolX/shared';
 import type { EventStatus } from '@CeolX/shared/enums';
 
 import { BaseEventCard } from '@/components/BaseEventCard';
+import { EventCollectionBadge } from '@/components/EventCollectionBadge';
 
 interface ConfirmedBookingCardProps {
   title: string;
@@ -15,6 +16,8 @@ interface ConfirmedBookingCardProps {
   dateEnd?: string | null;
   category: string;
   venueAddress: string | null;
+  /** Name of the collection this event belongs to — shown as the top-left tag. */
+  collectionName?: string | null;
   bookingId: string | null;
   /** Current status of the linked event — drives the deleted tombstone state. */
   eventStatus: EventStatus;
@@ -30,6 +33,7 @@ export function ConfirmedBookingCard({
   dateEnd,
   category,
   venueAddress,
+  collectionName,
   bookingId,
   eventStatus,
   onCancel,
@@ -37,7 +41,6 @@ export function ConfirmedBookingCard({
   className,
 }: ConfirmedBookingCardProps) {
   const [isCancelling, setIsCancelling] = useState(false);
-  const categoryLabel = CATEGORY_LABELS[category] ?? category;
 
   // Event deleted/removed → read-only tombstone: no navigation, no cancel
   // action (the server rejects it anyway). (Asana 1215700058852004)
@@ -73,13 +76,7 @@ export function ConfirmedBookingCard({
       venueAddress={venueAddress}
       onPress={isEventDeleted ? () => {} : onPress}
       className={cn(isEventDeleted && 'opacity-60', className)}
-      topLeftBadge={
-        <View className="bg-[#080808] rounded-xl px-2 py-1.5">
-          <Text className="text-[12px] text-[#C8FF2F] font-semibold tracking-wide uppercase">
-            {categoryLabel}
-          </Text>
-        </View>
-      }
+      topLeftBadge={collectionName ? <EventCollectionBadge name={collectionName} /> : undefined}
       topRightBadge={
         isEventDeleted ? (
           <View className="flex-row items-center gap-1 bg-[#3A3A3A] rounded-xl px-2 py-1.5">

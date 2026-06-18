@@ -4,7 +4,7 @@ import { z } from 'zod';
 
 import { db } from '@CeolX/db';
 import { user } from '@CeolX/db/schema/auth';
-import { events, savedEvents } from '@CeolX/db/schema/events';
+import { collections, events, savedEvents } from '@CeolX/db/schema/events';
 import { EventStatus } from '@CeolX/shared';
 import { savedEventsQuerySchema } from '@CeolX/shared/validators';
 
@@ -55,10 +55,12 @@ export const getSavedEvents = protectedProcedure
           savedAt: savedEvents.createdAt,
           creatorId: events.createdBy,
           creatorName: user.name,
+          collectionName: collections.name,
         })
         .from(savedEvents)
         .innerJoin(events, eq(savedEvents.eventId, events.id))
         .leftJoin(user, eq(events.createdBy, user.id))
+        .leftJoin(collections, eq(events.collectionId, collections.id))
         .where(and(...conditions))
         .orderBy(desc(savedEvents.createdAt))
         .limit(limit)
@@ -84,6 +86,7 @@ export const getSavedEvents = protectedProcedure
         venueAddress: r.venueAddress ?? null,
         savedAt: r.savedAt.toISOString(),
         creatorName: r.creatorName ?? 'Unknown',
+        collectionName: r.collectionName ?? null,
       })),
       totalCount,
       hasNextPage: offset + limit < totalCount,

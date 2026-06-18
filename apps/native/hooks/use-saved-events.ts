@@ -18,6 +18,7 @@ type SavedEvent = {
   venueAddress: string | null;
   savedAt: string;
   creatorName: string;
+  collectionName: string | null;
 };
 
 export function useSavedEvents(includeArchived = false) {
