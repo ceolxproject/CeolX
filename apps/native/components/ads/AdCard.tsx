@@ -3,13 +3,22 @@ import { Image, Pressable, Text, View } from 'react-native';
 export type AdCardProps = {
   id: string;
   adTitle: string;
+  adDescription: string | null;
   eventTitle: string;
   coverImage: string | null;
   onDismiss: (id: string) => void;
   onPress: (id: string) => void;
 };
 
-export function AdCard({ id, adTitle, eventTitle, coverImage, onDismiss, onPress }: AdCardProps) {
+export function AdCard({
+  id,
+  adTitle,
+  adDescription,
+  eventTitle,
+  coverImage,
+  onDismiss,
+  onPress,
+}: AdCardProps) {
   return (
     <View
       className="mx-5 rounded-xl bg-white px-4 py-4"
@@ -26,7 +35,9 @@ export function AdCard({ id, adTitle, eventTitle, coverImage, onDismiss, onPress
             <Text>{adTitle} on </Text>
             <Text className="font-bold">&ldquo;{eventTitle}&rdquo;</Text>
           </Text>
-          <Text className="text-[11px] font-light text-black font-urbanist">{eventTitle}</Text>
+          {adDescription?.trim() ? (
+            <Text className="text-[11px] font-light text-black font-urbanist">{adDescription}</Text>
+          ) : null}
         </View>
       </View>
 

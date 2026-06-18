@@ -14,6 +14,7 @@ describe('AdCard', () => {
   const baseProps = {
     id: 'evt-1',
     adTitle: 'Flat 50% Off',
+    adDescription: '50% off early bird tickets',
     eventTitle: 'The Bodhrán Buzz',
     coverImage: null,
     onDismiss: vi.fn(),
@@ -23,6 +24,16 @@ describe('AdCard', () => {
   it('renders without crashing', () => {
     const el = AdCard(baseProps);
     expect(el).toBeTruthy();
+  });
+
+  it('renders the ad description text when present', () => {
+    expect(collectText(AdCard(baseProps))).toContain('50% off early bird tickets');
+  });
+
+  it('omits the description line when adDescription is null', () => {
+    const el = AdCard({ ...baseProps, adDescription: null });
+    expect(el).toBeTruthy();
+    expect(collectText(el)).not.toContain('50% off early bird tickets');
   });
 
   it('passes the ad id to onDismiss when the dismiss handler fires', () => {
@@ -42,6 +53,15 @@ describe('AdCard', () => {
     expect(onPress).toHaveBeenCalledWith('evt-1');
   });
 });
+
+// Walks the returned element tree and concatenates every string child.
+function collectText(node: any): string {
+  if (node === null || node === undefined || typeof node === 'boolean') return '';
+  if (typeof node === 'string' || typeof node === 'number') return String(node);
+  const children = node.props?.children;
+  const arr = Array.isArray(children) ? children.flat(Infinity) : [children];
+  return arr.map(collectText).join(' ');
+}
 
 function findByA11yLabel(node: any, label: string): any {
   if (!node) return undefined;
