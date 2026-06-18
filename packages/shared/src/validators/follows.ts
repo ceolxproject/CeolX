@@ -9,12 +9,16 @@ export const unfollowSchema = z.object({
 });
 
 export const followingQuerySchema = z.object({
+  // Whose Following list to read. Omitted → the authenticated viewer's own list.
+  userId: z.string().min(1).optional(),
   limit: z.number().int().min(1).max(100).default(50),
   offset: z.number().int().min(0).default(0),
   profileType: z.enum(['artist', 'venue']).optional(),
 });
 
 export const followersQuerySchema = z.object({
+  // Whose Followers list to read. Omitted → the authenticated viewer's own list.
+  userId: z.string().min(1).optional(),
   limit: z.number().int().min(1).max(100).default(50),
   offset: z.number().int().min(0).default(0),
 });
