@@ -703,6 +703,125 @@ describe('bookings.list', () => {
   });
 });
 
+// ─── bookings.list — collapse repeat attempts (Asana 1215700058851996, Issue 1) ─
+// Withdrawing then re-requesting leaves the old (cancelled) row behind and
+// inserts a fresh pending row. The Collaboration tab must show ONE card per
+// (event, direction, artist, counterparty) — the latest attempt's status — with
+// a requestCount + lastRequestedAt for the "Requested N times" note. Distinct
+// events between the same parties must stay as separate cards.
+
+describe('bookings.list — collapse repeat attempts', () => {
+  const olderCancelled = {
+    ...mockBooking,
+    id: 'booking-attempt-1',
+    direction: 'artist_to_venue',
+    status: 'cancelled',
+    createdAt: new Date('2026-04-12T10:00:00Z'),
+    updatedAt: new Date('2026-04-13T10:00:00Z'),
+  };
+  const newerPending = {
+    ...mockBooking,
+    id: 'booking-attempt-2',
+    direction: 'artist_to_venue',
+    status: 'pending',
+    createdAt: new Date('2026-04-15T10:00:00Z'),
+    updatedAt: new Date('2026-04-15T10:00:00Z'),
+  };
+
+  it('collapses repeat attempts at the same event into one card with the latest status', async () => {
+    const caller = createCaller(authedContext('artist', ARTIST_USER_ID));
+    mockArtistsFindFirst.mockResolvedValueOnce({ id: ARTIST_PROFILE_ID });
+    // findMany returns newest-first (desc createdAt).
+    mockBookingsFindMany.mockResolvedValueOnce([newerPending, olderCancelled]);
+    mockSelectWhere.mockReturnValueOnce({
+      then: (cb: (v: unknown[]) => void) =>
+        cb([
+          { id: ARTIST_USER_ID, image: null },
+          { id: VENUE_USER_ID, image: null },
+        ]),
+    });
+
+    const result = await caller.bookings.list({ tab: 'sent' });
+
+    expect(result.total).toBe(1);
+    expect(result.bookings).toHaveLength(1);
+    const card = result.bookings[0];
+    if (!card) throw new Error('expected a collapsed card');
+    // Representative is the most recent attempt → latest status + id.
+    expect(card.id).toBe('booking-attempt-2');
+    expect(card.status).toBe('pending');
+    expect(card.requestCount).toBe(2);
+    expect(card.lastRequestedAt).toBe(new Date('2026-04-15T10:00:00Z').toISOString());
+  });
+
+  it('keeps distinct events between the same parties as separate cards', async () => {
+    const eventA = {
+      ...newerPending,
+      id: 'booking-event-a',
+      eventId: 'event-a',
+      event: { ...mockEvent, id: 'event-a' },
+      createdAt: new Date('2026-04-15T10:00:00Z'),
+    };
+    const eventB = {
+      ...newerPending,
+      id: 'booking-event-b',
+      eventId: 'event-b',
+      event: { ...mockEvent, id: 'event-b' },
+      createdAt: new Date('2026-04-14T10:00:00Z'),
+    };
+    const caller = createCaller(authedContext('artist', ARTIST_USER_ID));
+    mockArtistsFindFirst.mockResolvedValueOnce({ id: ARTIST_PROFILE_ID });
+    mockBookingsFindMany.mockResolvedValueOnce([eventA, eventB]);
+    mockSelectWhere.mockReturnValueOnce({
+      then: (cb: (v: unknown[]) => void) =>
+        cb([
+          { id: ARTIST_USER_ID, image: null },
+          { id: VENUE_USER_ID, image: null },
+        ]),
+    });
+
+    const result = await caller.bookings.list({ tab: 'sent' });
+
+    expect(result.total).toBe(2);
+    expect(result.bookings).toHaveLength(2);
+    expect(result.bookings.map((b) => b.requestCount)).toEqual([1, 1]);
+    // Newest-first ordering preserved.
+    expect(result.bookings[0]?.eventId).toBe('event-a');
+    expect(result.bookings[1]?.eventId).toBe('event-b');
+  });
+
+  it('paginates over groups, not raw rows', async () => {
+    const groupForEvent = (suffix: string, day: string) => ({
+      ...newerPending,
+      id: `booking-${suffix}`,
+      eventId: `event-${suffix}`,
+      event: { ...mockEvent, id: `event-${suffix}` },
+      createdAt: new Date(`2026-04-${day}T10:00:00Z`),
+    });
+    // Three distinct event groups; page size 2 → first page has 2, total 3.
+    const caller = createCaller(authedContext('artist', ARTIST_USER_ID));
+    mockArtistsFindFirst.mockResolvedValueOnce({ id: ARTIST_PROFILE_ID });
+    mockBookingsFindMany.mockResolvedValueOnce([
+      groupForEvent('a', '15'),
+      groupForEvent('b', '14'),
+      groupForEvent('c', '13'),
+    ]);
+    mockSelectWhere.mockReturnValueOnce({
+      then: (cb: (v: unknown[]) => void) =>
+        cb([
+          { id: ARTIST_USER_ID, image: null },
+          { id: VENUE_USER_ID, image: null },
+        ]),
+    });
+
+    const result = await caller.bookings.list({ tab: 'sent', limit: 2, offset: 0 });
+
+    expect(result.total).toBe(3);
+    expect(result.bookings).toHaveLength(2);
+    expect(result.bookings.map((b) => b.eventId)).toEqual(['event-a', 'event-b']);
+  });
+});
+
 // ─── bookings.byId ───────────────────────────────────────────────────────────
 
 describe('bookings.byId', () => {
