@@ -248,11 +248,12 @@ describe('follows router', () => {
 
   describe('getFollowing', () => {
     // Mock sequence for a single followed user, in code order:
-    //   1) followRows  query   (terminates at .offset)
-    //   2) count       query   (terminates at .where via thenable)
+    //   1) followRows  query        (terminates at .offset)
+    //   2) count       query        (terminates at .where via thenable)
     //   3) artist lookup for row0   (terminates at .limit)
     //   4) venue  lookup for row0   (terminates at .limit)
-    //   5) events count batch      (terminates at .groupBy)
+    //   5) events count batch       (terminates at .groupBy)
+    //   6) viewer-follow set        (terminates at .where)
     it('returns venue profileImageUrl and eventsCount for a followed venue', async () => {
       const followRow = { id: 'f-1', followeeId: 'user-v', createdAt: new Date() };
       mockSelectChain.mockResolvedValueOnce([followRow]);
@@ -268,6 +269,7 @@ describe('follows router', () => {
         },
       ]);
       mockSelectChain.mockResolvedValueOnce([{ createdBy: 'user-v', count: 7 }]);
+      mockSelectChain.mockResolvedValueOnce([{ followeeId: 'user-v' }]); // viewer follows this venue
 
       const caller = authedCaller('user-1');
       const result = await caller.getFollowing({ limit: 50, offset: 0 });
@@ -276,6 +278,38 @@ describe('follows router', () => {
       expect(result.following[0]?.profileType).toBe('venue');
       expect(result.following[0]?.profile?.profileImageUrl).toBe('https://cdn/venues/kilkee.jpg');
       expect(result.following[0]?.eventsCount).toBe(7);
+      // Viewing own list: viewer follows everyone here → toggle shows "Following".
+      expect(result.following[0]?.isFollowedByViewer).toBe(true);
+      expect(result.following[0]?.isSelf).toBe(false);
+    });
+
+    // Target-scoping: viewer (user-1) reads ANOTHER user's (user-b) Following list.
+    // The list contents come from user-b, but isFollowedByViewer reflects whether
+    // user-1 follows each followee — so the toggle stays viewer-relative.
+    it('scopes the list to input.userId while keeping the toggle viewer-relative', async () => {
+      const followRow = { id: 'f-9', followeeId: 'user-x', createdAt: new Date() };
+      mockSelectChain.mockResolvedValueOnce([followRow]); // followRows (user-b's follows)
+      mockSelectChain.mockResolvedValueOnce([{ count: 1 }]); // total
+      mockSelectChain.mockResolvedValueOnce([
+        {
+          id: 'ap-x',
+          userId: 'user-x',
+          displayName: 'Trad Star',
+          profileImageUrl: 'https://cdn/x.jpg',
+          genres: ['trad'],
+          isActive: true,
+        },
+      ]); // artist lookup
+      mockSelectChain.mockResolvedValueOnce([]); // venue lookup
+      mockSelectChain.mockResolvedValueOnce([{ createdBy: 'user-x', count: 2 }]); // events
+      mockSelectChain.mockResolvedValueOnce([]); // viewer-follow set — viewer does NOT follow user-x
+
+      const caller = authedCaller('user-1');
+      const result = await caller.getFollowing({ userId: 'user-b', limit: 50, offset: 0 });
+
+      expect(result.following).toHaveLength(1);
+      expect(result.following[0]?.followeeId).toBe('user-x');
+      expect(result.following[0]?.isFollowedByViewer).toBe(false);
     });
 
     it('excludes the current user from their own following list', async () => {
@@ -403,6 +437,33 @@ describe('follows router', () => {
       expect(result.followers[0]?.profileType).toBe('venue');
       expect(result.followers[0]?.isFollowedBack).toBe(false);
       expect(result.followers[0]?.eventsCount).toBe(3);
+    });
+
+    // Target-scoping: viewer (user-1) reads ANOTHER user's followers list and is
+    // themselves one of those followers. isSelf must be true for that row so the
+    // UI suppresses the Follow toggle (you can't follow yourself).
+    it('flags the viewer with isSelf when they appear in another profile followers', async () => {
+      const followRow = { id: 'f-5', followerId: 'user-1', createdAt: new Date() };
+      mockSelectChain.mockResolvedValueOnce([followRow]); // followRows (user-b's followers)
+      mockSelectChain.mockResolvedValueOnce([{ count: 1 }]); // total
+      mockSelectChain.mockResolvedValueOnce([
+        {
+          userId: 'user-1',
+          displayName: 'Me Artist',
+          profileImageUrl: 'https://cdn/me.jpg',
+          genres: ['trad'],
+        },
+      ]); // artists batch
+      mockSelectChain.mockResolvedValueOnce([]); // venues
+      mockSelectChain.mockResolvedValueOnce([{ id: 'user-1', name: 'Me Artist', image: null }]); // baseUsers
+      mockSelectChain.mockResolvedValueOnce([]); // followBack
+      mockSelectChain.mockResolvedValueOnce([]); // events
+
+      const caller = authedCaller('user-1');
+      const result = await caller.getFollowers({ userId: 'user-b', limit: 50, offset: 0 });
+
+      expect(result.followers).toHaveLength(1);
+      expect(result.followers[0]?.isSelf).toBe(true);
     });
   });
 });

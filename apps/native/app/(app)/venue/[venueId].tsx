@@ -169,8 +169,18 @@ export default function VenueProfileScreen() {
               onEditPress={() => router.push('/(app)/(tabs)/profile/edit')}
               onSettingsPress={profile.isOwner ? () => settingsRef.current?.present() : undefined}
               onFollowPress={!profile.isOwner ? onFollowPress : undefined}
-              onFollowersPress={() => router.push('/(app)/(tabs)/profile/following')}
-              onFollowingPress={() => router.push('/(app)/(tabs)/profile/following')}
+              onFollowersPress={() =>
+                router.push({
+                  pathname: '/(app)/(tabs)/profile/followers',
+                  params: { userId: profile.userId, name: profile.displayName },
+                })
+              }
+              onFollowingPress={() =>
+                router.push({
+                  pathname: '/(app)/(tabs)/profile/following',
+                  params: { userId: profile.userId, name: profile.displayName },
+                })
+              }
               secondaryCta={
                 !profile.isOwner && me?.currentRole === 'artist'
                   ? {
