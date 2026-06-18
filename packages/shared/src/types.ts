@@ -145,6 +145,20 @@ export interface BookingSummary {
   eventStatus: EventStatus;
   createdAt: string;
   updatedAt: string;
+  /**
+   * How many booking attempts this card represents for the same (event,
+   * direction, artist, counterparty). A withdraw→re-request leaves the old
+   * (cancelled) row behind and inserts a new one; `bookings.list` collapses them
+   * into a single card and reports the attempt count so the UI can show
+   * "Requested N times" instead of a separate card per attempt.
+   * Asana 1215700058851996 (Issue 1). 1 for a single attempt.
+   */
+  requestCount: number;
+  /**
+   * ISO timestamp of the most recent attempt in this card's group (the
+   * representative row's createdAt). Drives the "Last requested on …" line.
+   */
+  lastRequestedAt: string;
 }
 
 // --- Feed types ---
