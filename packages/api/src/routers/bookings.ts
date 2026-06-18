@@ -4,7 +4,7 @@ import { and, desc, eq, inArray, isNull, or, sql } from 'drizzle-orm';
 import { db } from '@CeolX/db';
 import { user } from '@CeolX/db/schema/auth';
 import { bookings } from '@CeolX/db/schema/bookings';
-import { eventCollaborators, events } from '@CeolX/db/schema/events';
+import { collections, eventCollaborators, events } from '@CeolX/db/schema/events';
 import { artistProfiles, venueProfiles } from '@CeolX/db/schema/users';
 import {
   BookingDirection,
@@ -1115,9 +1115,11 @@ export const bookingsRouter = router({
             venueAddress: events.venueAddress,
             status: events.status,
             bookingId: eventCollaborators.bookingId,
+            collectionName: collections.name,
           })
           .from(eventCollaborators)
           .innerJoin(events, eq(events.id, eventCollaborators.eventId))
+          .leftJoin(collections, eq(events.collectionId, collections.id))
           .where(whereClause)
           .orderBy(desc(events.dateStart))
           .limit(input.limit)
@@ -1135,6 +1137,7 @@ export const bookingsRouter = router({
           venueAddress: e.venueAddress ?? null,
           status: e.status,
           bookingId: e.bookingId ?? null,
+          collectionName: e.collectionName ?? null,
         })),
         total: countResult,
         hasNextPage: input.offset + input.limit < countResult,
@@ -1182,9 +1185,11 @@ export const bookingsRouter = router({
           venueAddress: events.venueAddress,
           status: events.status,
           bookingId: eventCollaborators.bookingId,
+          collectionName: collections.name,
         })
         .from(eventCollaborators)
         .innerJoin(events, eq(events.id, eventCollaborators.eventId))
+        .leftJoin(collections, eq(events.collectionId, collections.id))
         .where(whereClause)
         .orderBy(desc(events.dateStart))
         .limit(input.limit)
@@ -1202,6 +1207,7 @@ export const bookingsRouter = router({
         venueAddress: e.venueAddress ?? null,
         status: e.status,
         bookingId: e.bookingId ?? null,
+        collectionName: e.collectionName ?? null,
       })),
       total: countResult,
       hasNextPage: input.offset + input.limit < countResult,

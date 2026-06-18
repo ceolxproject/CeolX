@@ -4,16 +4,28 @@ import { Image, Pressable, Text, View } from 'react-native';
 
 import { CATEGORY_ICONS, CATEGORY_LABELS } from '@CeolX/shared';
 
+import { EventCollectionBadge } from '@/components/EventCollectionBadge';
 import type { RelatedEvent } from '@/types/event-detail';
 import { getMockEventImage } from '@/utils/mock-images';
 
 interface CollectionEventCardProps {
   event: RelatedEvent;
+  /**
+   * Name of the collection these related events belong to. Passed down from the
+   * parent event detail (all "Explore the collection" cards share one
+   * collection), shown as the top-left tag. Hidden when absent.
+   */
+  collectionName?: string | null;
   onPress: () => void;
   className?: string;
 }
 
-export function CollectionEventCard({ event, onPress, className }: CollectionEventCardProps) {
+export function CollectionEventCard({
+  event,
+  collectionName,
+  onPress,
+  className,
+}: CollectionEventCardProps) {
   const categoryLabel = CATEGORY_LABELS[event.category] ?? event.category;
   const categoryIcon = CATEGORY_ICONS[event.category] ?? '🎵';
   const formattedDate = formatCardDate(event.dateStart);
@@ -34,12 +46,12 @@ export function CollectionEventCard({ event, onPress, className }: CollectionEve
           resizeMode="cover"
         />
 
-        {/* Category badge */}
-        <View className="absolute top-3 left-3 bg-[#080808] rounded-xl px-2 py-1.5">
-          <Text className="text-[12px] text-green-10 font-semibold tracking-wide uppercase font-sans">
-            {categoryLabel}
-          </Text>
-        </View>
+        {/* Collection tag — top-left (category lives in the bottom pill below) */}
+        {collectionName ? (
+          <View className="absolute top-3 left-3">
+            <EventCollectionBadge name={collectionName} />
+          </View>
+        ) : null}
 
         {/* Bottom pills */}
         <View className="absolute bottom-3 left-3 right-3 flex-row items-center justify-between">

@@ -19,6 +19,7 @@ type ConfirmedEvent = {
   venueAddress: string | null;
   status: EventStatus;
   bookingId: string | null;
+  collectionName: string | null;
 };
 
 export function useConfirmedEvents() {

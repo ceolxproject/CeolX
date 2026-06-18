@@ -4,6 +4,7 @@ import { Text, View } from 'react-native';
 import type { FeedEvent } from '@CeolX/shared';
 
 import { BaseEventCard } from './BaseEventCard';
+import { EventCollectionBadge } from './EventCollectionBadge';
 
 interface FeedEventCardProps {
   event: FeedEvent;
@@ -24,13 +25,7 @@ export function FeedEventCard({ event, onPress, className }: FeedEventCardProps)
       onPress={onPress}
       className={className}
       topLeftBadge={
-        event.collectionName ? (
-          <View className="rounded-xl px-2 py-1.5" style={{ backgroundColor: 'rgba(8,8,8,0.85)' }}>
-            <Text className="text-[12px] text-[#C8FF2F] font-semibold tracking-wide font-urbanist">
-              {event.collectionName}
-            </Text>
-          </View>
-        ) : undefined
+        event.collectionName ? <EventCollectionBadge name={event.collectionName} /> : undefined
       }
       bottomRightOverlay={
         event.joinedCount > 0 ? (
