@@ -164,11 +164,9 @@ export function PostCard({
         </Text>
       </View>
 
-      {/* Caption */}
+      {/* Caption — the author name is shown in the header row (feed) or the
+          profile header (profile tabs), so it's never repeated here. */}
       <Text className="text-sm text-white font-urbanist">
-        {!hideAuthorHeader && (
-          <Text className="font-bold text-white">{post.author.displayName} </Text>
-        )}
         <Text className="font-light">{caption}</Text>
         {showReadMore && <Text className="font-medium text-[#6155F5]"> …read more</Text>}
       </Text>

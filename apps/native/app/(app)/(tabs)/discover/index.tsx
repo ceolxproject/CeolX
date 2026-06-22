@@ -237,6 +237,7 @@ export default function DiscoverScreen() {
         calendarActive={activeSegment === 0 && !!date}
         filterActive={activeSegment === 0 && !!category}
         showEventActions={activeSegment === 0}
+        showLocation={activeSegment === 0}
       />
 
       {/* Search bar */}
@@ -264,8 +265,10 @@ export default function DiscoverScreen() {
       {/* Everything below the search bar lives in one relative container so the
           autocomplete can float on top of the feed instead of pushing it down. */}
       <View className="flex-1 relative">
-        {/* Segment toggle */}
-        <View className="px-5 mt-4">
+        {/* Segment toggle — mb-3 keeps a persistent gap between the pinned tabs
+            and the scrollable feed below (the feed clips at the list frame, so
+            this gap never fills with content even when scrolled). */}
+        <View className="px-5 mt-4 mb-3">
           <SegmentToggle
             segments={SEGMENTS}
             activeIndex={activeSegment}
