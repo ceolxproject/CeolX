@@ -236,6 +236,7 @@ export function EventDetailView({
         {/* Offers — only this event's own ad, if it has one */}
         <OfferBlock
           adTitle={event.adTitle}
+          adDescription={event.adDescription}
           eventTitle={event.title}
           coverImage={event.coverImageUrl ?? null}
         />

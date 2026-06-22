@@ -2,11 +2,12 @@ import { Image, Text, View } from 'react-native';
 
 export type OfferBlockProps = {
   adTitle: string | null | undefined;
+  adDescription: string | null | undefined;
   eventTitle: string;
   coverImage: string | null | undefined;
 };
 
-export function OfferBlock({ adTitle, eventTitle, coverImage }: OfferBlockProps) {
+export function OfferBlock({ adTitle, adDescription, eventTitle, coverImage }: OfferBlockProps) {
   if (!adTitle || adTitle.trim().length === 0) return null;
 
   return (
@@ -29,7 +30,11 @@ export function OfferBlock({ adTitle, eventTitle, coverImage }: OfferBlockProps)
               <Text>{adTitle} on </Text>
               <Text className="font-bold">&ldquo;{eventTitle}&rdquo;</Text>
             </Text>
-            <Text className="text-[11px] font-light text-black font-urbanist">{eventTitle}</Text>
+            {adDescription?.trim() ? (
+              <Text className="text-[11px] font-light text-black font-urbanist">
+                {adDescription}
+              </Text>
+            ) : null}
           </View>
         </View>
       </View>
