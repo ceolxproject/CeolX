@@ -71,11 +71,17 @@ export default function SignUpScreen() {
       return;
     }
 
+    // Use the schema-transformed (lowercased) email, not the raw input, so the
+    // value stored at signup matches what login/resend send later. The server
+    // also normalizes, but keeping the client consistent avoids a mismatched
+    // `pendingVerificationEmail` (Asana 1215700058851867).
+    const normalizedEmail = parsed.data.email;
+
     setIsSubmitting(true);
     try {
       const { data, error: authError } = await authClient.signUp.email({
         name,
-        email,
+        email: normalizedEmail,
         password,
         currentRole,
       });
@@ -102,7 +108,7 @@ export default function SignUpScreen() {
         );
       }
 
-      await SecureStore.setItemAsync('pendingVerificationEmail', email);
+      await SecureStore.setItemAsync('pendingVerificationEmail', normalizedEmail);
       router.replace('/(auth)/verify-email');
     } finally {
       setIsSubmitting(false);

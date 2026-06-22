@@ -11,7 +11,18 @@ import { env } from '@CeolX/env/server';
 import { generateAppleClientSecret } from './apple-secret.js';
 import { buildDeepLinkBridgeUrl, buildVerificationBridgeUrl } from './email-utils';
 import { onSessionCreated } from './login-hook.js';
+import { normalizeEmail } from './normalize-email.js';
 import { assertEmailAvailable } from './signup-hook.js';
+
+// Endpoints whose request body carries a user-supplied email we must
+// canonicalize so storage (sign-up) and lookup (sign-in / resend / reset)
+// agree on the same key. See normalize-email.ts (Asana 1215700058851867).
+const EMAIL_BODY_PATHS = new Set([
+  '/sign-up/email',
+  '/sign-in/email',
+  '/forget-password',
+  '/send-verification-email',
+]);
 
 export const auth = betterAuth({
   database: drizzleAdapter(db, {
@@ -57,15 +68,32 @@ export const auth = betterAuth({
     },
   },
   hooks: {
-    // Reject sign-up with an already-registered email *before* Better Auth's
-    // enumeration-protection silently returns success and sends a verification
-    // email. Without this, re-registering an existing email (e.g. switching
-    // roles) showed a misleading "verification sent" screen (Asana 1215616181509943).
     before: createAuthMiddleware(async (ctx) => {
+      if (!EMAIL_BODY_PATHS.has(ctx.path)) return undefined;
+
+      // Canonicalize the email the user typed (lowercase + trim) so the
+      // byte-exact `user.email` unique constraint and Better Auth's lookups
+      // can't be fooled by casing — the root cause of plus/casing
+      // verification confusion (Asana 1215700058851867). The +tag is kept,
+      // so plus-addressed accounts stay independent.
+      const body = ctx.body as { email?: unknown } | undefined;
+      const email = normalizeEmail(body?.email);
+
+      // Reject sign-up with an already-registered email *before* Better Auth's
+      // enumeration-protection silently returns success and sends a verification
+      // email. Without this, re-registering an existing email (e.g. a second
+      // role) showed a misleading "verification sent" screen (Asana 1215616181509943).
       if (ctx.path === '/sign-up/email') {
-        const body = ctx.body as { email?: unknown } | undefined;
-        await assertEmailAvailable(body?.email);
+        await assertEmailAvailable(email);
       }
+
+      // Hand Better Auth the normalized body so every downstream step (storage,
+      // dup-check, verification token identifier, login lookup) uses one key.
+      if (email && body && body.email !== email) {
+        return { context: { ...ctx, body: { ...body, email } } };
+      }
+
+      return undefined;
     }),
   },
   emailVerification: {
