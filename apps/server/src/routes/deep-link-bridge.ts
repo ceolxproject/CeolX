@@ -24,7 +24,7 @@ function escapeHtml(s: string): string {
     .replace(/'/g, '&#39;');
 }
 
-function renderRedirectPage(path: string, token: string): string {
+function renderRedirectPage(path: string, token: string, confirmable: boolean): string {
   const safe = escapeHtml(token);
   const deepLink = `ceolx://${path}?token=${safe}`;
   // Fire the deep link via EXACTLY ONE auto-mechanism. A `<meta http-equiv="refresh">`
@@ -34,6 +34,42 @@ function renderRedirectPage(path: string, token: string): string {
   // duplicate arrives via onNewIntent, re-anchors the app's (auth) splash on top of
   // the reset-password screen, and the splash's timed redirect then bounces to
   // sign-in. One trigger only. (Asana 1215040939202673)
+  //
+  // Desktop/web fallback (only when `confirmable`): a custom-scheme link can't open
+  // the app on a desktop browser, so verification would never run there — the link
+  // looks dead and the account stays unverified (Asana 1215700058851863). When the
+  // app DID open, launching it backgrounds this tab (visibilitychange → hidden), so
+  // we only POST to /<path>/confirm — which completes verification server-side — if
+  // the tab was never hidden, i.e. the deep link found no app to hand off to. This
+  // keeps the mobile happy path untouched (the app still verifies and gets the
+  // auto-sign-in session) while making the link work from any device.
+  const fallbackScript = confirmable
+    ? `
+  <script>
+    (function () {
+      var appOpened = false;
+      document.addEventListener('visibilitychange', function () {
+        if (document.visibilityState === 'hidden') appOpened = true;
+      });
+      // Give the deep link time to launch the app and background this tab.
+      setTimeout(function () {
+        if (appOpened || document.visibilityState !== 'visible') return;
+        var card = document.getElementById('card');
+        fetch('/${path}/confirm?token=${safe}', { method: 'POST' })
+          .then(function (r) { return r.json(); })
+          .then(function (d) {
+            if (!card) return;
+            card.innerHTML = d && d.verified
+              ? '<h1>Email verified ✓</h1><p>Your account is now active. Open the CeolX app on your phone and sign in to continue.</p>'
+              : '<h1>Link not valid</h1><p>This verification link has expired or has already been used. Request a new one from the app.</p>';
+          })
+          .catch(function () {
+            if (card) card.innerHTML = '<h1>Something went wrong</h1><p>We couldn\\'t verify your email. Please try again from the app.</p>';
+          });
+      }, 2500);
+    })();
+  </script>`
+    : '';
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -52,13 +88,13 @@ function renderRedirectPage(path: string, token: string): string {
   </style>
 </head>
 <body>
-  <div class="card">
+  <div class="card" id="card">
     <h1>Opening CeolX…</h1>
     <p>If the app doesn't open automatically, tap the button below.</p>
     <a class="btn" href="${deepLink}">Open the CeolX app</a>
     <div><a class="small" href="${deepLink}">${deepLink}</a></div>
   </div>
-  <script>window.location.replace('${deepLink}');</script>
+  <script>window.location.replace('${deepLink}');</script>${fallbackScript}
 </body>
 </html>`;
 }
@@ -91,10 +127,22 @@ interface DeepLinkBridgeConfig {
   errorTitle: string;
   /** User-facing body shown when the token is missing or malformed. */
   errorBody: string;
+  /**
+   * Optional server-side completion of the flow, used as a desktop/web fallback.
+   *
+   * When set, the bridge exposes `POST /<path>/confirm` and the redirect page
+   * calls it if the deep link didn't open the app (e.g. the link was opened on
+   * a desktop browser). Return `true` when the token was accepted. Used by email
+   * verification — where clicking the link should mark the account verified on
+   * any device — but NOT by reset-password, which requires the user to enter a
+   * new password inside the app. (Asana 1215700058851863)
+   */
+  confirm?: (token: string) => Promise<boolean>;
 }
 
 export function createDeepLinkBridge(config: DeepLinkBridgeConfig): Hono {
   const bridge = new Hono();
+  const confirmable = typeof config.confirm === 'function';
 
   bridge.get(`/${config.path}`, (c) => {
     const token = c.req.query('token') ?? '';
@@ -102,15 +150,37 @@ export function createDeepLinkBridge(config: DeepLinkBridgeConfig): Hono {
     c.header('Cache-Control', 'no-store');
     c.header(
       'Content-Security-Policy',
-      "default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; base-uri 'none'; form-action 'none'"
+      // `connect-src 'self'` is only needed for the confirm fetch on confirmable
+      // flows; keep it off everything else so the policy stays as tight as possible.
+      `default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; base-uri 'none'; form-action 'none'${
+        confirmable ? "; connect-src 'self'" : ''
+      }`
     );
 
     if (!token || !TOKEN_ALLOWED.test(token)) {
       return c.html(renderErrorPage(config.errorTitle, config.errorBody), 400);
     }
 
-    return c.html(renderRedirectPage(config.path, token), 200);
+    return c.html(renderRedirectPage(config.path, token, confirmable), 200);
   });
+
+  // Desktop/web fallback target. The redirect page POSTs here only when the app
+  // didn't take over the deep link. Verification runs server-side so the account
+  // is marked verified regardless of the device the link was opened on.
+  if (config.confirm) {
+    const confirm = config.confirm;
+    bridge.post(`/${config.path}/confirm`, async (c) => {
+      const token = c.req.query('token') ?? '';
+      c.header('Cache-Control', 'no-store');
+
+      if (!token || !TOKEN_ALLOWED.test(token)) {
+        return c.json({ verified: false }, 400);
+      }
+
+      const verified = await confirm(token).catch(() => false);
+      return c.json({ verified });
+    });
+  }
 
   return bridge;
 }
