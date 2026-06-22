@@ -30,6 +30,9 @@ export function SocialLinkInput({
           onChangeText={onChange}
           autoCapitalize="none"
           keyboardType="url"
+          autoComplete="off"
+          textContentType="none"
+          importantForAutofill="no"
         />
       </View>
       {error ? (
