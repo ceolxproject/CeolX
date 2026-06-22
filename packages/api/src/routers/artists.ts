@@ -4,7 +4,7 @@ import { z } from 'zod';
 
 import { db } from '@CeolX/db';
 import { user } from '@CeolX/db/schema/auth';
-import { eventCollaborators, events } from '@CeolX/db/schema/events';
+import { collections, eventCollaborators, events } from '@CeolX/db/schema/events';
 import { follows } from '@CeolX/db/schema/social';
 import { artistProfiles } from '@CeolX/db/schema/users';
 import { updateArtistProfileSchema } from '@CeolX/shared/validators';
@@ -103,8 +103,10 @@ export const artistsRouter = router({
         venueAddress: events.venueAddress,
         category: events.category,
         status: events.status,
+        collectionName: collections.name,
       })
       .from(events)
+      .leftJoin(collections, eq(events.collectionId, collections.id))
       .where(
         and(eq(events.createdBy, profile.userId), inArray(events.status, ['active', 'archived']))
       );
@@ -125,9 +127,11 @@ export const artistsRouter = router({
         venueAddress: events.venueAddress,
         category: events.category,
         status: events.status,
+        collectionName: collections.name,
       })
       .from(events)
       .innerJoin(eventCollaborators, eq(eventCollaborators.eventId, events.id))
+      .leftJoin(collections, eq(events.collectionId, collections.id))
       .where(
         and(
           eq(eventCollaborators.artistProfileId, profile.userId),

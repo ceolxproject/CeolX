@@ -35,6 +35,10 @@ export function useFeedPosts({ enabled = true }: Opts = {}) {
   const [hasNextPage, setHasNextPage] = useState(true);
   const [totalCount, setTotalCount] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
+  // Mirrors searchQuery for the debounced onSearch closure (empty deps), so it
+  // can tell whether a new search actually changes the query.
+  const searchQueryRef = useRef(searchQuery);
+  searchQueryRef.current = searchQuery;
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const queryOptions = trpc.posts.feed.queryOptions({
@@ -83,6 +87,13 @@ export function useFeedPosts({ enabled = true }: Opts = {}) {
   const onSearch = useCallback((text: string) => {
     if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
     searchTimerRef.current = setTimeout(() => {
+      // Re-selecting the query already loaded (e.g. tapping the same suggestion
+      // that's still in the box) must be a no-op. Otherwise we clear the list
+      // while React Query — seeing an unchanged query key — serves cached data
+      // without refetching, so the data-sync effect (keyed on [data,
+      // isFetching]) never fires to refill it, leaving the feed empty until a
+      // manual refresh. (Asana 1215700058851899)
+      if (text === searchQueryRef.current) return;
       setSearchQuery(text);
       setOffset(0);
       setAccumulated([]);

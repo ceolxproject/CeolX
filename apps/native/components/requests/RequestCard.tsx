@@ -10,6 +10,7 @@ import { BookingDirection, BookingStatus, UserRole } from '@CeolX/shared/enums';
 import { RequestActions, type RequestAction } from './RequestActions';
 
 import { formatEventDate } from '@/utils/format-event-date';
+import { formatRequestAttempts } from '@/utils/format-request-attempts';
 import { getMockEventImage, MOCK_PROFILE_IMAGE } from '@/utils/mock-images';
 
 interface RequestCardProps {
@@ -38,6 +39,9 @@ export function RequestCard({
   const categoryLabel = CATEGORY_LABELS[booking.eventCategory] ?? booking.eventCategory;
   const formattedDate = formatEventDate(booking.eventDateStart, booking.eventDateEnd);
   const timeSince = getTimeSince(booking.createdAt);
+  // Non-null only when this card collapses more than one attempt at the same
+  // event (e.g. requested → withdrawn → requested again). Asana 1215700058851996.
+  const repeatNote = formatRequestAttempts(booking.requestCount, booking.lastRequestedAt);
 
   // Event deleted by the creator (archived) or removed by admin → the card is a
   // read-only tombstone: dimmed, non-tappable, no actions. (Asana 1215700058852004)
@@ -147,6 +151,16 @@ export function RequestCard({
             </Text>
           </View>
         </View>
+
+        {/* Repeat-attempt note — only when this card collapses >1 attempt. */}
+        {repeatNote && (
+          <View className="flex-row items-center gap-1 mt-2">
+            <Ionicons name="repeat" size={12} color="rgba(255,255,255,0.5)" />
+            <Text className="text-[11px] text-white/50 font-urbanist" numberOfLines={1}>
+              {repeatNote}
+            </Text>
+          </View>
+        )}
 
         {isEventDeleted ? (
           /* Deleted-event tombstone — no actions, no navigation. */

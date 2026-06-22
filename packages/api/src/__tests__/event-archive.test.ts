@@ -13,8 +13,8 @@ import { EventStatus, NotificationTrigger } from '@CeolX/shared';
 //   db.update(events).set().where().returning()                   (archive)
 //   db.select(...).from(bookings).leftJoin().leftJoin().where()   (linked, thenable)
 // getMyEvents chains:
-//   db.select(...).from(events).where().orderBy().limit().offset()  (rows)
-//   db.select({count}).from(events).where()                         (count, thenable)
+//   db.select(...).from(events).leftJoin(collections).where().orderBy().limit().offset()  (rows)
+//   db.select({count}).from(events).where()                                               (count, thenable)
 
 const {
   mockDb,
@@ -30,9 +30,19 @@ const {
   const mockRowsOffset = vi.fn(() => Promise.resolve([] as unknown[]));
   const mockCountThen = vi.fn(() => Promise.resolve([{ count: 0 }]));
 
+  // where() result is shared by getMyEvents' rows path (orderBy/limit/offset)
+  // and its count path (thenable) — both reach a where() in the query.
+  const afterWhere = {
+    orderBy: () => ({ limit: () => ({ offset: mockRowsOffset }) }),
+    then: (resolve: (v: unknown) => unknown, reject?: (e: unknown) => unknown) =>
+      mockCountThen().then(resolve, reject),
+  };
+
   const selectImpl = () => ({
     from: () => ({
-      // archive linked query
+      // leftJoin handles two shapes:
+      //   archive linked query → .leftJoin().leftJoin().where().then
+      //   getMyEvents rows     → .leftJoin(collections).where().orderBy().limit().offset
       leftJoin: () => ({
         leftJoin: () => ({
           where: () => ({
@@ -40,13 +50,10 @@ const {
               mockLinkedThen().then(resolve, reject),
           }),
         }),
+        where: () => afterWhere,
       }),
-      // getMyEvents — rows path (orderBy/limit/offset) and count path (thenable)
-      where: () => ({
-        orderBy: () => ({ limit: () => ({ offset: mockRowsOffset }) }),
-        then: (resolve: (v: unknown) => unknown, reject?: (e: unknown) => unknown) =>
-          mockCountThen().then(resolve, reject),
-      }),
+      // getMyEvents count path — .from(events).where().then
+      where: () => afterWhere,
     }),
   });
 
@@ -94,9 +101,11 @@ vi.mock('@CeolX/db/schema/events', () => ({
     venueAddress: 'venue_address',
     createdBy: 'created_by',
     createdAt: 'created_at',
+    collectionId: 'collection_id',
   },
   eventCollaborators: { id: 'id', eventId: 'event_id', bookingId: 'booking_id' },
   savedEvents: { id: 'id', eventId: 'event_id', userId: 'user_id' },
+  collections: { id: 'id', name: 'name' },
 }));
 vi.mock('@CeolX/db/schema/users', () => ({
   artistProfiles: { id: 'id', userId: 'user_id', stageName: 'stage_name' },

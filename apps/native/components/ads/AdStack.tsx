@@ -54,6 +54,7 @@ export function AdStack() {
           key={ad.id}
           id={ad.id}
           adTitle={ad.adTitle}
+          adDescription={ad.adDescription}
           eventTitle={ad.eventTitle}
           coverImage={ad.coverImage}
           onDismiss={handleDismiss}

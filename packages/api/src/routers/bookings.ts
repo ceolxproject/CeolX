@@ -4,7 +4,7 @@ import { and, desc, eq, inArray, isNull, or, sql } from 'drizzle-orm';
 import { db } from '@CeolX/db';
 import { user } from '@CeolX/db/schema/auth';
 import { bookings } from '@CeolX/db/schema/bookings';
-import { eventCollaborators, events } from '@CeolX/db/schema/events';
+import { collections, eventCollaborators, events } from '@CeolX/db/schema/events';
 import { artistProfiles, venueProfiles } from '@CeolX/db/schema/users';
 import {
   BookingDirection,
@@ -784,26 +784,46 @@ export const bookingsRouter = router({
 
     const whereClause = and(...conditions);
 
-    // Count + fetch in parallel
-    const [countResult, rows] = await Promise.all([
-      db
-        .select({ count: sql<number>`count(*)::int` })
-        .from(bookings)
-        .where(whereClause)
-        .then((r) => r[0]?.count ?? 0),
-      db.query.bookings.findMany({
-        where: whereClause,
-        with: {
-          artist: true,
-          inviterArtist: true,
-          venue: true,
-          event: true,
-        },
-        orderBy: (b, { desc }) => [desc(b.createdAt)],
-        limit: input.limit,
-        offset: input.offset,
-      }),
-    ]);
+    // Fetch every row for this tab (no SQL paging) so repeat attempts at the
+    // same event collapse into one card BEFORE pagination. A withdraw→re-request
+    // leaves the old (cancelled) row behind and inserts a fresh one; without the
+    // collapse the Collaboration tab showed a separate card per attempt
+    // (Asana 1215700058851996, Issue 1). At launch scale (<1k users) a user's
+    // booking history is small, so fetching all rows is fine.
+    const allRows = await db.query.bookings.findMany({
+      where: whereClause,
+      with: {
+        artist: true,
+        inviterArtist: true,
+        venue: true,
+        event: true,
+      },
+      orderBy: (b, { desc }) => [desc(b.createdAt)],
+    });
+
+    // Collapse to one group per (event, direction, artist, counterparty). Rows
+    // arrive newest-first, so the first row seen per key is the representative
+    // (latest attempt → its status drives the card) and Map insertion order
+    // keeps groups newest-first. Dedup guarantees at most one ACTIVE
+    // (pending/accepted) row per (artist, event), so the representative is never
+    // ambiguous; older rows only bump the attempt count.
+    type BookingRow = (typeof allRows)[number];
+    const groups = new Map<string, { row: BookingRow; count: number; lastRequestedAt: Date }>();
+    for (const row of allRows) {
+      const counterpartyId = row.venueId ?? row.inviterArtistId ?? '';
+      const key = `${row.eventId ?? ''}::${row.direction}::${row.artistId}::${counterpartyId}`;
+      const existing = groups.get(key);
+      if (existing) {
+        existing.count += 1;
+      } else {
+        groups.set(key, { row, count: 1, lastRequestedAt: row.createdAt });
+      }
+    }
+
+    const countResult = groups.size;
+    const pageGroups = [...groups.values()].slice(input.offset, input.offset + input.limit);
+    const groupByBookingId = new Map(pageGroups.map((g) => [g.row.id, g]));
+    const rows = pageGroups.map((g) => g.row);
 
     // Batch-fetch user images for all artists + inviters + venues in results.
     // venue + inviterArtist are nullable (artist↔artist rows have no venue;
@@ -863,6 +883,10 @@ export const bookingsRouter = router({
           eventStatus: row.event?.status ?? EventStatus.ARCHIVED,
           createdAt: row.createdAt.toISOString(),
           updatedAt: row.updatedAt.toISOString(),
+          requestCount: groupByBookingId.get(row.id)?.count ?? 1,
+          lastRequestedAt: (
+            groupByBookingId.get(row.id)?.lastRequestedAt ?? row.createdAt
+          ).toISOString(),
         };
       }),
       total: countResult,
@@ -948,6 +972,12 @@ export const bookingsRouter = router({
         eventStatus: booking.event?.status ?? EventStatus.ARCHIVED,
         createdAt: booking.createdAt.toISOString(),
         updatedAt: booking.updatedAt.toISOString(),
+        // byId addresses a single booking row, so it always represents one
+        // attempt — the "Requested N times" note is a list-level affordance
+        // (bookings.list collapses repeats). Kept so byId stays a structural
+        // superset of BookingSummary for the detail screen. Asana 1215700058851996.
+        requestCount: 1,
+        lastRequestedAt: booking.createdAt.toISOString(),
         cancelledByName: booking.cancelledByUser?.name ?? null,
       };
     }),
@@ -1085,9 +1115,11 @@ export const bookingsRouter = router({
             venueAddress: events.venueAddress,
             status: events.status,
             bookingId: eventCollaborators.bookingId,
+            collectionName: collections.name,
           })
           .from(eventCollaborators)
           .innerJoin(events, eq(events.id, eventCollaborators.eventId))
+          .leftJoin(collections, eq(events.collectionId, collections.id))
           .where(whereClause)
           .orderBy(desc(events.dateStart))
           .limit(input.limit)
@@ -1105,6 +1137,7 @@ export const bookingsRouter = router({
           venueAddress: e.venueAddress ?? null,
           status: e.status,
           bookingId: e.bookingId ?? null,
+          collectionName: e.collectionName ?? null,
         })),
         total: countResult,
         hasNextPage: input.offset + input.limit < countResult,
@@ -1152,9 +1185,11 @@ export const bookingsRouter = router({
           venueAddress: events.venueAddress,
           status: events.status,
           bookingId: eventCollaborators.bookingId,
+          collectionName: collections.name,
         })
         .from(eventCollaborators)
         .innerJoin(events, eq(events.id, eventCollaborators.eventId))
+        .leftJoin(collections, eq(events.collectionId, collections.id))
         .where(whereClause)
         .orderBy(desc(events.dateStart))
         .limit(input.limit)
@@ -1172,6 +1207,7 @@ export const bookingsRouter = router({
         venueAddress: e.venueAddress ?? null,
         status: e.status,
         bookingId: e.bookingId ?? null,
+        collectionName: e.collectionName ?? null,
       })),
       total: countResult,
       hasNextPage: input.offset + input.limit < countResult,

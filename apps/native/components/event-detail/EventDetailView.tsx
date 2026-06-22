@@ -151,6 +151,7 @@ export function EventDetailView({
         <EventHeroImage
           coverImageUrl={event.coverImageUrl ?? undefined}
           category={event.category}
+          collectionName={event.collection?.name}
           attendeeCount={event.attendeeCount}
         />
 
@@ -235,6 +236,7 @@ export function EventDetailView({
         {/* Offers — only this event's own ad, if it has one */}
         <OfferBlock
           adTitle={event.adTitle}
+          adDescription={event.adDescription}
           eventTitle={event.title}
           coverImage={event.coverImageUrl ?? null}
         />
@@ -304,7 +306,11 @@ export function EventDetailView({
               data={event.relatedEvents}
               keyExtractor={(item) => item.id}
               renderItem={({ item }) => (
-                <CollectionEventCard event={item} onPress={() => onNavigateToEvent(item.id)} />
+                <CollectionEventCard
+                  event={item}
+                  collectionName={event.collection?.name}
+                  onPress={() => onNavigateToEvent(item.id)}
+                />
               )}
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={{ paddingHorizontal: 16, gap: 8 }}

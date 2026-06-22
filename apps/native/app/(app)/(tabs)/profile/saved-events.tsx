@@ -48,6 +48,7 @@ export default function SavedEventsScreen() {
                 dateEnd={event.dateEnd}
                 category={event.category}
                 venueAddress={event.venueAddress}
+                collectionName={event.collectionName}
                 onPress={() => router.push(`/(app)/(tabs)/profile/event/${event.id}`)}
               />
             ))}
@@ -78,6 +79,7 @@ export default function SavedEventsScreen() {
                       dateEnd={event.dateEnd}
                       category={event.category}
                       venueAddress={event.venueAddress}
+                      collectionName={event.collectionName}
                       onPress={() => router.push(`/(app)/(tabs)/profile/event/${event.id}`)}
                     />
                   ))}

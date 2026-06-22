@@ -250,6 +250,7 @@ function MyEventsTab() {
           dateEnd={event.dateEnd}
           category={event.category}
           venueAddress={event.venueAddress}
+          collectionName={event.collectionName}
           status={event.status}
           joinedCount={event.joinedCount}
           ownerActions={{
@@ -286,6 +287,7 @@ function MyEventsTab() {
               dateEnd={event.dateEnd}
               category={event.category}
               venueAddress={event.venueAddress}
+              collectionName={event.collectionName}
               bookingId={event.bookingId}
               eventStatus={event.status}
               onCancel={handleCancelBooking}

@@ -20,6 +20,7 @@ type Props = {
   isVenue?: boolean;
 };
 
+const AD_TITLE_MAX = 100;
 const AD_DESC_MAX = 50;
 
 export function TicketAdsStep({
@@ -101,7 +102,7 @@ export function TicketAdsStep({
           <View className="gap-1.5">
             <FieldLabel
               label="Ad Title (optional)"
-              hint="Headline for a promotional pop-up shown to people within 5–15 km of your event."
+              hint="Headline for a promotional pop-up shown to people within 5–15 km of your event. Limited to 100 characters."
             />
             <View
               className={cn(
@@ -114,12 +115,21 @@ export function TicketAdsStep({
                 placeholder="Enter ad title"
                 placeholderTextColor="#8d8d8d"
                 value={adTitle}
-                onChangeText={onAdTitleChange}
+                // Cap natively so the limit also applies to paste, and slice
+                // defensively so an over-long paste can never reach state.
+                // Mirrors the Ad Description field. (Asana 1215700058851914)
+                onChangeText={(text) => onAdTitleChange(text.slice(0, AD_TITLE_MAX))}
+                maxLength={AD_TITLE_MAX}
               />
             </View>
-            <Text className="text-xs text-neutral-500">
-              Show special offers as pop-up notification to people within 5-15 km of your event.
-            </Text>
+            <View className="flex-row items-center justify-between">
+              <Text className="flex-1 text-xs text-neutral-500">
+                Show special offers as pop-up notification to people within 5-15 km of your event.
+              </Text>
+              <Text className="ml-2 text-xs text-neutral-500">
+                {adTitle.length}/{AD_TITLE_MAX}
+              </Text>
+            </View>
             {errors.adTitle && <Text className="text-xs text-error">{errors.adTitle}</Text>}
           </View>
 
