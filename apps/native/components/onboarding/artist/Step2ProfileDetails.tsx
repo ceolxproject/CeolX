@@ -2,6 +2,8 @@ import { Text, TextInput, View } from 'react-native';
 
 import { BIO_MAX_LENGTH } from '@CeolX/shared/validators';
 
+import { CharacterCount, CharacterLimitNote } from '@/components/CharacterCount';
+
 interface Step2ProfileDetailsProps {
   bio: string;
   setBio: (v: string) => void;
@@ -24,9 +26,11 @@ export function Step2ProfileDetails({ bio, setBio, errors, handleBlur }: Step2Pr
       <View className="gap-2">
         <View className="flex-row items-center justify-between">
           <Text className="text-sm font-bold text-white/80">Short Bio (optional)</Text>
-          <Text className="text-base text-gray-10">
-            {bio.length}/{BIO_MAX_LENGTH}
-          </Text>
+          <CharacterCount
+            count={bio.length}
+            max={BIO_MAX_LENGTH}
+            className="text-base text-gray-10"
+          />
         </View>
         <TextInput
           className={`rounded-lg bg-white px-4 py-4 text-base text-black ${errors.bio ? 'border border-error' : ''}`}
@@ -42,6 +46,7 @@ export function Step2ProfileDetails({ bio, setBio, errors, handleBlur }: Step2Pr
           style={{ minHeight: 120, textAlignVertical: 'top' }}
         />
         {errors.bio ? <Text className="text-xs text-error">{errors.bio}</Text> : null}
+        <CharacterLimitNote count={bio.length} max={BIO_MAX_LENGTH} />
       </View>
     </View>
   );

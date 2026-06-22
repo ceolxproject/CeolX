@@ -21,6 +21,7 @@ import {
 } from '@CeolX/shared/validators';
 
 import { appToast } from '@/components/AppToast';
+import { CharacterCount, CharacterLimitNote } from '@/components/CharacterCount';
 import { LocationPicker, type PickedLocation } from '@/components/LocationPicker';
 import { ProfilePicture } from '@/components/onboarding/ProfilePicture';
 import { SocialLinkInput } from '@/components/profiles';
@@ -343,9 +344,12 @@ export default function EditProfileScreen() {
             onChangeText={setBio}
             maxLength={BIO_MAX_LENGTH}
           />
-          <Text className="text-xs text-white/40 mb-4 self-end">
-            {bio.length}/{BIO_MAX_LENGTH}
-          </Text>
+          <CharacterCount
+            count={bio.length}
+            max={BIO_MAX_LENGTH}
+            className="text-xs text-white/40 self-end mb-1"
+          />
+          <CharacterLimitNote count={bio.length} max={BIO_MAX_LENGTH} className="self-end mb-4" />
 
           {/* Artist-only: Genres */}
           {!isVenue && (

@@ -2,6 +2,7 @@ import { Text, TextInput, View } from 'react-native';
 
 import { BIO_MAX_LENGTH } from '@CeolX/shared/validators';
 
+import { CharacterCount, CharacterLimitNote } from '@/components/CharacterCount';
 import { LocationPicker, type PickedLocation } from '@/components/LocationPicker';
 
 interface Step2ProfileDetailsProps {
@@ -46,9 +47,11 @@ export function Step2ProfileDetails({
         <View className="gap-2">
           <View className="flex-row items-center justify-between">
             <Text className="text-sm font-bold text-white/80">Short Description (optional)</Text>
-            <Text className="text-base text-gray-10">
-              {bio.length}/{BIO_MAX_LENGTH}
-            </Text>
+            <CharacterCount
+              count={bio.length}
+              max={BIO_MAX_LENGTH}
+              className="text-base text-gray-10"
+            />
           </View>
           <TextInput
             className={`rounded-lg bg-white px-4 py-4 text-base text-black ${errors.bio ? 'border border-error' : ''}`}
@@ -64,6 +67,7 @@ export function Step2ProfileDetails({
             style={{ minHeight: 72, textAlignVertical: 'top' }}
           />
           {errors.bio ? <Text className="text-xs text-error">{errors.bio}</Text> : null}
+          <CharacterLimitNote count={bio.length} max={BIO_MAX_LENGTH} />
         </View>
       </View>
     </View>
