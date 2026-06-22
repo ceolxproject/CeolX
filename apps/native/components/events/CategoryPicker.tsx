@@ -6,6 +6,8 @@ import { Pressable, Text, View } from 'react-native';
 import type { EventCategory } from '@CeolX/shared';
 import { CATEGORY_LABELS, EVENT_CATEGORIES } from '@CeolX/shared';
 
+import { CategoryIcon } from '@/components/icons/CategoryIcon';
+
 type Props = {
   value: EventCategory | '';
   onChange: (cat: EventCategory) => void;
@@ -34,9 +36,14 @@ export function CategoryPicker({ value, onChange, error }: Props) {
         accessibilityRole="button"
         accessibilityLabel="Select event category"
       >
-        <Text className={cn('text-sm font-urbanist', selectedLabel ? 'text-white' : 'text-gray-7')}>
-          {selectedLabel ?? 'Select Category'}
-        </Text>
+        <View className="flex-row items-center gap-2">
+          {value ? <CategoryIcon category={value} size={16} color="#fff" /> : null}
+          <Text
+            className={cn('text-sm font-urbanist', selectedLabel ? 'text-white' : 'text-gray-7')}
+          >
+            {selectedLabel ?? 'Select Category'}
+          </Text>
+        </View>
         <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={18} color="#8d8d8d" />
       </Pressable>
 
@@ -57,6 +64,7 @@ export function CategoryPicker({ value, onChange, error }: Props) {
               }}
               accessibilityRole="menuitem"
             >
+              <CategoryIcon category={cat} size={16} color={value === cat ? '#C8FF2F' : '#fff'} />
               <Text
                 className={cn(
                   'flex-1 text-sm font-urbanist',

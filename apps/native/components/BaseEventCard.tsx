@@ -3,8 +3,9 @@ import { cn } from 'heroui-native';
 import type { ReactNode } from 'react';
 import { Image, Pressable, Text, View } from 'react-native';
 
-import { CATEGORY_ICONS, CATEGORY_LABELS } from '@CeolX/shared';
+import { CATEGORY_LABELS } from '@CeolX/shared';
 
+import { CategoryIcon } from '@/components/icons/CategoryIcon';
 import { formatEventDate } from '@/utils/format-event-date';
 import { getMockEventImage } from '@/utils/mock-images';
 
@@ -42,7 +43,6 @@ export function BaseEventCard({
   bottomSlot,
 }: BaseEventCardProps) {
   const categoryLabel = CATEGORY_LABELS[category] ?? category;
-  const categoryIcon = CATEGORY_ICONS[category] ?? '🎵';
   const formattedDate = formatEventDate(dateStart, dateEnd);
 
   return (
@@ -78,7 +78,7 @@ export function BaseEventCard({
         {/* Bottom overlay: category pill + optional right element */}
         <View className="absolute bottom-3 left-3 right-3 flex-row items-center justify-between">
           <View className="flex-row items-center bg-[#C8FF2F] rounded-full px-2 h-4 gap-0.5">
-            <Text className="text-[11px]">{categoryIcon}</Text>
+            <CategoryIcon category={category} size={11} color="#000" />
             <Text className="text-[11px] font-semibold text-black font-urbanist">
               {categoryLabel}
             </Text>

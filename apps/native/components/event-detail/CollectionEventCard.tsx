@@ -2,9 +2,10 @@ import { Ionicons } from '@expo/vector-icons';
 import { cn } from 'heroui-native';
 import { Image, Pressable, Text, View } from 'react-native';
 
-import { CATEGORY_ICONS, CATEGORY_LABELS } from '@CeolX/shared';
+import { CATEGORY_LABELS } from '@CeolX/shared';
 
 import { EventCollectionBadge } from '@/components/EventCollectionBadge';
+import { CategoryIcon } from '@/components/icons/CategoryIcon';
 import type { RelatedEvent } from '@/types/event-detail';
 import { getMockEventImage } from '@/utils/mock-images';
 
@@ -27,7 +28,6 @@ export function CollectionEventCard({
   className,
 }: CollectionEventCardProps) {
   const categoryLabel = CATEGORY_LABELS[event.category] ?? event.category;
-  const categoryIcon = CATEGORY_ICONS[event.category] ?? '🎵';
   const formattedDate = formatCardDate(event.dateStart);
 
   return (
@@ -56,7 +56,7 @@ export function CollectionEventCard({
         {/* Bottom pills */}
         <View className="absolute bottom-3 left-3 right-3 flex-row items-center justify-between">
           <View className="flex-row items-center bg-green-10 rounded-full px-2 h-4 gap-0.5">
-            <Text className="text-[11px]">{categoryIcon}</Text>
+            <CategoryIcon category={event.category} size={11} color="#000" />
             <Text className="text-[11px] font-semibold text-black font-sans">{categoryLabel}</Text>
           </View>
         </View>

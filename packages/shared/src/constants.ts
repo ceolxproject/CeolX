@@ -38,24 +38,6 @@ export const CATEGORY_LABELS: Record<string, string> = {
   Others: 'Others',
 };
 
-// Event category emoji icons
-export const CATEGORY_ICONS: Record<string, string> = {
-  Concerts: '🎤',
-  Gigs: '🎸',
-  Karaoke: '🎶',
-  'Open Mic Nights': '🎙️',
-  Festivals: '🎪',
-  Recital: '🎻',
-  'DJ Sets / Club Nights': '🎧',
-  'Jam Sessions': '🥁',
-  'Tribute / Cover Band Shows': '🎵',
-  Workshops: '🛠️',
-  'Open Trad Sessions': '☘️',
-  Lessons: '📚',
-  Outdoor: '🌳',
-  Others: '✨',
-};
-
 // Geographic centre coordinates for each Irish county (Republic + Northern Ireland).
 // Uses `satisfies` to enforce that every IrishCounty has an entry — a missing county
 // will cause a compile error.

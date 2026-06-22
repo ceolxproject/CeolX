@@ -1,12 +1,15 @@
 import { Image, Text, View } from 'react-native';
 
+import { CategoryIcon } from '@/components/icons/CategoryIcon';
 import { getMockEventImage } from '@/utils/mock-images';
 
 type SinglePinProps = {
   type: 'single';
   coverImageUrl?: string;
+  /** Display label shown beside the icon. */
   category?: string;
-  categoryIcon?: string;
+  /** Raw category key (from EVENT_CATEGORIES) used to resolve the vector icon. */
+  categoryKey?: string;
   isSelected?: boolean;
   /**
    * Fires once the pin image has painted. The map marker uses this to stop
@@ -32,7 +35,7 @@ export function MapEventPin(props: MapEventPinProps) {
     );
   }
 
-  const { coverImageUrl, category, categoryIcon, isSelected, onImageLoad } = props;
+  const { coverImageUrl, category, categoryKey, isSelected, onImageLoad } = props;
 
   const pinSize = isSelected ? 56 : 44;
   const pinRadius = isSelected ? 28 : 22;
@@ -57,9 +60,9 @@ export function MapEventPin(props: MapEventPinProps) {
   return (
     <View className="items-center">
       {/* Category badge above the pin */}
-      {(category ?? categoryIcon) ? (
+      {(category ?? categoryKey) ? (
         <View className="flex-row items-center bg-[#C8FF2F] px-2 py-0.5 rounded-full mb-1 gap-[3px]">
-          {categoryIcon ? <Text className="text-[10px]">{categoryIcon}</Text> : null}
+          {categoryKey ? <CategoryIcon category={categoryKey} size={10} color="#000" /> : null}
           {category ? (
             <Text
               className="text-[10px] text-black font-semibold"

@@ -2,7 +2,7 @@ import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { Text, View } from 'react-native';
 import { Marker } from 'react-native-maps';
 
-import { CATEGORY_ICONS, CATEGORY_LABELS } from '@CeolX/shared';
+import { CATEGORY_LABELS } from '@CeolX/shared';
 
 import { MapEventPin } from '@/components/MapEventPin';
 
@@ -99,7 +99,7 @@ function MapEventMarkerComponent({ event, isSelected, onSelect }: MapEventMarker
           type="single"
           coverImageUrl={event.coverImageUrl}
           category={CATEGORY_LABELS[event.category] ?? event.category}
-          categoryIcon={CATEGORY_ICONS[event.category]}
+          categoryKey={event.category}
           isSelected={isSelected}
           onImageLoad={handleImageLoad}
         />
