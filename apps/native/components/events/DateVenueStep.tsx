@@ -295,7 +295,11 @@ export function DateVenueStep({
                             <Text className="text-sm font-semibold text-white font-urbanist">
                               {v.name}
                             </Text>
-                            <Text className="text-xs text-gray-7 font-urbanist mt-0.5">
+                            <Text
+                              className="text-xs text-gray-7 font-urbanist mt-0.5"
+                              numberOfLines={1}
+                              ellipsizeMode="tail"
+                            >
                               {v.address}
                             </Text>
                           </Pressable>
@@ -327,7 +331,16 @@ export function DateVenueStep({
               )}
 
               {venueAddress ? (
-                <Text className="text-xs text-gray-7 font-urbanist">📍 {venueAddress}</Text>
+                <View className="flex-row">
+                  <Text className="text-xs text-gray-7 font-urbanist">📍 </Text>
+                  <Text
+                    className="flex-1 text-xs text-gray-7 font-urbanist"
+                    numberOfLines={2}
+                    ellipsizeMode="tail"
+                  >
+                    {venueAddress}
+                  </Text>
+                </View>
               ) : null}
 
               {errors.lat && <Text className="text-xs text-error font-urbanist">{errors.lat}</Text>}

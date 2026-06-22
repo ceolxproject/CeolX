@@ -99,11 +99,18 @@ export function ProfileHeader({
       <View className="items-center gap-1.5 mb-3">
         <Text className="text-xl font-bold text-white font-urbanist">{displayName}</Text>
         {subtitle && (
-          <View className="flex-row items-center gap-1">
+          <View className="flex-row items-start justify-center gap-1 max-w-[292px]">
             {subtitleIcon && (
-              <Ionicons name={subtitleIcon} size={12} color="rgba(255,255,255,0.6)" />
+              <Ionicons
+                name={subtitleIcon}
+                size={12}
+                color="rgba(255,255,255,0.6)"
+                style={{ marginTop: 2 }}
+              />
             )}
-            <Text className="text-xs font-semibold text-white/60 font-urbanist">{subtitle}</Text>
+            <Text className="shrink text-xs font-semibold text-white/60 font-urbanist text-center">
+              {subtitle}
+            </Text>
           </View>
         )}
         {secondarySubtitle && (

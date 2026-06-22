@@ -82,7 +82,15 @@ export function LocationMapPreview({
         <View className="absolute top-0 left-0 right-0 h-16 bg-gradient-to-b from-black/70 to-transparent pointer-events-none" />
       </View>
 
-      {venueAddress && <Text className="text-sm text-white/60 font-sans mt-2">{venueAddress}</Text>}
+      {venueAddress && (
+        <Text
+          className="text-sm text-white/60 font-sans mt-2"
+          numberOfLines={2}
+          ellipsizeMode="tail"
+        >
+          {venueAddress}
+        </Text>
+      )}
     </View>
   );
 }
