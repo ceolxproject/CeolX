@@ -9,6 +9,7 @@ import { UserRole } from '@CeolX/shared/enums';
 
 import { getTabPressActions } from './app-tab-bar.utils';
 
+import { TAB_BAR_HEIGHT } from '@/constants/layout';
 import { useTabBarVisibility } from '@/contexts/tab-bar-visibility-context';
 import { useMe } from '@/hooks/use-me';
 
@@ -127,7 +128,7 @@ export function AppTabBar({ state, navigation, onFabPress }: AppTabBarProps) {
   return (
     <View
       className="flex-row items-start bg-[#6155F5] pt-2"
-      style={{ paddingBottom: insets.bottom, height: 60 + insets.bottom }}
+      style={{ paddingBottom: insets.bottom, height: TAB_BAR_HEIGHT + insets.bottom }}
     >
       {showFab ? (
         <>

@@ -49,6 +49,7 @@ export function MapSearchBar({
           autoFocus={autoFocus}
         />
         <Pressable
+          hitSlop={10}
           className={cn(
             'w-8 h-8 rounded-full items-center justify-center',
             activeFilterCount > 0 ? 'bg-[#662FFF]' : 'bg-[#F0F0F0]'
