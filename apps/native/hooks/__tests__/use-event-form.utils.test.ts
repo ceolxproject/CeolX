@@ -72,18 +72,36 @@ describe('platformInviteIds', () => {
   // The form now holds the full artist display objects (so the invite chips
   // survive a step change); the payload still wants just the IDs. These guard
   // that derivation. (Asana 1215484565234867)
+  //
+  // The absent-vs-empty rule mirrors unregisteredCollaboratorsPayload: on edit
+  // the server diffs the sent list against existing pending invites to know
+  // what to withdraw, so removing the last invite must send `[]`, not omit the
+  // field. On create there is nothing to withdraw, so empty stays omitted.
+  // (Asana 1215912673233456)
   const artist = (id: string) => ({ id, stageName: id, genre: null, image: null, name: null });
 
   it('maps selected artist objects down to their IDs', () => {
-    expect(platformInviteIds([artist('a1'), artist('a2')])).toEqual(['a1', 'a2']);
+    expect(platformInviteIds([artist('a1'), artist('a2')], false)).toEqual(['a1', 'a2']);
   });
 
   it('preserves order and keeps every selection (no dedupe — the picker guards that)', () => {
-    expect(platformInviteIds([artist('b'), artist('a'), artist('c')])).toEqual(['b', 'a', 'c']);
+    expect(platformInviteIds([artist('b'), artist('a'), artist('c')], false)).toEqual([
+      'b',
+      'a',
+      'c',
+    ]);
   });
 
-  it('returns undefined for an empty selection so the optional field is omitted', () => {
-    expect(platformInviteIds([])).toBeUndefined();
+  it('returns undefined for an empty selection on create so the optional field is omitted', () => {
+    expect(platformInviteIds([], false)).toBeUndefined();
+  });
+
+  it('sends an empty array on edit so removing the last invite persists (the bug)', () => {
+    expect(platformInviteIds([], true)).toEqual([]);
+  });
+
+  it('sends the remaining invite IDs on edit when some are kept', () => {
+    expect(platformInviteIds([artist('a1')], true)).toEqual(['a1']);
   });
 });
 

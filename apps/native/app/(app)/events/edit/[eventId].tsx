@@ -77,7 +77,11 @@ function EditEventForm({ event, eventId }: { event: LoadedEvent; eventId: string
       coverImageUri: event.coverImage ?? null,
       category: event.category as EventCategory,
       collectionId: event.collectionId ?? '',
-      platformInvites: [],
+      // Previously-invited platform artists whose invite is still pending —
+      // seeded so the venue/organiser can see and manage them. Accepted
+      // performers are shown in the event-detail Performers section instead, not
+      // re-managed here. (Asana 1215912673233456)
+      platformInvites: event.platformInvites ?? [],
       unregisteredCollaborators: event.unregisteredCollaborators ?? [],
       dateStart: new Date(event.dateStart),
       dateEnd: event.dateEnd ? new Date(event.dateEnd) : null,
