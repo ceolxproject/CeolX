@@ -195,7 +195,7 @@ export default function SignUpScreen() {
                 autoCapitalize="none"
                 autoComplete="email"
                 value={email}
-                onChangeText={setEmail}
+                onChangeText={(t) => setEmail(t.toLowerCase())}
               />
               {errors.email && <Text className="text-error text-xs mt-1">{errors.email}</Text>}
             </View>

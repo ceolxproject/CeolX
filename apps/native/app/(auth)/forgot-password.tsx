@@ -86,7 +86,7 @@ export default function ForgotPasswordScreen() {
                 keyboardType="email-address"
                 autoCapitalize="none"
                 value={email}
-                onChangeText={setEmail}
+                onChangeText={(t) => setEmail(t.toLowerCase())}
               />
               {error ? <Text className="text-red-500 text-sm">{error}</Text> : null}
             </View>

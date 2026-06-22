@@ -39,7 +39,9 @@ export default function VerifyEmailScreen() {
   // Load pending email from SecureStore (set during sign-up)
   useEffect(() => {
     SecureStore.getItemAsync('pendingVerificationEmail')
-      .then((val) => setEmail(val))
+      // Lowercase defensively — guards any legacy uppercase value already in
+      // SecureStore so the displayed/resent email stays normalized (Asana 1215700058851852).
+      .then((val) => setEmail(val?.toLowerCase() ?? null))
       .catch(() => {});
   }, []);
 

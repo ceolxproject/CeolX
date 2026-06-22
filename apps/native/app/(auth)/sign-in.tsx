@@ -147,7 +147,7 @@ export default function SignInScreen() {
                 autoCapitalize="none"
                 autoComplete="email"
                 value={email}
-                onChangeText={setEmail}
+                onChangeText={(t) => setEmail(t.toLowerCase())}
               />
             </View>
 
