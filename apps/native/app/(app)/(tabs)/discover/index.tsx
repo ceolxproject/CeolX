@@ -252,7 +252,7 @@ export default function DiscoverScreen() {
                 : 'Find Music, Artist or Event'
             }
             placeholderTextColor="rgba(255,255,255,0.6)"
-            className="flex-1 text-sm text-white font-urbanist"
+            className="flex-1 text-[14px] text-white font-urbanist"
             onChangeText={handleSearchChange}
             onFocus={handleSearchFocus}
             onBlur={handleSearchBlur}

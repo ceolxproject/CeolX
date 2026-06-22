@@ -1,21 +1,13 @@
-import { Ionicons } from '@expo/vector-icons';
 import { Link, router, useLocalSearchParams } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import { useState } from 'react';
-import {
-  KeyboardAvoidingView,
-  Linking,
-  Pressable,
-  ScrollView,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { KeyboardAvoidingView, Linking, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { signUpSchema } from '@CeolX/shared/validators';
 
 import { AppButton } from '@/components/AppButton';
+import { AppTextField } from '@/components/AppTextField';
 import { CeolxLogo } from '@/components/CeolxLogo';
 import { CheckboxField } from '@/components/CheckboxField';
 import { SocialLoginButtons } from '@/components/SocialLoginButtons';
@@ -35,7 +27,6 @@ export default function SignUpScreen() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [passwordVisible, setPasswordVisible] = useState(false);
   const [tosAccepted, setTosAccepted] = useState(false);
   const [marketingOptIn, setMarketingOptIn] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -183,10 +174,9 @@ export default function SignUpScreen() {
             {/* Full Name */}
             <View className="gap-2 mb-4">
               <Text className="text-sm font-bold text-white/80">Full Name</Text>
-              <TextInput
-                className="bg-white rounded-lg h-[52px] px-4 text-base text-black"
+              <AppTextField
+                variant="light"
                 placeholder="Enter your full name"
-                placeholderTextColor="#8d8d8d"
                 autoCapitalize="words"
                 autoComplete="name"
                 value={name}
@@ -198,10 +188,9 @@ export default function SignUpScreen() {
             {/* Email */}
             <View className="gap-2 mb-4">
               <Text className="text-sm font-bold text-white/80">Email Address</Text>
-              <TextInput
-                className="bg-white rounded-lg h-[52px] px-4 text-base text-black"
+              <AppTextField
+                variant="light"
                 placeholder="Enter your email address"
-                placeholderTextColor="#8d8d8d"
                 keyboardType="email-address"
                 autoCapitalize="none"
                 autoComplete="email"
@@ -214,27 +203,14 @@ export default function SignUpScreen() {
             {/* Password */}
             <View className="gap-2 mb-4">
               <Text className="text-sm font-bold text-white/80">Password</Text>
-              <View className="flex-row items-center">
-                <TextInput
-                  className="flex-1 bg-white rounded-lg h-[52px] px-4 text-base text-black"
-                  placeholder="Enter your password"
-                  placeholderTextColor="#8d8d8d"
-                  secureTextEntry={!passwordVisible}
-                  autoComplete="new-password"
-                  value={password}
-                  onChangeText={setPassword}
-                />
-                <Pressable
-                  className="absolute right-3.5 h-[52px] justify-center"
-                  onPress={() => setPasswordVisible((v) => !v)}
-                >
-                  <Ionicons
-                    name={passwordVisible ? 'eye-outline' : 'eye-off-outline'}
-                    size={20}
-                    color="#8d8d8d"
-                  />
-                </Pressable>
-              </View>
+              <AppTextField
+                variant="light"
+                placeholder="Enter your password"
+                secureTextEntry
+                autoComplete="new-password"
+                value={password}
+                onChangeText={setPassword}
+              />
               {errors.password && (
                 <Text className="text-error text-xs mt-1">{errors.password}</Text>
               )}

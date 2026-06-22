@@ -70,7 +70,7 @@ export default function CollectionsScreen() {
           <View className="mb-4 rounded-2xl border border-[rgba(141,141,141,0.4)] bg-[rgba(141,141,141,0.1)] p-4 gap-3">
             <Text className="text-sm font-bold text-white font-urbanist">New Collection</Text>
             <TextInput
-              className="h-10 rounded-lg bg-white/10 px-3 text-white text-sm font-urbanist"
+              className="h-10 rounded-lg bg-white/10 px-3 text-white text-[14px] font-urbanist"
               placeholder="Collection name"
               placeholderTextColor="rgba(255,255,255,0.4)"
               value={newName}

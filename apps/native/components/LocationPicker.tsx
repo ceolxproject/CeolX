@@ -87,7 +87,7 @@ export function LocationPicker({
         <View className="flex-row items-center rounded-lg border bg-surface px-3 py-2.5 gap-2 border-gray-8">
           <Ionicons name="search-outline" size={16} color="#8d8d8d" />
           <TextInput
-            className="flex-1 text-sm text-white font-urbanist"
+            className="flex-1 text-[14px] text-white font-urbanist"
             placeholder={searchPlaceholder}
             placeholderTextColor="#8d8d8d"
             value={query}

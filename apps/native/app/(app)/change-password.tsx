@@ -1,27 +1,19 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useState } from 'react';
-import {
-  Alert,
-  KeyboardAvoidingView,
-  Pressable,
-  ScrollView,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { Alert, KeyboardAvoidingView, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { changePasswordSchema } from '@CeolX/shared/validators';
 
 import { AppButton } from '@/components/AppButton';
+import { AppTextField } from '@/components/AppTextField';
 import { authClient } from '@/lib/auth-client';
 
 export default function ChangePasswordScreen() {
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [passwordVisible, setPasswordVisible] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -91,11 +83,11 @@ export default function ChangePasswordScreen() {
               <Text className="text-sm font-medium font-inter text-white/80 leading-5">
                 Current Password
               </Text>
-              <TextInput
-                className="bg-white rounded-lg h-[52px] px-4 text-base font-sans font-medium text-black leading-5"
+              <AppTextField
+                variant="light"
+                className="font-sans font-medium"
                 placeholder="Enter current password"
-                placeholderTextColor="#8d8d8d"
-                secureTextEntry={!passwordVisible}
+                secureTextEntry
                 autoComplete="current-password"
                 value={currentPassword}
                 onChangeText={setCurrentPassword}
@@ -107,27 +99,15 @@ export default function ChangePasswordScreen() {
               <Text className="text-sm font-medium font-inter text-white/80 leading-5">
                 New Password
               </Text>
-              <View className="flex-row items-center">
-                <TextInput
-                  className="flex-1 bg-white rounded-lg h-[52px] px-4 text-base font-sans font-medium text-black leading-5"
-                  placeholder="Enter new password"
-                  placeholderTextColor="#8d8d8d"
-                  secureTextEntry={!passwordVisible}
-                  autoComplete="new-password"
-                  value={newPassword}
-                  onChangeText={setNewPassword}
-                />
-                <Pressable
-                  className="absolute right-4 h-[52px] justify-center"
-                  onPress={() => setPasswordVisible((v) => !v)}
-                >
-                  <Ionicons
-                    name={passwordVisible ? 'eye-outline' : 'eye-off-outline'}
-                    size={20}
-                    color="#8d8d8d"
-                  />
-                </Pressable>
-              </View>
+              <AppTextField
+                variant="light"
+                className="font-sans font-medium"
+                placeholder="Enter new password"
+                secureTextEntry
+                autoComplete="new-password"
+                value={newPassword}
+                onChangeText={setNewPassword}
+              />
             </View>
 
             {/* Confirm password */}
@@ -135,11 +115,11 @@ export default function ChangePasswordScreen() {
               <Text className="text-sm font-medium font-inter text-white/80 leading-5">
                 Confirm New Password
               </Text>
-              <TextInput
-                className="bg-white rounded-lg h-[52px] px-4 text-base font-sans font-medium text-black leading-5"
+              <AppTextField
+                variant="light"
+                className="font-sans font-medium"
                 placeholder="Re-enter new password"
-                placeholderTextColor="#8d8d8d"
-                secureTextEntry={!passwordVisible}
+                secureTextEntry
                 autoComplete="new-password"
                 value={confirmPassword}
                 onChangeText={setConfirmPassword}

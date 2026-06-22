@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Text, TextInput, View } from 'react-native';
 
+import { AppTextField } from '@/components/AppTextField';
 import { ProfilePicture } from '@/components/onboarding/ProfilePicture';
 
 interface Step1BasicInfoProps {
@@ -48,21 +49,16 @@ export function Step1BasicInfo({
       <View className="gap-4">
         <View className="gap-2">
           <Text className="text-sm font-bold text-white/80">Venue Name</Text>
-          <View
-            className={`h-[52px] justify-center rounded-lg bg-white px-4 ${errors.venueName ? 'border border-error' : ''}`}
-          >
-            <TextInput
-              className="text-base text-black"
-              placeholder="Enter your venue name"
-              placeholderTextColor="#8d8d8d"
-              value={venueName}
-              onChangeText={setVenueName}
-              onBlur={() => handleBlur('venueName')}
-              autoCapitalize="words"
-              autoCorrect={false}
-            />
-          </View>
-          {errors.venueName ? <Text className="text-xs text-error">{errors.venueName}</Text> : null}
+          <AppTextField
+            variant="light"
+            placeholder="Enter your venue name"
+            value={venueName}
+            onChangeText={setVenueName}
+            onBlur={() => handleBlur('venueName')}
+            autoCapitalize="words"
+            autoCorrect={false}
+            error={errors.venueName}
+          />
         </View>
 
         <View className="gap-2">
@@ -71,7 +67,7 @@ export function Step1BasicInfo({
               it can't be changed during onboarding. */}
           <View className="h-[52px] flex-row items-center justify-between rounded-lg bg-[#e4e4e4] px-4">
             <TextInput
-              className="flex-1 text-base text-black/50"
+              className="flex-1 text-[16px] text-black/50"
               value={contactEmail}
               editable={false}
               selectTextOnFocus={false}

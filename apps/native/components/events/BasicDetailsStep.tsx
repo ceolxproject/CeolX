@@ -77,7 +77,7 @@ export function BasicDetailsStep({
         />
         <TextInput
           className={cn(
-            'rounded-lg border bg-surface px-4 py-3 text-sm text-white font-urbanist',
+            'rounded-lg border bg-surface px-4 py-3 text-[14px] text-white font-urbanist',
             errors.title ? 'border-error' : 'border-gray-8'
           )}
           placeholder="Enter event title"

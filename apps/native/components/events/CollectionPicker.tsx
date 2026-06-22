@@ -185,7 +185,7 @@ export function CollectionPicker({ collectionId, onCollectionIdChange }: Props) 
                 Collection Name
               </Text>
               <TextInput
-                className="rounded-lg border border-gray-8 bg-surface px-4 py-3 text-sm text-white font-urbanist"
+                className="rounded-lg border border-gray-8 bg-surface px-4 py-3 text-[14px] text-white font-urbanist"
                 placeholder="e.g. Summer Festival 2026"
                 placeholderTextColor="#8d8d8d"
                 value={newName}

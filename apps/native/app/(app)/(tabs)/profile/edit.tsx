@@ -20,6 +20,7 @@ import {
   venueLinksSchema,
 } from '@CeolX/shared/validators';
 
+import { AppTextField } from '@/components/AppTextField';
 import { appToast } from '@/components/AppToast';
 import { CharacterCount, CharacterLimitNote } from '@/components/CharacterCount';
 import { LocationPicker, type PickedLocation } from '@/components/LocationPicker';
@@ -319,10 +320,10 @@ export default function EditProfileScreen() {
           <Text className="text-xs font-semibold text-white/60 uppercase tracking-wide mb-1.5 font-urbanist">
             {isVenue ? 'Venue Name' : 'Display Name'} *
           </Text>
-          <TextInput
-            className="bg-[#1C1C1E] rounded-lg h-[48px] px-4 text-base font-medium text-white mb-4"
+          <AppTextField
+            variant="dark"
+            containerClassName="mb-4"
             placeholder={isVenue ? 'Your venue name' : 'Your stage name'}
-            placeholderTextColor="#8d8d8d"
             value={displayName}
             onChangeText={setDisplayName}
             maxLength={isVenue ? 150 : 100}
@@ -357,10 +358,10 @@ export default function EditProfileScreen() {
               <Text className="text-xs font-semibold text-white/60 uppercase tracking-wide mb-1.5 font-urbanist">
                 Genres
               </Text>
-              <TextInput
-                className="bg-[#1C1C1E] rounded-lg h-[48px] px-4 text-base font-medium text-white mb-4"
+              <AppTextField
+                variant="dark"
+                containerClassName="mb-4"
                 placeholder="e.g. Traditional, Folk, Sean-nós"
-                placeholderTextColor="#8d8d8d"
                 value={genre}
                 onChangeText={setGenre}
               />
@@ -368,10 +369,10 @@ export default function EditProfileScreen() {
               <Text className="text-xs font-semibold text-white/60 uppercase tracking-wide mb-1.5 font-urbanist">
                 Location
               </Text>
-              <TextInput
-                className="bg-[#1C1C1E] rounded-lg h-[48px] px-4 text-base font-medium text-white mb-4"
+              <AppTextField
+                variant="dark"
+                containerClassName="mb-4"
                 placeholder="e.g. Galway, Ireland"
-                placeholderTextColor="#8d8d8d"
                 value={location}
                 onChangeText={setLocation}
                 maxLength={255}
@@ -401,10 +402,10 @@ export default function EditProfileScreen() {
               <Text className="text-xs font-semibold text-white/60 uppercase tracking-wide mb-1.5 font-urbanist">
                 County
               </Text>
-              <TextInput
-                className="bg-[#1C1C1E] rounded-lg h-[48px] px-4 text-base font-medium text-white mb-4"
+              <AppTextField
+                variant="dark"
+                containerClassName="mb-4"
                 placeholder="e.g. Dublin, Cork, Galway"
-                placeholderTextColor="#8d8d8d"
                 value={county}
                 onChangeText={setCounty}
                 maxLength={100}
@@ -413,10 +414,10 @@ export default function EditProfileScreen() {
               <Text className="text-xs font-semibold text-white/60 uppercase tracking-wide mb-1.5 font-urbanist">
                 Website
               </Text>
-              <TextInput
-                className={`bg-[#1C1C1E] rounded-lg h-[48px] px-4 text-base font-medium text-white ${errors.websiteUrl ? 'mb-1' : 'mb-4'}`}
+              <AppTextField
+                variant="dark"
+                containerClassName={errors.websiteUrl ? 'mb-1' : 'mb-4'}
                 placeholder="https://yourvenue.com"
-                placeholderTextColor="#8d8d8d"
                 value={websiteUrl}
                 onChangeText={setWebsiteUrl}
                 autoCapitalize="none"
@@ -432,10 +433,10 @@ export default function EditProfileScreen() {
               <Text className="text-xs font-semibold text-white/60 uppercase tracking-wide mb-1.5 font-urbanist">
                 Phone
               </Text>
-              <TextInput
-                className="bg-[#1C1C1E] rounded-lg h-[48px] px-4 text-base font-medium text-white mb-4"
+              <AppTextField
+                variant="dark"
+                containerClassName="mb-4"
                 placeholder="+353 1 234 5678"
-                placeholderTextColor="#8d8d8d"
                 value={phone}
                 onChangeText={setPhone}
                 keyboardType="phone-pad"

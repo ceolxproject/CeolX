@@ -22,7 +22,8 @@
     "submit:ios": "APP_VARIANT=staging eas submit --profile staging-testflight --platform ios --latest",
     "submit:android": "APP_VARIANT=staging eas submit --profile staging --platform android --latest",
     "check-types": "tsc --noEmit",
-    "lint": "eslint .",
+    "check:inputs": "node scripts/check-textinput-lineheight.mjs",
+    "lint": "eslint . && node scripts/check-textinput-lineheight.mjs",
     "lint:fix": "eslint . --fix"
   },
   "dependencies": {

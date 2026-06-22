@@ -60,7 +60,7 @@ export function TicketAdsStep({
         >
           <Text className="mr-1 text-sm text-neutral-400">€</Text>
           <TextInput
-            className="flex-1 text-sm text-white"
+            className="flex-1 text-[14px] text-white"
             placeholder="0.00"
             placeholderTextColor="#8d8d8d"
             keyboardType="numeric"
@@ -84,7 +84,7 @@ export function TicketAdsStep({
           )}
         >
           <TextInput
-            className="text-sm text-white"
+            className="text-[14px] text-white"
             placeholder="Paste ticket link here"
             placeholderTextColor="#8d8d8d"
             autoCapitalize="none"
@@ -111,7 +111,7 @@ export function TicketAdsStep({
               )}
             >
               <TextInput
-                className="text-sm text-white"
+                className="text-[14px] text-white"
                 placeholder="Enter ad title"
                 placeholderTextColor="#8d8d8d"
                 value={adTitle}

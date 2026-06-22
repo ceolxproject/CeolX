@@ -146,7 +146,7 @@ export function InviteArtistPicker({
         <View className="flex-row items-center rounded-lg border border-gray-8 bg-surface px-4 py-3 gap-2">
           <Ionicons name="mail-outline" size={16} color="#8d8d8d" />
           <TextInput
-            className="flex-1 text-sm text-white font-urbanist"
+            className="flex-1 text-[14px] text-white font-urbanist"
             placeholder="Search artists to invite..."
             placeholderTextColor="#8d8d8d"
             value={query}
@@ -237,7 +237,7 @@ export function InviteArtistPicker({
               <View className="gap-2">
                 <Text className="text-sm font-semibold text-gray-3 font-urbanist">Name *</Text>
                 <TextInput
-                  className={`rounded-lg border bg-surface px-4 py-3 text-sm text-white font-urbanist ${inviteErrors.name ? 'border-error' : 'border-gray-8'}`}
+                  className={`rounded-lg border bg-surface px-4 py-3 text-[14px] text-white font-urbanist ${inviteErrors.name ? 'border-error' : 'border-gray-8'}`}
                   placeholder="Artist name"
                   placeholderTextColor="#8d8d8d"
                   value={inviteName}
@@ -251,7 +251,7 @@ export function InviteArtistPicker({
               <View className="gap-2">
                 <Text className="text-sm font-semibold text-gray-3 font-urbanist">Email *</Text>
                 <TextInput
-                  className={`rounded-lg border bg-surface px-4 py-3 text-sm text-white font-urbanist ${inviteErrors.email ? 'border-error' : 'border-gray-8'}`}
+                  className={`rounded-lg border bg-surface px-4 py-3 text-[14px] text-white font-urbanist ${inviteErrors.email ? 'border-error' : 'border-gray-8'}`}
                   placeholder="artist@example.com"
                   placeholderTextColor="#8d8d8d"
                   value={inviteEmail}

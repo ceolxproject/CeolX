@@ -91,7 +91,7 @@ export default function CollectionDetailScreen() {
           </Pressable>
           {editing ? (
             <TextInput
-              className="flex-1 h-8 text-lg font-bold text-white font-urbanist"
+              className="flex-1 h-8 text-[18px] font-bold text-white font-urbanist"
               value={editName}
               onChangeText={setEditName}
               maxLength={100}
