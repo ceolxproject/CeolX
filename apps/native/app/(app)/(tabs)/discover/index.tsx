@@ -236,6 +236,7 @@ export default function DiscoverScreen() {
         onNotificationPress={() => router.push('/notifications')}
         calendarActive={activeSegment === 0 && !!date}
         filterActive={activeSegment === 0 && !!category}
+        showEventActions={activeSegment === 0}
       />
 
       {/* Search bar */}

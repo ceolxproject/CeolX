@@ -16,6 +16,8 @@ interface FeedHeaderProps {
   calendarActive?: boolean;
   /** Highlights the filter button when a category filter is applied. */
   filterActive?: boolean;
+  /** Shows the event-only calendar + filter buttons (hidden on the Posts tab). */
+  showEventActions?: boolean;
   className?: string;
 }
 
@@ -27,6 +29,7 @@ export function FeedHeader({
   onFilterPress,
   calendarActive = false,
   filterActive = false,
+  showEventActions = true,
   className,
 }: FeedHeaderProps) {
   return (
@@ -68,37 +71,39 @@ export function FeedHeader({
 
         {/* Left: calendar — Right: filter sliders (matches Figma node 1:3349) */}
         {/* shrink-0 keeps both buttons at full size and on-screen no matter how
-            long the address is. */}
-        <View className="flex-row items-center gap-2 shrink-0">
-          <Pressable
-            onPress={onCalendarPress}
-            hitSlop={8}
-            className={cn(
-              'w-10 h-10 rounded-full items-center justify-center',
-              calendarActive ? 'bg-[#C8FF2F]' : 'bg-[#1d1d1d]'
-            )}
-          >
-            <Ionicons
-              name="calendar-outline"
-              size={20}
-              color={calendarActive ? '#080808' : '#FFFFFF'}
-            />
-          </Pressable>
-          <Pressable
-            onPress={onFilterPress}
-            hitSlop={8}
-            className={cn(
-              'w-10 h-10 rounded-full items-center justify-center',
-              filterActive ? 'bg-[#C8FF2F]' : 'bg-[#1d1d1d]'
-            )}
-          >
-            <Ionicons
-              name="options-outline"
-              size={20}
-              color={filterActive ? '#080808' : '#FFFFFF'}
-            />
-          </Pressable>
-        </View>
+            long the address is. Event-only — hidden on the Posts tab. */}
+        {showEventActions && (
+          <View className="flex-row items-center gap-2 shrink-0">
+            <Pressable
+              onPress={onCalendarPress}
+              hitSlop={8}
+              className={cn(
+                'w-10 h-10 rounded-full items-center justify-center',
+                calendarActive ? 'bg-[#C8FF2F]' : 'bg-[#1d1d1d]'
+              )}
+            >
+              <Ionicons
+                name="calendar-outline"
+                size={20}
+                color={calendarActive ? '#080808' : '#FFFFFF'}
+              />
+            </Pressable>
+            <Pressable
+              onPress={onFilterPress}
+              hitSlop={8}
+              className={cn(
+                'w-10 h-10 rounded-full items-center justify-center',
+                filterActive ? 'bg-[#C8FF2F]' : 'bg-[#1d1d1d]'
+              )}
+            >
+              <Ionicons
+                name="options-outline"
+                size={20}
+                color={filterActive ? '#080808' : '#FFFFFF'}
+              />
+            </Pressable>
+          </View>
+        )}
       </View>
     </View>
   );
