@@ -16,9 +16,13 @@ vi.mock('../services/event-sync', () => ({
   removeEventFromTypesense: vi.fn(),
 }));
 
+import { BookingDirection, BookingStatus } from '@CeolX/shared';
+
 import {
+  diffPlatformInvites,
   isConfirmedPerformer,
   isExternalInvitee,
+  isPendingPlatformInvite,
   toUnregisteredCollaborators,
 } from '../routers/events/crud';
 
@@ -137,5 +141,108 @@ describe('toUnregisteredCollaborators', () => {
         },
       ])
     ).toEqual([{ name: 'Mary Black', email: 'mary@example.com' }]);
+  });
+});
+
+describe('isPendingPlatformInvite', () => {
+  // The edit form's "Invite Artists" field is seeded from an event's *pending
+  // performer invites* — a venue→artist or artist→artist booking the invitee
+  // hasn't accepted yet. An artist→venue consent request is a pending booking
+  // too but is NOT a performer invite, so it must be excluded. (Asana 1215912673233456)
+  it('counts a pending venue→artist invite', () => {
+    expect(
+      isPendingPlatformInvite({
+        status: BookingStatus.PENDING,
+        direction: BookingDirection.VENUE_TO_ARTIST,
+      })
+    ).toBe(true);
+  });
+
+  it('counts a pending artist→artist (co-artist) invite', () => {
+    expect(
+      isPendingPlatformInvite({
+        status: BookingStatus.PENDING,
+        direction: BookingDirection.ARTIST_TO_ARTIST,
+      })
+    ).toBe(true);
+  });
+
+  it('excludes a pending artist→venue consent request (not a performer invite)', () => {
+    expect(
+      isPendingPlatformInvite({
+        status: BookingStatus.PENDING,
+        direction: BookingDirection.ARTIST_TO_VENUE,
+      })
+    ).toBe(false);
+  });
+
+  it('excludes an accepted invite (no longer pending — shown as a confirmed performer)', () => {
+    expect(
+      isPendingPlatformInvite({
+        status: BookingStatus.ACCEPTED,
+        direction: BookingDirection.VENUE_TO_ARTIST,
+      })
+    ).toBe(false);
+  });
+
+  it('excludes a cancelled invite', () => {
+    expect(
+      isPendingPlatformInvite({
+        status: BookingStatus.CANCELLED,
+        direction: BookingDirection.VENUE_TO_ARTIST,
+      })
+    ).toBe(false);
+  });
+});
+
+describe('diffPlatformInvites', () => {
+  // On edit the form sends the full list of platform-artist userIds it shows.
+  // The server diffs that against what already exists: additions are submitted
+  // artists not yet collaborating; removals are previously-pending invites the
+  // creator dropped from the field. Self is never added or removed.
+  // (Asana 1215912673233456)
+  const SELF = 'me';
+
+  it('adds submitted artists not already collaborating', () => {
+    expect(diffPlatformInvites(['a', 'c'], ['a'], ['a'], SELF)).toEqual({
+      toAdd: ['c'],
+      toRemove: [],
+    });
+  });
+
+  it('removes a previously-pending invite dropped from the list', () => {
+    expect(diffPlatformInvites(['a'], ['a', 'b'], ['a', 'b'], SELF)).toEqual({
+      toAdd: [],
+      toRemove: ['b'],
+    });
+  });
+
+  it('removes every pending invite when the list is cleared', () => {
+    expect(diffPlatformInvites([], ['a', 'b'], ['a', 'b'], SELF)).toEqual({
+      toAdd: [],
+      toRemove: ['a', 'b'],
+    });
+  });
+
+  it('keeps an unchanged invite (neither added nor removed)', () => {
+    expect(diffPlatformInvites(['a'], ['a'], ['a'], SELF)).toEqual({ toAdd: [], toRemove: [] });
+  });
+
+  it('never adds or removes the creator themselves', () => {
+    // Self appears in submitted and is an existing collaborator (artist→venue
+    // request row) — it must be ignored on both sides.
+    expect(diffPlatformInvites([SELF, 'a'], [SELF], [SELF], SELF)).toEqual({
+      toAdd: ['a'],
+      toRemove: [],
+    });
+  });
+
+  it('does not remove an accepted performer (only pending invites are removable)', () => {
+    // 'b' accepted (so it is a collaborator but NOT in the pending set) and was
+    // dropped from the field — it must NOT be withdrawn here.
+    expect(diffPlatformInvites(['a'], ['a', 'b'], ['a'], SELF)).toEqual({
+      toAdd: [],
+      toRemove: [],
+    });
   });
 });

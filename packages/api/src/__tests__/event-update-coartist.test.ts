@@ -16,6 +16,8 @@ const {
   mockCollabsFindMany,
   mockArtistsFindFirst,
   mockSelectWhere,
+  mockPendingInvitesWhere,
+  mockDeleteWhere,
   mockSyncEventToTypesense,
 } = vi.hoisted(() => {
   const mockInsertReturning = vi.fn();
@@ -24,7 +26,12 @@ const {
   const mockEventsFindFirst = vi.fn();
   const mockCollabsFindMany = vi.fn(() => Promise.resolve([]));
   const mockArtistsFindFirst = vi.fn();
+  // Plain `select().from().where()` → invited artist profiles to add.
   const mockSelectWhere = vi.fn();
+  // `select().from().innerJoin().where()` → the event's existing pending invites
+  // (the removable set). Defaults to none. (Asana 1215912673233456)
+  const mockPendingInvitesWhere = vi.fn(() => Promise.resolve([]));
+  const mockDeleteWhere = vi.fn();
 
   const mockSyncEventToTypesense = vi.fn(async () => {});
 
@@ -43,9 +50,11 @@ const {
         where: vi.fn(() => ({ returning: mockUpdateReturning })),
       })),
     })),
+    delete: vi.fn(() => ({ where: mockDeleteWhere })),
     select: vi.fn(() => ({
       from: vi.fn(() => ({
         where: mockSelectWhere,
+        innerJoin: vi.fn(() => ({ where: mockPendingInvitesWhere })),
       })),
     })),
     transaction: vi.fn((cb: (tx: unknown) => Promise<unknown>) => cb(mockDb)),
@@ -60,6 +69,8 @@ const {
     mockCollabsFindMany,
     mockArtistsFindFirst,
     mockSelectWhere,
+    mockPendingInvitesWhere,
+    mockDeleteWhere,
     mockSyncEventToTypesense,
   };
 });
@@ -217,6 +228,8 @@ describe('events.update — artist-to-artist co-artist invites', () => {
     mockCollabsFindMany.mockReset().mockResolvedValue([]);
     mockArtistsFindFirst.mockReset();
     mockSelectWhere.mockReset().mockResolvedValue([]);
+    mockPendingInvitesWhere.mockReset().mockResolvedValue([]);
+    mockDeleteWhere.mockReset().mockResolvedValue(undefined);
     mockDispatchNotification.mockReset().mockResolvedValue(undefined);
 
     mockInsertValues
@@ -236,8 +249,13 @@ describe('events.update — artist-to-artist co-artist invites', () => {
     (mockDb.select as ReturnType<typeof vi.fn>).mockReset().mockImplementation(() => ({
       from: vi.fn(() => ({
         where: mockSelectWhere,
+        innerJoin: vi.fn(() => ({ where: mockPendingInvitesWhere })),
       })),
     }));
+
+    (mockDb.delete as ReturnType<typeof vi.fn>)
+      .mockReset()
+      .mockImplementation(() => ({ where: mockDeleteWhere }));
 
     (mockDb.transaction as ReturnType<typeof vi.fn>)
       .mockReset()
@@ -308,13 +326,48 @@ describe('events.update — artist-to-artist co-artist invites', () => {
 
   it('skips an already-collaborating artist (no duplicate booking)', async () => {
     // Existing collaborator already includes the invited artist's user id.
-    mockCollabsFindMany.mockReset().mockResolvedValueOnce([
-      { artistProfileId: INVITED_USER_ID },
-    ]);
+    mockCollabsFindMany.mockReset().mockResolvedValueOnce([{ artistProfileId: INVITED_USER_ID }]);
 
     const caller = createCaller(artistContext());
     await caller.events.update(updateInput);
 
+    const a2aBookings = mockInsertValues.mock.calls.filter(
+      (args) =>
+        args[0] !== undefined &&
+        typeof args[0] === 'object' &&
+        (args[0] as Record<string, unknown>).direction === 'artist_to_artist'
+    );
+    expect(a2aBookings).toHaveLength(0);
+  });
+
+  it('withdraws a pending invite the creator dropped from the field', async () => {
+    // The invited artist has a still-pending co-artist invite (so they're an
+    // existing collaborator AND in the removable pending set)...
+    mockCollabsFindMany.mockReset().mockResolvedValueOnce([{ artistProfileId: INVITED_USER_ID }]);
+    mockPendingInvitesWhere
+      .mockReset()
+      .mockResolvedValueOnce([{ bookingId: BOOKING_ID, inviteeUserId: INVITED_USER_ID }]);
+
+    // ...and the edit clears the Invite Artists field. The form sends `[]` on
+    // edit so the drop persists. (Asana 1215912673233456)
+    const caller = createCaller(artistContext());
+    await caller.events.update({ id: EVENT_ID, data: { platformInvites: [] } });
+
+    // The pending invite's collaborator row is detached...
+    expect(mockDeleteWhere).toHaveBeenCalledTimes(1);
+    // ...and the invitee is told their invite was withdrawn.
+    expect(mockDispatchNotification).toHaveBeenCalledWith(
+      expect.objectContaining({
+        trigger: 'booking_coartist_withdrawn_to_invitee',
+        recipientUserId: INVITED_USER_ID,
+        vars: expect.objectContaining({
+          bookingId: BOOKING_ID,
+          coArtistName: CREATOR_STAGE_NAME,
+          eventTitle: updatedEvent.title,
+        }) as unknown,
+      })
+    );
+    // No new invite is created.
     const a2aBookings = mockInsertValues.mock.calls.filter(
       (args) =>
         args[0] !== undefined &&
