@@ -39,6 +39,9 @@ export const listEvents = adminProcedure
     if (input.q) {
       filters.push(ilike(events.title, `%${input.q}%`));
     }
+    if (input.createdBy) {
+      filters.push(eq(events.createdBy, input.createdBy));
+    }
     const whereClause = filters.length === 1 ? filters[0] : and(...filters);
 
     const rows = await db
