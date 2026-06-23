@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { AppHeader } from '@/components/AppHeader';
 import { ProfileEventCard } from '@/components/ProfileEventCard';
 import { useSavedEvents } from '@/hooks/use-saved-events';
 
@@ -13,13 +14,7 @@ export default function SavedEventsScreen() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#080808' }}>
-      {/* Header */}
-      <View className="flex-row items-center px-5 h-14">
-        <Pressable onPress={() => router.back()} className="mr-3">
-          <Ionicons name="arrow-back" size={24} color="#fff" />
-        </Pressable>
-        <Text className="text-lg font-bold text-white font-urbanist flex-1">Saved Events</Text>
-      </View>
+      <AppHeader leading="back" title="Saved Events" />
 
       <ScrollView className="flex-1 px-5" showsVerticalScrollIndicator={false}>
         {isLoading ? (

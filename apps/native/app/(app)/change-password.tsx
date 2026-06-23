@@ -1,12 +1,12 @@
-import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Alert, KeyboardAvoidingView, Pressable, ScrollView, Text, View } from 'react-native';
+import { Alert, KeyboardAvoidingView, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { changePasswordSchema } from '@CeolX/shared/validators';
 
 import { AppButton } from '@/components/AppButton';
+import { AppHeader } from '@/components/AppHeader';
 import { AppTextField } from '@/components/AppTextField';
 import { authClient } from '@/lib/auth-client';
 
@@ -58,12 +58,7 @@ export default function ChangePasswordScreen() {
     <View style={{ flex: 1, backgroundColor: '#0d0c0f' }}>
       <SafeAreaView style={{ flex: 1 }} edges={['top']}>
         <KeyboardAvoidingView behavior="padding" style={{ flex: 1 }}>
-          {/* Header — back button */}
-          <View className="flex-row items-center p-5">
-            <Pressable onPress={() => router.back()} hitSlop={8} className="active:opacity-70">
-              <Ionicons name="chevron-back" size={26} color="#fff" />
-            </Pressable>
-          </View>
+          <AppHeader leading="back" />
 
           <ScrollView
             contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 24, paddingBottom: 40 }}

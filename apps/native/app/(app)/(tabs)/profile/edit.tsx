@@ -1,4 +1,3 @@
-import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
@@ -20,6 +19,7 @@ import {
   venueLinksSchema,
 } from '@CeolX/shared/validators';
 
+import { AppHeader } from '@/components/AppHeader';
 import { AppTextField } from '@/components/AppTextField';
 import { appToast } from '@/components/AppToast';
 import { CharacterCount, CharacterLimitNote } from '@/components/CharacterCount';
@@ -285,20 +285,19 @@ export default function EditProfileScreen() {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#080808' }}>
       <KeyboardAvoidingView behavior="padding" className="flex-1">
-        {/* Header */}
-        <View className="flex-row items-center justify-between px-4 py-3">
-          <Pressable onPress={() => router.back()}>
-            <Ionicons name="arrow-back" size={24} color="#fff" />
-          </Pressable>
-          <Text className="text-lg font-bold text-white font-urbanist">Edit Profile</Text>
-          <Pressable onPress={handleSave} disabled={isPending}>
-            {isPending ? (
-              <ActivityIndicator color="#C8FF2F" size="small" />
-            ) : (
-              <Text className="text-sm font-bold text-[#C8FF2F] font-urbanist">Save</Text>
-            )}
-          </Pressable>
-        </View>
+        <AppHeader
+          leading="back"
+          title="Edit Profile"
+          trailingAccessory={
+            <Pressable onPress={handleSave} disabled={isPending} hitSlop={8}>
+              {isPending ? (
+                <ActivityIndicator color="#C8FF2F" size="small" />
+              ) : (
+                <Text className="text-sm font-bold text-[#C8FF2F] font-urbanist">Save</Text>
+              )}
+            </Pressable>
+          }
+        />
 
         <ScrollView className="flex-1 px-4" showsVerticalScrollIndicator={false}>
           {/* Profile Image */}

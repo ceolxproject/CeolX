@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { AppHeader } from '@/components/AppHeader';
 import { useCollections, useCreateCollection, useDeleteCollection } from '@/hooks/use-collections';
 
 export default function CollectionsScreen() {
@@ -51,18 +52,19 @@ export default function CollectionsScreen() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#080808' }}>
-      {/* Header */}
-      <View className="flex-row items-center justify-between px-5 h-14">
-        <View className="flex-row items-center">
-          <Pressable onPress={() => router.back()} className="mr-3">
-            <Ionicons name="arrow-back" size={24} color="#fff" />
-          </Pressable>
-          <Text className="text-lg font-bold text-white font-urbanist">Collections</Text>
-        </View>
-        <Pressable onPress={() => setShowCreate(!showCreate)}>
-          <Ionicons name={showCreate ? 'close' : 'add'} size={24} color="#C8FF2F" />
-        </Pressable>
-      </View>
+      <AppHeader
+        leading="back"
+        title="Collections"
+        actions={[
+          {
+            key: 'toggle-create',
+            icon: showCreate ? 'close' : 'add',
+            onPress: () => setShowCreate(!showCreate),
+            iconColor: '#C8FF2F',
+            accessibilityLabel: showCreate ? 'Close new collection form' : 'New collection',
+          },
+        ]}
+      />
 
       <ScrollView className="flex-1 px-5" showsVerticalScrollIndicator={false}>
         {/* Inline create form */}
