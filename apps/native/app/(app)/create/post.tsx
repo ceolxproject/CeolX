@@ -151,12 +151,27 @@ export default function CreatePostScreen() {
           uri: media.uri,
           fileSize: media.fileSize ?? null,
         });
+        // Don't present a failed transcode as a successful post. 'errored' means
+        // Mux rejected the upload, so abort instead of persisting a broken post.
+        if (result.status === 'errored') {
+          throw new Error('Video processing failed. Please try a different video.');
+        }
         const input = createPostSchema.parse({
           caption: caption.trim(),
           mediaType: 'video',
           muxUploadId: result.uploadId,
         });
         await createPost.mutateAsync(input);
+        // 'pending' = still transcoding at the poll timeout. The webhook will
+        // finish it, but tell the user rather than implying it's ready now.
+        if (result.status === 'pending') {
+          appToast.success(
+            'Post published',
+            'Your video is still processing and will appear shortly.'
+          );
+          router.back();
+          return;
+        }
       } else if (media) {
         // Image post — s3 upload, persist CDN URL.
         const { cdnUrl } = await imageUpload.uploadMedia({

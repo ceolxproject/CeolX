@@ -36,8 +36,9 @@ FCM push) and logs the interest for cooldown purposes.
   directions are symmetric. (There is no event context on a profile, so the old "Invite"
   label could not drive the event-booking invite flow anyway.)
 - A **24h cooldown** prevents a sender from spamming the same recipient, via a dedicated
-  `SHARE_INTEREST_COOLDOWN_MS` constant (the booking-resend cooldown it was modelled on
-  lives in an unmerged branch, so this feature ships its own).
+  `SHARE_INTEREST_COOLDOWN_MS` constant. It mirrors the booking-resend cooldown
+  (`RESEND_COOLDOWN_MS`); the two now coexist as separate constants so each feature can be
+  tuned independently.
 - Only **artist ↔ venue** may send: an artist viewing a venue, or a venue viewing an
   artist. Spectators and same-persona viewers (artist→artist, venue→venue) never see the
   button, and the server rejects them defensively.

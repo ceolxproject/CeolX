@@ -102,7 +102,7 @@ draft → active → archived
 - **Admin removes** → `status = removed`, `removal_reason` populated. Creator gets push notification with reason. Creator can edit and resubmit → back to `active`.
 - After event date passes → soft archived (`status = archived`). Stays in DB, removed from map/feed, visible on creator's profile under Past Events.
 - Hard delete is never used.
-- `pending_review` and `rejected` statuses kept in schema enum for potential future use but not used in V1.
+- `pending_review` is used to **hold an artist-created event off the map/feed until the named venue accepts** (artist→venue consent flow — see `events/crud.ts`; on venue acceptance the booking flow flips it to `active`). `rejected` remains in the schema enum for potential future use but is not used in V1.
 
 **Admin content review dashboard**: Shows all active events, sorted newest first. Admin can remove any event with a mandatory reason.
 

@@ -5,7 +5,7 @@ import type { SOCIAL_PLATFORMS } from '../enums';
 // Single source of truth for the bio/short-description character cap. Both the
 // onboarding wizard and the Edit Profile screen (Artist + Venue) must use this
 // so the two flows can never diverge again (Asana 1215717564020178).
-export const BIO_MAX_LENGTH = 50;
+export const BIO_MAX_LENGTH = 150;
 
 // Optional bio field with the shared cap. `label` tailors the message ("Bio" on
 // artist screens, "Description" on venue screens) while the limit stays unified.

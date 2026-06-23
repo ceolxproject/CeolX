@@ -20,6 +20,7 @@ import {
   venueOnboardingStep1Schema,
   venueOnboardingStep2Schema,
   venueOnboardingStep3Schema,
+  BIO_MAX_LENGTH,
 } from '../index.js';
 
 // ─── Auth validators ────────────────────────────────────────────────────────
@@ -310,9 +311,12 @@ describe('createArtistOnboardingSchema', () => {
     );
   });
 
-  it('rejects bio longer than 50 characters', () => {
+  it('rejects bio longer than BIO_MAX_LENGTH characters', () => {
     expect(
-      createArtistOnboardingSchema.safeParse({ stageName: 'Seán', bio: 'a'.repeat(51) }).success
+      createArtistOnboardingSchema.safeParse({
+        stageName: 'Seán',
+        bio: 'a'.repeat(BIO_MAX_LENGTH + 1),
+      }).success
     ).toBe(false);
   });
 
@@ -481,8 +485,10 @@ describe('artistOnboardingStep1Schema', () => {
 });
 
 describe('artistOnboardingStep2Schema (D1.A — bio optional)', () => {
-  it('accepts bio at exactly 50 characters', () => {
-    expect(artistOnboardingStep2Schema.safeParse({ bio: 'a'.repeat(50) }).success).toBe(true);
+  it('accepts bio at exactly BIO_MAX_LENGTH characters', () => {
+    expect(artistOnboardingStep2Schema.safeParse({ bio: 'a'.repeat(BIO_MAX_LENGTH) }).success).toBe(
+      true
+    );
   });
 
   it('accepts empty body — bio omitted', () => {
@@ -495,8 +501,10 @@ describe('artistOnboardingStep2Schema (D1.A — bio optional)', () => {
     if (result.success) expect(result.data.bio).toBe('short bio');
   });
 
-  it('rejects bio longer than 50 characters', () => {
-    expect(artistOnboardingStep2Schema.safeParse({ bio: 'a'.repeat(51) }).success).toBe(false);
+  it('rejects bio longer than BIO_MAX_LENGTH characters', () => {
+    expect(
+      artistOnboardingStep2Schema.safeParse({ bio: 'a'.repeat(BIO_MAX_LENGTH + 1) }).success
+    ).toBe(false);
   });
 });
 
@@ -612,13 +620,13 @@ describe('venueOnboardingStep2Schema', () => {
     expect(venueOnboardingStep2Schema.safeParse({}).success).toBe(false);
   });
 
-  it('rejects bio longer than 50 characters', () => {
+  it('rejects bio longer than BIO_MAX_LENGTH characters', () => {
     expect(
       venueOnboardingStep2Schema.safeParse({
         address: 'Galway',
         lat: 53.2707,
         lng: -9.0568,
-        bio: 'a'.repeat(51),
+        bio: 'a'.repeat(BIO_MAX_LENGTH + 1),
       }).success
     ).toBe(false);
   });

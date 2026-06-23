@@ -6,7 +6,7 @@
  * + `lastRequestedAt` (Asana 1215700058851996, Issue 1). A single attempt needs
  * no extra line, so this returns `null` for counts <= 1.
  *
- * e.g. `formatRequestAttempts(2, iso)` → "Requested 2 times · Last on Apr 15, 2026"
+ * e.g. `formatRequestAttempts(2, iso)` → "Requested 2 times · Last on 15 Apr 2026"
  */
 export function formatRequestAttempts(
   requestCount: number,

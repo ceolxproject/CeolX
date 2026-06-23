@@ -20,7 +20,7 @@ import { creatorProcedure, router } from '../index';
 // `creatorProcedure` already restricts the caller to artist or venue personas.
 // Direction is derived from the sender's role + the recipient's profile: an
 // artist may only signal a venue, and a venue only an artist. A 24h cooldown
-// (shared RESEND_COOLDOWN_MS) blocks spamming the same recipient.
+// (SHARE_INTEREST_COOLDOWN_MS) blocks spamming the same recipient.
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const collaborationRouter = router({
@@ -107,7 +107,17 @@ export const collaborationRouter = router({
 
     await db.insert(collaborationInterests).values({ senderUserId, recipientUserId });
 
-    await ctx.dispatchNotification({ trigger, recipientUserId, vars });
+    // Best-effort: the interest is already recorded (and the cooldown now
+    // applies), so a notification-delivery failure must not 500 the caller —
+    // that would tell the user it failed while blocking the retry. Log instead.
+    try {
+      await ctx.dispatchNotification({ trigger, recipientUserId, vars });
+    } catch (err) {
+      console.error(
+        '[collaboration.shareInterest] notification dispatch failed:',
+        err instanceof Error ? `${err.name}: ${err.message}` : err
+      );
+    }
 
     return { ok: true };
   }),

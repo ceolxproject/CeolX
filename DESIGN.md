@@ -91,7 +91,7 @@ Pairing rationale: one geometric sans (Urbanist) for display energy + a humanist
 
 **Mobile (`apps/native/components` — Tailwind 4 + Uniwind + HeroUI Native):**
 
-- Primitives: `AppButton` (primary/secondary/outline/ghost; sizes sm/md; loading state), `AppTextInput` (label/error/icon/secure), `CheckboxField`, `Container`, `BottomSheet` (`@gorhom/bottom-sheet`), `AppToast`, `CeolxLogo`.
+- Primitives: `AppButton` (primary/secondary/outline/ghost; sizes sm/md; loading state), `AppTextField` (variants: light/dark/surface; label/error, `leftIcon`/`rightAdornment`, secureTextEntry), `CheckboxField`, `Container`, `BottomSheet` (`@gorhom/bottom-sheet`), `AppToast`, `CeolxLogo`.
 - Feature: `BaseEventCard` (slot-based: cover 208px, title/date/location, badge slots), `FeedEventCard`, `EventPreviewCard`, `CategoryFilterChips`, `EmptyState` (variants: no-events / no-results / no-bookings / no-notifications), `AppTabBar` (custom bottom nav + FAB for artists/venues), `FeedHeader`, `LocationPermissionScreen`, `LocationPicker`.
 - Icons: `@expo/vector-icons` (Ionicons) + custom SVG `PersonaIcons` (Spectator/Artist/Venue on lime-green ground).
 

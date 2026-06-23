@@ -17,7 +17,15 @@ const verifyEmail = createDeepLinkBridge({
     try {
       await auth.api.verifyEmail({ query: { token } });
       return true;
-    } catch {
+    } catch (err) {
+      // Returning false renders the friendly "expired/used link" page, but that
+      // also masks genuine infra failures (DB outage, auth misconfig, network) —
+      // a valid token during a blip would wrongly look expired. Log so these are
+      // observable instead of silently flattened into "expired".
+      console.error(
+        '[verify-email] server-side verifyEmail failed:',
+        err instanceof Error ? `${err.name}: ${err.message}` : err
+      );
       return false;
     }
   },

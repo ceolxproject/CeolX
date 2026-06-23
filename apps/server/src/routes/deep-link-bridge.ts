@@ -190,7 +190,15 @@ export function createDeepLinkBridge(config: DeepLinkBridgeConfig): Hono {
         return c.json({ verified: false }, 400);
       }
 
-      const verified = await confirm(token).catch(() => false);
+      const verified = await confirm(token).catch((err: unknown) => {
+        // confirm() already narrows its own failures, but log anything that
+        // escapes here so this fallback layer isn't a second silent catch.
+        console.error(
+          `[deep-link-bridge] ${config.path}/confirm failed:`,
+          err instanceof Error ? `${err.name}: ${err.message}` : err
+        );
+        return false;
+      });
       return c.json({ verified });
     });
   }
