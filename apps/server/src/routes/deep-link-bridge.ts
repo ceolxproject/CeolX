@@ -60,11 +60,11 @@ function renderRedirectPage(path: string, token: string, confirmable: boolean): 
           .then(function (d) {
             if (!card) return;
             card.innerHTML = d && d.verified
-              ? '<h1>Email verified ✓</h1><p>Your account is now active. Open the CeolX app on your phone and sign in to continue.</p>'
-              : '<h1>Link not valid</h1><p>This verification link has expired or has already been used. Request a new one from the app.</p>';
+              ? '<div class="brand">CEOLX</div><div class="badge">✓</div><h1>Email verified</h1><p>Your CeolX account is now active. Open the app on your phone and sign in to continue.</p>'
+              : '<div class="brand">CEOLX</div><h1>Link not valid</h1><p>This verification link has expired or has already been used. Request a new one from the app.</p>';
           })
           .catch(function () {
-            if (card) card.innerHTML = '<h1>Something went wrong</h1><p>We couldn\\'t verify your email. Please try again from the app.</p>';
+            if (card) card.innerHTML = '<div class="brand">CEOLX</div><h1>Something went wrong</h1><p>We couldn\\'t verify your email. Please try again from the app.</p>';
           });
       }, 2500);
     })();
@@ -80,19 +80,22 @@ function renderRedirectPage(path: string, token: string, confirmable: boolean): 
     body { margin:0; min-height:100vh; display:flex; align-items:center; justify-content:center;
            background:#080808; color:#fff; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; }
     .card { max-width:360px; padding:32px 24px; text-align:center; }
+    .brand { letter-spacing:4px; font-weight:800; font-size:16px; color:#A7F46A; margin:0 0 20px; }
+    .badge { width:64px; height:64px; margin:0 auto 20px; border-radius:50%; background:#A7F46A;
+             color:#080808; display:flex; align-items:center; justify-content:center;
+             font-size:34px; font-weight:800; line-height:1; }
     h1 { font-size:22px; margin:0 0 12px; }
     p { font-size:15px; line-height:1.5; opacity:.8; margin:0 0 24px; }
     a.btn { display:inline-block; background:#A7F46A; color:#080808; text-decoration:none;
             padding:14px 24px; border-radius:999px; font-weight:700; }
-    a.small { color:#A7F46A; font-size:13px; text-decoration:none; display:inline-block; margin-top:18px; }
   </style>
 </head>
 <body>
   <div class="card" id="card">
+    <div class="brand">CEOLX</div>
     <h1>Opening CeolX…</h1>
     <p>If the app doesn't open automatically, tap the button below.</p>
     <a class="btn" href="${deepLink}">Open the CeolX app</a>
-    <div><a class="small" href="${deepLink}">${deepLink}</a></div>
   </div>
   <script>window.location.replace('${deepLink}');</script>${fallbackScript}
 </body>
@@ -112,11 +115,12 @@ function renderErrorPage(title: string, message: string): string {
     body { margin:0; min-height:100vh; display:flex; align-items:center; justify-content:center;
            background:#080808; color:#fff; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; }
     .card { max-width:360px; padding:32px 24px; text-align:center; }
+    .brand { letter-spacing:4px; font-weight:800; font-size:16px; color:#A7F46A; margin:0 0 20px; }
     h1 { font-size:22px; margin:0 0 12px; }
     p { font-size:15px; line-height:1.5; opacity:.8; }
   </style>
 </head>
-<body><div class="card"><h1>Link not valid</h1><p>${safeMessage}</p></div></body>
+<body><div class="card"><div class="brand">CEOLX</div><h1>Link not valid</h1><p>${safeMessage}</p></div></body>
 </html>`;
 }
 

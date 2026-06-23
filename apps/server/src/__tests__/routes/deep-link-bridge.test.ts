@@ -61,6 +61,27 @@ describe('createDeepLinkBridge — confirmable (e.g. verify-email)', () => {
     expect(res.headers.get('content-security-policy')).toContain("connect-src 'self'");
   });
 
+  it('never renders the token as visible page text — only inside attributes', async () => {
+    const res = await mount(build(() => Promise.resolve(true))).request(
+      '/verify-email?token=abc123'
+    );
+    const html = await res.text();
+    // The token must live only in the deep-link href and the confirm fetch URL,
+    // never as on-screen text a screenshot/shoulder-surfer could read. (Asana 1215700058851863)
+    expect(html).not.toContain('>ceolx://verify-email?token=abc123<');
+    // The button still carries the token in its href for the mobile app handoff.
+    expect(html).toContain('href="ceolx://verify-email?token=abc123"');
+  });
+
+  it('swaps in a branded success card when verification completes', async () => {
+    const res = await mount(build(() => Promise.resolve(true))).request(
+      '/verify-email?token=abc123'
+    );
+    const html = await res.text();
+    expect(html).toContain('Email verified');
+    expect(html).toContain('class="badge"');
+  });
+
   it('confirms server-side and reports verified:true when the token is accepted', async () => {
     const confirm = vi.fn(() => Promise.resolve(true));
     const res = await mount(build(confirm)).request('/verify-email/confirm?token=abc123', {
