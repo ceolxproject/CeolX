@@ -98,6 +98,7 @@ function ProfileHeader({
       <AppHeader
         leading="none"
         showBell
+        className="mb-3"
         bgClassName="bg-background"
         actions={
           onBookmarkPress

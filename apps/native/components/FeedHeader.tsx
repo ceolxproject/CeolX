@@ -6,7 +6,6 @@ import { AppHeader } from './AppHeader';
 
 interface FeedHeaderProps {
   locationText?: string;
-  onBookmarkPress?: () => void;
   onNotificationPress?: () => void;
   onLocationPress?: () => void;
   onCalendarPress?: () => void;

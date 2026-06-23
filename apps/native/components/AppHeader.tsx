@@ -222,8 +222,11 @@ export function AppHeader({
       </Text>
     ) : null);
 
+  // w-full so the bar always spans its parent — without it, an items-center (or
+  // otherwise non-stretching) parent collapses the row to its content width and
+  // the trailing cluster drifts to centre instead of pinning right.
   const rowClass = cn(
-    'h-14 px-5 flex-row items-center',
+    'h-14 px-5 flex-row items-center w-full',
     bordered && 'border-b border-[#1d1d1d]',
     bgClassName,
     className
