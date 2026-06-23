@@ -11,7 +11,10 @@ interface CeolxLogoProps {
  * plain <Text>CEOLX</Text> was used before.
  */
 export function CeolxLogo({ fontSize = 22, letterSpacing = 3 }: CeolxLogoProps) {
-  const width = fontSize * 5.6 + letterSpacing * 5;
+  // Hug the "CEOLX" glyphs tightly. The old 5.6 multiplier left ~20px of empty
+  // space on each side of the centre-anchored text, which read as the logo being
+  // indented past the screen's px-5 edge wherever it sits left-aligned (headers).
+  const width = fontSize * 3.5 + letterSpacing * 5;
   const height = fontSize * 1.5;
 
   return (
