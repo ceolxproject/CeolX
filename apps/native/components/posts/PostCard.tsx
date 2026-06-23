@@ -1,6 +1,16 @@
 import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
-import { ActivityIndicator, Image, Pressable, Text, View } from 'react-native';
+import { Image, Platform, Pressable, Text, View } from 'react-native';
+import Animated, {
+  useAnimatedStyle,
+  useReducedMotion,
+  useSharedValue,
+  withSequence,
+  withTiming,
+} from 'react-native-reanimated';
+
+import { formatRelativeTime } from '@CeolX/shared';
 
 import { PostActionMenu } from './PostActionMenu';
 import { PostVideo } from './PostVideo';
@@ -13,6 +23,7 @@ import { MOCK_PROFILE_IMAGE } from '@/utils/mock-images';
 export type PostCardPost = {
   id: string;
   createdBy: string;
+  createdAt: string | Date;
   caption: string;
   mediaType: string;
   mediaUrl: string | null;
@@ -56,6 +67,62 @@ type Props = {
 };
 
 const CAPTION_PREVIEW_LIMIT = 120;
+/** Heart fill once a post is liked — a warm red that reads as positive against the dark surface. */
+const LIKE_COLOR = '#FF4D6D';
+
+/**
+ * Like control with an optimistic heart that pops on like (skipped under reduced
+ * motion) and fires a light haptic on iOS. The fill itself is driven by `liked`,
+ * which flows back through the optimistically-patched query cache.
+ */
+function LikeButton({
+  liked,
+  pending,
+  onPress,
+}: {
+  liked: boolean;
+  pending: boolean;
+  onPress: () => void;
+}) {
+  const scale = useSharedValue(1);
+  const reduceMotion = useReducedMotion();
+  const animatedStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
+
+  const handlePress = () => {
+    // Only celebrate the like, not the unlike (matches familiar feed behaviour).
+    if (!liked) {
+      if (!reduceMotion) {
+        scale.value = withSequence(
+          withTiming(1.25, { duration: 120 }),
+          withTiming(1, { duration: 120 })
+        );
+      }
+      if (Platform.OS === 'ios') {
+        void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      }
+    }
+    onPress();
+  };
+
+  return (
+    <Pressable
+      onPress={handlePress}
+      hitSlop={11}
+      disabled={pending}
+      accessibilityRole="button"
+      accessibilityLabel={liked ? 'Unlike post' : 'Like post'}
+      accessibilityState={{ selected: liked }}
+    >
+      <Animated.View style={animatedStyle}>
+        <Ionicons
+          name={liked ? 'heart' : 'heart-outline'}
+          size={24}
+          color={liked ? LIKE_COLOR : '#FFFFFF'}
+        />
+      </Animated.View>
+    </Pressable>
+  );
+}
 
 export function PostCard({
   post,
@@ -96,32 +163,105 @@ export function PostCard({
     router.push({ pathname: '/(app)/post/[postId]', params: { postId: post.id } });
   };
 
+  // Spectators have no public profile, so only artist / venue authors are tappable.
+  const canViewProfile =
+    post.author.profileType === 'artist' || post.author.profileType === 'venue';
+  const openAuthorProfile = () => {
+    if (post.author.profileType === 'venue') {
+      router.push({ pathname: '/(app)/venue/[venueId]', params: { venueId: post.author.id } });
+    } else if (post.author.profileType === 'artist') {
+      router.push({ pathname: '/(app)/artist/[artistId]', params: { artistId: post.author.id } });
+    }
+  };
+
+  const createdAtIso =
+    typeof post.createdAt === 'string' ? post.createdAt : post.createdAt.toISOString();
+  const createdLabel = formatRelativeTime(createdAtIso);
+
   // In expanded (detail) mode show the whole caption; in preview mode truncate
   // and offer a read-more affordance that opens the detail screen.
   const showReadMore = !expanded && post.caption.length > CAPTION_PREVIEW_LIMIT;
-  const caption = showReadMore ? post.caption.slice(0, CAPTION_PREVIEW_LIMIT) + '…' : post.caption;
+  const caption = showReadMore
+    ? post.caption.slice(0, CAPTION_PREVIEW_LIMIT).trimEnd()
+    : post.caption;
+
+  // Caption-only posts read backwards if the actions sit above the caption (the
+  // caption is the whole post), so for those we render the caption first. With
+  // media present, the media is the content shown first and actions follow it.
+  const hasMedia = (post.mediaType === 'image' && post.mediaUrl) || post.mediaType === 'video';
+
+  // The author name is shown in the header row (feed) or the profile header
+  // (profile tabs), so it's never repeated here.
+  const captionBlock = (
+    <Text className={`text-sm leading-5 text-white font-urbanist ${hasMedia ? '' : 'mb-2'}`}>
+      {caption}
+      {showReadMore && <Text className="font-medium text-blue-10">… more</Text>}
+    </Text>
+  );
+
+  const actionsRow = (
+    <View className={`flex-row items-center justify-between ${hasMedia ? 'mb-2' : ''}`}>
+      <View className="flex-row items-center gap-4">
+        <LikeButton liked={liked} pending={toggleLike.isPending} onPress={onLikePress} />
+        <Pressable
+          onPress={onSharePress}
+          hitSlop={11}
+          accessibilityRole="button"
+          accessibilityLabel="Share post"
+        >
+          <Ionicons name="share-outline" size={24} color="#FFFFFF" />
+        </Pressable>
+      </View>
+      {likeCount > 0 && (
+        <Text className="text-xs text-white/60 font-urbanist">
+          {likeCount} {likeCount === 1 ? 'like' : 'likes'}
+        </Text>
+      )}
+    </View>
+  );
+
+  // Author identity (avatar + name + time) — wrapped in a Pressable only when the
+  // author has a viewable profile, so non-tappable authors let taps fall through
+  // to the card's openDetail.
+  const authorIdentity = (
+    <>
+      <Image
+        source={
+          post.author.profileImageUrl ? { uri: post.author.profileImageUrl } : MOCK_PROFILE_IMAGE
+        }
+        className="h-9 w-9 rounded-full bg-white/10"
+      />
+      <View className="flex-1">
+        <Text numberOfLines={1} className="text-sm font-medium text-white font-urbanist">
+          {post.author.displayName}
+        </Text>
+        <Text className="text-xs text-white/50 font-urbanist">{createdLabel}</Text>
+      </View>
+    </>
+  );
 
   return (
     <Pressable
       onPress={expanded ? undefined : openDetail}
-      className="mb-4 rounded-2xl border border-white/10 bg-[#2a2a2a] p-4"
+      className="mb-4 rounded-2xl border border-[rgba(141,141,141,0.4)] bg-[rgba(141,141,141,0.1)] p-4 active:opacity-90"
     >
       {/* Author header */}
-      {!hideAuthorHeader && (
+      {hideAuthorHeader ? (
+        <Text className="mb-2 text-xs text-white/40 font-urbanist">{createdLabel}</Text>
+      ) : (
         <View className="mb-3 flex-row items-center justify-between">
-          <View className="flex-row items-center gap-2">
-            <Image
-              source={
-                post.author.profileImageUrl
-                  ? { uri: post.author.profileImageUrl }
-                  : MOCK_PROFILE_IMAGE
-              }
-              className="h-7 w-7 rounded-full bg-white/10"
-            />
-            <Text className="text-sm font-medium text-white font-urbanist">
-              {post.author.displayName}
-            </Text>
-          </View>
+          {canViewProfile ? (
+            <Pressable
+              onPress={openAuthorProfile}
+              className="flex-1 flex-row items-center gap-3 active:opacity-70"
+              accessibilityRole="button"
+              accessibilityLabel={`View ${post.author.displayName}'s profile`}
+            >
+              {authorIdentity}
+            </Pressable>
+          ) : (
+            <View className="flex-1 flex-row items-center gap-3">{authorIdentity}</View>
+          )}
           {isOwner && <PostActionMenu onEdit={onEdit} onDelete={onDelete} />}
         </View>
       )}
@@ -144,32 +284,19 @@ export function PostCard({
         />
       )}
 
-      {/* Actions row */}
-      <View className="mb-2 flex-row items-center justify-between">
-        <View className="flex-row items-center gap-4">
-          <Pressable onPress={onLikePress} hitSlop={8} disabled={toggleLike.isPending}>
-            <Ionicons
-              name={liked ? 'heart' : 'heart-outline'}
-              size={22}
-              color={liked ? '#FF4D6D' : '#FFFFFF'}
-            />
-          </Pressable>
-          <Pressable onPress={onSharePress} hitSlop={8}>
-            <Ionicons name="share-outline" size={22} color="#FFFFFF" />
-          </Pressable>
-          {toggleLike.isPending && <ActivityIndicator size="small" color="#C8FF2F" />}
-        </View>
-        <Text className="text-xs tracking-wider text-[#C8C7CC] font-urbanist">
-          {likeCount} {likeCount === 1 ? 'like' : 'likes'}
-        </Text>
-      </View>
-
-      {/* Caption — the author name is shown in the header row (feed) or the
-          profile header (profile tabs), so it's never repeated here. */}
-      <Text className="text-sm text-white font-urbanist">
-        <Text className="font-light">{caption}</Text>
-        {showReadMore && <Text className="font-medium text-[#6155F5]"> …read more</Text>}
-      </Text>
+      {/* Content first: media posts show media → actions → caption; caption-only
+          posts show caption → actions so the actions never sit above content. */}
+      {hasMedia ? (
+        <>
+          {actionsRow}
+          {captionBlock}
+        </>
+      ) : (
+        <>
+          {captionBlock}
+          {actionsRow}
+        </>
+      )}
     </Pressable>
   );
 }
