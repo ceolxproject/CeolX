@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 
 import { EventApprovedEmail } from '../templates/event-approved.js';
 import { EventRejectedEmail } from '../templates/event-rejected.js';
+import { NotificationEmail } from '../templates/notification.js';
 import { PaymentConfirmationEmail } from '../templates/payment-confirmation.js';
 import { VenueActivationEmail } from '../templates/venue-activation.js';
 
@@ -133,5 +134,31 @@ describe('EventRejectedEmail', () => {
     // Heading per matrix A-15 / V-14: "Your event needs revision"
     expect(html).toMatch(/needs revision/i);
     expect(html).not.toMatch(/rejected|denied|failed|violation/i);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// notification (generic — drives booking-lifecycle emails A-09..V-13)
+// ---------------------------------------------------------------------------
+describe('NotificationEmail', () => {
+  const props = {
+    userName: 'Aoife',
+    subject: 'You\'ve been invited to play "Trad Night"',
+    body: 'The Hut invited you to perform at "Trad Night" on 1 May.',
+    ctaUrl: 'https://api.ceolx.com/r?to=%2Fbookings%2Fb-123',
+  };
+
+  it('renders subject heading, body copy, and the CTA url', async () => {
+    const html = await render(React.createElement(NotificationEmail, props));
+    expect(html).toContain('Aoife');
+    expect(html).toContain('The Hut invited you to perform at');
+    expect(html).toMatch(/been invited to play/); // subject rendered as the heading
+    expect(html).toContain('https://api.ceolx.com/r?to=%2Fbookings%2Fb-123');
+  });
+
+  it('falls back to a generic greeting when userName is empty', async () => {
+    const html = await render(React.createElement(NotificationEmail, { ...props, userName: '' }));
+    // React Email inserts <!-- --> between text nodes around the fallback
+    expect(html).toContain('>there<');
   });
 });

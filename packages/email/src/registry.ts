@@ -2,6 +2,7 @@ import type { ComponentType } from 'react';
 
 import { EventApprovedEmail } from './templates/event-approved.js';
 import { EventRejectedEmail } from './templates/event-rejected.js';
+import { NotificationEmail } from './templates/notification.js';
 import { PasswordResetEmail } from './templates/password-reset.js';
 import { PaymentConfirmationEmail } from './templates/payment-confirmation.js';
 import { VenueActivationEmail } from './templates/venue-activation.js';
@@ -26,4 +27,5 @@ export const registry: TemplateRegistry = {
   'payment-confirmation': { component: PaymentConfirmationEmail },
   'event-approved': { component: EventApprovedEmail },
   'event-rejected': { component: EventRejectedEmail },
+  notification: { component: NotificationEmail },
 };

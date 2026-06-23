@@ -59,4 +59,15 @@ describe('subjectFor', () => {
     // R6 copy convention: rejection titles are neutral, not punitive
     expect(subject).not.toMatch(/rejected|denied|failed/i);
   });
+
+  it('passes the pre-built subject straight through for notification', () => {
+    expect(
+      subjectFor('notification', {
+        userName: 'A',
+        subject: 'New booking request — "Trad Night"',
+        body: 'Someone applied.',
+        ctaUrl: 'https://api.ceolx.com/r?to=%2Fbookings%2Fx',
+      })
+    ).toBe('New booking request — "Trad Night"');
+  });
 });

@@ -20,6 +20,8 @@ const builders: SubjectBuilders = {
   'payment-confirmation': () => 'CeolX subscription — payment received',
   'event-approved': ({ eventTitle }) => `Your event "${eventTitle}" is live on CeolX`,
   'event-rejected': ({ eventTitle }) => `Action needed — "${eventTitle}"`,
+  // Subject is pre-built from the trigger's EMAIL SurfaceCopy upstream.
+  notification: ({ subject }) => subject,
 };
 
 export function subjectFor<T extends EmailTemplate>(

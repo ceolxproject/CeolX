@@ -36,6 +36,19 @@ export type EmailTemplateMap = {
     reason: string;
     editUrl: string;
   };
+  /**
+   * Generic transactional template driven by a notification trigger's EMAIL
+   * SurfaceCopy. `subject` is the matrix subject line (also rendered as the
+   * heading), `body` the one/two-line message, `ctaUrl` an HTTPS deep-link
+   * bridge URL that opens the relevant in-app screen. Powers the booking
+   * lifecycle emails (matrix A-09..V-13) without a bespoke template per row.
+   */
+  notification: {
+    userName: string;
+    subject: string;
+    body: string;
+    ctaUrl: string;
+  };
 };
 
 export type EmailTemplate = keyof EmailTemplateMap;

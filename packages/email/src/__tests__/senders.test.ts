@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { sendEmail } from '../send.js';
 import { sendEventApprovedEmail } from '../senders/event-approved.js';
 import { sendEventRejectedEmail } from '../senders/event-rejected.js';
+import { sendNotificationEmail } from '../senders/notification.js';
 import { sendPasswordResetEmail } from '../senders/password-reset.js';
 import { sendPaymentConfirmationEmail } from '../senders/payment-confirmation.js';
 import { sendVenueActivationEmail } from '../senders/venue-activation.js';
@@ -121,5 +122,37 @@ describe('sendEventRejectedEmail', () => {
       reason: 'Event date is in the past',
       editUrl: 'ceolx://events/123/edit',
     });
+  });
+});
+
+describe('sendNotificationEmail', () => {
+  it('dispatches the notification template with subject, body, and CTA', async () => {
+    await sendNotificationEmail({
+      to: 'a@example.com',
+      subject: 'New booking request — "Trad Night"',
+      body: 'Sean applied to play "Trad Night" on 1 May.',
+      ctaUrl: 'https://api.ceolx.com/r?to=%2Fbookings%2Fb-1',
+      userName: 'Aoife',
+    });
+    expect(sendEmail).toHaveBeenCalledWith({
+      to: 'a@example.com',
+      template: 'notification',
+      data: {
+        userName: 'Aoife',
+        subject: 'New booking request — "Trad Night"',
+        body: 'Sean applied to play "Trad Night" on 1 May.',
+        ctaUrl: 'https://api.ceolx.com/r?to=%2Fbookings%2Fb-1',
+      },
+    });
+  });
+
+  it('defaults userName to empty string when omitted', async () => {
+    await sendNotificationEmail({
+      to: 'a@example.com',
+      subject: 'Booking confirmed',
+      body: 'Confirmed.',
+      ctaUrl: 'https://api.ceolx.com/r?to=%2Fbookings%2Fb-2',
+    });
+    expect(vi.mocked(sendEmail).mock.calls[0]?.[0].data).toMatchObject({ userName: '' });
   });
 });
