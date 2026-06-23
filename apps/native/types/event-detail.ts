@@ -47,7 +47,7 @@ export interface EventDetailData {
   ticketLink?: string | null;
   ticketPrice?: number | null;
   collectionId?: string | null;
-  unregisteredCollaborators: Array<{ name: string; email: string }>;
+  unregisteredCollaborators: Array<{ name: string; email: string; imageUrl?: string }>;
   adTitle?: string | null;
   adDescription?: string | null;
   status: string;

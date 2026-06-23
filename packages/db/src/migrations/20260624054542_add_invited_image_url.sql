@@ -1,0 +1,1 @@
+ALTER TABLE "event_collaborators" ADD COLUMN "invited_image_url" text;

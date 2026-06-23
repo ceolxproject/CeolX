@@ -140,6 +140,7 @@ export const eventCollaborators = pgTable(
     // public /invite/:token landing; the claim itself matches on invitedEmail.
     inviteToken: text('invite_token').unique(),
     inviteTokenExpiresAt: timestamp('invite_token_expires_at'),
+    invitedImageUrl: text('invited_image_url'), // CDN url for off-platform invitee avatar
     bookingId: uuid('booking_id').references(() => bookings.id, { onDelete: 'set null' }),
     createdAt: timestamp('created_at').notNull().defaultNow(),
   },

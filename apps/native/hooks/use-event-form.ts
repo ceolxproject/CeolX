@@ -33,7 +33,7 @@ export interface EventFormData {
   // across step changes — the picker unmounts between steps, so holding the
   // display data there lost it on back-navigation. IDs are derived at submit.
   platformInvites: ArtistResult[];
-  unregisteredCollaborators: Array<{ name: string; email: string }>;
+  unregisteredCollaborators: Array<{ name: string; email: string; imageUrl?: string }>;
 
   // Step 2 — Date & Venue
   dateStart: Date | null;
@@ -193,7 +193,7 @@ export function useEventForm(options?: UseEventFormOptions) {
   const [collectionId, setCollectionId] = useState(init.collectionId);
   const [platformInvites, setPlatformInvites] = useState<ArtistResult[]>(init.platformInvites);
   const [unregisteredCollaborators, setUnregisteredCollaborators] = useState<
-    Array<{ name: string; email: string }>
+    Array<{ name: string; email: string; imageUrl?: string }>
   >(init.unregisteredCollaborators);
 
   // Step 2 — Date & Venue

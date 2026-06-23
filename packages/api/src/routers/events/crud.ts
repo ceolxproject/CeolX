@@ -116,11 +116,14 @@ export function toUnregisteredCollaborators(
     venueProfileId: string | null;
     invitedName: string | null;
     invitedEmail: string | null;
+    invitedImageUrl?: string | null;
   }>
-): Array<{ name: string; email: string }> {
-  return collaborators
-    .filter(isExternalInvitee)
-    .map((c) => ({ name: c.invitedName ?? '', email: c.invitedEmail ?? '' }));
+): Array<{ name: string; email: string; imageUrl?: string }> {
+  return collaborators.filter(isExternalInvitee).map((c) => ({
+    name: c.invitedName ?? '',
+    email: c.invitedEmail ?? '',
+    imageUrl: c.invitedImageUrl ?? undefined,
+  }));
 }
 
 /**
@@ -422,7 +425,7 @@ export const byId = publicProcedure
             id: c.id,
             stageName: c.invitedName ?? 'Invited Artist',
             genre: null,
-            profileImageUrl: null,
+            profileImageUrl: c.invitedImageUrl ?? null,
             eventCount: 0,
             isExternal: true,
           };
@@ -527,6 +530,7 @@ export const create = creatorProcedure.input(createEventSchema).mutation(async (
           eventId: inserted.id,
           invitedName: invite.name,
           invitedEmail: invite.email,
+          invitedImageUrl: invite.imageUrl ?? null,
         }))
       );
     }
@@ -910,6 +914,7 @@ export const update = protectedProcedure
               eventId: input.id,
               invitedName: invite.name,
               invitedEmail: invite.email,
+              invitedImageUrl: invite.imageUrl ?? null,
             }))
           );
         }

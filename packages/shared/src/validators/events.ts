@@ -27,6 +27,9 @@ const eventBaseShape = {
       z.object({
         name: z.string().min(1).max(100).trim(),
         email: z.string().email(),
+        // Optional avatar for off-platform invitees, uploaded by the event
+        // creator (CDN url). Falls back to the placeholder image when absent.
+        imageUrl: z.string().url().optional(),
       })
     )
     .max(10)

@@ -2,6 +2,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 import {
+  ActivityIndicator,
+  Alert,
+  Image,
   KeyboardAvoidingView,
   Modal,
   Pressable,
@@ -18,11 +21,14 @@ import type { ChipItem } from './SelectedChips';
 import { SelectedChips } from './SelectedChips';
 
 import { useDebouncedValue } from '@/hooks/use-debounced-value';
+import { useMediaUpload } from '@/hooks/use-media-upload';
+import { pickSquarePhoto, requestPhotoLibraryPermission } from '@/utils/image-picker';
 import { trpc } from '@/utils/trpc';
 
 type UnregisteredInvite = {
   name: string;
   email: string;
+  imageUrl?: string;
 };
 
 type Props = {
@@ -47,7 +53,10 @@ export function InviteArtistPicker({
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [inviteName, setInviteName] = useState('');
   const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteImageUri, setInviteImageUri] = useState<string | null>(null);
   const [inviteErrors, setInviteErrors] = useState<{ name?: string; email?: string }>({});
+
+  const { uploadMedia, isUploading } = useMediaUpload('profile_image');
 
   const { data } = useQuery({
     ...trpc.artists.search.queryOptions({ q: debouncedQuery }),
@@ -77,7 +86,29 @@ export function InviteArtistPicker({
     onUnregisteredInvitesChange(unregisteredInvites.filter((i) => i.email !== email));
   }
 
-  function handleSendInvite() {
+  function resetInviteForm() {
+    setInviteName('');
+    setInviteEmail('');
+    setInviteImageUri(null);
+    setInviteErrors({});
+  }
+
+  function closeInviteModal() {
+    setShowInviteModal(false);
+    resetInviteForm();
+  }
+
+  async function handlePickInviteImage() {
+    const perm = await requestPhotoLibraryPermission();
+    if (!perm.granted) {
+      Alert.alert('Permission needed', 'Please allow access to your photo library.');
+      return;
+    }
+    const uri = await pickSquarePhoto();
+    if (uri) setInviteImageUri(uri);
+  }
+
+  async function handleSendInvite() {
     const errors: { name?: string; email?: string } = {};
     if (!inviteName.trim()) errors.name = 'Name is required';
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -92,13 +123,24 @@ export function InviteArtistPicker({
       return;
     }
 
+    // Upload the optional avatar before adding the invite, so the lifted state
+    // carries a ready CDN url that matches the createEvent schema.
+    let imageUrl: string | undefined;
+    if (inviteImageUri) {
+      try {
+        const { cdnUrl } = await uploadMedia({ uri: inviteImageUri });
+        imageUrl = cdnUrl;
+      } catch {
+        Alert.alert('Upload failed', 'Could not upload the artist image. Please try again.');
+        return;
+      }
+    }
+
     onUnregisteredInvitesChange([
       ...unregisteredInvites,
-      { name: inviteName.trim(), email: inviteEmail.trim() },
+      { name: inviteName.trim(), email: inviteEmail.trim(), imageUrl },
     ]);
-    setInviteName('');
-    setInviteEmail('');
-    setInviteErrors({});
+    resetInviteForm();
     setShowInviteModal(false);
   }
 
@@ -112,6 +154,7 @@ export function InviteArtistPicker({
       key: `unreg:${i.email}`,
       label: i.name,
       icon: 'mail-outline' as const,
+      imageUrl: i.imageUrl,
     }));
     return [...platform, ...unregistered];
   }, [platformInvites, unregisteredInvites]);
@@ -212,7 +255,7 @@ export function InviteArtistPicker({
         visible={showInviteModal}
         transparent
         animationType="fade"
-        onRequestClose={() => setShowInviteModal(false)}
+        onRequestClose={closeInviteModal}
       >
         {/* RN Modal creates a native window that ignores the activity's
             adjustResize softInputMode, so the centered dialog otherwise stays
@@ -221,7 +264,7 @@ export function InviteArtistPicker({
         <KeyboardAvoidingView behavior="padding" style={{ flex: 1 }}>
           <Pressable
             className="flex-1 bg-black/60 items-center justify-center px-5"
-            onPress={() => setShowInviteModal(false)}
+            onPress={closeInviteModal}
           >
             <Pressable
               className="w-full rounded-2xl bg-[#1a1a1a] border border-gray-8 p-5 gap-4"
@@ -229,9 +272,32 @@ export function InviteArtistPicker({
             >
               <View className="flex-row items-center justify-between">
                 <Text className="text-base font-bold text-white font-urbanist">Invite Artist</Text>
-                <Pressable onPress={() => setShowInviteModal(false)} hitSlop={8}>
+                <Pressable onPress={closeInviteModal} hitSlop={8}>
                   <Ionicons name="close" size={20} color="#8d8d8d" />
                 </Pressable>
+              </View>
+
+              {/* Optional avatar — uploaded on Send Invite */}
+              <View className="items-center gap-2">
+                <Pressable onPress={handlePickInviteImage} className="active:opacity-80">
+                  {inviteImageUri ? (
+                    <Image
+                      source={{ uri: inviteImageUri }}
+                      className="w-20 h-20 rounded-full border border-gray-8"
+                    />
+                  ) : (
+                    <View className="w-20 h-20 rounded-full bg-surface border border-dashed border-gray-8 items-center justify-center">
+                      <Ionicons name="camera-outline" size={22} color="#8d8d8d" />
+                    </View>
+                  )}
+                </Pressable>
+                {inviteImageUri ? (
+                  <Pressable onPress={() => setInviteImageUri(null)} hitSlop={8}>
+                    <Text className="text-xs text-error font-urbanist">Remove image</Text>
+                  </Pressable>
+                ) : (
+                  <Text className="text-xs text-gray-7 font-urbanist">Add image (optional)</Text>
+                )}
               </View>
 
               <View className="gap-2">
@@ -266,9 +332,14 @@ export function InviteArtistPicker({
 
               <Pressable
                 onPress={handleSendInvite}
-                className="bg-[#6C63FF] rounded-xl py-3.5 items-center"
+                disabled={isUploading}
+                className={`rounded-xl py-3.5 items-center ${isUploading ? 'bg-[#6C63FF]/60' : 'bg-[#6C63FF]'}`}
               >
-                <Text className="text-white text-sm font-bold font-urbanist">Send Invite</Text>
+                {isUploading ? (
+                  <ActivityIndicator color="#ffffff" />
+                ) : (
+                  <Text className="text-white text-sm font-bold font-urbanist">Send Invite</Text>
+                )}
               </Pressable>
             </Pressable>
           </Pressable>

@@ -28,8 +28,10 @@ type Props = {
   onCollectionIdChange: (v: string) => void;
   platformInvites: ArtistResult[];
   onPlatformInvitesChange: (artists: ArtistResult[]) => void;
-  unregisteredCollaborators: Array<{ name: string; email: string }>;
-  onUnregisteredCollaboratorsChange: (invites: Array<{ name: string; email: string }>) => void;
+  unregisteredCollaborators: Array<{ name: string; email: string; imageUrl?: string }>;
+  onUnregisteredCollaboratorsChange: (
+    invites: Array<{ name: string; email: string; imageUrl?: string }>
+  ) => void;
   errors: Record<string, string>;
   onContinue: () => void;
   isVenue: boolean;
