@@ -8,6 +8,7 @@ interface SearchInputProps {
   onChange: (value: string) => void;
   placeholder?: string;
   debounceMs?: number;
+  maxLength?: number;
 }
 
 export function SearchInput({
@@ -15,6 +16,7 @@ export function SearchInput({
   onChange,
   placeholder = 'Search…',
   debounceMs = 300,
+  maxLength,
 }: SearchInputProps) {
   const [local, setLocal] = useState(value);
 
@@ -47,6 +49,7 @@ export function SearchInput({
         value={local}
         onChange={(e) => setLocal(e.target.value)}
         placeholder={placeholder}
+        maxLength={maxLength}
         className="pr-8"
       />
       {local && (
