@@ -94,9 +94,9 @@ function ProfileHeader({
 
   return (
     <View className="items-center pt-2 pb-4 bg-background">
-      {/* Standard header: notification bell first, then bookmark (venues only). */}
+      {/* Standard header: logo left, then notification bell, then bookmark (venues only). */}
       <AppHeader
-        leading="none"
+        leading="logo"
         showBell
         className="mb-3"
         bgClassName="bg-background"
