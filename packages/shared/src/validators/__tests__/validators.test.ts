@@ -10,6 +10,7 @@ import {
   removeEventSchema,
   adminEventListQuerySchema,
   adminRemoveEventSchema,
+  adminUsersListInputSchema,
   onboardingSchema,
   switchRoleSchema,
   createArtistOnboardingSchema,
@@ -22,6 +23,55 @@ import {
   venueOnboardingStep3Schema,
   BIO_MAX_LENGTH,
 } from '../index.js';
+
+// ─── Admin users filters ─────────────────────────────────────────────────────
+
+describe('adminUsersListInputSchema', () => {
+  it('accepts a from <= to date range', () => {
+    expect(
+      adminUsersListInputSchema.safeParse({
+        registeredFrom: '2026-01-01',
+        registeredTo: '2026-06-01',
+      }).success
+    ).toBe(true);
+  });
+
+  it('accepts an equal range and single-sided ranges', () => {
+    expect(
+      adminUsersListInputSchema.safeParse({
+        registeredFrom: '2026-01-01',
+        registeredTo: '2026-01-01',
+      }).success
+    ).toBe(true);
+    expect(adminUsersListInputSchema.safeParse({ registeredFrom: '2026-01-01' }).success).toBe(
+      true
+    );
+    expect(adminUsersListInputSchema.safeParse({ registeredTo: '2026-01-01' }).success).toBe(true);
+  });
+
+  it('rejects from > to', () => {
+    expect(
+      adminUsersListInputSchema.safeParse({
+        registeredFrom: '2026-06-01',
+        registeredTo: '2026-01-01',
+      }).success
+    ).toBe(false);
+  });
+
+  it('rejects a malformed or impossible date', () => {
+    expect(adminUsersListInputSchema.safeParse({ registeredFrom: '01-06-2026' }).success).toBe(
+      false
+    );
+    expect(adminUsersListInputSchema.safeParse({ registeredFrom: '2026-13-40' }).success).toBe(
+      false
+    );
+  });
+
+  it('caps search at 100 characters', () => {
+    expect(adminUsersListInputSchema.safeParse({ search: 'a'.repeat(101) }).success).toBe(false);
+    expect(adminUsersListInputSchema.safeParse({ search: 'a'.repeat(100) }).success).toBe(true);
+  });
+});
 
 // ─── Auth validators ────────────────────────────────────────────────────────
 
