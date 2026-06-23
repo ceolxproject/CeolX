@@ -1,5 +1,7 @@
 import { Hono } from 'hono';
 
+import { isAllowedDeepLinkRoute, REDIRECT_BRIDGE_PATH } from '@CeolX/shared';
+
 /**
  * Factory for an HTTPS "deep-link bridge" route.
  *
@@ -202,6 +204,81 @@ export function createDeepLinkBridge(config: DeepLinkBridgeConfig): Hono {
       return c.json({ verified });
     });
   }
+
+  return bridge;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Tokenless app-redirect bridge (notification CTAs).
+//
+// Notification emails (booking lifecycle — matrix A-09..V-13) link to a deep
+// in-app screen rather than an auth token flow. `GET /r?to=<route>` validates
+// the route against the shared allowlist (so this can't be turned into an open
+// redirect to arbitrary app surfaces) and renders the same single-fire redirect
+// page, bouncing to `ceolx://<route>`. No token, no server-side confirm.
+// ─────────────────────────────────────────────────────────────────────────────
+
+function renderAppRedirectPage(deepLink: string): string {
+  const safe = escapeHtml(deepLink);
+  // Single auto-trigger via replace() (not href, not meta-refresh) — same
+  // constraints as renderRedirectPage to avoid double-firing the intent.
+  return `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Opening CeolX…</title>
+  <style>
+    body { margin:0; min-height:100vh; display:flex; align-items:center; justify-content:center;
+           background:#080808; color:#fff; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; }
+    .card { max-width:360px; padding:32px 24px; text-align:center; }
+    .brand { letter-spacing:4px; font-weight:800; font-size:16px; color:#A7F46A; margin:0 0 20px; }
+    h1 { font-size:22px; margin:0 0 12px; }
+    p { font-size:15px; line-height:1.5; opacity:.8; margin:0 0 24px; }
+    a.btn { display:inline-block; background:#A7F46A; color:#080808; text-decoration:none;
+            padding:14px 24px; border-radius:999px; font-weight:700; }
+  </style>
+</head>
+<body>
+  <div class="card" id="card">
+    <div class="brand">CEOLX</div>
+    <h1>Opening CeolX…</h1>
+    <p>If the app doesn't open automatically, tap the button below.</p>
+    <a class="btn" href="${safe}">Open the CeolX app</a>
+  </div>
+  <script>
+    (function () {
+      window.location.replace('${safe}');
+    })();
+  </script>
+</body>
+</html>`;
+}
+
+export function createAppRedirectBridge(): Hono {
+  const bridge = new Hono();
+
+  bridge.get(`/${REDIRECT_BRIDGE_PATH}`, (c) => {
+    const to = c.req.query('to') ?? '';
+
+    c.header('Cache-Control', 'no-store');
+    c.header(
+      'Content-Security-Policy',
+      `default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; base-uri 'none'; form-action 'none'`
+    );
+
+    if (!isAllowedDeepLinkRoute(to)) {
+      return c.html(
+        renderErrorPage('Link not valid', 'This link is no longer valid or has expired.'),
+        400
+      );
+    }
+
+    // Strip the leading slash so the scheme URL is `ceolx://<route>`, mirroring
+    // the auth bridge's `ceolx://<path>` shape (avoids a `ceolx:///` triple slash).
+    const deepLink = `ceolx://${to.replace(/^\//, '')}`;
+    return c.html(renderAppRedirectPage(deepLink), 200);
+  });
 
   return bridge;
 }

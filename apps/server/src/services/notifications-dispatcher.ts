@@ -1,7 +1,15 @@
+import { eq } from 'drizzle-orm';
+
 import type { DispatchNotificationFn } from '@CeolX/api/context';
 import { db as defaultDb } from '@CeolX/db';
+import { user } from '@CeolX/db/schema/auth';
 import { notifications, notificationUsers } from '@CeolX/db/schema/notifications';
-import { buildNotification, NotificationSurface } from '@CeolX/shared';
+import {
+  buildAppRedirectUrl,
+  buildNotification,
+  NOTIFICATION_TRIGGERS,
+  NotificationSurface,
+} from '@CeolX/shared';
 
 import { publishJob as defaultPublishJob } from '../jobs/publish.js';
 import type { JobPayload, JobType } from '../jobs/types.js';
@@ -81,6 +89,35 @@ export function makeDispatchNotification(
       persona: push.persona,
       route: push.route,
     });
+
+    // 4. Email fan-out — only for triggers whose matrix row has an EMAIL surface
+    //    (booking lifecycle: A-09..V-13). Triggers with `email: null` (co-artist,
+    //    in-product-only rows) are skipped, so `buildNotification(EMAIL)` is never
+    //    asked for copy that doesn't exist. Email-only lifecycle rows (payment
+    //    failed, GDPR) deliberately do NOT route through here — they'd write an
+    //    unwanted inbox row — they call their sender directly at the event source.
+    const def = NOTIFICATION_TRIGGERS[input.trigger];
+    const base = process.env.BETTER_AUTH_URL;
+    if (def.email && base) {
+      const recipient = await deps.db.query.user.findFirst({
+        where: eq(user.id, input.recipientUserId),
+        columns: { email: true, name: true },
+      });
+      if (recipient?.email) {
+        const email = buildNotification(input.trigger, NotificationSurface.EMAIL, input.vars);
+        await deps.publishJob('email.send', {
+          to: recipient.email,
+          template: 'notification',
+          locale: 'en',
+          data: {
+            userName: recipient.name ?? '',
+            subject: email.title,
+            body: email.body,
+            ctaUrl: buildAppRedirectUrl(base, email.route),
+          },
+        });
+      }
+    }
   };
 }
 

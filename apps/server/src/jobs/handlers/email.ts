@@ -2,6 +2,7 @@ import {
   type EmailTemplate,
   sendEventApprovedEmail,
   sendEventRejectedEmail,
+  sendNotificationEmail,
   sendPasswordResetEmail,
   sendPaymentConfirmationEmail,
   sendVenueActivationEmail,
@@ -52,6 +53,14 @@ const dispatchers: Record<EmailTemplate, Dispatch> = {
       eventTitle: d.eventTitle ?? '',
       reason: d.reason ?? '',
       editUrl: d.editUrl ?? '',
+      userName: d.userName,
+    }),
+  notification: (to, d) =>
+    sendNotificationEmail({
+      to,
+      subject: d.subject ?? '',
+      body: d.body ?? '',
+      ctaUrl: d.ctaUrl ?? '',
       userName: d.userName,
     }),
 };

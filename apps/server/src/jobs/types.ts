@@ -17,6 +17,7 @@ const EMAIL_TEMPLATES = [
   'payment-confirmation',
   'event-approved',
   'event-rejected',
+  'notification',
 ] as const satisfies readonly EmailTemplate[];
 
 export const emailSendSchema = z.object({
