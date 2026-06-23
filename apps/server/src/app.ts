@@ -18,6 +18,7 @@ import { errorHandler } from './middleware/errorHandler';
 import appLinksRoute from './routes/app-links';
 import appRedirectRoute from './routes/app-redirect';
 import eventShareRoute from './routes/event-share';
+import inviteShareRoute from './routes/invite-share';
 import locationRoutes from './routes/location';
 import postShareRoute from './routes/post-share';
 import resetPasswordRoute from './routes/reset-password';
@@ -75,6 +76,7 @@ export function buildApp() {
   app.route('/', appLinksRoute);
   app.route('/', postShareRoute);
   app.route('/', eventShareRoute);
+  app.route('/', inviteShareRoute);
 
   // tRPC — all feature procedures (events, artists, bookings, admin) live in packages/api
   app.use('/trpc/*', rateLimiter(RATE_LIMIT_TIERS.authenticatedGeneral));
