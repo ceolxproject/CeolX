@@ -1,5 +1,5 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { createFileRoute } from '@tanstack/react-router';
+import { createFileRoute, Link } from '@tanstack/react-router';
 import { useState } from 'react';
 import { toast } from 'sonner';
 
@@ -25,9 +25,14 @@ import { PageHeader } from '../../../components/PageHeader';
 import { RemoveReasonDialog } from '../../../components/RemoveReasonDialog';
 import { SearchInput } from '../../../components/SearchInput';
 import { StatusBadge } from '../../../components/StatusBadge';
+import { formatDateTime } from '../../../lib/format';
 import { queryClient, trpc } from '../../../utils/trpc';
 
 export const Route = createFileRoute('/_admin/events/moderation')({
+  // `createdBy` arrives from a user's detail sheet ("View all N events").
+  validateSearch: (search: Record<string, unknown>): { createdBy?: string } => ({
+    createdBy: typeof search.createdBy === 'string' ? search.createdBy : undefined,
+  }),
   component: EventModerationPage,
 });
 
@@ -62,29 +67,20 @@ type ListedEvent = {
   creator: { id: string; name: string | null; persona: string | null };
 };
 
-function formatDateTime(value: string | Date): string {
-  const d = typeof value === 'string' ? new Date(value) : value;
-  return d.toLocaleString('en-IE', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-}
-
 function EventModerationPage() {
   const [status, setStatus] = useState<StatusFilter>('active');
   const [persona, setPersona] = useState<PersonaFilter>('all');
   const [q, setQ] = useState('');
   const [removeTarget, setRemoveTarget] = useState<ListedEvent | null>(null);
   const [detailTarget, setDetailTarget] = useState<ListedEvent | null>(null);
+  const { createdBy } = Route.useSearch();
 
   const listQuery = useQuery(
     trpc.admin.listEvents.queryOptions({
       status,
       persona: persona === 'all' ? undefined : persona,
       q: q || undefined,
+      createdBy,
       limit: 50,
       offset: 0,
     })
@@ -175,6 +171,21 @@ function EventModerationPage() {
           {listQuery.isLoading ? 'Loading…' : `${total} ${total === 1 ? 'event' : 'events'}`}
         </span>
       </div>
+
+      {createdBy && (
+        <div className="flex items-center justify-between rounded-lg border border-primary/30 bg-primary/10 px-3 py-2 text-sm">
+          <span className="font-medium text-primary">
+            Showing events by one creator (opened from Users).
+          </span>
+          <Link
+            to="/events/moderation"
+            search={{}}
+            className="text-xs font-medium text-primary underline-offset-2 hover:underline"
+          >
+            Clear
+          </Link>
+        </div>
+      )}
 
       <div className="rounded-lg border border-border bg-card overflow-hidden">
         <Table>
