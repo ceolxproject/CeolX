@@ -1,8 +1,9 @@
 import { TRPCError } from '@trpc/server';
-import { eq } from 'drizzle-orm';
+import { and, eq, isNull, sql } from 'drizzle-orm';
 
 import { db } from '@CeolX/db';
 import { user } from '@CeolX/db/schema/auth';
+import { eventCollaborators } from '@CeolX/db/schema/events';
 import { artistProfiles, profileSocialLinks, venueProfiles } from '@CeolX/db/schema/users';
 // TEMP (Asana 1215188774672224): subscriptions are not enabled yet, so the
 // venue/artist activation ("subscribe") email is disabled. Re-enable this
@@ -86,6 +87,23 @@ export const onboardingRouter = router({
           if (linkRows.length > 0) {
             await tx.insert(profileSocialLinks).values(linkRows);
           }
+
+          // Claim any outside-platform collaborator invites (matrix A-14) sent
+          // to this user's verified email: link the pending row to the new
+          // artist profile and consume its token. Email-match (not the link
+          // token) so it survives the App Store install gap. The NOT EXISTS
+          // guard avoids the (event_id, artist_profile_id) unique-index clash
+          // when the user is already a collaborator on that event.
+          await tx
+            .update(eventCollaborators)
+            .set({ artistProfileId: userId, inviteToken: null, inviteTokenExpiresAt: null })
+            .where(
+              and(
+                sql`lower(${eventCollaborators.invitedEmail}) = ${userRow.email.toLowerCase()}`,
+                isNull(eventCollaborators.artistProfileId),
+                sql`NOT EXISTS (SELECT 1 FROM event_collaborators ec2 WHERE ec2.event_id = ${eventCollaborators.eventId} AND ec2.artist_profile_id = ${userId})`
+              )
+            );
         });
       } catch (err) {
         if (err instanceof TRPCError) throw err;

@@ -1,6 +1,7 @@
 import { TRPCError } from '@trpc/server';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 
+import { sendCollaboratorInviteEmail } from '@CeolX/email';
 import { NotificationTrigger } from '@CeolX/shared';
 import type { UserRole } from '@CeolX/shared';
 
@@ -125,8 +126,12 @@ vi.mock('@CeolX/db/schema/events', () => ({
     bookingId: 'booking_id',
     invitedName: 'invited_name',
     invitedEmail: 'invited_email',
+    inviteToken: 'invite_token',
+    inviteTokenExpiresAt: 'invite_token_expires_at',
   },
 }));
+
+vi.mock('@CeolX/email', () => ({ sendCollaboratorInviteEmail: vi.fn() }));
 
 vi.mock('@CeolX/db/schema/notifications', () => ({
   notifications: { id: 'id', userId: 'user_id', type: 'type', payload: 'payload' },
@@ -1305,10 +1310,11 @@ describe('bookings.inviteExternal', () => {
     );
   });
 
-  it('creates external collaborator without booking', async () => {
+  it('creates external collaborator without booking and sends the invite email', async () => {
     const caller = createCaller(authedContext('venue', VENUE_USER_ID));
     mockEventsFindFirst.mockResolvedValueOnce(mockEvent);
     mockCollabsFindFirst.mockResolvedValueOnce(null);
+    mockVenuesFindFirst.mockResolvedValueOnce({ venueName: 'The Temple Bar' });
 
     mockInsertReturning.mockResolvedValueOnce([
       {
@@ -1322,11 +1328,41 @@ describe('bookings.inviteExternal', () => {
     const result = await caller.bookings.inviteExternal({
       eventId: EVENT_ID,
       name: 'John Doe',
-      email: 'john@example.com',
+      email: 'John@Example.com',
     });
 
     expect(result.invitedName).toBe('John Doe');
     expect(result.invitedEmail).toBe('john@example.com');
+
+    // Email sent to the lowercased address, with the inviter + a /invite/<token> link.
+    const call = vi.mocked(sendCollaboratorInviteEmail).mock.calls[0]?.[0];
+    expect(call?.to).toBe('john@example.com');
+    expect(call?.inviterName).toBe('The Temple Bar');
+    expect(call?.eventTitle).toBe('Friday Night Trad Session');
+    expect(call?.inviteUrl).toMatch(/^https:\/\/ceolx\.ie\/invite\/.+/);
+  });
+
+  it('still succeeds if the invite email fails to send (R8.5)', async () => {
+    const caller = createCaller(authedContext('venue', VENUE_USER_ID));
+    mockEventsFindFirst.mockResolvedValueOnce(mockEvent);
+    mockCollabsFindFirst.mockResolvedValueOnce(null);
+    mockVenuesFindFirst.mockResolvedValueOnce({ venueName: 'The Temple Bar' });
+    mockInsertReturning.mockResolvedValueOnce([
+      {
+        id: 'new-collab-id',
+        eventId: EVENT_ID,
+        invitedName: 'John Doe',
+        invitedEmail: 'john@example.com',
+      },
+    ]);
+    vi.mocked(sendCollaboratorInviteEmail).mockRejectedValueOnce(new Error('postmark down'));
+
+    const result = await caller.bookings.inviteExternal({
+      eventId: EVENT_ID,
+      name: 'John Doe',
+      email: 'john@example.com',
+    });
+    expect(result.id).toBe('new-collab-id');
   });
 });
 

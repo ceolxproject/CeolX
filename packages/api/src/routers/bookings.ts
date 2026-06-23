@@ -1,3 +1,5 @@
+import { randomUUID } from 'node:crypto';
+
 import { TRPCError } from '@trpc/server';
 import { and, desc, eq, inArray, isNull, or, sql } from 'drizzle-orm';
 
@@ -6,6 +8,7 @@ import { user } from '@CeolX/db/schema/auth';
 import { bookings } from '@CeolX/db/schema/bookings';
 import { collections, eventCollaborators, events } from '@CeolX/db/schema/events';
 import { artistProfiles, venueProfiles } from '@CeolX/db/schema/users';
+import { sendCollaboratorInviteEmail } from '@CeolX/email';
 import {
   BookingDirection,
   BookingStatus,
@@ -1096,11 +1099,15 @@ export const bookingsRouter = router({
         });
       }
 
+      // Canonicalize the email so dedup + the email-match claim on signup
+      // (onboarding.createArtistProfile) agree on one key, regardless of casing.
+      const email = input.email.trim().toLowerCase();
+
       // Dedup by email for this event
       const existing = await db.query.eventCollaborators.findFirst({
         where: and(
           eq(eventCollaborators.eventId, input.eventId),
-          eq(eventCollaborators.invitedEmail, input.email)
+          eq(eventCollaborators.invitedEmail, email)
         ),
       });
       if (existing) {
@@ -1110,19 +1117,49 @@ export const bookingsRouter = router({
         });
       }
 
+      // Opaque invite token + 14-day expiry (matrix A-14). The token powers the
+      // public /invite/:token landing; the claim itself matches on invitedEmail.
+      const inviteToken = randomUUID();
+      const inviteTokenExpiresAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
+
       // Insert collaborator with invitedName/invitedEmail, no booking (non-platform)
       const [collaborator] = await db
         .insert(eventCollaborators)
         .values({
           eventId: input.eventId,
           invitedName: input.name,
-          invitedEmail: input.email,
+          invitedEmail: email,
+          inviteToken,
+          inviteTokenExpiresAt,
           // artistProfileId = null (non-platform), bookingId = null (no booking until signup)
         })
         .returning();
 
       if (!collaborator) {
         throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Insert failed' });
+      }
+
+      // Send the invite email. A send failure must NOT fail the invite — the
+      // row is persisted and the venue sees the pending collaborator regardless
+      // (R8.5). Resolve the inviting venue's display name for the copy.
+      try {
+        const venue = await db.query.venueProfiles.findFirst({
+          where: eq(venueProfiles.userId, ctx.userId),
+          columns: { venueName: true },
+        });
+        // Read process.env directly (not @CeolX/env) so importing this router
+        // never triggers t3-env validation in consumers/tests. Mirrors
+        // jobs/client.ts. PUBLIC_WEB_ORIGIN is the ceolx.ie web origin.
+        const origin = process.env.PUBLIC_WEB_ORIGIN ?? 'https://ceolx.ie';
+        await sendCollaboratorInviteEmail({
+          to: email,
+          inviterName: venue?.venueName ?? 'A CeolX venue',
+          eventTitle: event.title,
+          eventDate: formatNotificationDate(event.dateStart),
+          inviteUrl: `${origin}/invite/${inviteToken}`,
+        });
+      } catch (emailErr) {
+        console.error('[bookings.inviteExternal] invite email failed', emailErr);
       }
 
       return {
