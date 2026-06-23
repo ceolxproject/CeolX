@@ -83,6 +83,7 @@ export const adminEventListQuerySchema = z.object({
   status: z.enum(['active', 'removed', 'archived']).default('active'),
   persona: z.enum(['artist', 'venue']).optional(),
   q: z.string().max(100).optional(),
+  createdBy: z.string().optional(),
   limit: z.number().int().min(1).max(50).default(20),
   offset: z.number().int().min(0).default(0),
 });
