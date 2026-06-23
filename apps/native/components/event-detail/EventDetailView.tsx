@@ -142,6 +142,7 @@ export function EventDetailView({
         {/* Header */}
         <EventDetailHeader
           onBack={onBack}
+          title={event.title}
           isSaved={isSaved}
           onToggleSave={handleToggleSave}
           onShare={handleShare}

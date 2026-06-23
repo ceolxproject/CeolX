@@ -2,8 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { cn } from 'heroui-native';
 import { Pressable, Text, View } from 'react-native';
 
-import { CeolxLogo } from './CeolxLogo';
-import { BellWithBadge } from './notifications/BellWithBadge';
+import { AppHeader } from './AppHeader';
 
 interface FeedHeaderProps {
   locationText?: string;
@@ -37,14 +36,14 @@ export function FeedHeader({
 }: FeedHeaderProps) {
   return (
     <View className={cn('px-5 gap-3', className)}>
-      {/* Row 1: Logo + action icons */}
-      <View className="flex-row items-center justify-between">
-        <CeolxLogo fontSize={18} letterSpacing={2} />
-
-        <View className="flex-row items-center gap-4">
-          {onNotificationPress && <BellWithBadge onPress={onNotificationPress} />}
-        </View>
-      </View>
+      {/* Row 1: standard header — logo (left) + notification bell (right). */}
+      <AppHeader
+        leading="logo"
+        logoFontSize={18}
+        showBell={Boolean(onNotificationPress)}
+        onBellPress={onNotificationPress}
+        className="px-0"
+      />
 
       {/* Row 2: Location + filter/sort buttons. Hidden entirely on the Posts
           tab, where neither the location nor the event actions apply. */}

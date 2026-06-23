@@ -14,6 +14,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { EVENT_CATEGORIES, IRISH_COUNTIES, filterValidMapEvents } from '@CeolX/shared';
 
+import { AppHeader } from '@/components/AppHeader';
 import { appToast } from '@/components/AppToast';
 import { EventPreviewCard } from '@/components/EventPreviewCard';
 import { FilterSheet } from '@/components/FilterSheet';
@@ -26,7 +27,6 @@ import { MapEmptyStateCard } from '@/components/MapEmptyStateCard';
 import { MapErrorBoundary } from '@/components/MapErrorBoundary';
 import type { MapEvent } from '@/components/MapEventMarker';
 import { MapEventMarker } from '@/components/MapEventMarker';
-import { MapHeader } from '@/components/MapHeader';
 import { MapOverlappingEventsSheet } from '@/components/MapOverlappingEventsSheet';
 import { MapRecenterButton } from '@/components/MapRecenterButton';
 import { MapSearchBar } from '@/components/MapSearchBar';
@@ -356,7 +356,7 @@ export default function MapScreen() {
         </MapView>
       </MapErrorBoundary>
 
-      <MapHeader />
+      <AppHeader variant="floating" leading="back" title="Find Event" />
       <MapSearchBar
         value={searchText}
         onChangeText={onPlaceChangeText}

@@ -1,4 +1,3 @@
-import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useCallback } from 'react';
 import { ActivityIndicator, FlatList, Pressable, Text, View } from 'react-native';
@@ -6,6 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import type { NotificationDto } from '@CeolX/shared/validators';
 
+import { AppHeader } from '@/components/AppHeader';
 import { EmptyState } from '@/components/EmptyState';
 import { NotificationListItem } from '@/components/notifications/NotificationListItem';
 import { useMarkAllAsRead, useMarkAsRead } from '@/hooks/use-mark-notifications';
@@ -42,28 +42,25 @@ export default function NotificationsScreen() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#080808' }} edges={['top']}>
-      {/* Header */}
-      <View className="flex-row items-center justify-between px-5 py-3 border-b border-[#1d1d1d]">
-        <View className="flex-row items-center gap-3">
-          <Pressable onPress={() => router.back()} hitSlop={8} accessibilityLabel="Go back">
-            <Ionicons name="arrow-back" size={24} color="#fff" />
-          </Pressable>
-          <Text className="text-base font-bold text-white font-urbanist">Notifications</Text>
-        </View>
-
-        {unreadCount > 0 && (
-          <Pressable
-            onPress={handleMarkAllPress}
-            disabled={markAllAsRead.isPending}
-            hitSlop={8}
-            accessibilityLabel="Mark all as read"
-          >
-            <Text className="text-sm text-blue-10 font-semibold font-urbanist">
-              Mark all as read
-            </Text>
-          </Pressable>
-        )}
-      </View>
+      <AppHeader
+        leading="back"
+        title="Notifications"
+        bordered
+        trailingAccessory={
+          unreadCount > 0 ? (
+            <Pressable
+              onPress={handleMarkAllPress}
+              disabled={markAllAsRead.isPending}
+              hitSlop={8}
+              accessibilityLabel="Mark all as read"
+            >
+              <Text className="text-sm text-blue-10 font-semibold font-urbanist">
+                Mark all as read
+              </Text>
+            </Pressable>
+          ) : undefined
+        }
+      />
 
       {/* List */}
       {isLoading ? (

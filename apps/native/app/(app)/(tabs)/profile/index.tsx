@@ -17,10 +17,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import type { BookingSummary } from '@CeolX/shared';
 import { BookingStatus, UserRole } from '@CeolX/shared/enums';
 
+import { AppHeader } from '@/components/AppHeader';
 import { appToast } from '@/components/AppToast';
 import { ConfirmedBookingCard } from '@/components/bookings/ConfirmedBookingCard';
 import { EmptyState } from '@/components/EmptyState';
-import { BellWithBadge } from '@/components/notifications/BellWithBadge';
 import { PostsList } from '@/components/posts/PostsList';
 import { ProfileEventCard } from '@/components/ProfileEventCard';
 import { SegmentControl } from '@/components/profiles';
@@ -94,15 +94,24 @@ function ProfileHeader({
 
   return (
     <View className="items-center pt-2 pb-4 bg-background">
-      {/* Header bar with bookmark + bell for venues, just bell for artists */}
-      <View className="w-full flex-row items-center justify-end px-5 mb-3 gap-4">
-        {onBookmarkPress && (
-          <Pressable onPress={onBookmarkPress}>
-            <Ionicons name="bookmark-outline" size={23} color="#fff" />
-          </Pressable>
-        )}
-        <BellWithBadge onPress={() => router.push('/notifications')} size={24} />
-      </View>
+      {/* Standard header: notification bell first, then bookmark (venues only). */}
+      <AppHeader
+        leading="none"
+        showBell
+        bgClassName="bg-background"
+        actions={
+          onBookmarkPress
+            ? [
+                {
+                  key: 'saved',
+                  icon: 'bookmark-outline',
+                  onPress: onBookmarkPress,
+                  accessibilityLabel: 'Saved events',
+                },
+              ]
+            : undefined
+        }
+      />
 
       {/* Avatar + followers/following row */}
       <View className="flex-row items-center justify-center gap-6 mb-3">
