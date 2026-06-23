@@ -93,12 +93,7 @@ export default function ArtistProfileScreen() {
           <Pressable onPress={() => router.back()}>
             <Ionicons name="arrow-back" size={24} color="#fff" />
           </Pressable>
-          <View className="flex-row items-center gap-4">
-            <Pressable>
-              <Ionicons name="bookmark-outline" size={23} color="#fff" />
-            </Pressable>
-            <BellWithBadge onPress={() => router.push('/notifications')} size={24} />
-          </View>
+          <BellWithBadge onPress={() => router.push('/notifications')} size={24} />
         </View>
 
         <ProfileHeader
