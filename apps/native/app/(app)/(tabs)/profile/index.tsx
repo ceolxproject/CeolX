@@ -19,6 +19,7 @@ import { BookingStatus, UserRole } from '@CeolX/shared/enums';
 
 import { appToast } from '@/components/AppToast';
 import { ConfirmedBookingCard } from '@/components/bookings/ConfirmedBookingCard';
+import { EmptyState } from '@/components/EmptyState';
 import { BellWithBadge } from '@/components/notifications/BellWithBadge';
 import { PostsList } from '@/components/posts/PostsList';
 import { ProfileEventCard } from '@/components/ProfileEventCard';
@@ -177,29 +178,6 @@ function ProfileHeader({
   );
 }
 
-// ─── Empty State ──────────────────────────────────────────────────────────────
-
-function EmptyState({
-  message,
-  action,
-}: {
-  message: string;
-  action?: { label: string; onPress: () => void };
-}) {
-  return (
-    <View className="py-16 items-center px-5">
-      <Text className="text-base text-white/60 text-center font-urbanist mb-4">{message}</Text>
-      {action && (
-        <Pressable onPress={action.onPress} className="rounded-full bg-[#662FFF] px-6 py-3">
-          <Text className="text-xs font-bold text-white uppercase tracking-wider font-urbanist">
-            {action.label}
-          </Text>
-        </Pressable>
-      )}
-    </View>
-  );
-}
-
 // ─── My Events Tab ────────────────────────────────────────────────────────────
 
 function MyEventsTab() {
@@ -233,8 +211,10 @@ function MyEventsTab() {
   if (!hasCreated && !hasConfirmed) {
     return (
       <EmptyState
-        message="You haven't created any events yet"
-        action={{
+        variant="no-events"
+        title="No events yet"
+        subtitle="Create your first event to get started."
+        cta={{
           label: 'Create Event',
           onPress: () => router.push('/(app)/events/create'),
         }}
@@ -484,7 +464,8 @@ function PostsTab() {
       hasNextPage={hasNextPage}
       currentUserId={me?.id ?? null}
       onLoadMore={loadMore}
-      emptyMessage="You haven't posted anything yet."
+      emptyMessage="You haven't posted anything yet"
+      emptySubtitle="Share your first post to get started."
     />
   );
 }
@@ -674,7 +655,7 @@ function CreatorProfile({
             activeTab={activeTab}
             onTabChange={setActiveTab}
           />
-          <View className="mt-4">{renderTabContent()}</View>
+          <View className="mt-4 flex-1">{renderTabContent()}</View>
         </View>
       </ScrollView>
 

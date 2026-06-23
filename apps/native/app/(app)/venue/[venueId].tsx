@@ -5,9 +5,9 @@ import { useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  FlatList,
   Pressable,
   RefreshControl,
+  ScrollView,
   Text,
   View,
 } from 'react-native';
@@ -46,7 +46,8 @@ function PostsTab({ userId }: { userId: string }) {
       currentUserId={me?.id ?? null}
       onLoadMore={loadMore}
       hideAuthorHeader
-      emptyMessage="No posts yet."
+      emptyMessage="No posts yet"
+      emptySubtitle="Posts from this profile will appear here."
     />
   );
 }
@@ -112,91 +113,84 @@ export default function VenueProfileScreen() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#080808' }}>
-      <FlatList
-        data={[1]}
-        keyExtractor={() => 'profile-content'}
-        renderItem={() => (
-          <View>
-            <View className="bg-[rgba(141,141,141,0.3)] rounded-t-[20px] mt-2 pt-4 min-h-[300px]">
-              {showSubscriptionBanner && (
-                <SubscriptionBanner
-                  onResendEmail={() =>
-                    Alert.alert(
-                      'Coming Soon',
-                      'Activation email resend will be available in a future update.'
-                    )
-                  }
-                />
-              )}
-              <SegmentControl
-                tabs={TABS}
-                labels={TAB_LABELS}
-                activeTab={activeTab}
-                onTabChange={setActiveTab}
-              />
-              <View className="mt-4">{renderTabContent()}</View>
-            </View>
-          </View>
-        )}
-        ListHeaderComponent={
-          <>
-            {/* Header bar */}
-            <View className="flex-row items-center justify-between px-4 py-3">
-              <Pressable onPress={() => router.back()}>
-                <Ionicons name="arrow-back" size={24} color="#fff" />
-              </Pressable>
-              <View className="flex-row items-center gap-4">
-                <Pressable>
-                  <Ionicons name="bookmark-outline" size={23} color="#fff" />
-                </Pressable>
-                <BellWithBadge onPress={() => router.push('/notifications')} size={24} />
-              </View>
-            </View>
-
-            <ProfileHeader
-              displayName={profile.displayName}
-              subtitle={profile.address}
-              subtitleIcon="location-outline"
-              secondarySubtitle={profile.bio}
-              profileImageUrl={profile.profileImageUrl}
-              followerCount={profile.followerCount}
-              followingCount={profile.followingCount}
-              isOwner={profile.isOwner}
-              isFollowing={isFollowing}
-              socialLinks={profile.socialLinks}
-              contactEmail={profile.contactEmail}
-              websiteUrl={profile.websiteUrl}
-              onEditPress={() => router.push('/(app)/(tabs)/profile/edit')}
-              onSettingsPress={profile.isOwner ? () => settingsRef.current?.present() : undefined}
-              onFollowPress={!profile.isOwner ? onFollowPress : undefined}
-              onFollowersPress={() =>
-                router.push({
-                  pathname: '/(app)/(tabs)/profile/followers',
-                  params: { userId: profile.userId, name: profile.displayName },
-                })
-              }
-              onFollowingPress={() =>
-                router.push({
-                  pathname: '/(app)/(tabs)/profile/following',
-                  params: { userId: profile.userId, name: profile.displayName },
-                })
-              }
-              secondaryCta={
-                !profile.isOwner && me?.currentRole === 'artist'
-                  ? {
-                      label: 'Share Interest',
-                      onPress: () => shareInterest(profile.userId),
-                    }
-                  : undefined
-              }
-            />
-          </>
-        }
+      <ScrollView
+        contentContainerStyle={{ flexGrow: 1 }}
         refreshControl={
           <RefreshControl refreshing={false} onRefresh={refetch} tintColor="#C8FF2F" />
         }
         showsVerticalScrollIndicator={false}
-      />
+      >
+        {/* Header bar */}
+        <View className="flex-row items-center justify-between px-4 py-3">
+          <Pressable onPress={() => router.back()}>
+            <Ionicons name="arrow-back" size={24} color="#fff" />
+          </Pressable>
+          <View className="flex-row items-center gap-4">
+            <Pressable>
+              <Ionicons name="bookmark-outline" size={23} color="#fff" />
+            </Pressable>
+            <BellWithBadge onPress={() => router.push('/notifications')} size={24} />
+          </View>
+        </View>
+
+        <ProfileHeader
+          displayName={profile.displayName}
+          subtitle={profile.address}
+          subtitleIcon="location-outline"
+          secondarySubtitle={profile.bio}
+          profileImageUrl={profile.profileImageUrl}
+          followerCount={profile.followerCount}
+          followingCount={profile.followingCount}
+          isOwner={profile.isOwner}
+          isFollowing={isFollowing}
+          socialLinks={profile.socialLinks}
+          contactEmail={profile.contactEmail}
+          websiteUrl={profile.websiteUrl}
+          onEditPress={() => router.push('/(app)/(tabs)/profile/edit')}
+          onSettingsPress={profile.isOwner ? () => settingsRef.current?.present() : undefined}
+          onFollowPress={!profile.isOwner ? onFollowPress : undefined}
+          onFollowersPress={() =>
+            router.push({
+              pathname: '/(app)/(tabs)/profile/followers',
+              params: { userId: profile.userId, name: profile.displayName },
+            })
+          }
+          onFollowingPress={() =>
+            router.push({
+              pathname: '/(app)/(tabs)/profile/following',
+              params: { userId: profile.userId, name: profile.displayName },
+            })
+          }
+          secondaryCta={
+            !profile.isOwner && me?.currentRole === 'artist'
+              ? {
+                  label: 'Share Interest',
+                  onPress: () => shareInterest(profile.userId),
+                }
+              : undefined
+          }
+        />
+
+        <View className="bg-[rgba(141,141,141,0.3)] rounded-t-[20px] mt-2 pt-4 flex-1">
+          {showSubscriptionBanner && (
+            <SubscriptionBanner
+              onResendEmail={() =>
+                Alert.alert(
+                  'Coming Soon',
+                  'Activation email resend will be available in a future update.'
+                )
+              }
+            />
+          )}
+          <SegmentControl
+            tabs={TABS}
+            labels={TAB_LABELS}
+            activeTab={activeTab}
+            onTabChange={setActiveTab}
+          />
+          <View className="mt-4 flex-1">{renderTabContent()}</View>
+        </View>
+      </ScrollView>
 
       {profile.isOwner && (
         <SettingsBottomSheet
