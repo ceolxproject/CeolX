@@ -1,6 +1,7 @@
 import { Link, useNavigate } from '@tanstack/react-router';
 import { BarChart3, LogOut, Menu, Settings, ShieldAlert, Users, Wrench, X } from 'lucide-react';
 import { useState } from 'react';
+import { toast } from 'sonner';
 
 import { CeolxLogo } from '@/components/CeolxLogo';
 import { authClient } from '@/lib/auth-client';
@@ -24,6 +25,8 @@ function SidebarFooter() {
     try {
       await authClient.signOut();
       await navigate({ to: '/login' });
+    } catch {
+      toast.error('Could not sign out. Please try again.');
     } finally {
       setSigningOut(false);
     }
@@ -33,11 +36,15 @@ function SidebarFooter() {
     <div className="px-4 py-4 border-t border-sidebar-border">
       <div className="flex items-center gap-2.5 px-3 py-2">
         <div className="size-7 rounded-full bg-sidebar-foreground/10 flex items-center justify-center text-xs font-semibold text-sidebar-foreground/80 shrink-0">
-          {email.charAt(0).toUpperCase()}
+          {email ? email.charAt(0).toUpperCase() : '·'}
         </div>
         <div className="min-w-0">
-          <div className="text-[11px] text-sidebar-foreground/50">Signed in as</div>
-          <div className="text-sm text-sidebar-foreground truncate">{email}</div>
+          <div className="text-[11px] text-sidebar-foreground/60">Signed in as</div>
+          {email ? (
+            <div className="text-sm text-sidebar-foreground truncate">{email}</div>
+          ) : (
+            <div className="mt-1 h-3.5 w-28 animate-pulse rounded bg-sidebar-foreground/15" />
+          )}
         </div>
       </div>
       <button
@@ -63,10 +70,14 @@ export function Sidebar() {
           <Link
             key={item.to}
             to={item.to}
-            className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-sidebar-foreground/70 hover:bg-sidebar-foreground/10 hover:text-sidebar-foreground transition-colors"
+            className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors"
             activeProps={{
+              className: 'bg-sidebar-primary text-sidebar-primary-foreground font-semibold',
+              'aria-current': 'page',
+            }}
+            inactiveProps={{
               className:
-                'bg-[#7C6FFF] hover:!bg-[#7C6FFF] text-primary-foreground hover:!text-primary-foreground font-semibold',
+                'text-sidebar-foreground/70 hover:bg-sidebar-foreground/10 hover:text-sidebar-foreground',
             }}
             onClick={() => setMobileOpen(false)}
           >
@@ -112,7 +123,7 @@ export function Sidebar() {
             <X size={20} />
           </button>
           <CeolxLogo fontSize={26} />
-          <p className="text-[10px] font-medium uppercase tracking-[0.15em] text-sidebar-foreground/40 mt-3">
+          <p className="text-[10px] font-medium uppercase tracking-[0.15em] text-sidebar-foreground/70 mt-3">
             Admin Dashboard
           </p>
         </div>
@@ -124,7 +135,7 @@ export function Sidebar() {
       <aside className="hidden md:flex flex-col w-60 h-screen bg-sidebar text-sidebar-foreground border-r border-sidebar-border shrink-0">
         <div className="flex flex-col px-7 pt-8 pb-6">
           <CeolxLogo fontSize={28} />
-          <p className="text-[10px] font-medium uppercase tracking-[0.15em] text-sidebar-foreground/40 mt-3">
+          <p className="text-[10px] font-medium uppercase tracking-[0.15em] text-sidebar-foreground/70 mt-3">
             Admin Dashboard
           </p>
         </div>

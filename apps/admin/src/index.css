@@ -32,7 +32,7 @@
      buttons, and links share one brand colour across the shell. */
   --primary: #7c6fff;
   --ring: #7c6fff;
-
+  --sidebar-primary: var(--primary);
   /* Darker success green so "Live" badges stay readable on white
      cards (the spec lime #c8ff2f is too pale on a light surface). */
   --color-success: #16a34a;
