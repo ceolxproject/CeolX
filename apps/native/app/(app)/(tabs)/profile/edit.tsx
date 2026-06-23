@@ -417,6 +417,9 @@ export default function EditProfileScreen() {
                 onChangeText={setWebsiteUrl}
                 autoCapitalize="none"
                 keyboardType="url"
+                autoComplete="off"
+                textContentType="URL"
+                importantForAutofill="no"
               />
               {errors.websiteUrl ? (
                 <Text className="text-xs text-red-400 mb-4 font-urbanist">{errors.websiteUrl}</Text>
@@ -432,6 +435,8 @@ export default function EditProfileScreen() {
                 value={phone}
                 onChangeText={setPhone}
                 keyboardType="phone-pad"
+                autoComplete="tel"
+                textContentType="telephoneNumber"
                 maxLength={30}
               />
             </>

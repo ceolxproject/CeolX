@@ -1,4 +1,4 @@
-import { getQStashClient } from './client.js';
+import { getJobWebhookUrl, getQStashClient } from './client.js';
 import type { JobPayload, JobType } from './types.js';
 
 // ---------------------------------------------------------------------------
@@ -34,13 +34,10 @@ export async function publishJob<T extends JobType>(
   payload: JobPayload<T>,
   options: PublishOptions = {}
 ): Promise<void> {
-  const baseUrl = process.env.QSTASH_BASE_URL;
-  if (!baseUrl) throw new Error('QSTASH_BASE_URL is not set');
-
   const client = getQStashClient();
 
   await client.publishJSON({
-    url: baseUrl,
+    url: getJobWebhookUrl(),
     body: { type, payload },
     retries: options.retries ?? 3,
     ...(options.delay !== undefined && { delay: parseDuration(options.delay) }),
@@ -57,13 +54,10 @@ export async function publishCron(
   schedule: string, // cron expression e.g. "*/5 * * * *"
   payload: Record<string, unknown> = {}
 ): Promise<void> {
-  const baseUrl = process.env.QSTASH_BASE_URL;
-  if (!baseUrl) throw new Error('QSTASH_BASE_URL is not set');
-
   const client = getQStashClient();
 
   await client.schedules.create({
-    destination: baseUrl,
+    destination: getJobWebhookUrl(),
     cron: schedule,
     body: JSON.stringify({ type, payload }),
     headers: { 'Content-Type': 'application/json' },

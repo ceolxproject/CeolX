@@ -28,8 +28,15 @@ import type { MapEvent } from '@/components/MapEventMarker';
 import { MapEventMarker } from '@/components/MapEventMarker';
 import { MapHeader } from '@/components/MapHeader';
 import { MapOverlappingEventsSheet } from '@/components/MapOverlappingEventsSheet';
+import { MapRecenterButton } from '@/components/MapRecenterButton';
 import { MapSearchBar } from '@/components/MapSearchBar';
 import { PlaceSuggestionsDropdown } from '@/components/PlaceSuggestionsDropdown';
+import { TAB_BAR_HEIGHT } from '@/constants/layout';
+import {
+  MAP_HEADER_HEIGHT,
+  MAP_SEARCH_BAR_GAP,
+  MAP_SEARCH_BAR_HEIGHT,
+} from '@/constants/map-layout';
 import { useLocationOverride } from '@/contexts/location-override-context';
 import { useTabBarVisibility } from '@/contexts/tab-bar-visibility-context';
 import { resolveMapInitialRegion, useGpsRegion } from '@/hooks/use-gps-region';
@@ -45,6 +52,7 @@ import { useMapEvents } from '@/hooks/use-map-events';
 import { usePanelAnimation } from '@/hooks/use-panel-animation';
 import { usePlaceSearch } from '@/hooks/use-place-search';
 import { useVenueFallback } from '@/hooks/use-venue-fallback';
+import { getDeviceLocation } from '@/utils/device-location';
 import type { GeocodeResult } from '@/utils/geocode';
 
 const MAP_FILTER_SECTIONS: FilterSection[] = [
@@ -64,6 +72,16 @@ export default function MapScreen() {
   // own SafeAreaProvider reports bottom = 0 on Android, so we pass these
   // known-good values into it rather than letting it re-measure.
   const insets = useSafeAreaInsets();
+  // Push the map's native UI controls (notably the Android "My Location" button,
+  // which Google pins to the top-right) below the header + search bar so they
+  // clear the status bar and stay tappable. Mirrors MapSearchBar's top offset.
+  const mapTopPadding =
+    insets.top + MAP_HEADER_HEIGHT + MAP_SEARCH_BAR_GAP + MAP_SEARCH_BAR_HEIGHT + 12;
+  // Bottom-anchored overlays (error toast) must clear the still-visible tab bar.
+  const bottomOverlayOffset = insets.bottom + TAB_BAR_HEIGHT + 16;
+  // The recenter button sits tighter to the tab bar than the centered overlays —
+  // a small gap above the bar so it reads as anchored to the bottom-right corner.
+  const recenterButtonBottom = insets.bottom + 12;
   const { promptState, markSeen } = useLocationPermissionPrompt();
   // Shared with the Feed tab — a manual place pick on either screen syncs here.
   const { override, setOverride } = useLocationOverride();
@@ -134,6 +152,11 @@ export default function MapScreen() {
   // on another tab.
   const { setHidden: setTabBarHidden } = useTabBarVisibility();
   const isPreviewOpen = Boolean(selectedEvent || overlapEvents);
+  const emptyStateVisible = !isLoading && expandExhausted && !emptyCardDismissed;
+  const errorToastVisible = !isLoading && isError && !expandExhausted;
+  // A centered bottom card/toast/preview shares the recenter button's row — hide
+  // the button while one is shown so they never overlap.
+  const bottomOverlayBusy = isPreviewOpen || emptyStateVisible || errorToastVisible;
   useFocusEffect(
     useCallback(() => {
       setTabBarHidden(isPreviewOpen);
@@ -277,6 +300,20 @@ export default function MapScreen() {
     if (!markerJustPressedRef.current) dismissPanel();
   }, [dismissDropdown, dismissPanel, markerJustPressedRef]);
 
+  // Custom circular recenter control (replaces Google's square native button).
+  // getDeviceLocation prompts for permission if needed and returns null on denial.
+  const handleRecenter = useCallback(async () => {
+    const loc = await getDeviceLocation();
+    if (!loc) {
+      appToast.error('Location unavailable', 'Enable location access to center the map.');
+      return;
+    }
+    mapRef.current?.animateToRegion(
+      { latitude: loc.lat, longitude: loc.lng, latitudeDelta: 0.15, longitudeDelta: 0.15 },
+      600
+    );
+  }, []);
+
   if (promptState === 'checking') return null;
   if (promptState === 'show') {
     // navigationBarTranslucent draws the modal window edge-to-edge under the
@@ -306,9 +343,13 @@ export default function MapScreen() {
           style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0 }}
           provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
           initialRegion={effectiveInitialRegion}
+          mapPadding={{ top: mapTopPadding, right: 0, bottom: 0, left: 0 }}
           onRegionChangeComplete={handleRegionChangeComplete}
           onPress={handleMapPress}
           showsUserLocation={Boolean(gpsPermissionGranted)}
+          // Hide Google's square native button — we render our own circular
+          // recenter control (MapRecenterButton) for UI consistency.
+          showsMyLocationButton={false}
           userInterfaceStyle={'dark' as const}
         >
           {clusters.map(renderMarker)}
@@ -322,6 +363,11 @@ export default function MapScreen() {
         onFilterPress={() => setFilterSheetVisible(true)}
         activeFilterCount={activeFilterCount}
       />
+
+      {/* Recenter control — hidden while a bottom card / toast / preview is shown. */}
+      {!bottomOverlayBusy && (
+        <MapRecenterButton onPress={handleRecenter} bottom={recenterButtonBottom} />
+      )}
 
       {showBanner && (
         <LocationBanner message={bannerMessage} onDismiss={() => setBannerDismissed(true)} />
@@ -337,21 +383,24 @@ export default function MapScreen() {
 
       {isLoading && (
         <ActivityIndicator
-          style={{ position: 'absolute', alignSelf: 'center', top: 24 }}
+          style={{ position: 'absolute', alignSelf: 'center', top: mapTopPadding }}
           size="large"
           color="#6155F5"
         />
       )}
 
-      {!isLoading && expandExhausted && !emptyCardDismissed && (
+      {emptyStateVisible && (
         <MapEmptyStateCard
           onDismiss={() => setEmptyCardDismissed(true)}
           onBrowseAll={() => router.push('/(app)/(tabs)/discover')}
         />
       )}
 
-      {!isLoading && isError && !expandExhausted && (
-        <View className="absolute bottom-[100px] self-center z-10 bg-[rgba(43,43,43,0.95)] px-5 py-4 rounded-2xl max-w-[300px]">
+      {errorToastVisible && (
+        <View
+          className="absolute self-center z-10 bg-[rgba(43,43,43,0.95)] px-5 py-4 rounded-2xl max-w-[300px]"
+          style={{ bottom: bottomOverlayOffset }}
+        >
           <Text className="text-white text-[14px] text-center">
             Could not load events. Check your connection and try again.
           </Text>

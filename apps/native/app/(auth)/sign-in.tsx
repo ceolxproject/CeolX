@@ -33,15 +33,24 @@ export default function SignInScreen() {
     setErrorState(null);
     setIsSubmitting(true);
 
+    // Canonicalize before sending so login matches the lowercased email stored
+    // at signup — the byte-exact email lookup otherwise fails on a casing
+    // difference and reports "not verified" (Asana 1215700058851867). The
+    // server normalizes too; this keeps the resend banner's email consistent.
+    const normalizedEmail = email.trim().toLowerCase();
+
     try {
-      const { error: authError } = await authClient.signIn.email({ email, password });
+      const { error: authError } = await authClient.signIn.email({
+        email: normalizedEmail,
+        password,
+      });
 
       if (authError) {
         const status = authError.status ?? 0;
         const msg = authError.message?.toLowerCase() ?? '';
 
         if (status === 403 || msg.includes('email_not_verified') || msg.includes('not verified')) {
-          setErrorState({ type: 'unverified', email });
+          setErrorState({ type: 'unverified', email: normalizedEmail });
         } else if (status === 429) {
           setErrorState({
             type: 'generic',

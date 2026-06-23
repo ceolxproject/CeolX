@@ -536,7 +536,7 @@ export function useEventForm(options?: UseEventFormOptions) {
       ticketPrice: priceToCents(ticketPrice),
       ticketQuantity: parseQuantity(ticketQuantity),
       collectionId: collectionId || undefined,
-      platformInvites: platformInviteIds(platformInvites),
+      platformInvites: platformInviteIds(platformInvites, isEditing),
       unregisteredCollaborators: unregisteredCollaboratorsPayload(
         unregisteredCollaborators,
         isEditing
