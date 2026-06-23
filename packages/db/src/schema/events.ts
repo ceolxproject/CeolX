@@ -135,6 +135,11 @@ export const eventCollaborators = pgTable(
     }),
     invitedName: varchar('invited_name', { length: 150 }),
     invitedEmail: varchar('invited_email', { length: 255 }),
+    // Outside-platform invite link (matrix A-14). Only set on external invites;
+    // cleared once the invitee joins and the row is claimed. Token powers the
+    // public /invite/:token landing; the claim itself matches on invitedEmail.
+    inviteToken: text('invite_token').unique(),
+    inviteTokenExpiresAt: timestamp('invite_token_expires_at'),
     bookingId: uuid('booking_id').references(() => bookings.id, { onDelete: 'set null' }),
     createdAt: timestamp('created_at').notNull().defaultNow(),
   },
