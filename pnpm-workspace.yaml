@@ -33,3 +33,10 @@ overrides:
 onlyBuiltDependencies:
   - esbuild
   - msw
+allowBuilds:
+  '@firebase/util': true
+  '@sentry/cli': true
+  core-js: true
+  esbuild: true
+  msw: true
+  protobufjs: true

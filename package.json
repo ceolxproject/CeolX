@@ -100,7 +100,7 @@
       "prettier --write"
     ]
   },
-  "packageManager": "pnpm@10.7.1",
+  "packageManager": "pnpm@11.8.0",
   "validate-branch-name": {
     "pattern": "^(main|master|develop|development|staging|production)$|^(feature|fix|hotfix|bugfix|release|chore|docs|refactor|test|ci)\\/[a-z0-9._-]+$",
     "errorMsg": "Branch name must follow pattern: feature/*, fix/*, hotfix/*, bugfix/*, release/*, chore/*, docs/*, refactor/*, test/*, ci/* or be main/master/develop/development/staging/production"
