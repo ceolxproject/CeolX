@@ -27,13 +27,21 @@ function escapeHtml(s: string): string {
 function renderRedirectPage(path: string, token: string, confirmable: boolean): string {
   const safe = escapeHtml(token);
   const deepLink = `ceolx://${path}?token=${safe}`;
-  // Fire the deep link via EXACTLY ONE auto-mechanism. A `<meta http-equiv="refresh">`
-  // and a JS redirect firing together each launch the ceolx:// intent — and on
-  // Android a custom-scheme navigation does not unload this page, so the second
-  // mechanism delivers the intent a second time. With a singleTask activity that
-  // duplicate arrives via onNewIntent, re-anchors the app's (auth) splash on top of
-  // the reset-password screen, and the splash's timed redirect then bounces to
-  // sign-in. One trigger only. (Asana 1215040939202673)
+  //
+  // Ordering matters: the page arms the fallback (below) and THEN fires the deep
+  // link via a single `window.location.replace`. Calling replace() during initial
+  // parse commits a navigation that halts any inline <script> following it — the
+  // old page fired the deep link in an earlier, separate <script>, so on desktop
+  // (where ceolx:// has no handler and the navigation aborts) the fallback script
+  // was skipped entirely: the app never opened AND verification never ran. A timer
+  // armed in the same script *before* replace() survives the aborted navigation.
+  // (Asana 1215700058851863)
+  //
+  // Exactly one auto-trigger (the replace). A <meta http-equiv="refresh"> firing
+  // alongside it would deliver the ceolx:// intent twice — and on Android a custom-
+  // scheme navigation doesn't unload the page, so the duplicate re-anchors the
+  // (auth) splash and bounces the deep-linked screen to sign-in. The visible button
+  // is the only manual trigger. (Asana 1215040939202673)
   //
   // Desktop/web fallback (only when `confirmable`): a custom-scheme link can't open
   // the app on a desktop browser, so verification would never run there — the link
@@ -43,10 +51,8 @@ function renderRedirectPage(path: string, token: string, confirmable: boolean): 
   // the tab was never hidden, i.e. the deep link found no app to hand off to. This
   // keeps the mobile happy path untouched (the app still verifies and gets the
   // auto-sign-in session) while making the link work from any device.
-  const fallbackScript = confirmable
+  const fallbackSetup = confirmable
     ? `
-  <script>
-    (function () {
       var appOpened = false;
       document.addEventListener('visibilitychange', function () {
         if (document.visibilityState === 'hidden') appOpened = true;
@@ -66,9 +72,7 @@ function renderRedirectPage(path: string, token: string, confirmable: boolean): 
           .catch(function () {
             if (card) card.innerHTML = '<div class="brand">CEOLX</div><h1>Something went wrong</h1><p>We couldn\\'t verify your email. Please try again from the app.</p>';
           });
-      }, 2500);
-    })();
-  </script>`
+      }, 2500);`
     : '';
   return `<!doctype html>
 <html lang="en">
@@ -97,7 +101,12 @@ function renderRedirectPage(path: string, token: string, confirmable: boolean): 
     <p>If the app doesn't open automatically, tap the button below.</p>
     <a class="btn" href="${deepLink}">Open the CeolX app</a>
   </div>
-  <script>window.location.replace('${deepLink}');</script>${fallbackScript}
+  <script>
+    (function () {${fallbackSetup}
+      // Deep link fires LAST so the fallback above is armed first (see fn comment).
+      window.location.replace('${deepLink}');
+    })();
+  </script>
 </body>
 </html>`;
 }

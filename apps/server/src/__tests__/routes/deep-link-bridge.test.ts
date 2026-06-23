@@ -61,6 +61,25 @@ describe('createDeepLinkBridge — confirmable (e.g. verify-email)', () => {
     expect(res.headers.get('content-security-policy')).toContain("connect-src 'self'");
   });
 
+  it('arms the desktop fallback BEFORE firing the deep link', async () => {
+    const res = await mount(build(() => Promise.resolve(true))).request(
+      '/verify-email?token=abc123'
+    );
+    const html = await res.text();
+
+    // Calling window.location.replace() during initial parse commits a navigation
+    // and halts every inline <script> that comes AFTER it. If the fallback timer is
+    // registered in a later script (or later in the same script), it never runs on
+    // desktop — the app can't open and verification never happens. So the fallback
+    // (setTimeout/visibilitychange) MUST be registered before the deep link fires.
+    // (Asana 1215700058851863)
+    const fallbackIdx = html.indexOf('setTimeout(');
+    const deepLinkIdx = html.indexOf('window.location.replace(');
+    expect(fallbackIdx).toBeGreaterThan(-1);
+    expect(deepLinkIdx).toBeGreaterThan(-1);
+    expect(fallbackIdx).toBeLessThan(deepLinkIdx);
+  });
+
   it('never renders the token as visible page text — only inside attributes', async () => {
     const res = await mount(build(() => Promise.resolve(true))).request(
       '/verify-email?token=abc123'
