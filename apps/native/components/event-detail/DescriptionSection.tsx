@@ -1,4 +1,3 @@
-import { cn } from 'heroui-native';
 import { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 
@@ -11,7 +10,7 @@ export function DescriptionSection({ description, className }: DescriptionSectio
   const [expanded, setExpanded] = useState(false);
 
   return (
-    <View className={cn('mt-7', className)}>
+    <View className={className}>
       <Text className="text-xl font-bold text-white font-sans mb-3">Description</Text>
       <Text
         className="text-base text-white/80 font-sans leading-5"

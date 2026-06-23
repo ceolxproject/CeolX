@@ -196,18 +196,8 @@ export function EventDetailView({
             }}
           />
 
-          {/* Ticket Price */}
-          {event.ticketPrice !== undefined && event.ticketPrice !== null && (
-            <Text className="text-white font-urbanist">
-              <Text className="text-lg text-gray-7">Ticket Price: </Text>
-              <Text className="text-xl font-bold">€{(event.ticketPrice / 100).toFixed(0)}</Text>
-            </Text>
-          )}
-
-          {/* Description */}
-          <DescriptionSection description={event.description} />
-
-          {/* Date / Time */}
+          {/* Key facts — when / where / how much, grouped above the description
+              so the essentials are scannable before any long prose. */}
           <View className="gap-4">
             <EventInfoRow
               icon="calendar-outline"
@@ -230,7 +220,19 @@ export function EventDetailView({
                   : undefined
               }
             />
+
+            {/* Ticket price — info-only row (booking lives in the sticky bar) */}
+            {event.ticketPrice !== undefined && event.ticketPrice !== null && (
+              <EventInfoRow
+                icon="pricetag-outline"
+                title={event.ticketPrice > 0 ? `€${(event.ticketPrice / 100).toFixed(0)}` : 'Free'}
+                subtitle="Ticket price"
+              />
+            )}
           </View>
+
+          {/* Description */}
+          <DescriptionSection description={event.description} />
         </View>
 
         {/* Offers — only this event's own ad, if it has one */}
