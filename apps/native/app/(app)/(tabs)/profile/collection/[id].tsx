@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { AppHeader } from '@/components/AppHeader';
 import { ProfileEventCard } from '@/components/ProfileEventCard';
 import { useCollection, useDeleteCollection, useUpdateCollection } from '@/hooks/use-collections';
 
@@ -71,25 +72,17 @@ export default function CollectionDetailScreen() {
   if (!collection) {
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: '#080808' }}>
-        <View className="flex-row items-center px-5 h-14">
-          <Pressable onPress={() => router.back()} className="mr-3">
-            <Ionicons name="arrow-back" size={24} color="#fff" />
-          </Pressable>
-          <Text className="text-lg font-bold text-white font-urbanist">Not Found</Text>
-        </View>
+        <AppHeader leading="back" title="Not Found" />
       </SafeAreaView>
     );
   }
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#080808' }}>
-      {/* Header */}
-      <View className="flex-row items-center justify-between px-5 h-14">
-        <View className="flex-row items-center flex-1">
-          <Pressable onPress={() => router.back()} className="mr-3">
-            <Ionicons name="arrow-back" size={24} color="#fff" />
-          </Pressable>
-          {editing ? (
+      <AppHeader
+        leading="back"
+        titleNode={
+          editing ? (
             <TextInput
               className="flex-1 h-8 text-[18px] font-bold text-white font-urbanist"
               value={editName}
@@ -101,11 +94,11 @@ export default function CollectionDetailScreen() {
             <Text className="text-lg font-bold text-white font-urbanist" numberOfLines={1}>
               {collection.name}
             </Text>
-          )}
-        </View>
-        <View className="flex-row items-center gap-3">
-          {editing ? (
-            <>
+          )
+        }
+        trailingAccessory={
+          editing ? (
+            <View className="flex-row items-center gap-3">
               <Pressable onPress={() => setEditing(false)}>
                 <Text className="text-sm text-white/60">Cancel</Text>
               </Pressable>
@@ -116,19 +109,19 @@ export default function CollectionDetailScreen() {
                   <Text className="text-sm font-bold text-[#C8FF2F]">Save</Text>
                 )}
               </Pressable>
-            </>
+            </View>
           ) : (
-            <>
+            <View className="flex-row items-center gap-3">
               <Pressable onPress={startEditing}>
                 <Ionicons name="pencil-outline" size={20} color="#fff" />
               </Pressable>
               <Pressable onPress={handleDelete}>
                 <Ionicons name="trash-outline" size={20} color="rgba(255,255,255,0.5)" />
               </Pressable>
-            </>
-          )}
-        </View>
-      </View>
+            </View>
+          )
+        }
+      />
 
       <ScrollView className="flex-1 px-5" showsVerticalScrollIndicator={false}>
         {/* Description */}

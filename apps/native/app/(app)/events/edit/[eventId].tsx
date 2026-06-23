@@ -1,19 +1,12 @@
-import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  KeyboardAvoidingView,
-  Pressable,
-  Text,
-  View,
-} from 'react-native';
+import { ActivityIndicator, Alert, KeyboardAvoidingView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { EventCategory } from '@CeolX/shared';
 import { EventStatus, UserRole } from '@CeolX/shared/enums';
 
+import { AppHeader } from '@/components/AppHeader';
 import { appToast } from '@/components/AppToast';
 import { BasicDetailsStep } from '@/components/events/BasicDetailsStep';
 import { DateVenueStep } from '@/components/events/DateVenueStep';
@@ -115,13 +108,7 @@ function EditEventForm({ event, eventId }: { event: LoadedEvent; eventId: string
       className="flex-1 bg-background"
       style={{ paddingTop: insets.top, paddingBottom: insets.bottom }}
     >
-      {/* Header */}
-      <View className="flex-row items-center px-5 pt-4 pb-1">
-        <Pressable onPress={handleBackPress} hitSlop={8} className="mr-3">
-          <Ionicons name="arrow-back" size={24} color="#ffffff" />
-        </Pressable>
-        <Text className="flex-1 text-2xl font-bold text-white">Edit Event</Text>
-      </View>
+      <AppHeader leading="back" onBack={handleBackPress} title="Edit Event" />
 
       {event.status === EventStatus.REMOVED && event.removalReason && (
         <View className="mx-5 mb-3 rounded-lg bg-red-900/30 px-4 py-3">

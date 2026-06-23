@@ -5,6 +5,7 @@ import { KeyboardAvoidingView, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppButton } from '@/components/AppButton';
+import { AppHeader } from '@/components/AppHeader';
 import { AppTextField } from '@/components/AppTextField';
 import { CeolxLogo } from '@/components/CeolxLogo';
 import { authClient } from '@/lib/auth-client';
@@ -74,10 +75,7 @@ export default function ResetPasswordScreen() {
     <View style={{ flex: 1, backgroundColor: '#0d0c0f' }}>
       <SafeAreaView style={{ flex: 1 }}>
         <KeyboardAvoidingView behavior="padding" style={{ flex: 1 }}>
-          {/* Header — brand logo, matches sign-in */}
-          <View className="flex-row justify-between items-center p-5 bg-surface-dark">
-            <CeolxLogo />
-          </View>
+          <AppHeader bgClassName="bg-surface-dark" leadingNode={<CeolxLogo />} />
 
           <ScrollView
             contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 24, paddingBottom: 40 }}

@@ -7,6 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { signUpSchema } from '@CeolX/shared/validators';
 
 import { AppButton } from '@/components/AppButton';
+import { AppHeader } from '@/components/AppHeader';
 import { AppTextField } from '@/components/AppTextField';
 import { CeolxLogo } from '@/components/CeolxLogo';
 import { CheckboxField } from '@/components/CheckboxField';
@@ -140,16 +141,18 @@ export default function SignUpScreen() {
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
           >
-            {/* Header */}
-            <View className="flex-row justify-between items-center pt-4 mb-8">
-              <CeolxLogo />
-              <Pressable
-                onPress={handleSkip}
-                className="border border-gray-10 rounded-[20px] py-1.5 px-4"
-              >
-                <Text className="text-gray-10 text-xs font-bold tracking-widest">SKIP</Text>
-              </Pressable>
-            </View>
+            <AppHeader
+              className="px-0 mb-8"
+              leadingNode={<CeolxLogo />}
+              trailingAccessory={
+                <Pressable
+                  onPress={handleSkip}
+                  className="border border-gray-10 rounded-[20px] py-1.5 px-4"
+                >
+                  <Text className="text-gray-10 text-xs font-bold tracking-widest">SKIP</Text>
+                </Pressable>
+              }
+            />
 
             <Text className="text-[36px] font-bold text-white leading-10 mb-2">Create Account</Text>
             <Text className="text-base text-white/60 mb-6">

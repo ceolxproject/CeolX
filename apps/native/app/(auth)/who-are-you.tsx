@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { AppHeader } from '@/components/AppHeader';
 import { CeolxLogo } from '@/components/CeolxLogo';
 import { ArtistIcon, SpectatorIcon, VenueIcon } from '@/components/icons/PersonaIcons';
 
@@ -98,10 +99,7 @@ export default function WhoAreYouScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: '#080808' }}>
       <SafeAreaView style={{ flex: 1 }}>
-        {/* Header — logo center-aligned */}
-        <View className="h-14 items-center justify-center bg-surface-dark">
-          <CeolxLogo />
-        </View>
+        <AppHeader titleAlign="center" titleNode={<CeolxLogo />} bgClassName="bg-surface-dark" />
 
         <View className="flex-1 px-6 pt-4">
           {/* Heading — Urbanist Bold 36/40 */}

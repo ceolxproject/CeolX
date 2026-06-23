@@ -4,6 +4,7 @@ import { KeyboardAvoidingView, Pressable, ScrollView, Text, View } from 'react-n
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppButton } from '@/components/AppButton';
+import { AppHeader } from '@/components/AppHeader';
 import { AppTextField } from '@/components/AppTextField';
 import { CeolxLogo } from '@/components/CeolxLogo';
 import { SocialLoginButtons } from '@/components/SocialLoginButtons';
@@ -82,18 +83,20 @@ export default function SignInScreen() {
     <View style={{ flex: 1, backgroundColor: '#0d0c0f' }}>
       <SafeAreaView style={{ flex: 1 }}>
         <KeyboardAvoidingView behavior="padding" style={{ flex: 1 }}>
-          {/* Header — Urbanist Bold 12 */}
-          <View className="flex-row justify-between items-center p-5 bg-surface-dark">
-            <CeolxLogo />
-            <Pressable
-              onPress={handleSkip}
-              className="border border-gray-10 rounded-[20px] h-9 px-5 items-center justify-center"
-            >
-              <Text className="text-white text-xs font-bold tracking-wide uppercase font-sans">
-                skip
-              </Text>
-            </Pressable>
-          </View>
+          <AppHeader
+            bgClassName="bg-surface-dark"
+            leadingNode={<CeolxLogo />}
+            trailingAccessory={
+              <Pressable
+                onPress={handleSkip}
+                className="border border-gray-10 rounded-[20px] h-9 px-5 items-center justify-center"
+              >
+                <Text className="text-white text-xs font-bold tracking-wide uppercase font-sans">
+                  skip
+                </Text>
+              </Pressable>
+            }
+          />
 
           <ScrollView
             contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 24, paddingBottom: 40 }}
