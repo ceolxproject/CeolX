@@ -59,3 +59,47 @@ export function shapeUserRow(raw: RawUserRow): UserRow {
     flaggedInactive: raw.flaggedInactive,
   };
 }
+
+export const toIso = (d: Date | null | undefined): string | null => (d ? d.toISOString() : null);
+
+// Rich list row for the users table — only the columns the table renders.
+export type RawRichUserRow = {
+  id: string;
+  name: string;
+  email: string;
+  currentRole: string;
+  lastLoginAt: Date | null;
+  flaggedInactive: boolean | null;
+  emailVerified: boolean;
+  image: string | null;
+  venueSubscriptionStatus: string | null;
+  artistActive: boolean | null;
+  profileImageUrl: string | null;
+  eventsCount: number;
+  authProviders: string[];
+};
+
+export type RichUserRow = Omit<RawRichUserRow, 'lastLoginAt'> & {
+  lastLoginAt: string | null;
+};
+
+export function shapeRichUserRow(raw: RawRichUserRow): RichUserRow {
+  return {
+    ...raw,
+    flaggedInactive: raw.flaggedInactive ?? false,
+    lastLoginAt: toIso(raw.lastLoginAt),
+    authProviders: raw.authProviders ?? [],
+  };
+}
+
+// Friendly OS label from a raw user-agent string — naive substring match, no dependency.
+// Swap for `ua-parser-js` only if we ever need browser/version detail.
+export function osFromUserAgent(ua: string | null | undefined): string | null {
+  if (!ua) return null;
+  if (/iphone|ipad|ios|cfnetwork|darwin/i.test(ua)) return 'iOS';
+  if (/android/i.test(ua)) return 'Android';
+  if (/windows/i.test(ua)) return 'Windows';
+  if (/mac os|macintosh/i.test(ua)) return 'macOS';
+  if (/linux/i.test(ua)) return 'Linux';
+  return null;
+}
