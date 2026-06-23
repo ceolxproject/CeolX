@@ -1,4 +1,3 @@
-import { Ionicons } from '@expo/vector-icons';
 import type { BottomSheetModal } from '@gorhom/bottom-sheet';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useRef, useState } from 'react';
@@ -13,7 +12,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { BellWithBadge } from '@/components/notifications/BellWithBadge';
+import { AppHeader } from '@/components/AppHeader';
 import { PostsList } from '@/components/posts/PostsList';
 import {
   EventsTab,
@@ -120,13 +119,7 @@ export default function VenueProfileScreen() {
         }
         showsVerticalScrollIndicator={false}
       >
-        {/* Header bar */}
-        <View className="flex-row items-center justify-between px-4 py-3">
-          <Pressable onPress={() => router.back()}>
-            <Ionicons name="arrow-back" size={24} color="#fff" />
-          </Pressable>
-          <BellWithBadge onPress={() => router.push('/notifications')} size={24} />
-        </View>
+        <AppHeader leading="back" showBell />
 
         <ProfileHeader
           displayName={profile.displayName}
