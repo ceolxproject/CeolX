@@ -2,6 +2,7 @@ import { render } from '@react-email/render';
 import * as React from 'react';
 import { describe, expect, it } from 'vitest';
 
+import { CollaboratorInviteEmail } from '../templates/collaborator-invite.js';
 import { EventApprovedEmail } from '../templates/event-approved.js';
 import { EventRejectedEmail } from '../templates/event-rejected.js';
 import { NotificationEmail } from '../templates/notification.js';
@@ -160,5 +161,37 @@ describe('NotificationEmail', () => {
     const html = await render(React.createElement(NotificationEmail, { ...props, userName: '' }));
     // React Email inserts <!-- --> between text nodes around the fallback
     expect(html).toContain('>there<');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// collaborator-invite (matrix A-14 — outside-platform invite)
+// ---------------------------------------------------------------------------
+describe('CollaboratorInviteEmail', () => {
+  const props = {
+    inviterName: 'The Temple Bar',
+    eventTitle: 'Trad Night',
+    eventDate: '1 May',
+    inviteUrl: 'https://ceolx.ie/invite/tok-abc',
+  };
+
+  it('names the inviter, the event, and the join link', async () => {
+    const html = await render(React.createElement(CollaboratorInviteEmail, props));
+    expect(html).toContain('The Temple Bar');
+    expect(html).toContain('Trad Night');
+    expect(html).toContain('https://ceolx.ie/invite/tok-abc');
+  });
+
+  it('mentions the 14-day expiry (R: link TTL)', async () => {
+    const html = await render(React.createElement(CollaboratorInviteEmail, props));
+    expect(html).toMatch(/14 days/i);
+  });
+
+  it('renders cleanly without an event date', async () => {
+    const html = await render(
+      React.createElement(CollaboratorInviteEmail, { ...props, eventDate: undefined })
+    );
+    expect(html).toContain('Trad Night');
+    expect(html).not.toContain('1 May');
   });
 });

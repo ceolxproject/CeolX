@@ -9,6 +9,7 @@ export { sendPaymentConfirmationEmail } from './senders/payment-confirmation.js'
 export { sendEventApprovedEmail } from './senders/event-approved.js';
 export { sendEventRejectedEmail } from './senders/event-rejected.js';
 export { sendNotificationEmail } from './senders/notification.js';
+export { sendCollaboratorInviteEmail } from './senders/collaborator-invite.js';
 
 export type { EmailTransport } from './client.js';
 export type { EmailTemplate, EmailTemplateMap, SendEmailOptions } from './types.js';

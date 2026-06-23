@@ -70,4 +70,14 @@ describe('subjectFor', () => {
       })
     ).toBe('New booking request — "Trad Night"');
   });
+
+  it('names the inviter and event for collaborator-invite (matrix A-14)', () => {
+    expect(
+      subjectFor('collaborator-invite', {
+        inviterName: 'The Temple Bar',
+        eventTitle: 'Trad Night',
+        inviteUrl: 'https://ceolx.ie/invite/tok-abc',
+      })
+    ).toBe('The Temple Bar added you to "Trad Night" on CeolX');
+  });
 });

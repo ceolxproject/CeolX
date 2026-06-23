@@ -49,6 +49,18 @@ export type EmailTemplateMap = {
     body: string;
     ctaUrl: string;
   };
+  /**
+   * Outside-platform collaborator invite (matrix A-14). Sent to a non-platform
+   * artist a venue tagged by name+email. The recipient has no account yet, so
+   * there is no `userName`. `inviteUrl` is the public `ceolx.ie/invite/:token`
+   * landing; the link expires in 14 days.
+   */
+  'collaborator-invite': {
+    inviterName: string;
+    eventTitle: string;
+    eventDate?: string;
+    inviteUrl: string;
+  };
 };
 
 export type EmailTemplate = keyof EmailTemplateMap;

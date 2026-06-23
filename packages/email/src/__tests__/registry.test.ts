@@ -11,6 +11,7 @@ const ALL_TEMPLATES: EmailTemplate[] = [
   'event-approved',
   'event-rejected',
   'notification',
+  'collaborator-invite',
 ];
 
 describe('email template registry', () => {

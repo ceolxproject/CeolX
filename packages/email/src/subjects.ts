@@ -22,6 +22,8 @@ const builders: SubjectBuilders = {
   'event-rejected': ({ eventTitle }) => `Action needed — "${eventTitle}"`,
   // Subject is pre-built from the trigger's EMAIL SurfaceCopy upstream.
   notification: ({ subject }) => subject,
+  'collaborator-invite': ({ inviterName, eventTitle }) =>
+    `${inviterName} added you to "${eventTitle}" on CeolX`,
 };
 
 export function subjectFor<T extends EmailTemplate>(

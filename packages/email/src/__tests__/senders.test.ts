@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { sendEmail } from '../send.js';
+import { sendCollaboratorInviteEmail } from '../senders/collaborator-invite.js';
 import { sendEventApprovedEmail } from '../senders/event-approved.js';
 import { sendEventRejectedEmail } from '../senders/event-rejected.js';
 import { sendNotificationEmail } from '../senders/notification.js';
@@ -154,5 +155,37 @@ describe('sendNotificationEmail', () => {
       ctaUrl: 'https://api.ceolx.com/r?to=%2Fbookings%2Fb-2',
     });
     expect(vi.mocked(sendEmail).mock.calls[0]?.[0].data).toMatchObject({ userName: '' });
+  });
+});
+
+describe('sendCollaboratorInviteEmail', () => {
+  it('dispatches the collaborator-invite template with inviter, event, and URL', async () => {
+    await sendCollaboratorInviteEmail({
+      to: 'artist@example.com',
+      inviterName: 'The Temple Bar',
+      eventTitle: 'Trad Night',
+      eventDate: '1 May',
+      inviteUrl: 'https://ceolx.ie/invite/tok-abc',
+    });
+    expect(sendEmail).toHaveBeenCalledWith({
+      to: 'artist@example.com',
+      template: 'collaborator-invite',
+      data: {
+        inviterName: 'The Temple Bar',
+        eventTitle: 'Trad Night',
+        eventDate: '1 May',
+        inviteUrl: 'https://ceolx.ie/invite/tok-abc',
+      },
+    });
+  });
+
+  it('omits eventDate when not provided', async () => {
+    await sendCollaboratorInviteEmail({
+      to: 'artist@example.com',
+      inviterName: 'The Temple Bar',
+      eventTitle: 'Trad Night',
+      inviteUrl: 'https://ceolx.ie/invite/tok-abc',
+    });
+    expect(vi.mocked(sendEmail).mock.calls[0]?.[0].data).not.toHaveProperty('eventDate');
   });
 });
