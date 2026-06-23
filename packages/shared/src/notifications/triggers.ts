@@ -104,7 +104,10 @@ export const NOTIFICATION_TRIGGERS: Record<NotificationTrigger, TriggerDefinitio
       title: 'New booking invite',
       body: '{venueName} invited you to play "{eventTitle}" on {date}. Respond before it expires.',
     },
-    email: null,
+    email: {
+      title: 'You\'ve been invited to play "{eventTitle}"',
+      body: '{venueName} invited you to perform at "{eventTitle}" on {date}.',
+    },
   },
   [NotificationTrigger.BOOKING_REQUEST_TO_VENUE]: {
     matrixRef: 'V-09',
@@ -119,7 +122,10 @@ export const NOTIFICATION_TRIGGERS: Record<NotificationTrigger, TriggerDefinitio
       title: 'New booking request',
       body: '{artistName} applied for "{eventTitle}" on {date}. Review and respond.',
     },
-    email: null,
+    email: {
+      title: 'New booking request — "{eventTitle}"',
+      body: '{artistName} applied to play "{eventTitle}" on {date}.',
+    },
   },
   [NotificationTrigger.BOOKING_ACCEPTED_TO_ARTIST]: {
     matrixRef: 'A-10',
@@ -134,7 +140,10 @@ export const NOTIFICATION_TRIGGERS: Record<NotificationTrigger, TriggerDefinitio
       title: 'Booking Accepted ✓',
       body: 'You\'re confirmed for "{eventTitle}" at {venueName} on {date}.',
     },
-    email: null,
+    email: {
+      title: 'Booking confirmed — "{eventTitle}"',
+      body: '{venueName} accepted your application for "{eventTitle}" on {date}.',
+    },
   },
   [NotificationTrigger.BOOKING_ACCEPTED_TO_VENUE]: {
     matrixRef: 'V-10',
@@ -149,7 +158,10 @@ export const NOTIFICATION_TRIGGERS: Record<NotificationTrigger, TriggerDefinitio
       title: 'Booking Accepted ✓',
       body: '{artistName} is confirmed for "{eventTitle}" on {date}.',
     },
-    email: null,
+    email: {
+      title: 'Artist confirmed — "{eventTitle}"',
+      body: '{artistName} accepted your invitation to play "{eventTitle}" on {date}.',
+    },
   },
   [NotificationTrigger.BOOKING_REJECTED_TO_ARTIST]: {
     matrixRef: 'A-11',
@@ -164,7 +176,10 @@ export const NOTIFICATION_TRIGGERS: Record<NotificationTrigger, TriggerDefinitio
       title: 'Booking Not Accepted',
       body: '{venueName} has passed on your application for "{eventTitle}" on {date}.',
     },
-    email: null,
+    email: {
+      title: 'Update on your booking request',
+      body: '{venueName} has decided not to move ahead with your application for "{eventTitle}" on {date}.',
+    },
   },
   [NotificationTrigger.BOOKING_REJECTED_TO_VENUE]: {
     matrixRef: 'V-11',
@@ -179,7 +194,10 @@ export const NOTIFICATION_TRIGGERS: Record<NotificationTrigger, TriggerDefinitio
       title: 'Invitation Declined',
       body: '{artistName} declined your invitation for "{eventTitle}" on {date}.',
     },
-    email: null,
+    email: {
+      title: 'Update on your booking invite',
+      body: '{artistName} won\'t be able to play "{eventTitle}" on {date}.',
+    },
   },
   [NotificationTrigger.BOOKING_WITHDRAWN_TO_VENUE]: {
     matrixRef: 'V-13',
@@ -194,7 +212,10 @@ export const NOTIFICATION_TRIGGERS: Record<NotificationTrigger, TriggerDefinitio
       title: 'Application Withdrawn',
       body: '{artistName} withdrew their application for "{eventTitle}" on {date}.',
     },
-    email: null,
+    email: {
+      title: 'Application withdrawn — "{eventTitle}"',
+      body: '{artistName} withdrew their application for "{eventTitle}" on {date}. The slot is open again.',
+    },
   },
   // No matrix row for the inverse — Venue withdrawing a pending invitation —
   // mirror V-13 phrasing. Flag for Pratiksha's matrix audit.
@@ -226,7 +247,10 @@ export const NOTIFICATION_TRIGGERS: Record<NotificationTrigger, TriggerDefinitio
       title: 'Booking Cancelled',
       body: '{venueName} cancelled your confirmed booking for "{eventTitle}" on {date}.',
     },
-    email: null,
+    email: {
+      title: '"{eventTitle}" — booking cancelled',
+      body: '{venueName} cancelled the confirmed booking for "{eventTitle}" on {date}.',
+    },
   },
   [NotificationTrigger.BOOKING_CANCELLED_TO_VENUE]: {
     matrixRef: 'V-12',
@@ -241,7 +265,10 @@ export const NOTIFICATION_TRIGGERS: Record<NotificationTrigger, TriggerDefinitio
       title: 'Booking Cancelled',
       body: '{artistName} cancelled the confirmed booking for "{eventTitle}" on {date}.',
     },
-    email: null,
+    email: {
+      title: '"{eventTitle}" — booking cancelled',
+      body: '{artistName} cancelled the confirmed booking for "{eventTitle}" on {date}.',
+    },
   },
   // Artist↔artist booking triggers (A-09a…A-13a). The single {coArtistName}
   // placeholder is always "the OTHER co-artist, from the recipient's

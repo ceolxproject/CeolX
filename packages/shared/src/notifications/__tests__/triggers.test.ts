@@ -201,17 +201,42 @@ describe('buildNotification — inApp surface diverges from push', () => {
   });
 });
 
-// ─── Email surface is null until M7-T3 ───────────────────────────────────────
+// ─── Email surface — booking lifecycle wired in M7-T4 PR1 ────────────────────
 
 describe('buildNotification — email surface', () => {
-  it('throws a clear error pointing at the matrix ref until M7-T3 wires copy', () => {
+  it('A-09 invite-to-artist email carries subject + body (matrix copy)', () => {
+    const n = buildNotification(
+      NotificationTrigger.BOOKING_INVITE_TO_ARTIST,
+      NotificationSurface.EMAIL,
+      baseVars
+    );
+    expect(n.title).toBe('You\'ve been invited to play "Friday Night Trad Session"');
+    expect(n.body).toBe(
+      'The Temple Bar invited you to perform at "Friday Night Trad Session" on Fri 1 May.'
+    );
+    expect(n.route).toBe('/(app)/(tabs)/bookings/b-123');
+    expect(n.persona).toBe('artist');
+  });
+
+  it('V-09 booking-request-to-venue email is populated', () => {
+    const n = buildNotification(
+      NotificationTrigger.BOOKING_REQUEST_TO_VENUE,
+      NotificationSurface.EMAIL,
+      baseVars
+    );
+    expect(n.title).toBe('New booking request — "Friday Night Trad Session"');
+    expect(n.body).toContain('Celtic Thunder applied to play');
+  });
+
+  it('still throws for triggers with no email copy (e.g. co-artist invite)', () => {
     expect(() =>
-      buildNotification(
-        NotificationTrigger.BOOKING_INVITE_TO_ARTIST,
-        NotificationSurface.EMAIL,
-        baseVars
-      )
-    ).toThrow(/A-09/);
+      buildNotification(NotificationTrigger.BOOKING_INVITE_TO_COARTIST, NotificationSurface.EMAIL, {
+        bookingId: 'b1',
+        coArtistName: 'Tune Bomb',
+        eventTitle: 'Trad Night',
+        date: 'Fri 6 Jun',
+      })
+    ).toThrow(/A-09a/);
   });
 });
 
