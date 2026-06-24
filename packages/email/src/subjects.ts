@@ -24,6 +24,7 @@ const builders: SubjectBuilders = {
   notification: ({ subject }) => subject,
   'collaborator-invite': ({ inviterName, eventTitle }) =>
     `${inviterName} added you to "${eventTitle}" on CeolX`,
+  'account-deleted': () => 'Your CeolX account has been deleted',
 };
 
 export function subjectFor<T extends EmailTemplate>(

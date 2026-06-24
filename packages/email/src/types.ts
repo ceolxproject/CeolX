@@ -61,6 +61,12 @@ export type EmailTemplateMap = {
     eventDate?: string;
     inviteUrl: string;
   };
+  /**
+   * GDPR erasure confirmation (matrix S-06 / A-18 / V-17). Sent to the account's
+   * original email immediately after anonymisation. No CTA — the account no
+   * longer exists. `userName` is the pre-erasure display name (may be empty).
+   */
+  'account-deleted': { userName: string };
 };
 
 export type EmailTemplate = keyof EmailTemplateMap;

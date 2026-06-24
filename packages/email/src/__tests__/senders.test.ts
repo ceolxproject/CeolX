@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { sendEmail } from '../send.js';
+import { sendAccountDeletedEmail } from '../senders/account-deleted.js';
 import { sendCollaboratorInviteEmail } from '../senders/collaborator-invite.js';
 import { sendEventApprovedEmail } from '../senders/event-approved.js';
 import { sendEventRejectedEmail } from '../senders/event-rejected.js';
@@ -154,6 +155,22 @@ describe('sendNotificationEmail', () => {
       body: 'Confirmed.',
       ctaUrl: 'https://api.ceolx.com/r?to=%2Fbookings%2Fb-2',
     });
+    expect(vi.mocked(sendEmail).mock.calls[0]?.[0].data).toMatchObject({ userName: '' });
+  });
+});
+
+describe('sendAccountDeletedEmail', () => {
+  it('dispatches the account-deleted template with userName', async () => {
+    await sendAccountDeletedEmail({ to: 'gone@example.com', userName: 'Aoife' });
+    expect(sendEmail).toHaveBeenCalledWith({
+      to: 'gone@example.com',
+      template: 'account-deleted',
+      data: { userName: 'Aoife' },
+    });
+  });
+
+  it('defaults userName to empty string when omitted', async () => {
+    await sendAccountDeletedEmail({ to: 'gone@example.com' });
     expect(vi.mocked(sendEmail).mock.calls[0]?.[0].data).toMatchObject({ userName: '' });
   });
 });

@@ -80,4 +80,10 @@ describe('subjectFor', () => {
       })
     ).toBe('The Temple Bar added you to "Trad Night" on CeolX');
   });
+
+  it('returns the matrix S-06 subject for account-deleted', () => {
+    expect(subjectFor('account-deleted', { userName: 'Aoife' })).toBe(
+      'Your CeolX account has been deleted'
+    );
+  });
 });

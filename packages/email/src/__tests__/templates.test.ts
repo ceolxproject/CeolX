@@ -2,6 +2,7 @@ import { render } from '@react-email/render';
 import * as React from 'react';
 import { describe, expect, it } from 'vitest';
 
+import { AccountDeletedEmail } from '../templates/account-deleted.js';
 import { CollaboratorInviteEmail } from '../templates/collaborator-invite.js';
 import { EventApprovedEmail } from '../templates/event-approved.js';
 import { EventRejectedEmail } from '../templates/event-rejected.js';
@@ -160,6 +161,22 @@ describe('NotificationEmail', () => {
   it('falls back to a generic greeting when userName is empty', async () => {
     const html = await render(React.createElement(NotificationEmail, { ...props, userName: '' }));
     // React Email inserts <!-- --> between text nodes around the fallback
+    expect(html).toContain('>there<');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// account-deleted (matrix S-06 / A-18 / V-17 — GDPR erasure confirmation)
+// ---------------------------------------------------------------------------
+describe('AccountDeletedEmail', () => {
+  it('confirms deletion and greets the user by name', async () => {
+    const html = await render(React.createElement(AccountDeletedEmail, { userName: 'Aoife' }));
+    expect(html).toContain('Aoife');
+    expect(html).toMatch(/deleted/i);
+  });
+
+  it('falls back to "there" when userName is empty', async () => {
+    const html = await render(React.createElement(AccountDeletedEmail, { userName: '' }));
     expect(html).toContain('>there<');
   });
 });

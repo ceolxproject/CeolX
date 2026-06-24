@@ -1,5 +1,6 @@
 import type { ComponentType } from 'react';
 
+import { AccountDeletedEmail } from './templates/account-deleted.js';
 import { CollaboratorInviteEmail } from './templates/collaborator-invite.js';
 import { EventApprovedEmail } from './templates/event-approved.js';
 import { EventRejectedEmail } from './templates/event-rejected.js';
@@ -30,4 +31,5 @@ export const registry: TemplateRegistry = {
   'event-rejected': { component: EventRejectedEmail },
   notification: { component: NotificationEmail },
   'collaborator-invite': { component: CollaboratorInviteEmail },
+  'account-deleted': { component: AccountDeletedEmail },
 };

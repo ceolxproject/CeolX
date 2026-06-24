@@ -12,6 +12,7 @@ const ALL_TEMPLATES: EmailTemplate[] = [
   'event-rejected',
   'notification',
   'collaborator-invite',
+  'account-deleted',
 ];
 
 describe('email template registry', () => {
