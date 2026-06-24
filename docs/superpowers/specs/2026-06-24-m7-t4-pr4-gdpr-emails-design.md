@@ -179,8 +179,15 @@ changes — no runtime change.
 
 **Dispatcher**
 
-- Type-level: `tsc -b` on `apps/server` is green — the `collaborator-invite` /
-  `account-deleted` exhaustiveness break is gone.
+- Type-level: the `TS2741` exhaustiveness error in `handlers/email.ts`
+  (`Property '"collaborator-invite"' is missing ... in type 'Record<keyof EmailTemplateMap, Dispatch>'`)
+  is gone after re-keying to `QueueableEmailTemplate`. A fresh `turbo run check-types --filter=server`
+  no longer reports `TS2741`.
+- **Known unrelated:** `server#check-types` also emits pre-existing `TS2875`
+  (`hono/jsx/jsx-runtime`) errors on every `.tsx` email template — a JSX-runtime
+  misconfig present on `development` before this PR, **out of scope** here. The real
+  pre-push/CI build gate is `turbo build` (tsdown), which does not type-check and is
+  unaffected. PR4 does not make `TS2875` better or worse beyond adding one more `.tsx`.
 
 ---
 
