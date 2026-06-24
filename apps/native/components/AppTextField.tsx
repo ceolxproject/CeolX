@@ -87,9 +87,7 @@ export function AppTextField({
 }: AppTextFieldProps) {
   const [visible, setVisible] = useState(!secureTextEntry);
   const v = VARIANT[variant];
-  // When the field is capped, surface a consistent "limit reached" note the
-  // moment the value hits maxLength — otherwise the input just stops accepting
-  // characters silently and reads as broken. The note renders only at the cap.
+  // Current length, fed to the cap note below.
   const count = typeof value === 'string' ? value.length : 0;
 
   return (
@@ -130,6 +128,10 @@ export function AppTextField({
         ) : null}
       </View>
       {error ? <Text className="mt-1 text-xs text-error">{error}</Text> : null}
+      {/* When the field is capped, surface a consistent "limit reached" note the
+          moment the value hits maxLength — otherwise the input just stops
+          accepting characters silently and reads as broken. CharacterLimitNote
+          renders only at the cap. */}
       {maxLength !== undefined ? (
         <CharacterLimitNote count={count} max={maxLength} className="mt-1" />
       ) : null}

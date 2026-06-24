@@ -21,7 +21,8 @@ export interface HeaderAction {
   onPress: () => void;
   /** Required — e.g. "Save event", "Share", "New collection". */
   accessibilityLabel: string;
-  /** Active pill highlight (bg #C8FF2F + dark icon). Implies pill chrome. */
+  /** Active pill highlight (bg #C8FF2F + dark icon). Implies pill chrome — when
+   * true, `pill` is redundant and ignored. */
   active?: boolean;
   /** Render the rounded #1d1d1d pill at rest (Feed calendar/filter style). */
   pill?: boolean;
@@ -32,7 +33,41 @@ export interface HeaderAction {
   disabled?: boolean;
 }
 
-export interface AppHeaderProps {
+/**
+ * Trailing cluster props shared by both variants.
+ * Order is fixed: [bell?][...actions][trailingAccessory?].
+ */
+interface SharedTrailingProps {
+  /** Notification bell as the first trailing item. Primary surfaces only. */
+  showBell?: boolean;
+  onBellPress?: () => void;
+  bellSize?: number;
+  actions?: HeaderAction[];
+  /** Non-icon trailing content after bell + actions (Save, Mark-all link, SKIP). */
+  trailingAccessory?: ReactNode;
+  className?: string;
+}
+
+/**
+ * Floating map overlay: absolute, translucent back pill + top inset. Only the
+ * back leading, a centered title, and the trailing cluster are honoured — the
+ * default-variant leading/title/layout props are not representable here.
+ */
+interface FloatingHeaderProps extends SharedTrailingProps {
+  variant: 'floating';
+  /** 'logo' is unsupported in the floating overlay. */
+  leading?: 'back' | 'none';
+  /** Custom back handler. Falls back to smart router.back() when omitted. */
+  onBack?: () => void;
+  /** Route used when the stack can't pop. Default Discover. */
+  backFallback?: Href;
+  title?: string;
+}
+
+/** Default in-flow header bar. */
+interface DefaultHeaderProps extends SharedTrailingProps {
+  variant?: 'default';
+
   /* ---- Leading ---- */
   /** 'logo' = brand wordmark, 'back' = arrow + smart back, 'none' = no leading. */
   leading?: 'logo' | 'back' | 'none';
@@ -42,62 +77,47 @@ export interface AppHeaderProps {
   backFallback?: Href;
   /** Logo size when leading='logo'. Default 18. */
   logoFontSize?: number;
-  /** Escape hatch replacing the leading slot entirely (e.g. onboarding logout). */
+  /** Escape hatch replacing the leading slot entirely (e.g. onboarding logout).
+   * Takes precedence over `leading` when set. */
   leadingNode?: ReactNode;
 
   /* ---- Title ---- */
   title?: string;
-  /** Escape hatch for a custom title node (e.g. an editable TextInput). */
+  /** Escape hatch for a custom title node (e.g. an editable TextInput).
+   * Takes precedence over `title`/`titleSize` when set. */
   titleNode?: ReactNode;
   titleAlign?: 'left' | 'center';
   /** 'bar' = text-lg bold (default); 'display' = 28px Urbanist hero title. */
   titleSize?: 'bar' | 'display';
 
-  /* ---- Trailing (order is fixed: [bell?][...actions][trailingAccessory?]) ---- */
-  /** Notification bell as the first trailing item. Primary surfaces only. */
-  showBell?: boolean;
-  onBellPress?: () => void;
-  bellSize?: number;
-  actions?: HeaderAction[];
-  /** Non-icon trailing content after bell + actions (Save, Mark-all link, SKIP). */
-  trailingAccessory?: ReactNode;
-
-  /* ---- Layout / variant ---- */
-  /** 'floating' = absolute overlay for the map (translucent back + top inset). */
-  variant?: 'default' | 'floating';
+  /* ---- Layout ---- */
   /** Add top safe-area inset inside the header (screens without a SafeAreaView). */
   insetTop?: boolean;
   /** Bottom hairline border. */
   bordered?: boolean;
   /** Background override (default transparent — parent paints the surface). */
   bgClassName?: string;
-  className?: string;
 }
+
+export type AppHeaderProps = FloatingHeaderProps | DefaultHeaderProps;
 
 const DEFAULT_FALLBACK = '/(app)/(tabs)/discover' as Href;
 
-export function AppHeader({
-  leading = 'none',
-  onBack,
-  backFallback = DEFAULT_FALLBACK,
-  logoFontSize = 18,
-  leadingNode,
-  title,
-  titleNode,
-  titleAlign = 'left',
-  titleSize = 'bar',
-  showBell = false,
-  onBellPress,
-  bellSize = 24,
-  actions,
-  trailingAccessory,
-  variant = 'default',
-  insetTop = false,
-  bordered = false,
-  bgClassName,
-  className,
-}: AppHeaderProps) {
+export function AppHeader(props: AppHeaderProps) {
   const insets = useSafeAreaInsets();
+
+  // Props common to both variants (SharedTrailingProps + leading/back). Variant-
+  // specific props are read after narrowing by `props.variant` below.
+  const {
+    leading = 'none',
+    onBack,
+    backFallback = DEFAULT_FALLBACK,
+    showBell = false,
+    onBellPress,
+    bellSize = 24,
+    actions,
+    trailingAccessory,
+  } = props;
 
   const handleBack = useCallback(() => {
     if (onBack) return onBack();
@@ -153,8 +173,9 @@ export function AppHeader({
     </View>
   ) : null;
 
-  /* ---- Floating map overlay (reproduces the old MapHeader exactly) ---- */
-  if (variant === 'floating') {
+  /* ---- Floating map overlay — mirrors the old MapHeader's layout
+     (back pill, centered title). ---- */
+  if (props.variant === 'floating') {
     return (
       <View
         className="absolute left-0 right-0 h-[52px] flex-row items-center px-4"
@@ -172,12 +193,12 @@ export function AppHeader({
         ) : (
           <View className="w-12" />
         )}
-        {title ? (
+        {props.title ? (
           <Text
             className="flex-1 text-center text-white text-[28px] font-bold"
             style={{ fontFamily: 'Urbanist_700Bold' }}
           >
-            {title}
+            {props.title}
           </Text>
         ) : (
           <View className="flex-1" />
@@ -186,6 +207,20 @@ export function AppHeader({
       </View>
     );
   }
+
+  // From here on, props is the default variant.
+  const {
+    logoFontSize = 18,
+    leadingNode,
+    title,
+    titleNode,
+    titleAlign = 'left',
+    titleSize = 'bar',
+    insetTop = false,
+    bordered = false,
+    bgClassName,
+    className,
+  } = props;
 
   /* ---- Leading slot ---- */
   let leadingEl: ReactNode = null;

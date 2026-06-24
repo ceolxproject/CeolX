@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Text, TextInput, View } from 'react-native';
 
-import { VENUE_ONBOARDING_NAME_MAX } from '@CeolX/shared/validators';
+import { VENUE_NAME_MAX } from '@CeolX/shared/validators';
 
 import { AppTextField } from '@/components/AppTextField';
 import { ProfilePicture } from '@/components/onboarding/ProfilePicture';
@@ -60,7 +60,7 @@ export function Step1BasicInfo({
             autoCapitalize="words"
             autoCorrect={false}
             error={errors.venueName}
-            maxLength={VENUE_ONBOARDING_NAME_MAX}
+            maxLength={VENUE_NAME_MAX}
           />
         </View>
 

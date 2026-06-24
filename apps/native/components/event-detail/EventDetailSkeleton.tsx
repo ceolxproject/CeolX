@@ -33,7 +33,7 @@ export function EventDetailSkeleton({ className }: EventDetailSkeletonProps) {
   const pulseStyle = useAnimatedStyle(() => ({ opacity: pulse.value }));
 
   return (
-    // Match the live screen's background (#363636) so there's no dark flash on swap.
+    // Uses the same bg-background token as EventDetailView so there's no flash on swap.
     <View className={cn('flex-1 bg-background px-4', className)} style={{ paddingTop: insets.top }}>
       {/* Header placeholder */}
       <View className="flex-row items-center justify-between h-14">

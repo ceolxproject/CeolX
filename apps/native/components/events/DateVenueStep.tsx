@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import * as Sentry from '@sentry/react-native';
 import { useQuery } from '@tanstack/react-query';
 import { cn } from 'heroui-native';
 import { useEffect, useState } from 'react';
@@ -120,8 +121,15 @@ export function DateVenueStep({
           "Your venue address was set but we couldn't find it on the map. You can adjust the pin manually."
         );
       }
-    } catch {
+    } catch (err) {
+      // Geocode threw — set the address text and tell the user the pin couldn't
+      // be placed (mirrors the zero-results branch above, not a silent fallback).
+      Sentry.captureException(err, { tags: { feature: 'venue-prefill-geocode' } });
       onVenueAddressChange(myVenueAddress);
+      Alert.alert(
+        'Could not locate address',
+        "Your venue address was set but we couldn't find it on the map. You can adjust the pin manually."
+      );
     } finally {
       setIsPreFilling(false);
     }

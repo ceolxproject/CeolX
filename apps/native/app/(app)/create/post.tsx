@@ -1,4 +1,3 @@
-import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
@@ -15,6 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { createPostSchema, POST_CAPTION_MAX, updatePostSchema } from '@CeolX/shared/validators';
 
+import { AppHeader } from '@/components/AppHeader';
 import { appToast } from '@/components/AppToast';
 import { CharacterCount, CharacterLimitNote } from '@/components/CharacterCount';
 import { MediaPickerField } from '@/components/posts/MediaPickerField';
@@ -204,11 +204,7 @@ export default function CreatePostScreen() {
           and the keyboard covers it — matches the wrapper used on every other
           form (change-password, events/create). */}
       <KeyboardAvoidingView behavior="padding" style={{ flex: 1 }}>
-        <View className="flex-row items-center p-5">
-          <Pressable onPress={() => router.back()} hitSlop={8}>
-            <Ionicons name="arrow-back" size={24} color="#fff" />
-          </Pressable>
-        </View>
+        <AppHeader leading="back" />
 
         <ScrollView
           contentContainerStyle={{ paddingBottom: 32 }}

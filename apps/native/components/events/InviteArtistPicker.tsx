@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import * as Sentry from '@sentry/react-native';
 import { useQuery } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 import {
@@ -6,6 +7,7 @@ import {
   Alert,
   Image,
   KeyboardAvoidingView,
+  Linking,
   Modal,
   Pressable,
   ScrollView,
@@ -104,11 +106,32 @@ export function InviteArtistPicker({
   async function handlePickInviteImage() {
     const perm = await requestPhotoLibraryPermission();
     if (!perm.granted) {
-      Alert.alert('Permission needed', 'Please allow access to your photo library.');
+      // canAskAgain === false means the OS prompt is gone for good — sending the
+      // user to Settings is the only way to grant access from here.
+      if (perm.canAskAgain) {
+        Alert.alert('Permission needed', 'Please allow access to your photo library.');
+      } else {
+        Alert.alert(
+          'Permission needed',
+          'Photo access is off. Enable it in Settings to add an artist image.',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Open Settings', onPress: () => void Linking.openSettings() },
+          ]
+        );
+      }
       return;
     }
-    const uri = await pickSquarePhoto();
-    if (uri) setInviteImageUri(uri);
+    try {
+      const uri = await pickSquarePhoto();
+      if (uri) setInviteImageUri(uri);
+    } catch (err) {
+      Sentry.captureException(err, { tags: { feature: 'invite-artist-avatar' } });
+      Alert.alert(
+        'Could not open photos',
+        'Something went wrong opening your library. Please try again.'
+      );
+    }
   }
 
   async function handleSendInvite() {
@@ -133,8 +156,14 @@ export function InviteArtistPicker({
       try {
         const { cdnUrl } = await uploadMedia({ uri: inviteImageUri });
         imageUrl = cdnUrl;
-      } catch {
-        Alert.alert('Upload failed', 'Could not upload the artist image. Please try again.');
+      } catch (err) {
+        Sentry.captureException(err, { tags: { feature: 'invite-artist-avatar' } });
+        Alert.alert(
+          'Upload failed',
+          err instanceof Error
+            ? err.message
+            : 'Could not upload the artist image. Please try again.'
+        );
         return;
       }
     }

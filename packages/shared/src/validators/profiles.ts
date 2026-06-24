@@ -9,12 +9,11 @@ export const BIO_MAX_LENGTH = 150;
 
 // Name caps (characters), exported so the onboarding + profile UIs cap inputs
 // with the same values the schemas enforce. STAGE_NAME_MAX covers the artist
-// stage/display name everywhere it appears. The venue name cap differs across
-// schemas (onboarding 255 vs profile 100 vs update 150) — that cross-schema
-// discrepancy is flagged for the team, not unified here; only the onboarding
-// value is centralized since that's the field the onboarding UI caps.
+// stage/display name everywhere it appears. VENUE_NAME_MAX is unified to the DB
+// column width (venue_name varchar(255)) across onboarding, profile and update
+// so a name accepted at onboarding can't later be rejected on edit.
 export const STAGE_NAME_MAX = 100;
-export const VENUE_ONBOARDING_NAME_MAX = 255;
+export const VENUE_NAME_MAX = 255;
 
 // Optional bio field with the shared cap. `label` tailors the message ("Bio" on
 // artist screens, "Description" on venue screens) while the limit stays unified.
@@ -105,7 +104,7 @@ export const venueLinksSchema = z.object({
 // Per-step schemas power the multi-step wizard UI in apps/native.
 // The merged createVenueOnboardingSchema is the server contract — its shape must stay equivalent to the prior flat schema (asserted in validators.test.ts).
 export const venueOnboardingStep1Schema = z.object({
-  venueName: z.string().min(1, 'Venue name is required').max(VENUE_ONBOARDING_NAME_MAX).trim(),
+  venueName: z.string().min(1, 'Venue name is required').max(VENUE_NAME_MAX).trim(),
   contactEmail: z.string().email('Invalid email address').optional(),
   profileImageUrl: z.string().url().optional(),
 });
@@ -176,7 +175,7 @@ export const updateArtistProfileSchema = z.object({
 });
 
 export const venueProfileSchema = z.object({
-  venueName: z.string().min(1, 'Venue name is required').max(100).trim(),
+  venueName: z.string().min(1, 'Venue name is required').max(VENUE_NAME_MAX).trim(),
   address: z.string().min(1, 'Address is required').max(300).trim(),
   bio: bioField('Description'),
   profileImageUrl: z.string().url().optional(),
@@ -184,7 +183,7 @@ export const venueProfileSchema = z.object({
 
 /** Input schema for venues.updateMe — all fields optional (partial update). */
 export const updateVenueProfileSchema = z.object({
-  displayName: z.string().min(1).max(150).trim().optional(), // maps to venueName in DB
+  displayName: z.string().min(1).max(VENUE_NAME_MAX).trim().optional(), // maps to venueName in DB
   bio: bioField('Description'),
   address: z.string().max(255).trim().optional(),
   county: z.string().max(100).trim().optional(),
