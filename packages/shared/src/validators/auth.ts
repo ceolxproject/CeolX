@@ -2,6 +2,7 @@ import { z } from 'zod';
 
 export const passwordSchema = z
   .string()
+  .min(1, 'Password is required')
   .min(8, 'Minimum 8 characters')
   .regex(/[A-Z]/, 'Must include an uppercase letter')
   .regex(/[a-z]/, 'Must include a lowercase letter')
@@ -10,6 +11,7 @@ export const passwordSchema = z
 
 const emailField = z
   .string()
+  .min(1, 'Email is required')
   .check(z.email())
   .transform((s) => s.toLowerCase());
 
