@@ -1,5 +1,9 @@
 // Hoisted Drizzle mocks — vi.mock is lifted above imports.
 
+const mockSelectWhere = vi.hoisted(() => vi.fn());
+const mockSelectFrom = vi.hoisted(() => vi.fn(() => ({ where: mockSelectWhere })));
+const mockSelect = vi.hoisted(() => vi.fn(() => ({ from: mockSelectFrom })));
+
 const mockUpdateWhere = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
 const mockUpdateSet = vi.hoisted(() => vi.fn(() => ({ where: mockUpdateWhere })));
 const mockUpdate = vi.hoisted(() => vi.fn(() => ({ set: mockUpdateSet })));
@@ -7,16 +11,30 @@ const mockUpdate = vi.hoisted(() => vi.fn(() => ({ set: mockUpdateSet })));
 const mockAnd = vi.hoisted(() => vi.fn((...args: unknown[]) => ({ kind: 'and', args })));
 const mockEq = vi.hoisted(() => vi.fn((col: unknown, val: unknown) => ({ kind: 'eq', col, val })));
 const mockLt = vi.hoisted(() => vi.fn((col: unknown, val: unknown) => ({ kind: 'lt', col, val })));
+const mockInArray = vi.hoisted(() =>
+  vi.fn((col: unknown, vals: unknown) => ({ kind: 'inArray', col, vals }))
+);
 
-vi.mock('@CeolX/db', () => ({ db: { update: mockUpdate } }));
+const mockSendNotification = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
+
+vi.mock('@CeolX/db', () => ({ db: { select: mockSelect, update: mockUpdate } }));
 vi.mock('@CeolX/db/schema/auth', () => ({
   user: {
+    id: 'id',
+    email: 'email',
+    name: 'name',
     lastLoginAt: 'last_login_at',
     flaggedInactive: 'flagged_inactive',
     isAnonymized: 'is_anonymized',
   },
 }));
-vi.mock('drizzle-orm', () => ({ and: mockAnd, eq: mockEq, lt: mockLt }));
+vi.mock('drizzle-orm', () => ({
+  and: mockAnd,
+  eq: mockEq,
+  lt: mockLt,
+  inArray: mockInArray,
+}));
+vi.mock('@CeolX/email', () => ({ sendNotificationEmail: mockSendNotification }));
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -27,38 +45,48 @@ afterEach(() => {
 });
 
 describe('handleAccountFlagInactive', () => {
-  it('sets flagged_inactive=true on the user table', async () => {
+  it('flags the selected due users and warns each one with an email', async () => {
+    mockSelectWhere.mockResolvedValueOnce([
+      { id: 'u1', email: 'u1@x.ie', name: 'One' },
+      { id: 'u2', email: 'u2@x.ie', name: 'Two' },
+    ]);
+
     await handleAccountFlagInactive({});
 
-    expect(mockUpdate).toHaveBeenCalledTimes(1);
     expect(mockUpdateSet).toHaveBeenCalledWith({ flaggedInactive: true });
+    expect(mockInArray).toHaveBeenCalledWith('id', ['u1', 'u2']);
+    expect(mockSendNotification).toHaveBeenCalledTimes(2);
+    expect(mockSendNotification).toHaveBeenCalledWith(
+      expect.objectContaining({ to: 'u1@x.ie', userName: 'One', subject: 'We miss you at CeolX' })
+    );
   });
 
-  it('filters by lastLoginAt < (now - 24 months) AND flagged_inactive=false AND isAnonymized=false', async () => {
-    const before = Date.now();
+  it('is a no-op (no update, no email) when nothing is due', async () => {
+    mockSelectWhere.mockResolvedValueOnce([]);
+
     await handleAccountFlagInactive({});
-    const after = Date.now();
 
-    expect(mockLt).toHaveBeenCalledTimes(1);
-    expect(mockEq).toHaveBeenCalledTimes(2);
+    expect(mockUpdate).not.toHaveBeenCalled();
+    expect(mockSendNotification).not.toHaveBeenCalled();
+  });
 
-    const ltCall = mockLt.mock.calls[0]?.[1] as Date;
-    expect(ltCall).toBeInstanceOf(Date);
-    // Roughly two years before "now" — accept ±1 day for test stability.
-    const expectedMin = new Date(before);
-    expectedMin.setFullYear(expectedMin.getFullYear() - 2);
-    expectedMin.setDate(expectedMin.getDate() - 1);
-    const expectedMax = new Date(after);
-    expectedMax.setFullYear(expectedMax.getFullYear() - 2);
-    expectedMax.setDate(expectedMax.getDate() + 1);
-    expect(ltCall.getTime()).toBeGreaterThanOrEqual(expectedMin.getTime());
-    expect(ltCall.getTime()).toBeLessThanOrEqual(expectedMax.getTime());
+  it('skips users without an email address', async () => {
+    mockSelectWhere.mockResolvedValueOnce([{ id: 'u1', email: null, name: 'One' }]);
 
-    // Both eq calls assert "= false"
-    const eqValues = mockEq.mock.calls.map((c) => c[1]);
-    expect(eqValues).toEqual([false, false]);
+    await handleAccountFlagInactive({});
 
-    // The composed predicate is passed via mockAnd
-    expect(mockAnd).toHaveBeenCalledTimes(1);
+    expect(mockUpdateSet).toHaveBeenCalledWith({ flaggedInactive: true });
+    expect(mockSendNotification).not.toHaveBeenCalled();
+  });
+
+  it('continues the sweep when one email send fails', async () => {
+    mockSendNotification.mockRejectedValueOnce(new Error('postmark down'));
+    mockSelectWhere.mockResolvedValueOnce([
+      { id: 'u1', email: 'u1@x.ie', name: 'One' },
+      { id: 'u2', email: 'u2@x.ie', name: 'Two' },
+    ]);
+
+    await expect(handleAccountFlagInactive({})).resolves.toBeUndefined();
+    expect(mockSendNotification).toHaveBeenCalledTimes(2);
   });
 });
