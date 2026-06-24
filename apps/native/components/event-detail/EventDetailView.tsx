@@ -134,20 +134,20 @@ export function EventDetailView({
 
   return (
     <View className="flex-1 bg-background" style={{ paddingTop: insets.top }}>
+      {/* Fixed header — stays pinned while the hero + details scroll beneath it. */}
+      <EventDetailHeader
+        onBack={onBack}
+        title={event.title}
+        isSaved={isSaved}
+        onToggleSave={handleToggleSave}
+        onShare={handleShare}
+      />
+
       <ScrollView
         ref={scrollRef}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 16 }}
       >
-        {/* Header */}
-        <EventDetailHeader
-          onBack={onBack}
-          title={event.title}
-          isSaved={isSaved}
-          onToggleSave={handleToggleSave}
-          onShare={handleShare}
-        />
-
         {/* Hero Image with category + attendee badges */}
         <EventHeroImage
           coverImageUrl={event.coverImageUrl ?? undefined}

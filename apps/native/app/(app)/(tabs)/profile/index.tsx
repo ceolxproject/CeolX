@@ -57,7 +57,6 @@ function ProfileHeader({
   currentRole,
   artistProfile,
   venueProfile,
-  onBookmarkPress,
   onSettingsPress,
 }: {
   me: { name: string | null; image: string | null; venueAddress: string | null };
@@ -78,7 +77,6 @@ function ProfileHeader({
     followerCount: number;
     followingCount: number;
   } | null;
-  onBookmarkPress?: () => void;
   onSettingsPress: () => void;
 }) {
   const isVenue = currentRole === UserRole.VENUE;
@@ -93,27 +91,7 @@ function ProfileHeader({
   const genres = artistProfile?.genres ?? [];
 
   return (
-    <View className="items-center pt-2 pb-4 bg-background">
-      {/* Standard header: logo left, then notification bell, then bookmark (venues only). */}
-      <AppHeader
-        leading="logo"
-        showBell
-        className="mb-3"
-        bgClassName="bg-background"
-        actions={
-          onBookmarkPress
-            ? [
-                {
-                  key: 'saved',
-                  icon: 'bookmark-outline',
-                  onPress: onBookmarkPress,
-                  accessibilityLabel: 'Saved events',
-                },
-              ]
-            : undefined
-        }
-      />
-
+    <View className="items-center pb-4 bg-background">
       {/* Avatar + followers/following row */}
       <View className="flex-row items-center justify-center gap-6 mb-3">
         <Pressable
@@ -638,6 +616,21 @@ function CreatorProfile({
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#080808' }} edges={['top']}>
+      {/* Standard header: logo left, then notification bell, then bookmark. Fixed
+          above the scroll so it stays pinned, consistent with Discover / My Events. */}
+      <AppHeader
+        leading="logo"
+        showBell
+        bgClassName="bg-background"
+        actions={[
+          {
+            key: 'saved',
+            icon: 'bookmark-outline',
+            onPress: () => router.push('/(app)/(tabs)/profile/saved-events'),
+            accessibilityLabel: 'Saved events',
+          },
+        ]}
+      />
       <ScrollView
         contentContainerStyle={{ flexGrow: 1 }}
         refreshControl={
@@ -654,7 +647,6 @@ function CreatorProfile({
           currentRole={currentRole}
           artistProfile={me?.artistProfile}
           venueProfile={me?.venueProfile}
-          onBookmarkPress={() => router.push('/(app)/(tabs)/profile/saved-events')}
           onSettingsPress={() => settingsRef.current?.present()}
         />
         {/* Rounded background behind segment + content */}

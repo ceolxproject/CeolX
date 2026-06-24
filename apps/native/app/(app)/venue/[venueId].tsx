@@ -112,6 +112,7 @@ export default function VenueProfileScreen() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#080808' }}>
+      <AppHeader leading="back" showBell />
       <ScrollView
         contentContainerStyle={{ flexGrow: 1 }}
         refreshControl={
@@ -119,8 +120,6 @@ export default function VenueProfileScreen() {
         }
         showsVerticalScrollIndicator={false}
       >
-        <AppHeader leading="back" showBell />
-
         <ProfileHeader
           displayName={profile.displayName}
           subtitle={profile.address}

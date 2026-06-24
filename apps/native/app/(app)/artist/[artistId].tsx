@@ -80,6 +80,7 @@ export default function ArtistProfileScreen() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#080808' }}>
+      <AppHeader leading="back" showBell />
       <ScrollView
         contentContainerStyle={{ flexGrow: 1 }}
         refreshControl={
@@ -87,8 +88,6 @@ export default function ArtistProfileScreen() {
         }
         showsVerticalScrollIndicator={false}
       >
-        <AppHeader leading="back" showBell />
-
         <ProfileHeader
           displayName={profile.displayName}
           subtitle={profile.genres.length > 0 ? profile.genres.join(' | ') : null}
