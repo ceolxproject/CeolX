@@ -175,8 +175,8 @@ export default function SignUpScreen() {
             ) : null}
 
             {/* Full Name */}
-            <View className="gap-2 mb-4">
-              <Text className="text-sm font-bold text-white/80">Full Name</Text>
+            <View className="mb-4">
+              <Text className="text-sm font-bold text-white/80 mb-2">Full Name</Text>
               <AppTextField
                 variant="light"
                 placeholder="Enter your full name"
@@ -185,13 +185,13 @@ export default function SignUpScreen() {
                 value={name}
                 onChangeText={setName}
                 maxLength={SIGNUP_NAME_MAX}
+                error={errors.name}
               />
-              {errors.name && <Text className="text-error text-xs mt-1">{errors.name}</Text>}
             </View>
 
             {/* Email */}
-            <View className="gap-2 mb-4">
-              <Text className="text-sm font-bold text-white/80">Email Address</Text>
+            <View className="mb-4">
+              <Text className="text-sm font-bold text-white/80 mb-2">Email Address</Text>
               <AppTextField
                 variant="light"
                 placeholder="Enter your email address"
@@ -200,13 +200,13 @@ export default function SignUpScreen() {
                 autoComplete="email"
                 value={email}
                 onChangeText={(t) => setEmail(t.toLowerCase())}
+                error={errors.email}
               />
-              {errors.email && <Text className="text-error text-xs mt-1">{errors.email}</Text>}
             </View>
 
             {/* Password */}
-            <View className="gap-2 mb-4">
-              <Text className="text-sm font-bold text-white/80">Password</Text>
+            <View className="mb-4">
+              <Text className="text-sm font-bold text-white/80 mb-2">Password</Text>
               <AppTextField
                 variant="light"
                 placeholder="Enter your password"
@@ -214,10 +214,8 @@ export default function SignUpScreen() {
                 autoComplete="new-password"
                 value={password}
                 onChangeText={setPassword}
+                error={errors.password}
               />
-              {errors.password && (
-                <Text className="text-error text-xs mt-1">{errors.password}</Text>
-              )}
             </View>
 
             {/* Checkboxes */}
