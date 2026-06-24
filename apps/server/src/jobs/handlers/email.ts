@@ -1,5 +1,4 @@
 import {
-  type EmailTemplate,
   sendEventApprovedEmail,
   sendEventRejectedEmail,
   sendNotificationEmail,
@@ -9,7 +8,7 @@ import {
   sendVerificationEmail,
 } from '@CeolX/email';
 
-import type { JobPayload } from '../types.ts';
+import type { JobPayload, QueueableEmailTemplate } from '../types.ts';
 
 /**
  * Route each `email.send` job payload to the typed sender in `@CeolX/email`.
@@ -19,7 +18,7 @@ import type { JobPayload } from '../types.ts';
  */
 type Dispatch = (to: string, data: Record<string, string>) => Promise<void>;
 
-const dispatchers: Record<EmailTemplate, Dispatch> = {
+const dispatchers: Record<QueueableEmailTemplate, Dispatch> = {
   verification: (to, d) => sendVerificationEmail(to, d.verificationUrl ?? '', d.userName),
   'password-reset': (to, d) => sendPasswordResetEmail(to, d.resetUrl ?? '', d.userName),
   'venue-activation': (to, d) =>

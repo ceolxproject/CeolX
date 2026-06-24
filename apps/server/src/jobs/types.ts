@@ -6,10 +6,11 @@ import type { EmailTemplate } from '@CeolX/email';
 // Payload schemas — one per job type
 // ---------------------------------------------------------------------------
 
-// Mirror of `EmailTemplate` from `@CeolX/email`. The `satisfies` clause is a
-// compile-time check — adding a template to the email package without adding
-// it here will fail `tsc -b`. Templates the email package doesn't ship yet
-// (booking, GDPR, etc.) are intentionally absent.
+// The subset of `EmailTemplate` (from `@CeolX/email`) dispatched via the
+// `email.send` job queue. The `satisfies` clause is a compile-time check that
+// every entry is a real template key. Direct-send-only templates
+// (`collaborator-invite`, `account-deleted`) are intentionally absent — they
+// are sent by a direct sender call at their event source, never queued.
 const EMAIL_TEMPLATES = [
   'verification',
   'password-reset',
@@ -19,6 +20,9 @@ const EMAIL_TEMPLATES = [
   'event-rejected',
   'notification',
 ] as const satisfies readonly EmailTemplate[];
+
+/** Templates dispatched through the `email.send` job queue (see `handlers/email.ts`). */
+export type QueueableEmailTemplate = (typeof EMAIL_TEMPLATES)[number];
 
 export const emailSendSchema = z.object({
   to: z.email(),
