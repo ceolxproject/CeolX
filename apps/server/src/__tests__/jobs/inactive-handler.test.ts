@@ -45,6 +45,33 @@ afterEach(() => {
 });
 
 describe('handleAccountFlagInactive', () => {
+  it('selects on lastLoginAt < ~2 years ago AND not-flagged AND not-anonymised', async () => {
+    mockSelectWhere.mockResolvedValueOnce([]);
+
+    const before = Date.now();
+    await handleAccountFlagInactive({});
+    const after = Date.now();
+
+    expect(mockLt).toHaveBeenCalledTimes(1);
+    const ltDate = mockLt.mock.calls[0]?.[1] as Date;
+    expect(ltDate).toBeInstanceOf(Date);
+    // Roughly two years before now — accept ±1 day for stability.
+    const expectedMin = new Date(before);
+    expectedMin.setFullYear(expectedMin.getFullYear() - 2);
+    expectedMin.setDate(expectedMin.getDate() - 1);
+    const expectedMax = new Date(after);
+    expectedMax.setFullYear(expectedMax.getFullYear() - 2);
+    expectedMax.setDate(expectedMax.getDate() + 1);
+    expect(ltDate.getTime()).toBeGreaterThanOrEqual(expectedMin.getTime());
+    expect(ltDate.getTime()).toBeLessThanOrEqual(expectedMax.getTime());
+
+    // Both eq calls assert "= false" (flaggedInactive, isAnonymized)
+    const eqValues = mockEq.mock.calls.map((c) => c[1]);
+    expect(eqValues).toEqual([false, false]);
+
+    expect(mockAnd).toHaveBeenCalledTimes(1);
+  });
+
   it('flags the selected due users and warns each one with an email', async () => {
     mockSelectWhere.mockResolvedValueOnce([
       { id: 'u1', email: 'u1@x.ie', name: 'One' },
@@ -58,6 +85,9 @@ describe('handleAccountFlagInactive', () => {
     expect(mockSendNotification).toHaveBeenCalledTimes(2);
     expect(mockSendNotification).toHaveBeenCalledWith(
       expect.objectContaining({ to: 'u1@x.ie', userName: 'One', subject: 'We miss you at CeolX' })
+    );
+    expect(mockSendNotification).toHaveBeenCalledWith(
+      expect.objectContaining({ to: 'u2@x.ie', userName: 'Two', subject: 'We miss you at CeolX' })
     );
   });
 
