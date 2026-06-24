@@ -13,6 +13,7 @@ import Animated, {
 import { formatRelativeTime } from '@CeolX/shared';
 
 import { PostActionMenu } from './PostActionMenu';
+import { PostImage } from './PostImage';
 import { PostVideo } from './PostVideo';
 
 import { useDeletePost } from '@/hooks/use-delete-post';
@@ -268,11 +269,7 @@ export function PostCard({
 
       {/* Media */}
       {post.mediaType === 'image' && post.mediaUrl && (
-        <Image
-          source={{ uri: post.mediaUrl }}
-          className="mb-3 aspect-video w-full rounded-xl bg-white/5"
-          resizeMode="cover"
-        />
+        <PostImage uri={post.mediaUrl} expanded={expanded} />
       )}
       {post.mediaType === 'video' && (
         <PostVideo
