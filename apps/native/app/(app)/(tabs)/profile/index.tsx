@@ -170,7 +170,7 @@ function ProfileHeader({
 // ─── My Events Tab ────────────────────────────────────────────────────────────
 
 function MyEventsTab() {
-  const { events, isLoading, loadMore, isFetchingNextPage, refresh } = useMyEvents();
+  const { events, isLoading, loadMore, isFetchingNextPage, refresh, hasNextPage } = useMyEvents();
   const confirmed = useConfirmedEvents();
   const archive = useArchiveEvent({ onSuccess: () => void refresh() });
   const updateBooking = useUpdateBooking();
@@ -240,7 +240,7 @@ function MyEventsTab() {
           <ActivityIndicator color="#C8FF2F" />
         </View>
       )}
-      {hasCreated && !isFetchingNextPage && (
+      {hasNextPage && !isFetchingNextPage && (
         <Pressable onPress={loadMore} className="py-2 items-center">
           <Text className="text-xs text-white/40">Load more</Text>
         </Pressable>
