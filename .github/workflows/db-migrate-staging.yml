@@ -42,14 +42,17 @@ jobs:
         with:
           ref: refs/heads/staging
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-
+      # Node must be set up BEFORE pnpm: pnpm/action-setup runs the pnpm binary
+      # during its own step, and pnpm 11.x requires Node >= 22.13 (it imports the
+      # node:sqlite builtin, added in Node 22). Under the runner's default Node 20
+      # pnpm crashes with ERR_UNKNOWN_BUILTIN_MODULE before doing any work.
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 20
-          cache: pnpm
+          node-version: 22
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
 
       # Scoped install: only the @CeolX/db package and its workspace deps.
       # Avoids pulling the heavy native/expo dependency tree.
