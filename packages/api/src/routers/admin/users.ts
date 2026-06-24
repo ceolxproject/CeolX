@@ -24,6 +24,7 @@ import { events, savedEvents } from '@CeolX/db/schema/events';
 import { deviceTokens } from '@CeolX/db/schema/notifications';
 import { follows, posts } from '@CeolX/db/schema/social';
 import { artistProfiles, profileSocialLinks, venueProfiles } from '@CeolX/db/schema/users';
+import { endOfDay } from '@CeolX/shared/utils';
 import type {
   AuthMethod,
   UserPersonaFilter,
@@ -66,12 +67,6 @@ type UserFilterInput = {
   registeredFrom?: string;
   registeredTo?: string;
 };
-
-function endOfDay(date: string): Date {
-  const d = new Date(date);
-  d.setUTCHours(23, 59, 59, 999);
-  return d;
-}
 
 // Builds the WHERE clause from the filter inputs. subscriptionStatus + authMethod
 // use EXISTS subqueries so the count query needs no joins and stays exact.

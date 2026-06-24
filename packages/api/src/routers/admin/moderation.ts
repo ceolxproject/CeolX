@@ -1,5 +1,5 @@
 import { TRPCError } from '@trpc/server';
-import { and, count, desc, eq, ilike } from 'drizzle-orm';
+import { and, asc, count, desc, eq, gte, ilike, inArray, lte, or } from 'drizzle-orm';
 
 import { db } from '@CeolX/db';
 import { user } from '@CeolX/db/schema/auth';
@@ -11,6 +11,7 @@ import {
   adminEventListQuerySchema,
   adminRemoveEventSchema,
   adminRestoreEventSchema,
+  endOfDay,
 } from '@CeolX/shared';
 
 import type { DispatchNotificationInput } from '../../context';
@@ -29,20 +30,52 @@ import { removeEventFromTypesense, syncEventToTypesense } from '../../services/e
 //   • admin.restoreEvent — silent restore (no creator notification)
 //   • category surfaced on listEvents
 
+const SORT_COLUMNS = {
+  createdAt: events.createdAt,
+  dateStart: events.dateStart,
+  title: events.title,
+} as const;
+
 export const listEvents = adminProcedure
   .input(adminEventListQuerySchema)
   .query(async ({ input }) => {
-    const filters = [eq(events.status, input.status)];
+    // No status → the "All" view: every moderation status, but never drafts /
+    // pending / rejected (not used in V1 moderation).
+    const filters = [
+      input.status
+        ? eq(events.status, input.status)
+        : inArray(events.status, ['active', 'removed', 'archived']),
+    ];
     if (input.persona) {
       filters.push(eq(user.currentRole, input.persona));
     }
     if (input.q) {
-      filters.push(ilike(events.title, `%${input.q}%`));
+      const term = `%${input.q}%`;
+      // Title OR creator name OR free-text venue address — one event is found
+      // by what it's called, who posted it, or where it's held.
+      const search = or(
+        ilike(events.title, term),
+        ilike(user.name, term),
+        ilike(events.venueAddress, term)
+      );
+      if (search) filters.push(search);
+    }
+    if (input.category?.length) {
+      filters.push(inArray(events.category, input.category));
+    }
+    if (input.createdFrom) {
+      filters.push(gte(events.createdAt, new Date(input.createdFrom)));
+    }
+    if (input.createdTo) {
+      filters.push(lte(events.createdAt, endOfDay(input.createdTo)));
     }
     if (input.createdBy) {
       filters.push(eq(events.createdBy, input.createdBy));
     }
     const whereClause = filters.length === 1 ? filters[0] : and(...filters);
+
+    const sortCol = SORT_COLUMNS[input.sortBy];
+    const orderBy = input.sortDir === 'asc' ? asc(sortCol) : desc(sortCol);
 
     const rows = await db
       .select({
@@ -51,13 +84,20 @@ export const listEvents = adminProcedure
         coverImage: events.coverImage,
         description: events.description,
         dateStart: events.dateStart,
+        dateEnd: events.dateEnd,
         lat: events.lat,
         lng: events.lng,
+        venueId: events.venueId,
         venueAddress: events.venueAddress,
         category: events.category,
+        ticketLink: events.ticketLink,
+        ticketPrice: events.ticketPrice,
+        viewCount: events.viewCount,
+        ticketClicks: events.ticketClicks,
         status: events.status,
         removalReason: events.removalReason,
         createdAt: events.createdAt,
+        updatedAt: events.updatedAt,
         createdBy: events.createdBy,
         creatorName: user.name,
         creatorPersona: user.currentRole,
@@ -65,7 +105,7 @@ export const listEvents = adminProcedure
       .from(events)
       .leftJoin(user, eq(user.id, events.createdBy))
       .where(whereClause)
-      .orderBy(desc(events.createdAt))
+      .orderBy(orderBy)
       .limit(input.limit)
       .offset(input.offset);
 
@@ -83,13 +123,20 @@ export const listEvents = adminProcedure
         coverImage: row.coverImage,
         description: row.description,
         dateStart: row.dateStart,
+        dateEnd: row.dateEnd,
         lat: row.lat,
         lng: row.lng,
+        venueId: row.venueId,
         venueAddress: row.venueAddress,
         category: row.category,
+        ticketLink: row.ticketLink,
+        ticketPrice: row.ticketPrice,
+        viewCount: row.viewCount ?? 0,
+        ticketClicks: row.ticketClicks ?? 0,
         status: row.status,
         removalReason: row.removalReason,
         createdAt: row.createdAt,
+        updatedAt: row.updatedAt,
         creator: {
           id: row.createdBy,
           name: row.creatorName,
@@ -99,6 +146,22 @@ export const listEvents = adminProcedure
       total,
     };
   });
+
+// Status totals for the moderation segment tabs. Unfiltered by the refinement
+// filters — it's a top-level backlog overview ("3 removed across the platform"),
+// mirroring admin.users.summary.
+export const eventModerationCounts = adminProcedure.query(async () => {
+  const rows = await db
+    .select({ status: events.status, total: count() })
+    .from(events)
+    .groupBy(events.status);
+  const byStatus = new Map(rows.map((r) => [r.status, Number(r.total)]));
+  return {
+    active: byStatus.get('active') ?? 0,
+    removed: byStatus.get('removed') ?? 0,
+    archived: byStatus.get('archived') ?? 0,
+  };
+});
 
 export const removeEvent = adminProcedure
   .input(adminRemoveEventSchema)
