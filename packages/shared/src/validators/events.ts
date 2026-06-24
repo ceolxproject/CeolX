@@ -3,10 +3,24 @@ import { z } from 'zod';
 import { EVENT_CATEGORIES } from '../enums.js';
 import { isValidCoordinate } from '../utils/geo.js';
 
+// Field length limits (characters). Exported so the mobile UI caps inputs with
+// the exact same numbers used for validation — a TextInput's `maxLength` must
+// equal the matching constant so the schema and the UI can never drift.
+export const EVENT_TITLE_MAX = 150;
+export const EVENT_DESCRIPTION_MAX = 2000;
+export const AD_TITLE_MAX = 100;
+export const AD_DESCRIPTION_MAX = 50;
+// Off-platform (unregistered) invitee name cap, surfaced in the Invite Artist form.
+export const UNREGISTERED_COLLABORATOR_NAME_MAX = 100;
+
 // Base shape — used for both create and update schemas
 const eventBaseShape = {
-  title: z.string().min(3, 'Title must be at least 3 characters').max(150).trim(),
-  description: z.string().min(10, 'Description must be at least 10 characters').max(2000).trim(),
+  title: z.string().min(3, 'Title must be at least 3 characters').max(EVENT_TITLE_MAX).trim(),
+  description: z
+    .string()
+    .min(10, 'Description must be at least 10 characters')
+    .max(EVENT_DESCRIPTION_MAX)
+    .trim(),
   coverImage: z.string().url().optional(),
   dateStart: z.string().datetime(),
   dateEnd: z.string().datetime().optional(),
@@ -25,7 +39,7 @@ const eventBaseShape = {
   unregisteredCollaborators: z
     .array(
       z.object({
-        name: z.string().min(1).max(100).trim(),
+        name: z.string().min(1).max(UNREGISTERED_COLLABORATOR_NAME_MAX).trim(),
         email: z.string().email(),
         // Optional avatar for off-platform invitees, uploaded by the event
         // creator (CDN url). Falls back to the placeholder image when absent.
@@ -34,8 +48,8 @@ const eventBaseShape = {
     )
     .max(10)
     .optional(),
-  adTitle: z.string().max(100).optional(),
-  adDescription: z.string().max(50).optional(),
+  adTitle: z.string().max(AD_TITLE_MAX).optional(),
+  adDescription: z.string().max(AD_DESCRIPTION_MAX).optional(),
 } as const;
 
 export const createEventSchema = z

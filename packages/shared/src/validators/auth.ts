@@ -13,9 +13,13 @@ const emailField = z
   .check(z.email())
   .transform((s) => s.toLowerCase());
 
+// Account display-name cap (characters). Exported so the sign-up form caps the
+// field with the exact value the schema enforces (no schema/UI drift).
+export const SIGNUP_NAME_MAX = 100;
+
 export const signUpSchema = z
   .object({
-    name: z.string().min(1, 'Name is required').max(100),
+    name: z.string().min(1, 'Name is required').max(SIGNUP_NAME_MAX),
     email: emailField,
     password: passwordSchema,
     confirmPassword: z.string(),

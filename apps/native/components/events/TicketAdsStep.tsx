@@ -1,7 +1,11 @@
 import { cn } from 'heroui-native';
 import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 
+import { AD_DESCRIPTION_MAX, AD_TITLE_MAX } from '@CeolX/shared/validators';
+
 import { FieldLabel } from './FieldLabel';
+
+import { CharacterCount, CharacterLimitNote } from '@/components/CharacterCount';
 
 type Props = {
   ticketPrice: string;
@@ -19,9 +23,6 @@ type Props = {
   isEditing: boolean;
   isVenue?: boolean;
 };
-
-const AD_TITLE_MAX = 100;
-const AD_DESC_MAX = 50;
 
 export function TicketAdsStep({
   ticketPrice,
@@ -126,11 +127,14 @@ export function TicketAdsStep({
               <Text className="flex-1 text-xs text-neutral-500">
                 Show special offers as pop-up notification to people within 5-15 km of your event.
               </Text>
-              <Text className="ml-2 text-xs text-neutral-500">
-                {adTitle.length}/{AD_TITLE_MAX}
-              </Text>
+              <CharacterCount
+                count={adTitle.length}
+                max={AD_TITLE_MAX}
+                className="ml-2 text-xs text-neutral-500"
+              />
             </View>
             {errors.adTitle && <Text className="text-xs text-error">{errors.adTitle}</Text>}
+            <CharacterLimitNote count={adTitle.length} max={AD_TITLE_MAX} />
           </View>
 
           <View className="gap-1.5">
@@ -153,17 +157,20 @@ export function TicketAdsStep({
                 // keystrokes), and slice defensively so an over-long paste can
                 // never reach state and stretch the multiline box / break the
                 // layout. (Asana 1215419517221432)
-                onChangeText={(text) => onAdDescriptionChange(text.slice(0, AD_DESC_MAX))}
-                maxLength={AD_DESC_MAX}
+                onChangeText={(text) => onAdDescriptionChange(text.slice(0, AD_DESCRIPTION_MAX))}
+                maxLength={AD_DESCRIPTION_MAX}
                 multiline
               />
             </View>
-            <Text className="text-right text-xs text-neutral-500">
-              {adDescription.length}/{AD_DESC_MAX}
-            </Text>
+            <CharacterCount
+              count={adDescription.length}
+              max={AD_DESCRIPTION_MAX}
+              className="text-right text-xs text-neutral-500"
+            />
             {errors.adDescription && (
               <Text className="text-xs text-error">{errors.adDescription}</Text>
             )}
+            <CharacterLimitNote count={adDescription.length} max={AD_DESCRIPTION_MAX} />
           </View>
         </>
       )}

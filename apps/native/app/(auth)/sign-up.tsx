@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { KeyboardAvoidingView, Linking, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { signUpSchema } from '@CeolX/shared/validators';
+import { signUpSchema, SIGNUP_NAME_MAX } from '@CeolX/shared/validators';
 
 import { AppButton } from '@/components/AppButton';
 import { AppHeader } from '@/components/AppHeader';
@@ -184,6 +184,7 @@ export default function SignUpScreen() {
                 autoComplete="name"
                 value={name}
                 onChangeText={setName}
+                maxLength={SIGNUP_NAME_MAX}
               />
               {errors.name && <Text className="text-error text-xs mt-1">{errors.name}</Text>}
             </View>

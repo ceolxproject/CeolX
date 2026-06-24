@@ -3,6 +3,8 @@ import { cn } from 'heroui-native';
 import { type ReactNode, useState } from 'react';
 import { Pressable, Text, TextInput, type TextInputProps, View } from 'react-native';
 
+import { CharacterLimitNote } from './CharacterCount';
+
 export type AppTextFieldVariant = 'light' | 'dark' | 'surface';
 
 interface AppTextFieldProps extends Omit<TextInputProps, 'secureTextEntry' | 'style'> {
@@ -79,10 +81,16 @@ export function AppTextField({
   containerClassName,
   fieldClassName,
   className,
+  value,
+  maxLength,
   ...props
 }: AppTextFieldProps) {
   const [visible, setVisible] = useState(!secureTextEntry);
   const v = VARIANT[variant];
+  // When the field is capped, surface a consistent "limit reached" note the
+  // moment the value hits maxLength — otherwise the input just stops accepting
+  // characters silently and reads as broken. The note renders only at the cap.
+  const count = typeof value === 'string' ? value.length : 0;
 
   return (
     <View className={cn(containerClassName)}>
@@ -99,6 +107,8 @@ export function AppTextField({
       >
         {leftIcon && <View className="mr-3">{leftIcon}</View>}
         <TextInput
+          value={value}
+          maxLength={maxLength}
           className={cn('flex-1', v.input, className)}
           // The fixed height lives on the container; the TextInput stays at its
           // intrinsic one-line height and is centered by `items-center`. A
@@ -120,6 +130,9 @@ export function AppTextField({
         ) : null}
       </View>
       {error ? <Text className="mt-1 text-xs text-error">{error}</Text> : null}
+      {maxLength !== undefined ? (
+        <CharacterLimitNote count={count} max={maxLength} className="mt-1" />
+      ) : null}
     </View>
   );
 }

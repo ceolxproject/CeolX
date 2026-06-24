@@ -13,9 +13,10 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { createPostSchema, updatePostSchema } from '@CeolX/shared/validators';
+import { createPostSchema, POST_CAPTION_MAX, updatePostSchema } from '@CeolX/shared/validators';
 
 import { appToast } from '@/components/AppToast';
+import { CharacterCount, CharacterLimitNote } from '@/components/CharacterCount';
 import { MediaPickerField } from '@/components/posts/MediaPickerField';
 import { useCreatePost } from '@/hooks/use-create-post';
 import { useMediaDelete, keyFromCdnUrl } from '@/hooks/use-media-delete';
@@ -24,8 +25,6 @@ import { usePostById } from '@/hooks/use-post-by-id';
 import { useUpdatePost } from '@/hooks/use-update-post';
 import { planPostMediaUpdate } from '@/hooks/use-update-post.utils';
 import { useVideoUpload } from '@/hooks/use-video-upload';
-
-const CAPTION_MAX = 500;
 
 type LocalMedia = {
   uri: string;
@@ -243,20 +242,23 @@ export default function CreatePostScreen() {
             <View className="mb-5">
               <View className="mb-2 flex-row items-center justify-between">
                 <Text className="text-sm font-bold text-white/80 font-urbanist">Caption</Text>
-                <Text className="text-base font-medium text-[#8D8D8D] font-urbanist">
-                  {caption.length}/{CAPTION_MAX}
-                </Text>
+                <CharacterCount
+                  count={caption.length}
+                  max={POST_CAPTION_MAX}
+                  className="text-base font-medium text-[#8D8D8D] font-urbanist"
+                />
               </View>
               <TextInput
                 placeholder="Write a caption..."
                 placeholderTextColor="#8D8D8D"
                 multiline
-                maxLength={CAPTION_MAX}
+                maxLength={POST_CAPTION_MAX}
                 value={caption}
-                onChangeText={setCaption}
+                onChangeText={(text) => setCaption(text.slice(0, POST_CAPTION_MAX))}
                 textAlignVertical="top"
                 className="h-[156px] rounded-lg bg-white p-4 text-base font-medium text-black font-urbanist"
               />
+              <CharacterLimitNote count={caption.length} max={POST_CAPTION_MAX} className="mt-2" />
             </View>
           </View>
         </ScrollView>

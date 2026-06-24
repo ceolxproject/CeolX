@@ -7,6 +7,15 @@ import type { SOCIAL_PLATFORMS } from '../enums';
 // so the two flows can never diverge again (Asana 1215717564020178).
 export const BIO_MAX_LENGTH = 150;
 
+// Name caps (characters), exported so the onboarding + profile UIs cap inputs
+// with the same values the schemas enforce. STAGE_NAME_MAX covers the artist
+// stage/display name everywhere it appears. The venue name cap differs across
+// schemas (onboarding 255 vs profile 100 vs update 150) — that cross-schema
+// discrepancy is flagged for the team, not unified here; only the onboarding
+// value is centralized since that's the field the onboarding UI caps.
+export const STAGE_NAME_MAX = 100;
+export const VENUE_ONBOARDING_NAME_MAX = 255;
+
 // Optional bio field with the shared cap. `label` tailors the message ("Bio" on
 // artist screens, "Description" on venue screens) while the limit stays unified.
 const bioField = (label: 'Bio' | 'Description' = 'Bio') =>
@@ -96,7 +105,7 @@ export const venueLinksSchema = z.object({
 // Per-step schemas power the multi-step wizard UI in apps/native.
 // The merged createVenueOnboardingSchema is the server contract — its shape must stay equivalent to the prior flat schema (asserted in validators.test.ts).
 export const venueOnboardingStep1Schema = z.object({
-  venueName: z.string().min(1, 'Venue name is required').max(255).trim(),
+  venueName: z.string().min(1, 'Venue name is required').max(VENUE_ONBOARDING_NAME_MAX).trim(),
   contactEmail: z.string().email('Invalid email address').optional(),
   profileImageUrl: z.string().url().optional(),
 });
@@ -124,7 +133,7 @@ export type CreateVenueOnboardingInput = z.infer<typeof createVenueOnboardingSch
 // ── Artist onboarding (initial profile creation — follows Figma design) ───────
 
 export const artistOnboardingStep1Schema = z.object({
-  stageName: z.string().min(1, 'Stage name is required').max(100).trim(),
+  stageName: z.string().min(1, 'Stage name is required').max(STAGE_NAME_MAX).trim(),
   contactEmail: z.string().email('Invalid email address').optional(),
   profileImageUrl: z.string().url().optional(),
 });
@@ -148,7 +157,7 @@ export type SocialLinks = z.infer<typeof socialLinksSchema>;
 // ── Artist / Venue profile schemas (profile editing — M6-T1) ───────────────
 
 export const artistProfileSchema = z.object({
-  stageName: z.string().min(1, 'Stage name is required').max(100).trim(),
+  stageName: z.string().min(1, 'Stage name is required').max(STAGE_NAME_MAX).trim(),
   bio: bioField(),
   genre: z.string().min(1, 'Genre is required').max(50),
   profileImageUrl: z.string().url().optional(),
@@ -156,7 +165,7 @@ export const artistProfileSchema = z.object({
 
 /** Input schema for artists.updateMe — all fields optional (partial update). */
 export const updateArtistProfileSchema = z.object({
-  displayName: z.string().min(1).max(100).trim().optional(),
+  displayName: z.string().min(1).max(STAGE_NAME_MAX).trim().optional(),
   bio: bioField(),
   genres: z.array(z.string().max(50)).max(10).optional(),
   location: z.string().max(255).trim().optional(),

@@ -15,8 +15,11 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { COLLECTION_NAME_MAX } from '@CeolX/shared/validators';
+
 import { FieldLabel } from './FieldLabel';
 
+import { CharacterCount, CharacterLimitNote } from '@/components/CharacterCount';
 import { trpc } from '@/utils/trpc';
 
 interface Props {
@@ -181,24 +184,36 @@ export function CollectionPicker({ collectionId, onCollectionIdChange }: Props) 
                 Create Collection
               </Text>
 
-              <Text className="text-sm font-semibold text-gray-3 font-urbanist mb-2">
-                Collection Name
-              </Text>
+              <View className="flex-row items-center justify-between mb-2">
+                <Text className="text-sm font-semibold text-gray-3 font-urbanist">
+                  Collection Name
+                </Text>
+                <CharacterCount
+                  count={newName.length}
+                  max={COLLECTION_NAME_MAX}
+                  className="text-xs text-gray-3 font-urbanist"
+                />
+              </View>
               <TextInput
                 className="rounded-lg border border-gray-8 bg-surface px-4 py-3 text-[14px] text-white font-urbanist"
                 placeholder="e.g. Summer Festival 2026"
                 placeholderTextColor="#8d8d8d"
                 value={newName}
                 onChangeText={(v) => {
-                  setNewName(v);
+                  setNewName(v.slice(0, COLLECTION_NAME_MAX));
                   if (nameError) setNameError('');
                 }}
                 autoFocus
-                maxLength={255}
+                maxLength={COLLECTION_NAME_MAX}
               />
               {nameError ? (
                 <Text className="text-xs text-error font-urbanist mt-1">{nameError}</Text>
               ) : null}
+              <CharacterLimitNote
+                count={newName.length}
+                max={COLLECTION_NAME_MAX}
+                className="mt-1"
+              />
 
               <View className="flex-row gap-3 mt-5">
                 <Pressable

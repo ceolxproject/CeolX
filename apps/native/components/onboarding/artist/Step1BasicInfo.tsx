@@ -1,6 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Text, TextInput, View } from 'react-native';
 
+import { STAGE_NAME_MAX } from '@CeolX/shared/validators';
+
 import { AppTextField } from '@/components/AppTextField';
 import { ProfilePicture } from '@/components/onboarding/ProfilePicture';
 
@@ -57,6 +59,7 @@ export function Step1BasicInfo({
             autoCapitalize="words"
             autoCorrect={false}
             error={errors.stageName}
+            maxLength={STAGE_NAME_MAX}
           />
         </View>
 

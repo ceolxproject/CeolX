@@ -14,12 +14,15 @@ import {
   View,
 } from 'react-native';
 
+import { UNREGISTERED_COLLABORATOR_NAME_MAX } from '@CeolX/shared/validators';
+
 import type { ArtistResult } from './ArtistSearchRow';
 import { ArtistSearchRow } from './ArtistSearchRow';
 import { FieldLabel } from './FieldLabel';
 import type { ChipItem } from './SelectedChips';
 import { SelectedChips } from './SelectedChips';
 
+import { CharacterLimitNote } from '@/components/CharacterCount';
 import { useDebouncedValue } from '@/hooks/use-debounced-value';
 import { useMediaUpload } from '@/hooks/use-media-upload';
 import { pickSquarePhoto, requestPhotoLibraryPermission } from '@/utils/image-picker';
@@ -307,11 +310,18 @@ export function InviteArtistPicker({
                   placeholder="Artist name"
                   placeholderTextColor="#8d8d8d"
                   value={inviteName}
-                  onChangeText={setInviteName}
+                  onChangeText={(t) =>
+                    setInviteName(t.slice(0, UNREGISTERED_COLLABORATOR_NAME_MAX))
+                  }
+                  maxLength={UNREGISTERED_COLLABORATOR_NAME_MAX}
                 />
                 {inviteErrors.name && (
                   <Text className="text-xs text-error font-urbanist">{inviteErrors.name}</Text>
                 )}
+                <CharacterLimitNote
+                  count={inviteName.length}
+                  max={UNREGISTERED_COLLABORATOR_NAME_MAX}
+                />
               </View>
 
               <View className="gap-2">
