@@ -110,6 +110,12 @@ Adding a template touches these files (grounded in the current codebase):
 
 ### PR 4 — GDPR + system emails (Category B, M11-dependent)
 
+**Status (2026-06-24):** ✅ Shipped — `account-deleted` (S-06/A-18/V-17) wired into the
+anonymise sweep; `inactivity-warning` (S-08) wired into the flag-inactive sweep (reuses
+the `notification` template). **Deferred:** `data-export-ready` (S-07/A-19/V-18) — export
+pipeline (`data-export.process`/`.notify`) still stubbed; X-01 admin reset — covered by the
+existing `password-reset` template (admin shares the same BetterAuth instance).
+
 **Rows:** S-06/A-18/V-17 account deletion complete, S-07/A-19/V-18 data export ready, S-08 inactivity warning, X-01 admin password reset.
 
 **Work:**
@@ -128,7 +134,7 @@ Adding a template touches these files (grounded in the current codebase):
 - **PR 1:** A-09/10/11/12, V-09/10/11/12/13
 - **PR 2:** A-14
 - **PR 3:** A-03/04, V-04, A-07/08, V-07/08 (+ activate A-05/06/V-05/06 wiring)
-- **PR 4:** S-06/07/08, A-18/19, V-17/18, X-01
+- **PR 4 (shipped):** S-06/A-18/V-17 (account-deleted), S-08 (inactivity-warning). **Deferred:** S-07/A-19/V-18 (data-export-ready — pipeline stubbed), X-01 (covered by password-reset)
 - **Intentionally no email ("—"):** A-13/16, V-15, U-01..04 (push/in-app only — per matrix)
 - **V2 (⏳):** S-03/04/05, A-17, V-16 (follow graph / feed — out of scope)
 

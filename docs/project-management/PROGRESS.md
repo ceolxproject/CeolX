@@ -83,7 +83,7 @@ Tracks completed tasks per milestone. Each entry links to its PR.
 - [x] M7-T1 · Push Notifications (FCM) — PR #50
 - [x] M7-T2 · In-App Notification Inbox — PR #49
 - [x] M7-T3 · Transactional Emails (Postmark) — PR #48
-- [ ] M7-T4 · Remaining Matrix Emails — PR1 booking lifecycle (#136), PR2 outside-platform invite (#137); PRs 3-4 (subscription lifecycle, GDPR/system) pending
+- [ ] M7-T4 · Remaining Matrix Emails — PR1 booking lifecycle (#136), PR2 outside-platform invite (#137), PR4 GDPR emails (account-deleted + inactivity-warning); PR3 (subscription lifecycle) pending on M8/Stripe
 
 ## M8 — Venue Subscription & Payments
 
