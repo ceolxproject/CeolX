@@ -1,3 +1,5 @@
+import { randomUUID } from 'node:crypto';
+
 import { TRPCError } from '@trpc/server';
 import { and, desc, eq, inArray, ne, sql } from 'drizzle-orm';
 import { z } from 'zod';
@@ -7,6 +9,7 @@ import { user } from '@CeolX/db/schema/auth';
 import { bookings } from '@CeolX/db/schema/bookings';
 import { collections, eventCollaborators, events, savedEvents } from '@CeolX/db/schema/events';
 import { artistProfiles, venueProfiles } from '@CeolX/db/schema/users';
+import { sendCollaboratorInviteEmail } from '@CeolX/email';
 import {
   BookingDirection,
   BookingStatus,
@@ -29,6 +32,63 @@ import { resolveEventCoordinates, resolveProfileImageUrl } from './helpers';
 import { recordEventView } from './view-tracking';
 
 type DbTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+// Outside-platform ("unregistered") collaborator invites get a 14-day opaque
+// token that powers the public /invite/:token landing; the claim itself matches
+// on the canonicalised invitedEmail when the invitee signs up as an artist
+// (onboarding.createArtistProfile). Mirrors bookings.inviteExternal — matrix A-14.
+const INVITE_TOKEN_TTL_MS = 14 * 24 * 60 * 60 * 1000;
+
+type PendingInviteEmail = Parameters<typeof sendCollaboratorInviteEmail>[0];
+
+/** Canonical email key so dedup + the signup email-match claim agree on one form. */
+function canonicalEmail(email: string): string {
+  return email.trim().toLowerCase();
+}
+
+/** Build the public invite landing URL. PUBLIC_WEB_ORIGIN is the ceolx.ie web origin. */
+function inviteUrl(token: string): string {
+  const origin = process.env.PUBLIC_WEB_ORIGIN ?? 'https://ceolx.ie';
+  return `${origin}/invite/${token}`;
+}
+
+/**
+ * Display name shown in the invite email ("<inviterName> invited you…"). A venue
+ * uses its venueName, an artist their stageName, with safe fallbacks.
+ */
+async function resolveInviterName(
+  tx: DbTransaction,
+  userId: string,
+  isVenue: boolean
+): Promise<string> {
+  if (isVenue) {
+    const venue = await tx.query.venueProfiles.findFirst({
+      where: eq(venueProfiles.userId, userId),
+      columns: { venueName: true },
+    });
+    return venue?.venueName ?? 'A CeolX venue';
+  }
+  const artist = await tx.query.artistProfiles.findFirst({
+    where: eq(artistProfiles.userId, userId),
+    columns: { stageName: true },
+  });
+  return artist?.stageName ?? 'A CeolX artist';
+}
+
+/**
+ * Send queued invite emails after the transaction commits — a rollback must not
+ * leave phantom invites. A send failure must NOT fail the request: the
+ * collaborator row is already persisted and shows as pending regardless (R8.5).
+ */
+async function flushInviteEmails(emails: PendingInviteEmail[]): Promise<void> {
+  await Promise.all(
+    emails.map((email) =>
+      sendCollaboratorInviteEmail(email).catch((err: unknown) => {
+        console.error('[events] collaborator invite email failed', err);
+      })
+    )
+  );
+}
 
 /**
  * Withdraw the current pending artist→venue request for an event (if any) and
@@ -495,6 +555,8 @@ export const create = creatorProcedure.input(createEventSchema).mutation(async (
   // Collected inside the transaction; fired after commit so a rollback
   // doesn't leave us with phantom notifications. See M7-T1 dispatcher.
   const pendingDispatches: DispatchNotificationInput[] = [];
+  // Outside-platform invite emails, likewise flushed after commit.
+  const pendingInviteEmails: PendingInviteEmail[] = [];
 
   const event = await db.transaction(async (tx) => {
     const rows = await tx
@@ -523,16 +585,31 @@ export const create = creatorProcedure.input(createEventSchema).mutation(async (
     const inserted = rows[0];
     if (!inserted) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Insert failed' });
 
-    // Insert non-platform (invited) artists as eventCollaborators rows
+    // Insert non-platform (invited) artists as eventCollaborators rows, each with
+    // an opaque invite token, then queue the invite email (matrix A-14). Without
+    // this the invitee was saved but never emailed — the event form is the only
+    // caller, so bookings.inviteExternal's email path was never reached.
     if (unregisteredCollaborators && unregisteredCollaborators.length > 0) {
-      await tx.insert(eventCollaborators).values(
-        unregisteredCollaborators.map((invite) => ({
-          eventId: inserted.id,
-          invitedName: invite.name,
-          invitedEmail: invite.email,
-          invitedImageUrl: invite.imageUrl ?? null,
-        }))
-      );
+      const inviterName = await resolveInviterName(tx, ctx.userId, isVenue);
+      const rows = unregisteredCollaborators.map((invite) => ({
+        eventId: inserted.id,
+        invitedName: invite.name,
+        invitedEmail: canonicalEmail(invite.email),
+        invitedImageUrl: invite.imageUrl ?? null,
+        inviteToken: randomUUID(),
+        inviteTokenExpiresAt: new Date(Date.now() + INVITE_TOKEN_TTL_MS),
+      }));
+      await tx.insert(eventCollaborators).values(rows);
+
+      for (const row of rows) {
+        pendingInviteEmails.push({
+          to: row.invitedEmail,
+          inviterName,
+          eventTitle: inserted.title,
+          eventDate: formatNotificationDate(inserted.dateStart),
+          inviteUrl: inviteUrl(row.inviteToken),
+        });
+      }
     }
 
     // Platform invites → pending bookings for invited artists.
@@ -692,6 +769,7 @@ export const create = creatorProcedure.input(createEventSchema).mutation(async (
   // Fire all collected dispatches after the transaction commits — a rollback
   // would leave us with phantom inbox rows + push notifications otherwise.
   await Promise.all(pendingDispatches.map((d) => ctx.dispatchNotification(d)));
+  await flushInviteEmails(pendingInviteEmails);
 
   // Sync to Typesense so the event appears on map/feed immediately. Skip while
   // held for venue approval — a pending_review event must stay off the map/feed
@@ -770,6 +848,8 @@ export const update = protectedProcedure
     // Collected inside the transaction; fired after commit so a rollback
     // doesn't leave us with phantom notifications.
     const pendingDispatches: DispatchNotificationInput[] = [];
+    // Outside-platform invite emails, likewise flushed after commit.
+    const pendingInviteEmails: PendingInviteEmail[] = [];
 
     const updated = await db.transaction(async (tx) => {
       // Build the update object — only set provided fields
@@ -889,15 +969,21 @@ export const update = protectedProcedure
       // rows; existing ones (incl. legacy auto-confirmed performers) are left
       // intact. Only the invite paths below are managed here.
 
-      // Update non-platform (invited) collaborators — replace all on edit
+      // Update non-platform (invited) collaborators — replace all on edit, but
+      // only EMAIL the newly-added invitees. The form re-sends the full invite
+      // list on every edit, so naively emailing every row would re-spam everyone
+      // each time the venue tweaks an unrelated field. Invitees already on the
+      // event keep their existing token + expiry; only genuinely new emails get a
+      // fresh token and an invite email.
       if (unregisteredCollaborators !== undefined) {
-        // Remove existing invited-only rows (artistProfileId IS NULL)
+        // Existing invited-only rows (artistProfileId IS NULL), keyed by email so
+        // we can tell "already invited" from "newly added".
         const existingInvited = await tx.query.eventCollaborators.findMany({
           where: and(
             eq(eventCollaborators.eventId, input.id),
             sql`${eventCollaborators.artistProfileId} IS NULL`
           ),
-          columns: { id: true },
+          columns: { id: true, invitedEmail: true, inviteToken: true, inviteTokenExpiresAt: true },
         });
         if (existingInvited.length > 0) {
           await tx.delete(eventCollaborators).where(
@@ -909,14 +995,44 @@ export const update = protectedProcedure
         }
 
         if (unregisteredCollaborators.length > 0) {
-          await tx.insert(eventCollaborators).values(
-            unregisteredCollaborators.map((invite) => ({
-              eventId: input.id,
-              invitedName: invite.name,
-              invitedEmail: invite.email,
-              invitedImageUrl: invite.imageUrl ?? null,
-            }))
+          const priorByEmail = new Map(
+            existingInvited.filter((r) => r.invitedEmail).map((r) => [r.invitedEmail as string, r])
           );
+
+          const rows = unregisteredCollaborators.map((invite) => {
+            const email = canonicalEmail(invite.email);
+            const prior = priorByEmail.get(email);
+            const inviteToken = prior?.inviteToken ?? randomUUID();
+            return {
+              isNew: !prior,
+              inviteToken,
+              row: {
+                eventId: input.id,
+                invitedName: invite.name,
+                invitedEmail: email,
+                invitedImageUrl: invite.imageUrl ?? null,
+                inviteToken,
+                inviteTokenExpiresAt:
+                  prior?.inviteTokenExpiresAt ?? new Date(Date.now() + INVITE_TOKEN_TTL_MS),
+              },
+            };
+          });
+
+          await tx.insert(eventCollaborators).values(rows.map((r) => r.row));
+
+          const newRows = rows.filter((r) => r.isNew);
+          if (newRows.length > 0) {
+            const inviterName = await resolveInviterName(tx, ctx.userId, isVenue);
+            for (const r of newRows) {
+              pendingInviteEmails.push({
+                to: r.row.invitedEmail,
+                inviterName,
+                eventTitle: result.title,
+                eventDate: formatNotificationDate(result.dateStart),
+                inviteUrl: inviteUrl(r.inviteToken),
+              });
+            }
+          }
         }
       }
 
@@ -1143,6 +1259,7 @@ export const update = protectedProcedure
 
     // Fire collected dispatches after the transaction commits.
     await Promise.all(pendingDispatches.map((d) => ctx.dispatchNotification(d)));
+    await flushInviteEmails(pendingInviteEmails);
 
     return updated;
   });
