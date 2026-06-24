@@ -36,6 +36,7 @@ import { useMe } from '@/hooks/use-me';
 import { useMyEvents } from '@/hooks/use-my-events';
 import { useMyPosts } from '@/hooks/use-my-posts';
 import { useResendBooking } from '@/hooks/use-resend-booking';
+import { useSavedEvents } from '@/hooks/use-saved-events';
 import { useUpdateBooking } from '@/hooks/use-update-booking';
 import { getBookingActionErrorBody } from '@/utils/booking-error';
 import { MOCK_PROFILE_IMAGE } from '@/utils/mock-images';
@@ -612,6 +613,7 @@ function CreatorProfile({
   const settingsRef = useRef<BottomSheetModal>(null);
 
   const myEvents = useMyEvents();
+  const { totalCount: savedCount } = useSavedEvents();
 
   const handleRefresh = useCallback(async () => {
     await myEvents.refresh();
@@ -646,7 +648,7 @@ function CreatorProfile({
         actions={[
           {
             key: 'saved',
-            icon: 'bookmark-outline',
+            icon: savedCount > 0 ? 'bookmark' : 'bookmark-outline',
             onPress: () => router.push('/(app)/(tabs)/profile/saved-events'),
             accessibilityLabel: 'Saved events',
           },
