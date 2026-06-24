@@ -110,6 +110,11 @@ vi.mock('@CeolX/db/schema/events', () => ({
     userId: 'user_id',
     eventId: 'event_id',
   },
+  // listEvents now counts performers per event via a correlated subquery.
+  eventCollaborators: {
+    id: 'id',
+    eventId: 'event_id',
+  },
 }));
 
 vi.mock('@CeolX/db/schema/auth', () => ({
@@ -117,6 +122,14 @@ vi.mock('@CeolX/db/schema/auth', () => ({
     id: 'id',
     name: 'name',
     currentRole: 'current_role',
+  },
+  // usersRouter (pulled in via admin/index.ts) builds a module-level RICH_SELECT
+  // that references account at import time, so the mock must export it.
+  account: {
+    id: 'id',
+    userId: 'user_id',
+    providerId: 'provider_id',
+    password: 'password',
   },
 }));
 

@@ -1,9 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
-  VENUE_MONTHLY_PRICE_EUR,
   buildCacheMeta,
-  computeMrrEur,
   computeTrend,
   shapeBookingStats,
   shapeEngagementStats,
@@ -34,20 +32,6 @@ describe('computeTrend', () => {
 
   it('returns "up" when previous is zero and current is positive', () => {
     expect(computeTrend(3, 0)).toBe('up');
-  });
-});
-
-describe('computeMrrEur', () => {
-  it('multiplies activeVenues by the venue subscription price', () => {
-    expect(computeMrrEur(22)).toBe(22 * VENUE_MONTHLY_PRICE_EUR);
-  });
-
-  it('returns 0 for zero active venues', () => {
-    expect(computeMrrEur(0)).toBe(0);
-  });
-
-  it('refuses negative inputs (defensive — clamps to 0)', () => {
-    expect(computeMrrEur(-3)).toBe(0);
   });
 });
 
@@ -121,33 +105,37 @@ describe('shapeEventStats', () => {
 });
 
 describe('shapeBookingStats', () => {
-  it('zero-fills all booking statuses', () => {
+  it('zero-fills all booking directions', () => {
     const result = shapeBookingStats({
-      byStatus: [
-        { status: 'pending', count: 8 },
-        { status: 'accepted', count: 28 },
+      byDirection: [
+        { direction: 'venue_to_artist', count: 8 },
+        { direction: 'artist_to_venue', count: 28 },
       ],
     });
     expect(result).toEqual({
       total: 36,
-      byStatus: { pending: 8, accepted: 28, rejected: 0, cancelled: 0 },
+      byDirection: { venue_to_artist: 8, artist_to_venue: 28, artist_to_artist: 0 },
     });
   });
 
   it('handles empty input', () => {
-    const result = shapeBookingStats({ byStatus: [] });
+    const result = shapeBookingStats({ byDirection: [] });
     expect(result.total).toBe(0);
-    expect(result.byStatus).toEqual({ pending: 0, accepted: 0, rejected: 0, cancelled: 0 });
+    expect(result.byDirection).toEqual({
+      venue_to_artist: 0,
+      artist_to_venue: 0,
+      artist_to_artist: 0,
+    });
   });
 
-  it('ignores unknown statuses', () => {
+  it('ignores unknown directions', () => {
     const result = shapeBookingStats({
-      byStatus: [
-        { status: 'accepted', count: 5 },
-        { status: 'mystery', count: 99 },
+      byDirection: [
+        { direction: 'artist_to_venue', count: 5 },
+        { direction: 'mystery', count: 99 },
       ],
     });
-    expect(result.byStatus.accepted).toBe(5);
+    expect(result.byDirection.artist_to_venue).toBe(5);
     expect(result.total).toBe(5);
   });
 });
@@ -246,7 +234,7 @@ describe('buildCacheMeta', () => {
 });
 
 describe('shapeSubscriptionStats', () => {
-  it('returns active venue count, MRR, new subs, and past-due count', () => {
+  it('returns active venue count, new subs, and past-due count', () => {
     const result = shapeSubscriptionStats({
       activeVenues: 22,
       pastDueCount: 1,
@@ -256,7 +244,6 @@ describe('shapeSubscriptionStats', () => {
 
     expect(result).toEqual({
       activeVenues: 22,
-      mrr: 22 * VENUE_MONTHLY_PRICE_EUR,
       newLast30Days: 4,
       pastDueCount: 1,
       trend30d: 'flat',

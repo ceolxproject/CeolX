@@ -1,9 +1,9 @@
 import { TRPCError } from '@trpc/server';
-import { and, asc, count, desc, eq, gte, ilike, inArray, lte, or } from 'drizzle-orm';
+import { and, asc, count, desc, eq, gte, ilike, inArray, lte, or, sql } from 'drizzle-orm';
 
 import { db } from '@CeolX/db';
 import { user } from '@CeolX/db/schema/auth';
-import { events, savedEvents } from '@CeolX/db/schema/events';
+import { eventCollaborators, events, savedEvents } from '@CeolX/db/schema/events';
 import {
   EventStatus,
   NotificationTrigger,
@@ -94,6 +94,11 @@ export const listEvents = adminProcedure
         ticketPrice: events.ticketPrice,
         viewCount: events.viewCount,
         ticketClicks: events.ticketClicks,
+        // Real engagement the admin can act on, unlike viewCount/ticketClicks
+        // (not tracked until M10/M11). Performers = invited + confirmed artists
+        // on this event; saves = fans who bookmarked it.
+        performerCount: sql<number>`(select count(*)::int from ${eventCollaborators} where ${eventCollaborators.eventId} = ${events.id})`,
+        savedCount: sql<number>`(select count(*)::int from ${savedEvents} where ${savedEvents.eventId} = ${events.id})`,
         status: events.status,
         removalReason: events.removalReason,
         createdAt: events.createdAt,
@@ -133,6 +138,8 @@ export const listEvents = adminProcedure
         ticketPrice: row.ticketPrice,
         viewCount: row.viewCount ?? 0,
         ticketClicks: row.ticketClicks ?? 0,
+        performerCount: row.performerCount ?? 0,
+        savedCount: row.savedCount ?? 0,
         status: row.status,
         removalReason: row.removalReason,
         createdAt: row.createdAt,

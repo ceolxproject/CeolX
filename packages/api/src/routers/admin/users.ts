@@ -24,12 +24,7 @@ import { events, savedEvents } from '@CeolX/db/schema/events';
 import { deviceTokens } from '@CeolX/db/schema/notifications';
 import { follows, posts } from '@CeolX/db/schema/social';
 import { artistProfiles, profileSocialLinks, venueProfiles } from '@CeolX/db/schema/users';
-import { endOfDay } from '@CeolX/shared/utils';
-import type {
-  AuthMethod,
-  UserPersonaFilter,
-  UserSubscriptionFilter,
-} from '@CeolX/shared/validators';
+import type { AuthMethod, UserPersonaFilter } from '@CeolX/shared/validators';
 import {
   adminUserDetailInputSchema,
   adminUsersExportInputSchema,
@@ -59,7 +54,6 @@ const NON_ADMIN = ne(user.currentRole, 'admin');
 type UserFilterInput = {
   search?: string;
   persona?: UserPersonaFilter[];
-  subscriptionStatus?: UserSubscriptionFilter[];
   authMethod?: AuthMethod[];
   emailVerified?: boolean;
   flaggedInactive?: boolean;
@@ -68,8 +62,13 @@ type UserFilterInput = {
   registeredTo?: string;
 };
 
+function endOfDay(date: string): Date {
+  const d = new Date(date);
+  d.setUTCHours(23, 59, 59, 999);
+  return d;
+}
+
 // Builds the WHERE clause from the filter inputs. subscriptionStatus + authMethod
-// use EXISTS subqueries so the count query needs no joins and stays exact.
 function buildUserFilter(input: UserFilterInput): SQL {
   const conds: Array<SQL | undefined> = [NON_ADMIN];
 
@@ -85,21 +84,6 @@ function buildUserFilter(input: UserFilterInput): SQL {
   if (input.registeredFrom) conds.push(gte(user.createdAt, new Date(input.registeredFrom)));
   if (input.registeredTo) conds.push(lte(user.createdAt, endOfDay(input.registeredTo)));
 
-  if (input.subscriptionStatus?.length) {
-    conds.push(
-      exists(
-        db
-          .select({ one: sql`1` })
-          .from(venueProfiles)
-          .where(
-            and(
-              eq(venueProfiles.userId, user.id),
-              inArray(venueProfiles.subscriptionStatus, input.subscriptionStatus)
-            )
-          )
-      )
-    );
-  }
   if (input.authMethod?.length) {
     conds.push(
       exists(
@@ -114,6 +98,30 @@ function buildUserFilter(input: UserFilterInput): SQL {
   return and(...conds) as SQL;
 }
 
+// Events-count + auth-providers run as correlated subqueries, per page row (limit 20).
+// Fine under the launch cap; revisit with a join + groupBy if the table grows.
+const RICH_SELECT = {
+  id: user.id,
+  name: user.name,
+  email: user.email,
+  currentRole: user.currentRole,
+  lastLoginAt: user.lastLoginAt,
+  flaggedInactive: user.flaggedInactive,
+  emailVerified: user.emailVerified,
+  image: user.image,
+  venueSubscriptionStatus: venueProfiles.subscriptionStatus,
+  artistActive: artistProfiles.isActive,
+  // Uploaded artist/venue photo (CDN). The BetterAuth `user.image` is only set by
+  // social login, so without this an artist who uploaded a photo still shows initials.
+  profileImageUrl: sql<
+    string | null
+  >`coalesce(${artistProfiles.profileImageUrl}, ${venueProfiles.profileImageUrl})`,
+  eventsCount: sql<number>`(select count(*)::int from ${events} where ${events.createdBy} = ${user.id})`,
+  authProviders: sql<
+    string[]
+  >`coalesce((select array_agg(distinct ${account.providerId}) from ${account} where ${account.userId} = ${user.id}), '{}')`,
+};
+
 const list = adminProcedure.input(adminUsersListInputSchema).query(async ({ input }) => {
   const filter = buildUserFilter(input);
   const orderColumn = SORT_COLUMNS[input.sortBy];
@@ -121,29 +129,7 @@ const list = adminProcedure.input(adminUsersListInputSchema).query(async ({ inpu
 
   const [rows, totalRow] = await Promise.all([
     db
-      // events-count + auth-providers run as correlated subqueries, per page row
-      // (limit 20). Fine under the launch cap; revisit with a join + groupBy if it grows.
-      .select({
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        currentRole: user.currentRole,
-        lastLoginAt: user.lastLoginAt,
-        flaggedInactive: user.flaggedInactive,
-        emailVerified: user.emailVerified,
-        image: user.image,
-        venueSubscriptionStatus: venueProfiles.subscriptionStatus,
-        artistActive: artistProfiles.isActive,
-        // Uploaded artist/venue photo (CDN). BetterAuth `user.image` is only set by
-        // social login, so without this an artist who uploaded a photo shows initials.
-        profileImageUrl: sql<
-          string | null
-        >`coalesce(${artistProfiles.profileImageUrl}, ${venueProfiles.profileImageUrl})`,
-        eventsCount: sql<number>`(select count(*)::int from ${events} where ${events.createdBy} = ${user.id})`,
-        authProviders: sql<
-          string[]
-        >`coalesce((select array_agg(distinct ${account.providerId}) from ${account} where ${account.userId} = ${user.id}), '{}')`,
-      })
+      .select(RICH_SELECT)
       .from(user)
       .leftJoin(artistProfiles, eq(artistProfiles.userId, user.id))
       .leftJoin(venueProfiles, eq(venueProfiles.userId, user.id))
@@ -256,8 +242,15 @@ const getById = adminProcedure.input(adminUserDetailInputSchema).query(async ({ 
       followers: sql<number>`(select count(*)::int from ${follows} where ${follows.followeeId} = ${userId})`,
       following: sql<number>`(select count(*)::int from ${follows} where ${follows.followerId} = ${userId})`,
       posts: sql<number>`(select count(*)::int from ${posts} where ${posts.createdBy} = ${userId} and ${posts.deletedAt} is null)`,
-      bookingsAsArtist: sql<number>`(select count(*)::int from ${bookings} where ${bookings.artistId} = ${artist?.id ?? null})`,
-      bookingsAsVenue: sql<number>`(select count(*)::int from ${bookings} where ${bookings.venueId} = ${venue?.id ?? null})`,
+      // Artist bookings, split by who started it. "Requested" = this artist
+      // applied to a venue gig, or invited a co-artist. "Invited" = this artist
+      // was asked to perform (by a venue, or by another artist).
+      artistRequested: sql<number>`(select count(*)::int from ${bookings} where (${bookings.artistId} = ${artist?.id ?? null} and ${bookings.direction} = 'artist_to_venue') or ${bookings.inviterArtistId} = ${artist?.id ?? null})`,
+      artistInvited: sql<number>`(select count(*)::int from ${bookings} where ${bookings.artistId} = ${artist?.id ?? null} and ${bookings.direction} in ('venue_to_artist', 'artist_to_artist'))`,
+      // Venue bookings. "Sent" = invites this venue sent to artists. "Received"
+      // = applications artists sent to this venue.
+      venueSent: sql<number>`(select count(*)::int from ${bookings} where ${bookings.venueId} = ${venue?.id ?? null} and ${bookings.direction} = 'venue_to_artist')`,
+      venueReceived: sql<number>`(select count(*)::int from ${bookings} where ${bookings.venueId} = ${venue?.id ?? null} and ${bookings.direction} = 'artist_to_venue')`,
     })
     .from(user)
     .where(eq(user.id, userId));
@@ -363,8 +356,10 @@ const getById = adminProcedure.input(adminUserDetailInputSchema).query(async ({ 
       followers: c?.followers ?? 0,
       following: c?.following ?? 0,
       posts: c?.posts ?? 0,
-      bookingsAsArtist: c?.bookingsAsArtist ?? 0,
-      bookingsAsVenue: c?.bookingsAsVenue ?? 0,
+      artistRequested: c?.artistRequested ?? 0,
+      artistInvited: c?.artistInvited ?? 0,
+      venueSent: c?.venueSent ?? 0,
+      venueReceived: c?.venueReceived ?? 0,
     },
     recentEvents: recentEvents.map((e) => ({
       id: e.id,

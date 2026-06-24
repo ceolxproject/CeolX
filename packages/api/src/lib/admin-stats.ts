@@ -5,11 +5,12 @@
  * Drizzle and feeds the rows into these shapers. Keeping the shaping pure makes
  * trend math + persona breakdown easy to unit test without mocking the database.
  *
- * MRR note: V1 has venue subscriptions only; artist subscriptions land in M3-T1.
- * Once they do, extend computeMrrEur with the artist price + activeArtists count.
+ * Revenue note: an MRR euro figure was intentionally dropped. Venue pricing isn't
+ * finalised (PRD Open Item #2) and artist subscriptions aren't live, so any euro
+ * total would be an assumption shown as fact. The dashboard shows real subscription
+ * counts (active / past due) instead. Reintroduce a revenue figure only once a
+ * confirmed price and Stripe-sourced amounts exist.
  */
-
-export const VENUE_MONTHLY_PRICE_EUR = 180;
 
 export type Trend = 'up' | 'down' | 'flat';
 
@@ -17,11 +18,6 @@ export function computeTrend(current: number, previous: number): Trend {
   if (current > previous) return 'up';
   if (current < previous) return 'down';
   return 'flat';
-}
-
-export function computeMrrEur(activeVenues: number): number {
-  if (activeVenues <= 0) return 0;
-  return activeVenues * VENUE_MONTHLY_PRICE_EUR;
 }
 
 // ─── User stats ──────────────────────────────────────────────────────────────
@@ -125,7 +121,6 @@ export type SubscriptionStatsInput = {
 
 export type SubscriptionStats = {
   activeVenues: number;
-  mrr: number;
   newLast30Days: number;
   pastDueCount: number;
   trend30d: Trend;
@@ -134,7 +129,6 @@ export type SubscriptionStats = {
 export function shapeSubscriptionStats(input: SubscriptionStatsInput): SubscriptionStats {
   return {
     activeVenues: input.activeVenues,
-    mrr: computeMrrEur(input.activeVenues),
     newLast30Days: input.newLast30Days,
     pastDueCount: input.pastDueCount,
     trend30d: computeTrend(input.newLast30Days, input.newPrev30Days),
@@ -142,32 +136,36 @@ export function shapeSubscriptionStats(input: SubscriptionStatsInput): Subscript
 }
 
 // ─── Booking stats (R17) ─────────────────────────────────────────────────────
+//
+// Grouped by *direction*, not status — "who started this link" is the readable
+// signal for the operator (venues inviting vs artists applying vs co-artist
+// invites). A flat all-status total hid that.
 
-const BOOKING_STATUSES = ['pending', 'accepted', 'rejected', 'cancelled'] as const;
-type BookingStatus = (typeof BOOKING_STATUSES)[number];
+const BOOKING_DIRECTIONS = ['venue_to_artist', 'artist_to_venue', 'artist_to_artist'] as const;
+type BookingDirection = (typeof BOOKING_DIRECTIONS)[number];
 
 export type BookingStatsInput = {
-  byStatus: { status: string; count: number }[];
+  byDirection: { direction: string; count: number }[];
 };
 
 export type BookingStats = {
   total: number;
-  byStatus: Record<BookingStatus, number>;
+  byDirection: Record<BookingDirection, number>;
 };
 
 export function shapeBookingStats(input: BookingStatsInput): BookingStats {
-  const byStatus = Object.fromEntries(BOOKING_STATUSES.map((s) => [s, 0])) as Record<
-    BookingStatus,
+  const byDirection = Object.fromEntries(BOOKING_DIRECTIONS.map((d) => [d, 0])) as Record<
+    BookingDirection,
     number
   >;
   let total = 0;
-  for (const row of input.byStatus) {
-    if ((BOOKING_STATUSES as readonly string[]).includes(row.status)) {
-      byStatus[row.status as BookingStatus] = row.count;
+  for (const row of input.byDirection) {
+    if ((BOOKING_DIRECTIONS as readonly string[]).includes(row.direction)) {
+      byDirection[row.direction as BookingDirection] = row.count;
       total += row.count;
     }
   }
-  return { total, byStatus };
+  return { total, byDirection };
 }
 
 // ─── Engagement stats (extended with R19 avg-likes) ──────────────────────────

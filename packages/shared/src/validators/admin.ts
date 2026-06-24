@@ -10,10 +10,6 @@ export type SortDirection = (typeof SORT_DIRECTIONS)[number];
 export const USER_PERSONA_FILTERS = ['spectator', 'artist', 'venue'] as const;
 export type UserPersonaFilter = (typeof USER_PERSONA_FILTERS)[number];
 
-// Venue subscription lifecycle (mirrors SUBSCRIPTION_STATUSES in enums).
-export const USER_SUBSCRIPTION_FILTERS = ['inactive', 'active', 'past_due', 'cancelled'] as const;
-export type UserSubscriptionFilter = (typeof USER_SUBSCRIPTION_FILTERS)[number];
-
 // BetterAuth `account.providerId` values: 'credential' = email/password.
 export const AUTH_METHODS = ['credential', 'google', 'apple'] as const;
 export type AuthMethod = (typeof AUTH_METHODS)[number];
@@ -29,7 +25,6 @@ const optionalTrimmedSearch = z
 const adminUsersFilters = {
   search: optionalTrimmedSearch,
   persona: z.array(z.enum(USER_PERSONA_FILTERS)).optional(),
-  subscriptionStatus: z.array(z.enum(USER_SUBSCRIPTION_FILTERS)).optional(),
   authMethod: z.array(z.enum(AUTH_METHODS)).optional(),
   emailVerified: z.boolean().optional(),
   flaggedInactive: z.boolean().optional(),

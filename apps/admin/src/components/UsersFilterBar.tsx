@@ -11,7 +11,6 @@ import { cn } from '@CeolX/ui/lib/utils';
 
 // Persona is handled by the segment tabs, not here — these are the refinements.
 export type UserFilters = {
-  subscriptionStatus: string[];
   authMethod: string[];
   emailVerified?: boolean;
   flaggedInactive?: boolean;
@@ -21,16 +20,8 @@ export type UserFilters = {
 };
 
 export const EMPTY_FILTERS: UserFilters = {
-  subscriptionStatus: [],
   authMethod: [],
 };
-
-const SUB_OPTIONS = [
-  { value: 'active', label: 'Active' },
-  { value: 'inactive', label: 'Inactive' },
-  { value: 'past_due', label: 'Past due' },
-  { value: 'cancelled', label: 'Cancelled' },
-];
 
 const AUTH_OPTIONS = [
   { value: 'credential', label: 'Email / Password' },
@@ -38,16 +29,12 @@ const AUTH_OPTIONS = [
   { value: 'apple', label: 'Apple' },
 ];
 
-const SUB_LABEL: Record<string, string> = Object.fromEntries(
-  SUB_OPTIONS.map((o) => [o.value, o.label])
-);
 const AUTH_LABEL: Record<string, string> = Object.fromEntries(
   AUTH_OPTIONS.map((o) => [o.value, o.label])
 );
 
 export function countActiveFilters(f: UserFilters): number {
   return (
-    f.subscriptionStatus.length +
     f.authMethod.length +
     (f.emailVerified !== undefined ? 1 : 0) +
     (f.flaggedInactive ? 1 : 0) +
@@ -115,11 +102,11 @@ export function UsersFilters({
   resultCount: number;
 }) {
   const set = (patch: Partial<UserFilters>) => onChange({ ...filters, ...patch });
-  const toggle = (key: 'subscriptionStatus' | 'authMethod', v: string) => {
-    const arr = filters[key];
-    const next = arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v];
-    if (key === 'subscriptionStatus') onChange({ ...filters, subscriptionStatus: next });
-    else onChange({ ...filters, authMethod: next });
+  const toggleAuth = (v: string) => {
+    const next = filters.authMethod.includes(v)
+      ? filters.authMethod.filter((x) => x !== v)
+      : [...filters.authMethod, v];
+    onChange({ ...filters, authMethod: next });
   };
   const active = countActiveFilters(filters);
   const today = new Date().toISOString().slice(0, 10);
@@ -152,24 +139,13 @@ export function UsersFilters({
         </div>
 
         <div className="grid max-h-[70vh] grid-cols-2 overflow-y-auto [&>*]:border-border/60 [&>*:not(:last-child)]:border-b [&>*:nth-child(odd):not(:last-child)]:border-r">
-          <Group label="Subscription">
-            {SUB_OPTIONS.map((o) => (
-              <CheckRow
-                key={o.value}
-                label={o.label}
-                checked={filters.subscriptionStatus.includes(o.value)}
-                onClick={() => toggle('subscriptionStatus', o.value)}
-              />
-            ))}
-          </Group>
-
           <Group label="Sign-in method">
             {AUTH_OPTIONS.map((o) => (
               <CheckRow
                 key={o.value}
                 label={o.label}
                 checked={filters.authMethod.includes(o.value)}
-                onClick={() => toggle('authMethod', o.value)}
+                onClick={() => toggleAuth(o.value)}
               />
             ))}
           </Group>
@@ -275,16 +251,6 @@ export function UserFilterChips({
 }) {
   const chips: Array<{ label: string; remove: () => void }> = [];
 
-  filters.subscriptionStatus.forEach((s) =>
-    chips.push({
-      label: `Subscription: ${SUB_LABEL[s] ?? s}`,
-      remove: () =>
-        onChange({
-          ...filters,
-          subscriptionStatus: filters.subscriptionStatus.filter((x) => x !== s),
-        }),
-    })
-  );
   filters.authMethod.forEach((m) =>
     chips.push({
       label: `Sign-in: ${AUTH_LABEL[m] ?? m}`,

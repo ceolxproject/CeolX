@@ -11,11 +11,7 @@ import {
 import { useState } from 'react';
 import { toast } from 'sonner';
 
-import type {
-  AuthMethod,
-  UserPersonaFilter,
-  UserSubscriptionFilter,
-} from '@CeolX/shared/validators';
+import type { AuthMethod, UserPersonaFilter } from '@CeolX/shared/validators';
 import { Avatar, AvatarFallback, AvatarImage } from '@CeolX/ui/components/avatar';
 import { Badge } from '@CeolX/ui/components/badge';
 import { Button } from '@CeolX/ui/components/button';
@@ -47,7 +43,7 @@ import {
 } from '@/components/UsersFilterBar';
 import { buildCsv, downloadCsv } from '@/lib/csv';
 import { relativeTime } from '@/lib/format';
-import { initials, PERSONA_CLASS, SUB_CLASS } from '@/lib/userBadges';
+import { initials, PERSONA_CLASS } from '@/lib/userBadges';
 import { trpcClient, trpc } from '@/utils/trpc';
 
 export const Route = createFileRoute('/_admin/users')({
@@ -89,36 +85,6 @@ type UserRow = {
   lastLoginAt: string | null;
 };
 
-function StatusCell({ user }: { user: UserRow }) {
-  if (user.currentRole === 'venue') {
-    const s = user.venueSubscriptionStatus;
-    if (!s) return <span className="text-xs text-muted-foreground">—</span>;
-    return (
-      <Badge variant="outline" className={cn('capitalize', SUB_CLASS[s])}>
-        {s.replace('_', ' ')}
-      </Badge>
-    );
-  }
-  if (user.currentRole === 'artist') {
-    return (
-      <Badge
-        variant="outline"
-        className={user.artistActive ? SUB_CLASS.active : SUB_CLASS.inactive}
-      >
-        {user.artistActive ? 'Visible' : 'Hidden'}
-      </Badge>
-    );
-  }
-  if (user.flaggedInactive) {
-    return (
-      <Badge variant="outline" className={SUB_CLASS.past_due}>
-        Inactive
-      </Badge>
-    );
-  }
-  return <span className="text-xs text-muted-foreground">—</span>;
-}
-
 function AuthCell({ providers }: { providers: string[] }) {
   const [first, ...rest] = providers;
   if (!first) return <span className="text-xs text-muted-foreground">—</span>;
@@ -152,9 +118,6 @@ function UsersPage() {
   const filterArgs = {
     search: search || undefined,
     persona: persona === 'all' ? undefined : ([persona] as UserPersonaFilter[]),
-    subscriptionStatus: filters.subscriptionStatus.length
-      ? (filters.subscriptionStatus as UserSubscriptionFilter[])
-      : undefined,
     authMethod: filters.authMethod.length ? (filters.authMethod as AuthMethod[]) : undefined,
     emailVerified: filters.emailVerified,
     flaggedInactive: filters.flaggedInactive,
@@ -223,7 +186,7 @@ function UsersPage() {
   const totalPages = data?.pagination.totalPages ?? 0;
   const tabCount = (p: Persona) => (p === 'all' ? summary?.total : summary?.[`${p}s`]);
 
-  const COL_COUNT = 7;
+  const COL_COUNT = 6;
 
   return (
     <div className="space-y-5">
@@ -298,7 +261,6 @@ function UsersPage() {
                 />
               </TableHead>
               <TableHead>Persona</TableHead>
-              <TableHead>Status</TableHead>
               <TableHead>Sign-in</TableHead>
               <TableHead className="text-right">Events</TableHead>
               <TableHead>
@@ -399,13 +361,19 @@ function UsersPage() {
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    <StatusCell user={u} />
-                  </TableCell>
-                  <TableCell>
                     <AuthCell providers={u.authProviders} />
                   </TableCell>
                   <TableCell className="text-right font-mono font-semibold">
-                    {u.eventsCount}
+                    {u.currentRole === 'spectator' ? (
+                      <span
+                        className="font-sans font-normal text-muted-foreground"
+                        title="Spectators don't create events"
+                      >
+                        N/A
+                      </span>
+                    ) : (
+                      u.eventsCount
+                    )}
                   </TableCell>
                   <TableCell className="text-muted-foreground">
                     {relativeTime(u.lastLoginAt)}

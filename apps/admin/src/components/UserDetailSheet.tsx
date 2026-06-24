@@ -7,6 +7,7 @@ import {
   ChevronDown,
   CreditCard,
   ExternalLink,
+  Handshake,
   KeyRound,
   Link2,
   Smartphone,
@@ -123,15 +124,14 @@ function DetailBody({ data }: { data: Detail }) {
     user.currentRole === 'artist'
       ? [
           { label: 'Events', value: counts.events },
-          { label: 'Bookings', value: counts.bookingsAsArtist },
           { label: 'Followers', value: counts.followers },
           { label: 'Posts', value: counts.posts },
         ]
       : user.currentRole === 'venue'
         ? [
             { label: 'Events', value: counts.events },
-            { label: 'Bookings', value: counts.bookingsAsVenue },
             { label: 'Followers', value: counts.followers },
+            { label: 'Posts', value: counts.posts },
           ]
         : [
             { label: 'Saved', value: counts.saved },
@@ -168,14 +168,6 @@ function DetailBody({ data }: { data: Detail }) {
               >
                 {user.emailVerified ? 'Verified' : 'Unverified'}
               </Badge>
-              {artist && (
-                <Badge
-                  variant="outline"
-                  className={artist.isActive ? SUB_CLASS.active : SUB_CLASS.inactive}
-                >
-                  {artist.isActive ? 'Profile visible' : 'Hidden'}
-                </Badge>
-              )}
               {subStatus && (
                 <Badge variant="outline" className={cn('capitalize', SUB_CLASS[subStatus])}>
                   {subStatus.replace('_', ' ')}
@@ -236,6 +228,22 @@ function DetailBody({ data }: { data: Detail }) {
           </Card>
         )}
 
+        {(artist || venue) && (
+          <Card icon={<Handshake size={14} />} title="Bookings">
+            {artist ? (
+              <>
+                <KV k="Requested">{counts?.artistRequested}</KV>
+                <KV k="Invited">{counts?.artistInvited}</KV>
+              </>
+            ) : (
+              <>
+                <KV k="Invites sent">{counts.venueSent}</KV>
+                <KV k="Requests received">{counts.venueReceived}</KV>
+              </>
+            )}
+          </Card>
+        )}
+
         {artist && (
           <Card icon={<UserIcon size={14} />} title="Artist profile">
             <KV k="Stage name">{artist.stageName}</KV>
@@ -268,31 +276,31 @@ function DetailBody({ data }: { data: Detail }) {
           </Card>
         )}
 
-        {(artist || venue) && (
+        {venue && (
           <Card icon={<CreditCard size={14} />} title="Membership">
-            <KV k="Tier">{venue ? 'Venue' : 'Artist'}</KV>
+            <KV k="Tier">Venue</KV>
             <KV k="Status">
-              {venue ? (
-                subStatus ? (
-                  <Badge variant="outline" className={cn('capitalize', SUB_CLASS[subStatus])}>
-                    {subStatus.replace('_', ' ')}
-                  </Badge>
-                ) : (
-                  '—'
-                )
-              ) : artist?.isActive ? (
-                'Active (visible)'
+              {subStatus ? (
+                <Badge variant="outline" className={cn('capitalize', SUB_CLASS[subStatus])}>
+                  {subStatus.replace('_', ' ')}
+                </Badge>
               ) : (
-                'Hidden'
+                '—'
               )}
             </KV>
-            {venue?.subscription && (
+            {subStatus === 'inactive' && (
+              <p className="pt-1 text-xs text-muted-foreground">
+                Venue subscriptions aren&rsquo;t live yet, so every venue reads inactive until
+                billing ships.
+              </p>
+            )}
+            {venue.subscription && (
               <>
                 <KV k="Plan">{venue.subscription.plan}</KV>
                 <KV k="Renews">{formatDate(venue.subscription.currentPeriodEnd)}</KV>
               </>
             )}
-            {venue?.stripeCustomerId && (
+            {venue.stripeCustomerId && (
               <KV k="Stripe customer">
                 <span className="font-mono text-xs text-muted-foreground">
                   {venue.stripeCustomerId}

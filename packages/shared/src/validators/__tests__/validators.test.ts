@@ -847,7 +847,7 @@ describe('adminEventListQuerySchema', () => {
     const result = adminEventListQuerySchema.safeParse({});
     expect(result.success).toBe(true);
     if (result.success) {
-      expect(result.data.status).toBe('active');
+      expect(result.data.status).toBeUndefined();
       expect(result.data.limit).toBe(20);
       expect(result.data.offset).toBe(0);
       expect(result.data.persona).toBeUndefined();

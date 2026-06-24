@@ -1,14 +1,14 @@
 import type { inferRouterOutputs } from '@trpc/server';
 import {
+  Bookmark,
   CalendarDays,
   ChevronDown,
   ExternalLink,
-  Eye,
   MapPin,
-  MousePointerClick,
   RotateCcw,
   Tag,
   Trash2,
+  Users,
 } from 'lucide-react';
 import type { ReactNode } from 'react';
 
@@ -145,12 +145,8 @@ function DetailBody({
       </SheetHeader>
 
       <div className="grid grid-cols-2 border-b border-border">
-        <Stat label="Views" value={event.viewCount} icon={<Eye size={15} />} />
-        <Stat
-          label="Ticket clicks"
-          value={event.ticketClicks}
-          icon={<MousePointerClick size={15} />}
-        />
+        <Stat label="Performers" value={event.performerCount} icon={<Users size={15} />} />
+        <Stat label="Saves" value={event.savedCount} icon={<Bookmark size={15} />} />
       </div>
 
       <div className="flex-1 overflow-y-auto px-6">
