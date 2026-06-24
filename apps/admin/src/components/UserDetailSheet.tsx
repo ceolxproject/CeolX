@@ -211,13 +211,18 @@ function DetailBody({ data }: { data: Detail }) {
         {recentEvents.length > 0 && (
           <Card icon={<CalendarDays size={14} />} title="Events">
             {recentEvents.map((e) => (
-              <div key={e.id} className="flex items-center justify-between gap-3 py-1 text-sm">
+              <Link
+                key={e.id}
+                to="/events/moderation"
+                search={{ createdBy: user.id, eventId: e.id }}
+                className="-mx-2 flex items-center justify-between gap-3 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted"
+              >
                 <span className="min-w-0 truncate font-medium">{e.title}</span>
                 <span className="flex shrink-0 items-center gap-2 text-xs text-muted-foreground">
                   {formatDate(e.dateStart)}
                   <StatusBadge status={e.status} />
                 </span>
-              </div>
+              </Link>
             ))}
             {counts.events > recentEvents.length && (
               <Link

@@ -59,6 +59,11 @@ h6 {
   letter-spacing: -0.01em;
 }
 
+button:not(:disabled),
+[role='button']:not(:disabled) {
+  cursor: pointer;
+}
+
 /* Card elevation — every card-surface in the admin (shadcn Card +
    the table containers in moderation/users/DataTable) lifts off the
    page via a soft layered shadow instead of relying on colour. */

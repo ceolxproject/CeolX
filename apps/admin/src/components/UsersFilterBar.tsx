@@ -72,10 +72,13 @@ function CheckRow({
   return (
     <button
       type="button"
+      role="checkbox"
+      aria-checked={checked}
       onClick={onClick}
       className="flex w-full items-center gap-2.5 py-1.5 text-left text-sm"
     >
       <span
+        aria-hidden
         className={cn(
           'grid size-[18px] shrink-0 place-items-center rounded-[5px] border transition-colors',
           checked ? 'border-primary bg-primary text-white' : 'border-border'

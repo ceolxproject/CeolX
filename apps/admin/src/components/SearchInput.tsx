@@ -7,6 +7,7 @@ interface SearchInputProps {
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
+  ariaLabel?: string;
   debounceMs?: number;
   maxLength?: number;
 }
@@ -15,6 +16,7 @@ export function SearchInput({
   value,
   onChange,
   placeholder = 'Search…',
+  ariaLabel,
   debounceMs = 300,
   maxLength,
 }: SearchInputProps) {
@@ -49,6 +51,7 @@ export function SearchInput({
         value={local}
         onChange={(e) => setLocal(e.target.value)}
         placeholder={placeholder}
+        aria-label={ariaLabel ?? placeholder}
         maxLength={maxLength}
         className="pr-8"
       />

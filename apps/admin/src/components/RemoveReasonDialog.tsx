@@ -12,6 +12,7 @@ import {
 import { Textarea } from '@CeolX/ui/components/textarea';
 
 const MIN_REASON_LENGTH = 10;
+const MAX_REASON_LENGTH = 500;
 
 interface RemoveReasonDialogProps {
   open: boolean;
@@ -22,7 +23,7 @@ interface RemoveReasonDialogProps {
 export function RemoveReasonDialog({ open, onOpenChange, onConfirm }: RemoveReasonDialogProps) {
   const [reason, setReason] = useState('');
   const trimmed = reason.trim();
-  const isValid = trimmed.length >= MIN_REASON_LENGTH;
+  const isValid = trimmed.length >= MIN_REASON_LENGTH && trimmed.length <= MAX_REASON_LENGTH;
 
   function handleConfirm() {
     if (!isValid) return;
@@ -52,9 +53,12 @@ export function RemoveReasonDialog({ open, onOpenChange, onConfirm }: RemoveReas
             placeholder="Explain why this event is being removed…"
             className="min-h-30 resize-none"
             aria-label="Removal reason"
+            maxLength={MAX_REASON_LENGTH}
           />
           <p className="text-xs text-muted-foreground text-right tabular-nums">
-            {trimmed.length}/{MIN_REASON_LENGTH} characters
+            {trimmed.length < MIN_REASON_LENGTH
+              ? `At least ${MIN_REASON_LENGTH} characters`
+              : `${trimmed.length}/${MAX_REASON_LENGTH}`}
           </p>
         </div>
         <DialogFooter className="gap-2">
