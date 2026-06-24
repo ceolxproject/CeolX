@@ -67,3 +67,15 @@ export function isEventPast(dateStart: string): boolean {
 export function isEventToday(dateStart: string): boolean {
   return isToday(new Date(dateStart));
 }
+
+/**
+ * UTC end-of-day for a `yyyy-mm-dd` string — the inclusive upper bound for
+ * admin date-range filters. Bounds on the UTC day, pairing with the UTC
+ * start-of-day that `new Date('yyyy-mm-dd')` produces. Distinct from the
+ * Ireland-TZ display formatters above (different purpose: filtering, not display).
+ */
+export function endOfDay(date: string): Date {
+  const d = new Date(date);
+  d.setUTCHours(23, 59, 59, 999);
+  return d;
+}

@@ -79,10 +79,29 @@ export const removeEventSchema = z.object({
   removalReason: z.string().min(10, 'Removal reason must be at least 10 characters').max(500),
 });
 
+// yyyy-mm-dd AND a real calendar date (rejects 2026-13-45 etc.). Avoids relying
+// on z.string().date() so it works across Zod versions.
+const yyyyMmDd = z
+  .string()
+  .refine((v) => /^\d{4}-\d{2}-\d{2}$/.test(v) && !Number.isNaN(Date.parse(v)), {
+    message: 'Date must be a valid yyyy-mm-dd',
+  });
+
 export const adminEventListQuerySchema = z.object({
-  status: z.enum(['active', 'removed', 'archived']).default('active'),
+  // Omit to list every moderation status (the "All" tab); otherwise narrows to one.
+  status: z.enum(['active', 'removed', 'archived']).optional(),
   persona: z.enum(['artist', 'venue']).optional(),
+  // Free-text search — matched server-side against title OR creator name OR
+  // free-text venue address, so the moderator can find an event by what it's
+  // called, who posted it, or where it's held.
   q: z.string().max(100).optional(),
+  // Sweep one or more content types at once. Uses the finalised shared enum.
+  category: z.array(z.enum(EVENT_CATEGORIES)).max(EVENT_CATEGORIES.length).optional(),
+  // Submitted-date window (yyyy-mm-dd) — the "review since I last looked" filter.
+  createdFrom: yyyyMmDd.optional(),
+  createdTo: yyyyMmDd.optional(),
+  sortBy: z.enum(['createdAt', 'dateStart', 'title']).default('createdAt'),
+  sortDir: z.enum(['asc', 'desc']).default('desc'),
   createdBy: z.string().optional(),
   limit: z.number().int().min(1).max(50).default(20),
   offset: z.number().int().min(0).default(0),
