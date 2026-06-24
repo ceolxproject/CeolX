@@ -4,6 +4,9 @@
 // anonymisation transaction once per returned row. So the select chain ends at
 // .where() returning an array, and db.transaction is invoked per due user.
 
+const mockSendAccountDeleted = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
+vi.mock('@CeolX/email', () => ({ sendAccountDeletedEmail: mockSendAccountDeleted }));
+
 const mockSelectWhere = vi.hoisted(() => vi.fn());
 const mockSelectFrom = vi.hoisted(() => vi.fn(() => ({ where: mockSelectWhere })));
 const mockSelect = vi.hoisted(() => vi.fn(() => ({ from: mockSelectFrom })));
@@ -27,7 +30,13 @@ vi.mock('@CeolX/db', () => ({
 }));
 
 vi.mock('@CeolX/db/schema/auth', () => ({
-  user: { id: 'id', deletionScheduledFor: 'deletion_scheduled_for', isAnonymized: 'is_anonymized' },
+  user: {
+    id: 'id',
+    email: 'email',
+    name: 'name',
+    deletionScheduledFor: 'deletion_scheduled_for',
+    isAnonymized: 'is_anonymized',
+  },
   session: { userId: 'user_id' },
 }));
 
@@ -92,7 +101,11 @@ describe('handleAccountAnonymizeSweep — due-row selection', () => {
 
 describe('handleAccountAnonymizeSweep — anonymisation per due user', () => {
   it('runs one anonymisation transaction per due user', async () => {
-    mockSelectWhere.mockResolvedValueOnce([{ id: 'user-a' }, { id: 'user-b' }, { id: 'user-c' }]);
+    mockSelectWhere.mockResolvedValueOnce([
+      { id: 'user-a', email: 'a@x.ie', name: 'A' },
+      { id: 'user-b', email: 'b@x.ie', name: 'B' },
+      { id: 'user-c', email: 'c@x.ie', name: 'C' },
+    ]);
 
     await handleAccountAnonymizeSweep({});
 
@@ -100,7 +113,7 @@ describe('handleAccountAnonymizeSweep — anonymisation per due user', () => {
   });
 
   it('overwrites each due user with anonymous identifiers', async () => {
-    mockSelectWhere.mockResolvedValueOnce([{ id: 'user-a' }]);
+    mockSelectWhere.mockResolvedValueOnce([{ id: 'user-a', email: 'a@x.ie', name: 'A' }]);
 
     await handleAccountAnonymizeSweep({});
 
@@ -109,5 +122,20 @@ describe('handleAccountAnonymizeSweep — anonymisation per due user', () => {
     expect(userSet.email).toBe('user-a@deleted.ceolx.ie');
     expect(userSet.isAnonymized).toBe(true);
     expect(userSet.anonymizedAt).toBeInstanceOf(Date);
+  });
+});
+
+describe('handleAccountAnonymizeSweep — deletion confirmation email', () => {
+  it('emails each due user at their original address', async () => {
+    mockSelectWhere.mockResolvedValueOnce([
+      { id: 'user-a', email: 'a@x.ie', name: 'A' },
+      { id: 'user-b', email: 'b@x.ie', name: 'B' },
+    ]);
+
+    await handleAccountAnonymizeSweep({});
+
+    expect(mockSendAccountDeleted).toHaveBeenCalledTimes(2);
+    expect(mockSendAccountDeleted).toHaveBeenCalledWith({ to: 'a@x.ie', userName: 'A' });
+    expect(mockSendAccountDeleted).toHaveBeenCalledWith({ to: 'b@x.ie', userName: 'B' });
   });
 });

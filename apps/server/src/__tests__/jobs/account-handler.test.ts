@@ -1,5 +1,8 @@
 // Hoisted Drizzle mocks — vi.mock is lifted above imports.
 
+const mockSendAccountDeleted = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
+vi.mock('@CeolX/email', () => ({ sendAccountDeletedEmail: mockSendAccountDeleted }));
+
 const mockSelectLimit = vi.hoisted(() => vi.fn());
 const mockSelectWhere = vi.hoisted(() => vi.fn(() => ({ limit: mockSelectLimit })));
 const mockSelectFrom = vi.hoisted(() => vi.fn(() => ({ where: mockSelectWhere })));
@@ -24,7 +27,7 @@ vi.mock('@CeolX/db', () => ({
 }));
 
 vi.mock('@CeolX/db/schema/auth', () => ({
-  user: { id: 'id' },
+  user: { id: 'id', email: 'email', name: 'name' },
   session: { userId: 'user_id' },
 }));
 
@@ -86,7 +89,12 @@ describe('handleAccountAnonymize — idempotency guards', () => {
 describe('handleAccountAnonymize — anonymisation path', () => {
   it('runs all writes inside a single transaction', async () => {
     mockSelectLimit.mockResolvedValueOnce([
-      { isAnonymized: false, deletionScheduledFor: new Date('2026-05-28') },
+      {
+        isAnonymized: false,
+        deletionScheduledFor: new Date('2026-05-28'),
+        email: 'real@example.com',
+        name: 'Aoife',
+      },
     ]);
 
     await handleAccountAnonymize(PAYLOAD);
@@ -96,7 +104,12 @@ describe('handleAccountAnonymize — anonymisation path', () => {
 
   it('overwrites the user row with anonymous identifiers and stamps anonymizedAt', async () => {
     mockSelectLimit.mockResolvedValueOnce([
-      { isAnonymized: false, deletionScheduledFor: new Date('2026-05-28') },
+      {
+        isAnonymized: false,
+        deletionScheduledFor: new Date('2026-05-28'),
+        email: 'real@example.com',
+        name: 'Aoife',
+      },
     ]);
 
     await handleAccountAnonymize(PAYLOAD);
@@ -115,7 +128,12 @@ describe('handleAccountAnonymize — anonymisation path', () => {
 
   it('anonymises artist + venue profile rows alongside the user', async () => {
     mockSelectLimit.mockResolvedValueOnce([
-      { isAnonymized: false, deletionScheduledFor: new Date('2026-05-28') },
+      {
+        isAnonymized: false,
+        deletionScheduledFor: new Date('2026-05-28'),
+        email: 'real@example.com',
+        name: 'Aoife',
+      },
     ]);
 
     await handleAccountAnonymize(PAYLOAD);
@@ -135,12 +153,62 @@ describe('handleAccountAnonymize — anonymisation path', () => {
 
   it('hard-deletes profile social links, device tokens, and active sessions', async () => {
     mockSelectLimit.mockResolvedValueOnce([
-      { isAnonymized: false, deletionScheduledFor: new Date('2026-05-28') },
+      {
+        isAnonymized: false,
+        deletionScheduledFor: new Date('2026-05-28'),
+        email: 'real@example.com',
+        name: 'Aoife',
+      },
     ]);
 
     await handleAccountAnonymize(PAYLOAD);
 
     // Three deletes: profile_social_links, device_tokens, session
     expect(mockTxDelete).toHaveBeenCalledTimes(3);
+  });
+});
+
+describe('handleAccountAnonymize — deletion confirmation email', () => {
+  it('emails the original address after anonymising', async () => {
+    mockSelectLimit.mockResolvedValueOnce([
+      {
+        isAnonymized: false,
+        deletionScheduledFor: new Date('2026-05-28'),
+        email: 'real@example.com',
+        name: 'Aoife',
+      },
+    ]);
+
+    await handleAccountAnonymize(PAYLOAD);
+
+    expect(mockSendAccountDeleted).toHaveBeenCalledWith({
+      to: 'real@example.com',
+      userName: 'Aoife',
+    });
+  });
+
+  it('does not email when the row is a no-op (already anonymised)', async () => {
+    mockSelectLimit.mockResolvedValueOnce([
+      { isAnonymized: true, deletionScheduledFor: new Date(), email: 'x@example.com', name: 'X' },
+    ]);
+
+    await handleAccountAnonymize(PAYLOAD);
+
+    expect(mockSendAccountDeleted).not.toHaveBeenCalled();
+  });
+
+  it('still completes erasure when the email send fails', async () => {
+    mockSendAccountDeleted.mockRejectedValueOnce(new Error('postmark down'));
+    mockSelectLimit.mockResolvedValueOnce([
+      {
+        isAnonymized: false,
+        deletionScheduledFor: new Date('2026-05-28'),
+        email: 'real@example.com',
+        name: 'Aoife',
+      },
+    ]);
+
+    await expect(handleAccountAnonymize(PAYLOAD)).resolves.toBeUndefined();
+    expect(mockTransaction).toHaveBeenCalledTimes(1);
   });
 });
