@@ -201,23 +201,28 @@ export function PostCard({
   );
 
   const actionsRow = (
-    <View className={`flex-row items-center justify-between ${hasMedia ? 'mb-2' : ''}`}>
-      <View className="flex-row items-center gap-4">
+    <View className={`flex-row items-start gap-4 ${hasMedia ? 'mb-2' : ''}`}>
+      {/* Like count sits directly beneath the heart so it stays tied to the action
+          that drives it (the share icon top-aligns alongside, no count of its own). */}
+      <View className="items-center">
         <LikeButton liked={liked} pending={toggleLike.isPending} onPress={onLikePress} />
-        <Pressable
-          onPress={onSharePress}
-          hitSlop={11}
-          accessibilityRole="button"
-          accessibilityLabel="Share post"
-        >
-          <Ionicons name="share-outline" size={24} color="#FFFFFF" />
-        </Pressable>
+        {likeCount > 0 && (
+          <Text
+            className="mt-0.5 text-xs text-white/60 font-urbanist"
+            accessibilityLabel={`${likeCount} ${likeCount === 1 ? 'like' : 'likes'}`}
+          >
+            {likeCount}
+          </Text>
+        )}
       </View>
-      {likeCount > 0 && (
-        <Text className="text-xs text-white/60 font-urbanist">
-          {likeCount} {likeCount === 1 ? 'like' : 'likes'}
-        </Text>
-      )}
+      <Pressable
+        onPress={onSharePress}
+        hitSlop={11}
+        accessibilityRole="button"
+        accessibilityLabel="Share post"
+      >
+        <Ionicons name="share-outline" size={24} color="#FFFFFF" />
+      </Pressable>
     </View>
   );
 
