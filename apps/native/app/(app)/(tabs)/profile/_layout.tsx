@@ -5,6 +5,7 @@ export default function ProfileStack() {
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="index" />
       <Stack.Screen name="edit" />
+      <Stack.Screen name="account-edit" />
       <Stack.Screen name="switch-account" />
       <Stack.Screen name="saved-events" />
       <Stack.Screen name="collections" />

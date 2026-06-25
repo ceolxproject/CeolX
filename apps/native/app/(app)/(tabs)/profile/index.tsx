@@ -462,7 +462,10 @@ function PostsTab() {
 
 function SpectatorProfile() {
   const { user, logout } = useAuth();
+  const { data: me } = useMe();
   const settingsRef = useRef<BottomSheetModal>(null);
+
+  const email = me?.email ?? user?.email ?? '—';
 
   const handleLogout = async () => {
     settingsRef.current?.dismiss();
@@ -482,8 +485,26 @@ function SpectatorProfile() {
       </View>
 
       <View className="items-center py-8">
-        <Image source={MOCK_PROFILE_IMAGE} className="w-20 h-20 rounded-full bg-surface mb-3" />
-        <Text className="text-lg font-semibold text-white mb-2">{user?.email ?? '—'}</Text>
+        <Image
+          source={me?.image ? { uri: me.image } : MOCK_PROFILE_IMAGE}
+          className="w-20 h-20 rounded-full bg-surface mb-3"
+        />
+        {me?.name ? (
+          <>
+            <Text className="text-lg font-semibold text-white">{me.name}</Text>
+            <Text className="text-sm text-white/60 mb-3">{email}</Text>
+          </>
+        ) : (
+          <Text className="text-lg font-semibold text-white mb-3">{email}</Text>
+        )}
+        <Pressable
+          className="border border-[#8D8D8D] rounded-[20px] h-9 px-5 items-center justify-center mb-3"
+          onPress={() => router.push('/(app)/(tabs)/profile/account-edit')}
+        >
+          <Text className="text-xs font-bold text-white uppercase tracking-wider font-urbanist">
+            Edit Profile
+          </Text>
+        </Pressable>
         <View className="rounded-full bg-surface px-3 py-1">
           <Text className="text-xs font-medium text-white capitalize">spectator</Text>
         </View>
