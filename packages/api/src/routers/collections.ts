@@ -34,6 +34,14 @@ async function findVenueProfileId(userId: string): Promise<string | null> {
   return profile?.id ?? null;
 }
 
+// Whether an event is still upcoming relative to `now`. Matches the discovery
+// feed's "now onwards" rule (buildDateFilter → date_start:>=now): an event counts
+// as upcoming until its start time passes. dateEnd is intentionally ignored so an
+// event that has *started* drops off collections in lockstep with the feed.
+function isUpcomingEvent(event: { dateStart: Date }, now: Date): boolean {
+  return event.dateStart.getTime() >= now.getTime();
+}
+
 // ─── Router ──────────────────────────────────────────────────────────────────
 
 export const collectionsRouter = router({
@@ -63,8 +71,13 @@ export const collectionsRouter = router({
         description: collections.description,
         logo: collections.logo,
         createdAt: collections.createdAt,
+        // Mirror what the owner sees in byId: exclude deleted (archived) events and
+        // count only upcoming ones, so the list badge matches the collection screen.
         eventCount: sql<number>`(
-          SELECT count(*)::int FROM events WHERE events.collection_id = ${collections.id}
+          SELECT count(*)::int FROM events
+          WHERE events.collection_id = ${collections.id}
+            AND events.status <> 'archived'
+            AND events.date_start >= now()
         )`,
       })
       .from(collections)
@@ -113,9 +126,15 @@ export const collectionsRouter = router({
       // control — a direct tRPC call would otherwise leak unpublished events.
       const callerVenueProfileId = await findVenueProfileId(ctx.userId);
       const isOwner = !!callerVenueProfileId && callerVenueProfileId === collection.createdBy;
-      const visibleEvents = isOwner
+      const byStatus = isOwner
         ? collection.events.filter((e) => e.status !== EventStatus.ARCHIVED)
         : collection.events.filter((e) => e.status === EventStatus.ACTIVE);
+
+      // Collections surface only UPCOMING events (Asana 1216029058776470). A "past"
+      // event is still status='active' — it has simply slipped behind `now` — so the
+      // status filter above does not catch it. Drop anything that isn't upcoming.
+      const now = new Date();
+      const visibleEvents = byStatus.filter((e) => isUpcomingEvent(e, now));
 
       return {
         id: collection.id,
