@@ -147,10 +147,31 @@ export const followsRouter = router({
       .limit(limit + 1)
       .offset(offset);
 
+    // Count only followees that survive the list's filter below — those with an
+    // active artist/venue profile, excluding self-follows — so totalCount matches
+    // the rendered list instead of overcounting deleted/inactive/spectator
+    // followees. Mirrors getFollowerCounts.followingCount. Asana 1216029059011258.
     const [countResult] = await db
       .select({ count: sql<number>`count(*)::int` })
       .from(follows)
-      .where(eq(follows.followerId, targetUserId));
+      .where(
+        and(
+          eq(follows.followerId, targetUserId),
+          ne(follows.followeeId, targetUserId),
+          sql`(
+            exists (
+              select 1 from ${artistProfiles}
+              where ${artistProfiles.userId} = ${follows.followeeId}
+                and ${artistProfiles.isActive} = true
+            )
+            or exists (
+              select 1 from ${venueProfiles}
+              where ${venueProfiles.userId} = ${follows.followeeId}
+                and ${venueProfiles.isActive} = true
+            )
+          )`
+        )
+      );
     const totalCount = countResult?.count ?? 0;
 
     const hasNextPage = followRows.length > limit;

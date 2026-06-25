@@ -1,12 +1,18 @@
-import { eq, sql } from 'drizzle-orm';
+import { and, eq, ne, sql } from 'drizzle-orm';
 
 import { db } from '@CeolX/db';
 import { follows } from '@CeolX/db/schema/social';
-import { profileSocialLinks } from '@CeolX/db/schema/users';
+import { artistProfiles, profileSocialLinks, venueProfiles } from '@CeolX/db/schema/users';
 
 /**
  * Get follower and following counts for a user.
  * Shared across artist and venue profile queries.
+ *
+ * `followingCount` counts only followees that are actually rendered in the
+ * Following list — those with an active public profile, excluding self-follows —
+ * so the header number always matches the list.
+ * `followerCount` stays a raw count because the Followers list renders every
+ * follower (spectators included, via a base-user fallback), so it never filters.
  */
 export async function getFollowerCounts(userId: string) {
   const [followerResult] = await db
@@ -14,10 +20,32 @@ export async function getFollowerCounts(userId: string) {
     .from(follows)
     .where(eq(follows.followeeId, userId));
 
+  // Filter to followees with a visible public profile (active artist OR venue),
+  // mirroring the per-row filter in follows.getFollowing, so the header count
+  // never drifts above the rendered list (count 6 vs list 5 when a followed
+  // account is deleted, downgraded to spectator, or has an inactive
+  // subscription). Asana 1216029059011258.
   const [followingResult] = await db
     .select({ count: sql<number>`count(*)::int` })
     .from(follows)
-    .where(eq(follows.followerId, userId));
+    .where(
+      and(
+        eq(follows.followerId, userId),
+        ne(follows.followeeId, userId),
+        sql`(
+          exists (
+            select 1 from ${artistProfiles}
+            where ${artistProfiles.userId} = ${follows.followeeId}
+              and ${artistProfiles.isActive} = true
+          )
+          or exists (
+            select 1 from ${venueProfiles}
+            where ${venueProfiles.userId} = ${follows.followeeId}
+              and ${venueProfiles.isActive} = true
+          )
+        )`
+      )
+    );
 
   return {
     followerCount: followerResult?.count ?? 0,
