@@ -10,7 +10,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
-import { formatRelativeTime } from '@CeolX/shared';
+import { formatPostTimestamp } from '@CeolX/shared';
 
 import { PostActionMenu } from './PostActionMenu';
 import { PostImage } from './PostImage';
@@ -177,7 +177,7 @@ export function PostCard({
 
   const createdAtIso =
     typeof post.createdAt === 'string' ? post.createdAt : post.createdAt.toISOString();
-  const createdLabel = formatRelativeTime(createdAtIso);
+  const createdLabel = formatPostTimestamp(createdAtIso);
 
   // In expanded (detail) mode show the whole caption; in preview mode truncate
   // and offer a read-more affordance that opens the detail screen.

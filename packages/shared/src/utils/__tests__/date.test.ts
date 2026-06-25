@@ -3,6 +3,7 @@ import { describe, it, expect } from 'vitest';
 import {
   formatEventDate,
   formatRelativeTime,
+  formatPostTimestamp,
   formatDateRange,
   isEventUpcoming,
   isEventPast,
@@ -38,6 +39,50 @@ describe('formatRelativeTime', () => {
     const past = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
     const result = formatRelativeTime(past);
     expect(result).toMatch(/ago/i);
+  });
+});
+
+describe('formatPostTimestamp', () => {
+  const minutesAgo = (n: number) => new Date(Date.now() - n * 60 * 1000).toISOString();
+  const hoursAgo = (n: number) => new Date(Date.now() - n * 60 * 60 * 1000).toISOString();
+  const daysAgo = (n: number) => new Date(Date.now() - n * 24 * 60 * 60 * 1000).toISOString();
+
+  it('shows "Just now" for posts under a minute old', () => {
+    expect(formatPostTimestamp(minutesAgo(0))).toBe('Just now');
+    expect(formatPostTimestamp(new Date(Date.now() - 30 * 1000).toISOString())).toBe('Just now');
+  });
+
+  it('treats future timestamps as "Just now" (clock skew guard)', () => {
+    const future = new Date(Date.now() + 5 * 60 * 1000).toISOString();
+    expect(formatPostTimestamp(future)).toBe('Just now');
+  });
+
+  it('shows singular vs plural minutes', () => {
+    expect(formatPostTimestamp(minutesAgo(1))).toBe('1 minute ago');
+    expect(formatPostTimestamp(minutesAgo(5))).toBe('5 minutes ago');
+    expect(formatPostTimestamp(minutesAgo(59))).toBe('59 minutes ago');
+  });
+
+  it('shows singular vs plural hours', () => {
+    expect(formatPostTimestamp(hoursAgo(1))).toBe('1 hour ago');
+    expect(formatPostTimestamp(hoursAgo(2))).toBe('2 hours ago');
+    expect(formatPostTimestamp(hoursAgo(23))).toBe('23 hours ago');
+  });
+
+  it('shows "Yesterday" for a post from the previous calendar day', () => {
+    expect(formatPostTimestamp(daysAgo(1))).toBe('Yesterday');
+  });
+
+  it('switches to an absolute date for posts 2+ days old', () => {
+    const result = formatPostTimestamp('2026-06-15T12:00:00.000Z');
+    expect(result).toBe('15 Jun 2026');
+  });
+
+  it('never shows "ago" once it falls back to an absolute date', () => {
+    const result = formatPostTimestamp(daysAgo(40));
+    expect(result).not.toMatch(/ago/i);
+    expect(result).not.toBe('Yesterday');
+    expect(result).toMatch(/\d{4}/);
   });
 });
 
