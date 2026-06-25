@@ -4,8 +4,16 @@ import * as IntentLauncher from 'expo-intent-launcher';
 import * as Linking from 'expo-linking';
 import { router, useLocalSearchParams } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
-import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Platform, Pressable, Text, View } from 'react-native';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  BackHandler,
+  Platform,
+  Pressable,
+  Text,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { UserRole } from '@CeolX/shared/enums';
@@ -126,6 +134,30 @@ export default function VerifyEmailScreen() {
       if (cooldownRef.current) clearInterval(cooldownRef.current);
     };
   }, []);
+
+  // Confirm before leaving for the sign-in screen, so an accidental back tap
+  // mid-verification doesn't drop the user out of the flow (Asana 1215960789817674).
+  const confirmLeave = useCallback(() => {
+    Alert.alert('Are you sure you want to go back?', 'Your verification progress will be lost.', [
+      { text: 'Stay', style: 'cancel' },
+      {
+        text: 'Go to Login',
+        style: 'destructive',
+        onPress: () => router.replace('/(auth)/sign-in'),
+      },
+    ]);
+  }, []);
+
+  // Intercept the Android hardware back button. Returning true swallows the
+  // default pop so the OS doesn't navigate away before the user confirms.
+  // (No-op on iOS, which has no hardware back; the on-screen Pressable covers it.)
+  useEffect(() => {
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      confirmLeave();
+      return true;
+    });
+    return () => sub.remove();
+  }, [confirmLeave]);
 
   const handleResend = async () => {
     if (!email || resendCooldown > 0) return;
@@ -264,7 +296,7 @@ export default function VerifyEmailScreen() {
             </Text>
           </Pressable>
 
-          <Pressable onPress={() => router.replace('/(auth)/sign-in')}>
+          <Pressable onPress={confirmLeave}>
             <Text className="text-white/40 text-sm text-center">Back to Sign In</Text>
           </Pressable>
         </View>
