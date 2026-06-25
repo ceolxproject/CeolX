@@ -57,7 +57,10 @@ export function EventDetailView({
   // Y offset of the "Performing Artist" section within the scroll content, so
   // the Host/Artist box's "VIEW ALL" can jump straight to the per-artist cards.
   const [artistSectionY, setArtistSectionY] = useState(0);
-  const [isSaved, setIsSaved] = useState(event.isSaved);
+  // Derive the bookmark straight from the query cache (not a one-time useState
+  // snapshot): `useSaveEvent` patches the byId cache optimistically, so re-opening
+  // a saved event always reflects the true state instead of a stale `false`.
+  const isSaved = event.isSaved;
   const { initialRegion, locationSource } = useGpsRegion();
   const { mutate: saveEvent } = useSaveEvent();
   const shareEvent = useShareEvent();
@@ -74,9 +77,9 @@ export function EventDetailView({
   );
 
   const handleToggleSave = () => {
-    const newSaved = !isSaved;
-    setIsSaved(newSaved); // optimistic update
-    saveEvent({ eventId: event.id, saved: newSaved }, { onError: () => setIsSaved(isSaved) });
+    // Optimistic update + error rollback now live in useSaveEvent's cache patch,
+    // so the icon flips instantly via `event.isSaved` and reverts on failure.
+    saveEvent({ eventId: event.id, saved: !isSaved });
   };
 
   const handleShare = () => {

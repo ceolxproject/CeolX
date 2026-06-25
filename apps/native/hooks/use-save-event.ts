@@ -4,7 +4,13 @@ import { Platform } from 'react-native';
 
 import type { AppRouter } from '@CeolX/api/routers/index';
 import { env } from '@CeolX/env/native';
-import type { FeedResponse } from '@CeolX/shared';
+
+import {
+  applySaveOptimisticUpdate,
+  invalidateSaveQueries,
+  rollbackSaveOptimisticUpdate,
+  type SaveOptimisticSnapshot,
+} from './save-event-cache';
 
 import { authClient } from '@/lib/auth-client';
 
@@ -35,7 +41,7 @@ type SaveEventArgs = {
 export function useSaveEvent() {
   const queryClient = useQueryClient();
 
-  return useMutation({
+  return useMutation<{ saved: boolean }, Error, SaveEventArgs, SaveOptimisticSnapshot>({
     mutationFn: async ({ eventId, saved }: SaveEventArgs) => {
       if (saved) {
         return trpcClient.events.save.mutate({ id: eventId });
@@ -43,29 +49,20 @@ export function useSaveEvent() {
       return trpcClient.events.unsave.mutate({ id: eventId });
     },
     onMutate: async ({ eventId, saved }) => {
-      // Cancel outgoing feed queries to avoid overwriting optimistic update
+      // Cancel in-flight reads of the caches we're about to patch so a late
+      // response can't clobber the optimistic value.
       await queryClient.cancelQueries({ queryKey: [['events', 'getFeed']] });
+      await queryClient.cancelQueries({ queryKey: [['events', 'byId']] });
 
-      // Optimistically update all feed query caches
-      queryClient.setQueriesData<FeedResponse>({ queryKey: [['events', 'getFeed']] }, (old) => {
-        if (!old) return old;
-        return {
-          ...old,
-          events: old.events.map((event) =>
-            event.id === eventId
-              ? {
-                  ...event,
-                  isSaved: saved,
-                  joinedCount: event.joinedCount + (saved ? 1 : -1),
-                }
-              : event
-          ),
-        };
-      });
+      // Patch the feed AND the event-detail (byId) caches together — the detail
+      // header reads byId.isSaved, so feed-only patching left it stale.
+      return applySaveOptimisticUpdate(queryClient, eventId, saved);
+    },
+    onError: (_error, _variables, snapshot) => {
+      if (snapshot) rollbackSaveOptimisticUpdate(queryClient, snapshot);
     },
     onSettled: () => {
-      void queryClient.invalidateQueries({ queryKey: [['events', 'getFeed']] });
-      void queryClient.invalidateQueries({ queryKey: [['events', 'getSavedEvents']] });
+      invalidateSaveQueries(queryClient);
     },
   });
 }
