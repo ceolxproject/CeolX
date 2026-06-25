@@ -104,14 +104,17 @@ export const collectionsRouter = router({
       }
 
       // byId is callable by any signed-in user (owner management screen + the public
-      // discover/collection view). Only the venue that owns the collection may see
-      // non-active events (draft/removed/archived); everyone else gets the ACTIVE-only
-      // public view. Enforced here because the screen-side filter is presentation, not
-      // access control — a direct tRPC call would otherwise leak unpublished events.
+      // discover/collection view). A creator-deleted event soft-archives to
+      // status='archived' and must vanish from EVERY surface for EVERY persona — the
+      // owner included (Asana 1216029058657584). So archived events are filtered out
+      // for everyone. The owner additionally sees their other non-active events
+      // (draft/removed) so they can manage/resubmit; everyone else gets ACTIVE-only.
+      // Enforced here because the screen-side filter is presentation, not access
+      // control — a direct tRPC call would otherwise leak unpublished events.
       const callerVenueProfileId = await findVenueProfileId(ctx.userId);
       const isOwner = !!callerVenueProfileId && callerVenueProfileId === collection.createdBy;
       const visibleEvents = isOwner
-        ? collection.events
+        ? collection.events.filter((e) => e.status !== EventStatus.ARCHIVED)
         : collection.events.filter((e) => e.status === EventStatus.ACTIVE);
 
       return {

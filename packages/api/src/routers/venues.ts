@@ -1,5 +1,5 @@
 import { TRPCError } from '@trpc/server';
-import { and, eq, inArray, or } from 'drizzle-orm';
+import { and, eq, or } from 'drizzle-orm';
 import { z } from 'zod';
 
 import { db } from '@CeolX/db';
@@ -116,7 +116,11 @@ export const venuesRouter = router({
       .where(
         and(
           or(eq(events.venueId, profile.id), eq(events.createdBy, profile.userId)),
-          inArray(events.status, ['active', 'archived'])
+          // 'archived' = creator-deleted (the only writer of that status). A deleted
+          // event must vanish from every persona's view, so the public profile shows
+          // ACTIVE only. Naturally-past events stay ACTIVE with a past date and still
+          // surface under Past Events below. (Asana 1216029058657584)
+          eq(events.status, 'active')
         )
       );
 
@@ -127,12 +131,15 @@ export const venuesRouter = router({
     }
     const allEvents = Array.from(eventsMap.values());
 
+    // Past vs upcoming is purely date-driven now that only ACTIVE events reach here.
+    // Keep the explicit status guard as defense-in-depth so a deleted event can never
+    // slip into either bucket even if the query filter regresses.
     const upcomingEvents = allEvents
       .filter((e) => e.status === 'active' && new Date(e.dateStart) > now)
       .sort((a, b) => new Date(a.dateStart).getTime() - new Date(b.dateStart).getTime());
 
     const pastEvents = allEvents
-      .filter((e) => e.status === 'archived' || new Date(e.dateStart) <= now)
+      .filter((e) => e.status === 'active' && new Date(e.dateStart) <= now)
       .sort((a, b) => new Date(b.dateStart).getTime() - new Date(a.dateStart).getTime());
 
     return {
