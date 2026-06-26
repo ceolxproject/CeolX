@@ -235,6 +235,26 @@ export function diffPlatformInvites(
   return { toAdd, toRemove };
 }
 
+/**
+ * Visibility guard for an event fetched by id. Archived (creator-deleted) and
+ * admin-removed events have been pulled from every public surface (map, feed,
+ * search, profiles, collections), so the detail endpoint must hide them from
+ * everyone except their creator — who still needs access to a removed event's
+ * removal reason to edit and resubmit, or to review an archived one. Anonymous
+ * viewers (`viewerUserId === null`) never match the creator, so they're excluded
+ * too. Other statuses are out of scope here: active is public, and the
+ * pre-publication draft / pending_review / rejected states are handled by their
+ * own flows — notably pending_review must stay visible to the tagged venue for
+ * the consent flow, so it is intentionally not guarded here. Asana 1216029035679712.
+ */
+export function isHiddenFromViewer(
+  event: { status: EventStatus; createdBy: string },
+  viewerUserId: string | null
+): boolean {
+  const creatorOnly = event.status === EventStatus.ARCHIVED || event.status === EventStatus.REMOVED;
+  return creatorOnly && event.createdBy !== viewerUserId;
+}
+
 export const byId = publicProcedure
   .input(z.object({ id: z.string().uuid() }))
   .query(async ({ input, ctx }) => {
@@ -254,8 +274,9 @@ export const byId = publicProcedure
       throw new TRPCError({ code: 'NOT_FOUND', message: 'Event not found' });
     }
 
-    // Archived events only visible to the creator
-    if (event.status === EventStatus.ARCHIVED && event.createdBy !== ctx.session?.user?.id) {
+    // Archived (creator-deleted) and admin-removed events are visible only to
+    // their creator — see isHiddenFromViewer. Asana 1216029035679712.
+    if (isHiddenFromViewer(event, userId)) {
       throw new TRPCError({ code: 'NOT_FOUND', message: 'Event not found' });
     }
 

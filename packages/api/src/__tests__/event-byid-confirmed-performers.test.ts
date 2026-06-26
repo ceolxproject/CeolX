@@ -16,12 +16,13 @@ vi.mock('../services/event-sync', () => ({
   removeEventFromTypesense: vi.fn(),
 }));
 
-import { BookingDirection, BookingStatus } from '@CeolX/shared';
+import { BookingDirection, BookingStatus, EventStatus } from '@CeolX/shared';
 
 import {
   diffPlatformInvites,
   isConfirmedPerformer,
   isExternalInvitee,
+  isHiddenFromViewer,
   isPendingPlatformInvite,
   toUnregisteredCollaborators,
 } from '../routers/events/crud';
@@ -244,5 +245,56 @@ describe('diffPlatformInvites', () => {
       toAdd: [],
       toRemove: [],
     });
+  });
+});
+
+describe('isHiddenFromViewer', () => {
+  // events.byId is a public endpoint. Archived (creator-deleted) and admin-removed
+  // events are pulled from every public surface, so the detail endpoint must hide
+  // them from everyone but their creator — who still needs access (resubmit a
+  // removed event, review an archived one). Asana 1216029035679712.
+  const CREATOR = 'creator-1';
+  const OTHER = 'other-2';
+
+  it('shows an active event to a different user', () => {
+    expect(isHiddenFromViewer({ status: EventStatus.ACTIVE, createdBy: CREATOR }, OTHER)).toBe(
+      false
+    );
+  });
+
+  it('shows an active event to an anonymous viewer', () => {
+    expect(isHiddenFromViewer({ status: EventStatus.ACTIVE, createdBy: CREATOR }, null)).toBe(
+      false
+    );
+  });
+
+  it('hides an admin-removed event from a different user', () => {
+    expect(isHiddenFromViewer({ status: EventStatus.REMOVED, createdBy: CREATOR }, OTHER)).toBe(
+      true
+    );
+  });
+
+  it('hides an admin-removed event from an anonymous viewer', () => {
+    expect(isHiddenFromViewer({ status: EventStatus.REMOVED, createdBy: CREATOR }, null)).toBe(
+      true
+    );
+  });
+
+  it('still shows an admin-removed event to its creator (so they can resubmit)', () => {
+    expect(isHiddenFromViewer({ status: EventStatus.REMOVED, createdBy: CREATOR }, CREATOR)).toBe(
+      false
+    );
+  });
+
+  it('hides an archived event from a different user', () => {
+    expect(isHiddenFromViewer({ status: EventStatus.ARCHIVED, createdBy: CREATOR }, OTHER)).toBe(
+      true
+    );
+  });
+
+  it('still shows an archived event to its creator', () => {
+    expect(isHiddenFromViewer({ status: EventStatus.ARCHIVED, createdBy: CREATOR }, CREATOR)).toBe(
+      false
+    );
   });
 });
