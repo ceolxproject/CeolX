@@ -331,7 +331,7 @@ function UsersPage() {
                         <div className="flex items-center gap-1.5 text-[12.5px] text-muted-foreground">
                           <span className="truncate">{u.email}</span>
                           {u.emailVerified && (
-                            <TooltipProvider>
+                            <TooltipProvider delay={150}>
                               <Tooltip>
                                 <TooltipTrigger
                                   render={

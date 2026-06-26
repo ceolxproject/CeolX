@@ -245,7 +245,7 @@ function EventModerationPage() {
         </div>
       )}
 
-      <TooltipProvider>
+      <TooltipProvider delay={150}>
         <div className="overflow-hidden rounded-xl border border-border bg-card">
           <Table>
             <TableHeader>
