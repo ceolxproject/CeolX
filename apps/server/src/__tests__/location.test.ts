@@ -32,6 +32,79 @@ afterEach(() => {
 // ---------------------------------------------------------------------------
 
 describe('GET /location/ip', () => {
+  it('returns Vercel edge geo headers without calling ipapi.co', async () => {
+    const app = buildApp();
+    const res = await app.request('/location/ip', {
+      headers: {
+        'x-vercel-ip-latitude': '53.3498',
+        'x-vercel-ip-longitude': '-6.2603',
+        'x-vercel-ip-city': 'Dublin',
+        'x-vercel-ip-country-region': 'L',
+      },
+    });
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body).toEqual({
+      ok: true,
+      latitude: 53.3498,
+      longitude: -6.2603,
+      city: 'Dublin',
+      region: 'L',
+    });
+    // The whole point of the fix: no rate-limited third-party call when Vercel
+    // already gave us the location.
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it('url-decodes the Vercel city header', async () => {
+    const app = buildApp();
+    const res = await app.request('/location/ip', {
+      headers: {
+        'x-vercel-ip-latitude': '53.27',
+        'x-vercel-ip-longitude': '-9.05',
+        'x-vercel-ip-city': 'Galway%20City',
+      },
+    });
+    const body = (await res.json()) as { city: string };
+
+    expect(body.city).toBe('Galway City');
+  });
+
+  it('falls back to ipapi.co when Vercel headers are absent (local dev)', async () => {
+    fetchSpy.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({ latitude: 53.27, longitude: -9.05, city: 'Galway', region: 'Connacht' }),
+        { status: 200 }
+      )
+    );
+
+    const app = buildApp();
+    const res = await app.request('/location/ip', {
+      headers: { 'X-Forwarded-For': '86.45.123.1' },
+    });
+    const body = (await res.json()) as { ok: boolean; latitude: number };
+
+    expect(fetchSpy).toHaveBeenCalledOnce();
+    expect(body.ok).toBe(true);
+    expect(body.latitude).toBe(53.27);
+  });
+
+  it('falls back to ipapi.co when only one Vercel coordinate header is present', async () => {
+    fetchSpy.mockResolvedValueOnce(
+      new Response(JSON.stringify({ latitude: 53.27, longitude: -9.05 }), { status: 200 })
+    );
+
+    const app = buildApp();
+    const res = await app.request('/location/ip', {
+      // Latitude only — incomplete, must not be trusted.
+      headers: { 'x-vercel-ip-latitude': '53.27', 'X-Forwarded-For': '86.45.123.1' },
+    });
+    await res.json();
+
+    expect(fetchSpy).toHaveBeenCalledOnce();
+  });
+
   it('returns coordinates when ipapi.co responds with valid Irish location', async () => {
     fetchSpy.mockResolvedValueOnce(
       new Response(
