@@ -74,7 +74,12 @@ export default function DiscoverScreen() {
   // A row tap blurs the input; delay hiding so the tap registers first.
   const blurTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Shared with the Map tab — a place pick on either screen syncs to the other.
-  const { override: locationOverride, setOverride } = useLocationOverride();
+  const {
+    override: locationOverride,
+    overrideKind,
+    setOverride,
+    clearOverride,
+  } = useLocationOverride();
   const [locationSheetVisible, setLocationSheetVisible] = useState(false);
 
   const effectiveLocation = resolveFeedLocation(
@@ -202,7 +207,8 @@ export default function DiscoverScreen() {
 
   const handleLocationConfirm = useCallback(
     (loc: FeedLocation) => {
-      setOverride(loc);
+      // A pick from the sheet is a temporary search — not the saved/default.
+      setOverride(loc, 'search');
       setLocationSheetVisible(false);
     },
     [setOverride]
@@ -230,6 +236,8 @@ export default function DiscoverScreen() {
     >
       <FeedHeader
         locationText={locationText}
+        locationIsSearch={overrideKind === 'search'}
+        onLocationReset={clearOverride}
         onLocationPress={() => setLocationSheetVisible(true)}
         onCalendarPress={() => setDatePickerVisible(true)}
         onFilterPress={() => setFilterSheetVisible(true)}

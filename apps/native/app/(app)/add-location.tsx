@@ -39,6 +39,7 @@ export default function AddLocationScreen() {
     onChangeText,
     handleRegionChangeComplete,
     handleSelect,
+    clearQuery,
     getCentre,
     ZOOM,
   } = useLocationPickerMap(initialLat, initialLng);
@@ -64,7 +65,9 @@ export default function AddLocationScreen() {
       appToast.error('Could not save location', 'Please try again.');
       return; // nothing persisted → do NOT navigate or set the override
     }
-    setOverride(loc);
+    // This is the user's persisted base location — the saved/default, not a
+    // temporary search.
+    setOverride(loc, 'saved');
     router.back();
   }, [isSaving, getCentre, label, setOverride, router]);
 
@@ -101,6 +104,11 @@ export default function AddLocationScreen() {
             autoCorrect={false}
           />
           {isSearching && <ActivityIndicator size="small" color="#8D8D8D" />}
+          {query ? (
+            <Pressable hitSlop={8} onPress={clearQuery} accessibilityLabel="Clear search">
+              <Ionicons name="close-circle" size={18} color="#8D8D8D" />
+            </Pressable>
+          ) : null}
         </View>
 
         {isDropdownVisible && (

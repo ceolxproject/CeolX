@@ -1,8 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import { cn } from 'heroui-native';
-import { Pressable, Text, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 
 import { AppHeader } from './AppHeader';
+import { LocationIndicator } from './LocationIndicator';
 
 interface FeedHeaderProps {
   locationText?: string;
@@ -10,6 +11,10 @@ interface FeedHeaderProps {
   onLocationPress?: () => void;
   onCalendarPress?: () => void;
   onFilterPress?: () => void;
+  /** Marks the shown location as a temporary search (vs the saved/default). */
+  locationIsSearch?: boolean;
+  /** Reset the temporary search back to the saved/default location. */
+  onLocationReset?: () => void;
   /** Highlights the calendar button when a date filter is applied. */
   calendarActive?: boolean;
   /** Highlights the filter button when a category filter is applied. */
@@ -27,6 +32,8 @@ export function FeedHeader({
   onLocationPress,
   onCalendarPress,
   onFilterPress,
+  locationIsSearch = false,
+  onLocationReset,
   calendarActive = false,
   filterActive = false,
   showEventActions = true,
@@ -52,26 +59,14 @@ export function FeedHeader({
               truncate inside it, rather than expanding and pushing the buttons
               off-screen. */}
           {showLocation && (
-            <Pressable onPress={onLocationPress} className="flex-1 flex-row items-center gap-1">
-              <View className="flex-1 flex-col">
-                <View className="flex-row items-center gap-1">
-                  <Ionicons name="location-outline" size={14} color="#8D8D8D" />
-                  <Text className="text-xs text-[#8D8D8D] font-urbanist">Your location</Text>
-                </View>
-                <View className="flex-row items-center gap-1 mt-0.5">
-                  {/* Single line, tail-truncated so only the start of a long address
-                      shows and the chevron stays visible (cf. the reference design). */}
-                  <Text
-                    numberOfLines={1}
-                    ellipsizeMode="tail"
-                    className="flex-1 text-[15px] font-medium text-white font-urbanist"
-                  >
-                    {locationText}
-                  </Text>
-                  <Ionicons name="chevron-down" size={12} color="#FFFFFF" />
-                </View>
-              </View>
-            </Pressable>
+            <LocationIndicator
+              variant="inline"
+              className="flex-1"
+              label={locationText}
+              isSearch={locationIsSearch}
+              onPress={onLocationPress}
+              onReset={onLocationReset}
+            />
           )}
 
           {/* Left: calendar — Right: filter sliders (matches Figma node 1:3349) */}

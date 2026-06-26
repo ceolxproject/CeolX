@@ -17,9 +17,11 @@ import { EVENT_CATEGORIES, IRISH_COUNTIES, filterValidMapEvents } from '@CeolX/s
 import { AppHeader } from '@/components/AppHeader';
 import { appToast } from '@/components/AppToast';
 import { EventPreviewCard } from '@/components/EventPreviewCard';
+import { FeedLocationSheet } from '@/components/FeedLocationSheet';
 import { FilterSheet } from '@/components/FilterSheet';
 import type { FilterSection } from '@/components/FilterSheet';
 import { LocationBanner } from '@/components/LocationBanner';
+import { LocationIndicator } from '@/components/LocationIndicator';
 import { LocationPermissionScreen } from '@/components/LocationPermissionScreen';
 import type { ClusterObject } from '@/components/MapClusterMarker';
 import { MapClusterMarker } from '@/components/MapClusterMarker';
@@ -53,6 +55,8 @@ import { usePanelAnimation } from '@/hooks/use-panel-animation';
 import { usePlaceSearch } from '@/hooks/use-place-search';
 import { useVenueFallback } from '@/hooks/use-venue-fallback';
 import { getDeviceLocation } from '@/utils/device-location';
+import { resolveFeedLocation } from '@/utils/feed-location';
+import type { FeedLocation } from '@/utils/feed-location';
 import type { GeocodeResult } from '@/utils/geocode';
 
 const MAP_FILTER_SECTIONS: FilterSection[] = [
@@ -84,14 +88,23 @@ export default function MapScreen() {
   const recenterButtonBottom = insets.bottom + 12;
   const { promptState, markSeen } = useLocationPermissionPrompt();
   // Shared with the Feed tab — a manual place pick on either screen syncs here.
-  const { override, setOverride } = useLocationOverride();
+  const { override, overrideKind, setOverride, clearOverride } = useLocationOverride();
   const venueFallback = useVenueFallback();
-  const { initialRegion, gpsPermissionGranted, locationSource, mapKey } = useGpsRegion(
+  const { initialRegion, gpsPermissionGranted, locationSource, placeLabel, mapKey } = useGpsRegion(
     promptState === 'done',
     venueFallback
   );
   // A manual override wins over the GPS/IP region for where the map opens.
   const effectiveInitialRegion = resolveMapInitialRegion(override, initialRegion);
+  // The active location shown in the header chip — same resolution the Feed uses,
+  // so both screens read identically.
+  const effectiveLocation = resolveFeedLocation(
+    override,
+    initialRegion,
+    placeLabel,
+    locationSource
+  );
+  const [locationSheetVisible, setLocationSheetVisible] = useState(false);
   const mapEventsResult = useMapEvents({
     // A manual override gives explicit coords immediately; otherwise only pass
     // coords once the location chain has resolved — prevents expand from firing
@@ -257,10 +270,28 @@ export default function MapScreen() {
       // Sync this intentional pick to the Feed. Mark it as already-applied so the
       // focus effect doesn't animate to the same spot again on the next focus.
       lastAppliedOverrideRef.current = `${result.lat},${result.lng}`;
-      setOverride({ lat: result.lat, lng: result.lng, label: result.address });
+      setOverride({ lat: result.lat, lng: result.lng, label: result.address }, 'search');
     },
     [commitSelection, setOverride]
   );
+
+  // Tapping the header chip opens the same picker the Feed uses. A confirm is a
+  // temporary search; the focus effect (below) recentres the map when it lands.
+  const handleLocationConfirm = useCallback(
+    (loc: FeedLocation) => {
+      setOverride(loc, 'search');
+      setLocationSheetVisible(false);
+    },
+    [setOverride]
+  );
+
+  // Resetting the chip drops the temporary search AND clears the search bar text,
+  // so the box doesn't keep showing the place we just navigated away from. The
+  // focus effect recentres the map back to the saved/default region.
+  const handleLocationReset = useCallback(() => {
+    clearOverride();
+    clearSearch();
+  }, [clearOverride, clearSearch]);
 
   // Feed → Map: when the shared override changes (e.g. set from the Feed's
   // location sheet) and differs from what we last centred on, recentre on focus.
@@ -268,7 +299,26 @@ export default function MapScreen() {
   // picks. Guarded by the ref so re-focusing without a change is a no-op.
   useFocusEffect(
     useCallback(() => {
-      if (!override) return;
+      if (!override) {
+        // Override was cleared (reset, here or on the Feed) — return to the
+        // resolved saved/default region. `initialRegion` already encodes the
+        // saved-base → GPS → IP chain, so it is the correct target. Only animate
+        // if we'd previously centred on an override (ref non-null), so a fresh
+        // load with no override doesn't fight the initialRegion.
+        if (lastAppliedOverrideRef.current !== null) {
+          lastAppliedOverrideRef.current = null;
+          mapRef.current?.animateToRegion(
+            {
+              latitude: initialRegion.latitude,
+              longitude: initialRegion.longitude,
+              latitudeDelta: 0.15,
+              longitudeDelta: 0.15,
+            },
+            600
+          );
+        }
+        return;
+      }
       const key = `${override.lat},${override.lng}`;
       if (lastAppliedOverrideRef.current === key) return;
       lastAppliedOverrideRef.current = key;
@@ -281,7 +331,7 @@ export default function MapScreen() {
         },
         600
       );
-    }, [override])
+    }, [override, initialRegion])
   );
 
   const handleRegionChangeComplete = useCallback(
@@ -357,7 +407,25 @@ export default function MapScreen() {
         </MapView>
       </MapErrorBoundary>
 
-      <AppHeader variant="floating" leading="back" title="Find Event" />
+      <AppHeader variant="floating" leading="back" />
+      {/* Live location chip in the header band, right of the back pill. The back
+          pill is a 48px control inset by px-4 (right edge at 64px); start at 80px
+          so there's a clear 16px gap and the two dark pills don't merge. Mirrors
+          the Feed's location indicator so both screens read the same. box-none
+          lets taps fall through the empty area to the map below. */}
+      <View
+        pointerEvents="box-none"
+        className="absolute left-20 right-4 h-[52px] flex-row items-center"
+        style={{ top: insets.top }}
+      >
+        <LocationIndicator
+          variant="floating"
+          label={effectiveLocation.label}
+          isSearch={overrideKind === 'search'}
+          onPress={() => setLocationSheetVisible(true)}
+          onReset={handleLocationReset}
+        />
+      </View>
       <MapSearchBar
         value={searchText}
         onChangeText={onPlaceChangeText}
@@ -430,6 +498,16 @@ export default function MapScreen() {
         sections={MAP_FILTER_SECTIONS}
         onApply={(f) => setFilters(f)}
         onClose={() => setFilterSheetVisible(false)}
+      />
+
+      {/* Same picker the Feed uses — opened from the header chip. Seeded at the
+          current effective location so the pin starts where the user is looking. */}
+      <FeedLocationSheet
+        visible={locationSheetVisible}
+        initialLat={effectiveLocation.lat}
+        initialLng={effectiveLocation.lng}
+        onConfirm={handleLocationConfirm}
+        onClose={() => setLocationSheetVisible(false)}
       />
     </View>
   );
