@@ -45,7 +45,17 @@ function KV({ k, children }: { k: string; children: ReactNode }) {
   );
 }
 
-function Stat({ label, value, icon }: { label: string; value: number; icon: ReactNode }) {
+function Stat({
+  label,
+  value,
+  icon,
+  sub,
+}: {
+  label: string;
+  value: number;
+  icon: ReactNode;
+  sub?: ReactNode;
+}) {
   return (
     <div className="border-r border-border/60 py-3.5 text-center last:border-r-0">
       <div className="flex items-center justify-center gap-1.5 text-lg font-bold leading-none tabular-nums">
@@ -53,6 +63,7 @@ function Stat({ label, value, icon }: { label: string; value: number; icon: Reac
         {value.toLocaleString()}
       </div>
       <div className="mt-1 text-[11px] text-muted-foreground">{label}</div>
+      {sub && <div className="mt-0.5 text-[10px] text-muted-foreground/70">{sub}</div>}
     </div>
   );
 }
@@ -145,7 +156,16 @@ function DetailBody({
       </SheetHeader>
 
       <div className="grid grid-cols-2 border-b border-border">
-        <Stat label="Invited + confirmed" value={event.performerCount} icon={<Users size={15} />} />
+        <Stat
+          label="Performers"
+          value={event.confirmedCount + event.invitedCount}
+          icon={<Users size={15} />}
+          sub={
+            event.confirmedCount + event.invitedCount > 0
+              ? `${event.confirmedCount} confirmed · ${event.invitedCount} invited`
+              : undefined
+          }
+        />
         <Stat label="Saves" value={event.savedCount} icon={<Bookmark size={15} />} />
       </div>
 

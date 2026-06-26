@@ -3,6 +3,7 @@ import { and, asc, count, desc, eq, gte, ilike, inArray, lte, or, sql } from 'dr
 
 import { db } from '@CeolX/db';
 import { user } from '@CeolX/db/schema/auth';
+import { bookings } from '@CeolX/db/schema/bookings';
 import { eventCollaborators, events, savedEvents } from '@CeolX/db/schema/events';
 import {
   EventStatus,
@@ -95,9 +96,48 @@ export const listEvents = adminProcedure
         viewCount: events.viewCount,
         ticketClicks: events.ticketClicks,
         // Real engagement the admin can act on, unlike viewCount/ticketClicks
-        // (not tracked until M10/M11). Performers = invited + confirmed artists
-        // on this event; saves = fans who bookmarked it.
-        performerCount: sql<number>`(select count(*)::int from ${eventCollaborators} where ${eventCollaborators.eventId} = ${events.id})`,
+        // (not tracked until M10/M11). Performers split into confirmed vs invited
+        // so the admin reads the number correctly; saves = fans who bookmarked it.
+        // `confirmed` mirrors isConfirmedPerformer (events/crud.ts): a platform
+        // artist whose booking is accepted, or a legacy auto-confirmed row
+        // (bookingId null, pre-31/05/2026). `invited` mirrors
+        // isPendingPlatformInvite + isExternalInvitee: a still-pending performer
+        // invite (venue→artist or artist→artist) or an outside-platform email
+        // invite. Venue-participant rows and artist→venue consent requests are
+        // excluded from both — they are not performers.
+        confirmedCount: sql<number>`(
+          select count(*)::int from ${eventCollaborators}
+          where ${eventCollaborators.eventId} = ${events.id}
+            and ${eventCollaborators.artistProfileId} is not null
+            and (
+              ${eventCollaborators.bookingId} is null
+              or exists (
+                select 1 from ${bookings}
+                where ${bookings.id} = ${eventCollaborators.bookingId}
+                  and ${bookings.status} = 'accepted'
+              )
+            )
+        )`,
+        invitedCount: sql<number>`(
+          select count(*)::int from ${eventCollaborators}
+          where ${eventCollaborators.eventId} = ${events.id}
+            and (
+              (
+                ${eventCollaborators.artistProfileId} is not null
+                and exists (
+                  select 1 from ${bookings}
+                  where ${bookings.id} = ${eventCollaborators.bookingId}
+                    and ${bookings.status} = 'pending'
+                    and ${bookings.direction} in ('venue_to_artist', 'artist_to_artist')
+                )
+              )
+              or (
+                ${eventCollaborators.artistProfileId} is null
+                and ${eventCollaborators.venueProfileId} is null
+                and ${eventCollaborators.invitedName} is not null
+              )
+            )
+        )`,
         savedCount: sql<number>`(select count(*)::int from ${savedEvents} where ${savedEvents.eventId} = ${events.id})`,
         status: events.status,
         removalReason: events.removalReason,
@@ -138,7 +178,8 @@ export const listEvents = adminProcedure
         ticketPrice: row.ticketPrice,
         viewCount: row.viewCount ?? 0,
         ticketClicks: row.ticketClicks ?? 0,
-        performerCount: row.performerCount ?? 0,
+        confirmedCount: row.confirmedCount ?? 0,
+        invitedCount: row.invitedCount ?? 0,
         savedCount: row.savedCount ?? 0,
         status: row.status,
         removalReason: row.removalReason,
