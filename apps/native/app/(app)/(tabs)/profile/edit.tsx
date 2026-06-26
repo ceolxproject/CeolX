@@ -12,12 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { UserRole } from '@CeolX/shared/enums';
-import {
-  BIO_MAX_LENGTH,
-  isRealDomain,
-  socialLinksSchema,
-  venueLinksSchema,
-} from '@CeolX/shared/validators';
+import { BIO_MAX_LENGTH, socialLinksSchema, venueLinksSchema } from '@CeolX/shared/validators';
 
 import { AppHeader } from '@/components/AppHeader';
 import { AppTextField } from '@/components/AppTextField';
@@ -60,10 +55,10 @@ export default function EditProfileScreen() {
   const [imageTouched, setImageTouched] = useState(false);
   const [imageError, setImageError] = useState<string | null>(null);
 
-  // Per-field URL validation errors, keyed by `socialLinks.<PLATFORM>` and
-  // `websiteUrl` so they line up with the inputs below. Mirrors the inline
-  // errors the onboarding wizard shows; the actual save is still guarded by the
-  // shared schema on the server.
+  // Per-field URL validation errors, keyed by `socialLinks.<PLATFORM>` so they
+  // line up with the inputs below. Mirrors the inline errors the onboarding
+  // wizard shows; the actual save is still guarded by the shared schema on the
+  // server.
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   // Artist-only fields
@@ -75,7 +70,6 @@ export default function EditProfileScreen() {
   const [venueLat, setVenueLat] = useState<number | null>(null);
   const [venueLng, setVenueLng] = useState<number | null>(null);
   const [county, setCounty] = useState('');
-  const [websiteUrl, setWebsiteUrl] = useState('');
   const [phone, setPhone] = useState('');
 
   // Social links — artist: INSTAGRAM, FACEBOOK, TIKTOK, YOUTUBE
@@ -99,7 +93,6 @@ export default function EditProfileScreen() {
       setVenueLat(vp.lat ?? null);
       setVenueLng(vp.lng ?? null);
       setCounty(vp.county ?? '');
-      setWebsiteUrl(vp.websiteUrl ?? '');
       setPhone(vp.phone ?? '');
       setWebsite(vp.socialLinks?.WEBSITE ?? '');
       setInstagram(vp.socialLinks?.INSTAGRAM ?? '');
@@ -179,12 +172,6 @@ export default function EditProfileScreen() {
         fieldErrors[`socialLinks.${issue.path.join('.')}`] = issue.message;
       }
     }
-    if (isVenue) {
-      const normalizedWebsite = normalizeOptionalUrl(websiteUrl);
-      if (normalizedWebsite && !isRealDomain(normalizedWebsite)) {
-        fieldErrors.websiteUrl = 'Enter a valid link (e.g. yourvenue.com)';
-      }
-    }
     if (Object.keys(fieldErrors).length > 0) {
       setErrors(fieldErrors);
       appToast.warning('Check your links', 'Please fix the highlighted fields and try again.');
@@ -219,7 +206,6 @@ export default function EditProfileScreen() {
           lat: venueLat ?? undefined,
           lng: venueLng ?? undefined,
           county: county.trim() || undefined,
-          websiteUrl: normalizeOptionalUrl(websiteUrl),
           phone: phone.trim() || undefined,
           profileImageUrl,
           socialLinks: {
@@ -409,25 +395,6 @@ export default function EditProfileScreen() {
                 onChangeText={setCounty}
                 maxLength={100}
               />
-
-              <Text className="text-xs font-semibold text-white/60 uppercase tracking-wide mb-1.5 font-urbanist">
-                Website
-              </Text>
-              <AppTextField
-                variant="dark"
-                containerClassName={errors.websiteUrl ? 'mb-1' : 'mb-4'}
-                placeholder="https://yourvenue.com"
-                value={websiteUrl}
-                onChangeText={setWebsiteUrl}
-                autoCapitalize="none"
-                keyboardType="url"
-                autoComplete="off"
-                textContentType="URL"
-                importantForAutofill="no"
-              />
-              {errors.websiteUrl ? (
-                <Text className="text-xs text-red-400 mb-4 font-urbanist">{errors.websiteUrl}</Text>
-              ) : null}
 
               <Text className="text-xs font-semibold text-white/60 uppercase tracking-wide mb-1.5 font-urbanist">
                 Phone

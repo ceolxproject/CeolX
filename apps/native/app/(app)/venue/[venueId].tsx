@@ -132,7 +132,6 @@ export default function VenueProfileScreen() {
           isFollowing={isFollowing}
           socialLinks={profile.socialLinks}
           contactEmail={profile.contactEmail}
-          websiteUrl={profile.websiteUrl}
           onEditPress={() => router.push('/(app)/(tabs)/profile/edit')}
           onSettingsPress={profile.isOwner ? () => settingsRef.current?.present() : undefined}
           onFollowPress={!profile.isOwner ? onFollowPress : undefined}

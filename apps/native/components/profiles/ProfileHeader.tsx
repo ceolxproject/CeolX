@@ -25,7 +25,6 @@ type ProfileHeaderProps = {
   isFollowing: boolean;
   socialLinks: Record<string, string>;
   contactEmail?: string | null;
-  websiteUrl?: string | null;
   onEditPress?: () => void;
   onSettingsPress?: () => void;
   onFollowPress?: () => void;
@@ -71,7 +70,6 @@ export function ProfileHeader({
   isFollowing,
   socialLinks,
   contactEmail,
-  websiteUrl,
   onEditPress,
   onSettingsPress,
   onFollowPress,
@@ -80,7 +78,6 @@ export function ProfileHeader({
   secondaryCta,
 }: ProfileHeaderProps) {
   const trimmedEmail = contactEmail?.trim();
-  const trimmedWebsite = websiteUrl?.trim();
   return (
     <View className="items-center pt-2 pb-4">
       {/* Avatar + followers/following row */}
@@ -171,28 +168,15 @@ export function ProfileHeader({
       )}
 
       {/* Contact details */}
-      {(trimmedEmail || trimmedWebsite) && (
+      {trimmedEmail && (
         <View className="items-center gap-2 mt-4">
-          {trimmedEmail && (
-            <Pressable
-              onPress={() => Linking.openURL(`mailto:${trimmedEmail}`)}
-              className="flex-row items-center gap-2 px-3 py-2 rounded-full bg-[#333335]"
-            >
-              <Ionicons name="mail-outline" size={14} color="#C8FF2F" />
-              <Text className="text-xs font-semibold text-white">{trimmedEmail}</Text>
-            </Pressable>
-          )}
-          {trimmedWebsite && (
-            <Pressable
-              onPress={() => Linking.openURL(trimmedWebsite)}
-              className="flex-row items-center gap-2 px-3 py-2 rounded-full bg-[#333335]"
-            >
-              <Ionicons name="globe-outline" size={14} color="#C8FF2F" />
-              <Text className="text-xs font-semibold text-white" numberOfLines={1}>
-                {trimmedWebsite.replace(/^https?:\/\//i, '')}
-              </Text>
-            </Pressable>
-          )}
+          <Pressable
+            onPress={() => Linking.openURL(`mailto:${trimmedEmail}`)}
+            className="flex-row items-center gap-2 px-3 py-2 rounded-full bg-[#333335]"
+          >
+            <Ionicons name="mail-outline" size={14} color="#C8FF2F" />
+            <Text className="text-xs font-semibold text-white">{trimmedEmail}</Text>
+          </Pressable>
         </View>
       )}
 
