@@ -155,6 +155,10 @@ export default (_) => ({
     // Firebase Swift pods (FirebaseCoreInternal) depend on GoogleUtilities, which
     // is non-modular Obj-C. Without this, `pod install` fails on `expo prebuild`.
     './plugins/with-modular-headers.cjs',
+    // <queries> for common email apps so the verify-email "Open Email App" button
+    // can launch them directly when no app declares CATEGORY_APP_EMAIL (Android
+    // 11+ package visibility — Asana 1215960893303593).
+    './plugins/with-android-email-queries.cjs',
     'expo-notifications',
     'expo-apple-authentication',
     // Native Google Sign-In. The config plugin only needs to register the iOS
