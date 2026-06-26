@@ -1,7 +1,8 @@
 import { randomUUID } from 'node:crypto';
 
 import { TRPCError } from '@trpc/server';
-import { and, desc, eq, inArray, ne, sql } from 'drizzle-orm';
+import { and, countDistinct, desc, eq, gt, inArray, isNull, ne, or, sql } from 'drizzle-orm';
+import { unionAll } from 'drizzle-orm/pg-core';
 import { z } from 'zod';
 
 import { db } from '@CeolX/db';
@@ -274,6 +275,43 @@ export const byId = publicProcedure
       .map((c) => c.bookingId)
       .filter((id): id is string => id !== null);
 
+    // Upcoming-event count per collaborator for the Performing Artist card badge.
+    // It must equal the artist profile's upcoming list (artists.byId), so mirror
+    // that query exactly: distinct ACTIVE, future-dated events where the artist is
+    // the creator OR an ACCEPTED collaborator. Counting raw event_collaborators
+    // rows drifts above the rendered list — it ignores created events and counts
+    // archived/pending/past. (Asana 1216032428715513)
+    const createdUpcoming = db
+      .select({ artistId: events.createdBy, eventId: events.id })
+      .from(events)
+      .where(
+        and(
+          inArray(events.createdBy, collaboratorUserIds),
+          eq(events.status, 'active'),
+          gt(events.dateStart, sql`now()`)
+        )
+      );
+    const collaboratedUpcoming = db
+      // artistProfileId is nullable in the schema but the inArray filter below
+      // excludes nulls; cast so the union shape matches createdUpcoming.
+      .select({ artistId: sql<string>`${eventCollaborators.artistProfileId}`, eventId: events.id })
+      .from(eventCollaborators)
+      .innerJoin(events, eq(events.id, eventCollaborators.eventId))
+      .where(
+        and(
+          inArray(eventCollaborators.artistProfileId, collaboratorUserIds),
+          eq(events.status, 'active'),
+          gt(events.dateStart, sql`now()`),
+          or(
+            isNull(eventCollaborators.bookingId),
+            sql`EXISTS (SELECT 1 FROM ${bookings} WHERE ${bookings.id} = ${eventCollaborators.bookingId} AND ${bookings.status} = 'accepted')`
+          )
+        )
+      );
+    const upcomingArtistEvents = unionAll(createdUpcoming, collaboratedUpcoming).as(
+      'upcoming_artist_events'
+    );
+
     const [
       collaboratorProfiles,
       collaboratorUsers,
@@ -304,16 +342,16 @@ export const byId = publicProcedure
             .where(inArray(user.id, collaboratorUserIds))
         : Promise.resolve([]),
 
-      // event count per collaborator across all events they're on
+      // event count per collaborator — distinct upcoming events (see
+      // upcomingArtistEvents above) so the badge matches the artist profile list.
       collaboratorUserIds.length > 0
         ? db
             .select({
-              artistProfileId: eventCollaborators.artistProfileId,
-              count: sql<number>`count(*)::int`,
+              artistProfileId: upcomingArtistEvents.artistId,
+              count: countDistinct(upcomingArtistEvents.eventId),
             })
-            .from(eventCollaborators)
-            .where(inArray(eventCollaborators.artistProfileId, collaboratorUserIds))
-            .groupBy(eventCollaborators.artistProfileId)
+            .from(upcomingArtistEvents)
+            .groupBy(upcomingArtistEvents.artistId)
         : Promise.resolve([]),
 
       // total saves == "attending" proxy
