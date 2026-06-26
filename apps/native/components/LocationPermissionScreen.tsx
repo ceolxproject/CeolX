@@ -1,4 +1,5 @@
 import * as Location from 'expo-location';
+import type { ReactNode } from 'react';
 import { useEffect, useState } from 'react';
 import { Linking, Pressable, Text, View } from 'react-native';
 import type { EdgeInsets } from 'react-native-safe-area-context';
@@ -19,6 +20,11 @@ type Props = {
    * forwards them here.
    */
   insets: EdgeInsets;
+  /**
+   * Optional content rendered above the logo — used by the onboarding host to
+   * frame this as a step (e.g. a "Set your location" step label / progress).
+   */
+  headerSlot?: ReactNode;
 };
 
 /**
@@ -29,7 +35,7 @@ type Props = {
  * Precise vs Approximate, so we don't duplicate that choice in-app.
  * "SELECT LOCATION MANUALLY" skips GPS entirely (fallback chain handles it).
  */
-export function LocationPermissionScreen({ onDone, insets }: Props) {
+export function LocationPermissionScreen({ onDone, insets, headerSlot }: Props) {
   // When permission was hard-denied (denied + cannot ask again), the OS will not
   // show its dialog anymore, so the only way to grant is via Settings. Reflect
   // that on the CTA so the button doesn't promise something it can't do.
@@ -66,6 +72,9 @@ export function LocationPermissionScreen({ onDone, insets }: Props) {
       style={{ paddingTop: insets.top, paddingBottom: insets.bottom }}
     >
       <View className="flex-1 items-center px-6 pt-6 pb-6">
+        {/* Optional onboarding step framing (step label / progress). */}
+        {headerSlot}
+
         {/* CEOLX logo */}
         <View className="mb-12">
           <CeolxLogo fontSize={18} letterSpacing={2} />

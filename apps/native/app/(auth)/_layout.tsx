@@ -9,9 +9,12 @@ import { useAuth } from '@/contexts/auth-context';
 //   - reset-password / verify-email: these are public deep-link targets. A reset
 //     or verification link must open regardless of who is currently logged in —
 //     otherwise a logged-in user tapping a reset link gets bounced to the map.
+//   - set-location: (app)/_layout redirects users who haven't done the location
+//     onboarding step *into* it; redirecting back out would bounce forever.
 const AUTH_REDIRECT_EXEMPT = [
   'artist-onboarding',
   'venue-onboarding',
+  'set-location',
   'reset-password',
   'verify-email',
 ];
@@ -48,6 +51,7 @@ export default function AuthLayout() {
       <Stack.Screen name="sign-up" />
       <Stack.Screen name="verify-email" />
       <Stack.Screen name="artist-onboarding" />
+      <Stack.Screen name="set-location" />
       <Stack.Screen name="forgot-password" />
       <Stack.Screen name="reset-password" />
     </Stack>

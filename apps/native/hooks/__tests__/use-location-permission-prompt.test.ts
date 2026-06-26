@@ -7,10 +7,14 @@ vi.mock('expo-location', () => ({
   PermissionStatus: { GRANTED: 'granted', DENIED: 'denied', UNDETERMINED: 'undetermined' },
 }));
 
-// Mock base-location so importing the hook doesn't pull in expo-secure-store
-// (native-only) in the Node test env. resolvePromptState itself is pure.
+// Mock base-location + location-setup so importing the hook doesn't pull in
+// expo-secure-store (native-only) in the Node test env. resolvePromptState
+// itself is pure.
 vi.mock('@/utils/base-location', () => ({
   getBaseLocation: vi.fn(),
+}));
+vi.mock('@/utils/location-setup', () => ({
+  getLocationSetupComplete: vi.fn(),
 }));
 
 const GRANTED = Location.PermissionStatus.GRANTED;
