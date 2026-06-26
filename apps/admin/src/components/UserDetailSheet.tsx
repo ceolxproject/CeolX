@@ -30,7 +30,7 @@ import { cn } from '@CeolX/ui/lib/utils';
 
 import { StatusBadge } from '@/components/StatusBadge';
 import { formatDate, formatDateTime } from '@/lib/format';
-import { initials, PERSONA_CLASS, SUB_CLASS } from '@/lib/userBadges';
+import { initials, PERSONA_CLASS } from '@/lib/userBadges';
 import { trpc } from '@/utils/trpc';
 
 type Detail = inferRouterOutputs<AppRouter>['admin']['users']['getById'];
@@ -117,7 +117,6 @@ export function UserDetailSheet({
 function DetailBody({ data }: { data: Detail }) {
   const { user, artist, venue, socialLinks, lastSession, devices, counts, recentEvents } = data;
   const location = artist?.location ?? venue?.county ?? null;
-  const subStatus = venue?.subscriptionStatus ?? null;
   const avatarSrc = artist?.profileImageUrl ?? venue?.profileImageUrl ?? user.image;
 
   const stats =
@@ -168,11 +167,6 @@ function DetailBody({ data }: { data: Detail }) {
               >
                 {user.emailVerified ? 'Verified' : 'Unverified'}
               </Badge>
-              {subStatus && (
-                <Badge variant="outline" className={cn('capitalize', SUB_CLASS[subStatus])}>
-                  {subStatus.replace('_', ' ')}
-                </Badge>
-              )}
               {user.flaggedInactive && (
                 <Badge variant="outline" className="border-amber-200 bg-amber-50 text-amber-800">
                   Inactive
@@ -279,21 +273,6 @@ function DetailBody({ data }: { data: Detail }) {
         {venue && (
           <Card icon={<CreditCard size={14} />} title="Membership">
             <KV k="Tier">Venue</KV>
-            <KV k="Status">
-              {subStatus ? (
-                <Badge variant="outline" className={cn('capitalize', SUB_CLASS[subStatus])}>
-                  {subStatus.replace('_', ' ')}
-                </Badge>
-              ) : (
-                '—'
-              )}
-            </KV>
-            {subStatus === 'inactive' && (
-              <p className="pt-1 text-xs text-muted-foreground">
-                Venue subscriptions aren&rsquo;t live yet, so every venue reads inactive until
-                billing ships.
-              </p>
-            )}
             {venue.subscription && (
               <>
                 <KV k="Plan">{venue.subscription.plan}</KV>
