@@ -90,7 +90,14 @@ export function EventDetailView({
     requestToPerform(event.id);
   };
 
+  // flag stop duplicate calendar entries from repeated taps
+  const calendarLock = useRef(false);
+  const [calendarAdded, setCalendarAdded] = useState(false);
+
   const handleAddToCalendar = async () => {
+    if (calendarLock.current || calendarAdded) return;
+    calendarLock.current = true;
+
     const start = new Date(event.dateStart);
     const end = event.dateEnd
       ? new Date(event.dateEnd)
@@ -105,6 +112,7 @@ export function EventDetailView({
         location: event.venueAddress ?? `${event.lat},${event.lng}`,
       });
       appToast.success('Added to calendar');
+      setCalendarAdded(true);
     } catch (err) {
       if (err instanceof Error && err.message === CALENDAR_PERMISSION_DENIED) {
         appToast.error(
@@ -121,6 +129,8 @@ export function EventDetailView({
       } else {
         appToast.error('Could not add to calendar', 'Please try again.');
       }
+    } finally {
+      calendarLock.current = false;
     }
   };
 
@@ -207,8 +217,9 @@ export function EventDetailView({
               icon="calendar-outline"
               title={formattedDate}
               subtitle={formattedTime}
-              actionLabel="Add to calendar"
+              actionLabel={calendarAdded ? 'Added' : 'Add to calendar'}
               onAction={handleAddToCalendar}
+              actionDisabled={calendarAdded}
             />
 
             {/* Location */}
