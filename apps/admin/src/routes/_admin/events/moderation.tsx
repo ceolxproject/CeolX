@@ -142,14 +142,11 @@ function EventModerationPage() {
   }
 
   function handleSort(key: SortField) {
-    if (sortBy !== key) {
+    if (sortBy === key) {
+      setSortDir(sortDir === 'asc' ? 'desc' : 'asc');
+    } else {
       setSortBy(key);
       setSortDir('asc');
-    } else if (sortDir === 'asc') {
-      setSortDir('desc');
-    } else {
-      setSortBy('createdAt');
-      setSortDir('desc');
     }
     setPage(1);
   }
