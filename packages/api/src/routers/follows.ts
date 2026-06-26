@@ -179,6 +179,14 @@ export const followsRouter = router({
 
     const following = await Promise.all(
       rows.map(async (row) => {
+        // NOTE: intentionally NOT gated on `isActive`. The follow mutation and the
+        // profile read paths (venues.byId / artists.byId) render inactive profiles
+        // while subscription gating is deferred (Asana 1215489113550392). Gating
+        // the Following list on `isActive` diverged from that: a user could follow
+        // an inactive venue/artist (CTA flips to "Following", profile opens) yet it
+        // silently vanished from their Following list. Match the read paths — show
+        // followed profiles regardless of active state. Restore the active gate
+        // here alongside the read-path gate once subscriptions are live.
         const [artist] = await db
           .select({
             id: artistProfiles.id,
@@ -189,7 +197,7 @@ export const followsRouter = router({
             isActive: artistProfiles.isActive,
           })
           .from(artistProfiles)
-          .where(and(eq(artistProfiles.userId, row.followeeId), eq(artistProfiles.isActive, true)))
+          .where(eq(artistProfiles.userId, row.followeeId))
           .limit(1);
 
         const [venue] = await db
@@ -201,7 +209,7 @@ export const followsRouter = router({
             isActive: venueProfiles.isActive,
           })
           .from(venueProfiles)
-          .where(and(eq(venueProfiles.userId, row.followeeId), eq(venueProfiles.isActive, true)))
+          .where(eq(venueProfiles.userId, row.followeeId))
           .limit(1);
 
         const type: 'artist' | 'venue' | null = artist ? 'artist' : venue ? 'venue' : null;
@@ -299,6 +307,9 @@ export const followsRouter = router({
     }
 
     const [artists, venues, baseUsers, followBackRows, eventsCountRows] = await Promise.all([
+      // Not gated on `isActive` — see the note in getFollowing. Inactive followers
+      // still render their public profile (matching the deferred-subscription read
+      // paths); restore the active gate once subscriptions ship.
       db
         .select({
           userId: artistProfiles.userId,
@@ -307,7 +318,7 @@ export const followsRouter = router({
           genres: artistProfiles.genres,
         })
         .from(artistProfiles)
-        .where(and(inArray(artistProfiles.userId, followerIds), eq(artistProfiles.isActive, true))),
+        .where(inArray(artistProfiles.userId, followerIds)),
       db
         .select({
           userId: venueProfiles.userId,
@@ -315,7 +326,7 @@ export const followsRouter = router({
           profileImageUrl: venueProfiles.profileImageUrl,
         })
         .from(venueProfiles)
-        .where(and(inArray(venueProfiles.userId, followerIds), eq(venueProfiles.isActive, true))),
+        .where(inArray(venueProfiles.userId, followerIds)),
       db
         .select({ id: user.id, name: user.name, image: user.image })
         .from(user)

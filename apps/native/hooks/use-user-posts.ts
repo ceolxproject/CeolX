@@ -19,6 +19,7 @@ type HydratedPost = {
     displayName: string;
     profileImageUrl: string | null;
     profileType: 'artist' | 'venue' | 'user';
+    isFollowedByMe: boolean;
   };
   likedByMe: boolean;
 };

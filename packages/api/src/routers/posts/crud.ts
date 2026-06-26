@@ -96,6 +96,7 @@ export const create = creatorProcedure.input(createPostSchema).mutation(async ({
     displayName: 'Unknown',
     profileImageUrl: null,
     profileType: 'user' as const,
+    isFollowedByMe: false,
   };
 
   return {
@@ -135,6 +136,7 @@ export const update = protectedProcedure
         displayName: 'Unknown',
         profileImageUrl: null,
         profileType: 'user' as const,
+        isFollowedByMe: false,
       },
     };
   });
@@ -173,7 +175,7 @@ export const byId = publicProcedure.input(postByIdSchema).query(async ({ input, 
   }
 
   const viewerId = ctx.session?.user?.id ?? null;
-  const authors = await hydrateAuthors([post.createdBy]);
+  const authors = await hydrateAuthors([post.createdBy], viewerId);
 
   let likedByMe = false;
   if (viewerId) {
@@ -190,6 +192,7 @@ export const byId = publicProcedure.input(postByIdSchema).query(async ({ input, 
       displayName: 'Unknown',
       profileImageUrl: null,
       profileType: 'user' as const,
+      isFollowedByMe: false,
     },
     likedByMe,
   };
@@ -217,7 +220,10 @@ export const byUser = publicProcedure.input(userPostsQuerySchema).query(async ({
   const hasNextPage = rows.length > limit;
   const page = hasNextPage ? rows.slice(0, limit) : rows;
 
-  const authors = await hydrateAuthors(page.map((p) => p.createdBy));
+  const authors = await hydrateAuthors(
+    page.map((p) => p.createdBy),
+    viewerId
+  );
 
   let likedSet = new Set<string>();
   if (viewerId && page.length > 0) {
@@ -244,6 +250,7 @@ export const byUser = publicProcedure.input(userPostsQuerySchema).query(async ({
         displayName: 'Unknown',
         profileImageUrl: null,
         profileType: 'user' as const,
+        isFollowedByMe: false,
       },
       likedByMe: likedSet.has(p.id),
     })),

@@ -17,6 +17,7 @@ import { PostImage } from './PostImage';
 import { PostVideo } from './PostVideo';
 
 import { useDeletePost } from '@/hooks/use-delete-post';
+import { useProfileFollowHandler } from '@/hooks/use-profile-follow-handler';
 import { useSharePost } from '@/hooks/use-share-post';
 import { useTogglePostLike } from '@/hooks/use-toggle-post-like';
 import { MOCK_PROFILE_IMAGE } from '@/utils/mock-images';
@@ -38,6 +39,8 @@ export type PostCardPost = {
     displayName: string;
     profileImageUrl: string | null;
     profileType: 'artist' | 'venue' | 'user';
+    /** Whether the viewer follows this author — drives the header Follow CTA. */
+    isFollowedByMe: boolean;
   };
   likedByMe: boolean;
 };
@@ -125,6 +128,40 @@ function LikeButton({
   );
 }
 
+/**
+ * Text-only Follow CTA shown in the post header for non-owner artist/venue
+ * authors. Lime accent (`green-10`) while not following, muted once followed —
+ * mirroring the toggle on the profile header. The optimistic flip comes from
+ * useProfileFollowHandler, so the tap feels instant.
+ */
+function FollowButton({
+  isFollowing,
+  displayName,
+  onPress,
+}: {
+  isFollowing: boolean;
+  displayName: string;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      hitSlop={11}
+      accessibilityRole="button"
+      accessibilityLabel={isFollowing ? `Following ${displayName}` : `Follow ${displayName}`}
+      accessibilityState={{ selected: isFollowing }}
+    >
+      <Text
+        className={`text-xs font-bold uppercase tracking-wider font-urbanist ${
+          isFollowing ? 'text-white/40' : 'text-green-10'
+        }`}
+      >
+        {isFollowing ? 'Following' : 'Follow'}
+      </Text>
+    </Pressable>
+  );
+}
+
 export function PostCard({
   post,
   currentUserId,
@@ -167,6 +204,14 @@ export function PostCard({
   // Spectators have no public profile, so only artist / venue authors are tappable.
   const canViewProfile =
     post.author.profileType === 'artist' || post.author.profileType === 'venue';
+
+  // Optimistic follow toggle for the header CTA. Only meaningful for followable
+  // (artist / venue) authors that aren't the viewer — the CTA itself is gated on
+  // !isOwner && canViewProfile below.
+  const { isFollowing, onFollowPress } = useProfileFollowHandler({
+    userId: post.author.id,
+    isFollowing: post.author.isFollowedByMe,
+  });
   const openAuthorProfile = () => {
     if (post.author.profileType === 'venue') {
       router.push({ pathname: '/(app)/venue/[venueId]', params: { venueId: post.author.id } });
@@ -268,7 +313,17 @@ export function PostCard({
           ) : (
             <View className="flex-1 flex-row items-center gap-3">{authorIdentity}</View>
           )}
-          {isOwner && <PostActionMenu onEdit={onEdit} onDelete={onDelete} />}
+          {isOwner ? (
+            <PostActionMenu onEdit={onEdit} onDelete={onDelete} />
+          ) : (
+            canViewProfile && (
+              <FollowButton
+                isFollowing={isFollowing}
+                displayName={post.author.displayName}
+                onPress={onFollowPress}
+              />
+            )
+          )}
         </View>
       )}
 
