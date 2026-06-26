@@ -62,7 +62,11 @@ export default function VerifyEmailScreen() {
       .verifyEmail({ query: { token } })
       .then(async ({ error }) => {
         if (error) {
-          setVerifyError(error.message ?? 'Verification failed. The link may have expired.');
+          setVerifyError(
+            error.status === 401
+              ? 'The link has expired or is invalid. Please request a new verification email and try again.'
+              : 'Something went wrong. Please try again.'
+          );
           return;
         }
 
