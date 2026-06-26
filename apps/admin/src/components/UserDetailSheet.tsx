@@ -352,7 +352,14 @@ function DetailBody({ data }: { data: Detail }) {
           </Card>
         )}
 
-        <details className="border-t border-border/60 py-4">
+        <details
+          className="border-t border-border/60 py-4"
+          onToggle={(e) => {
+            if (e.currentTarget.open) {
+              e.currentTarget.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
+          }}
+        >
           <summary className="flex cursor-pointer list-none items-center gap-2 text-sm font-semibold text-muted-foreground [&::-webkit-details-marker]:hidden">
             <ChevronDown size={15} />
             Compliance &amp; technical
