@@ -18,6 +18,7 @@ import type { LucideIcon } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 
+import { Popover, PopoverContent, PopoverTrigger } from '@CeolX/ui/components/popover';
 import { Skeleton } from '@CeolX/ui/components/skeleton';
 import {
   Tooltip,
@@ -87,25 +88,29 @@ function TrendPill({ trend, label }: { trend: Trend; label: string }) {
   );
 }
 
-// Small "?" affordance for metrics whose meaning isn't obvious from the label.
+// Small ⓘ affordance for metrics whose meaning isn't obvious from the label.
+// Popover, not Tooltip: opens on click (what the ⓘ glyph implies, and touch-friendly)
+// and also on hover after a short delay.
 function InfoHint({ text }: { text: string }) {
   return (
-    <TooltipProvider>
-      <Tooltip>
-        <TooltipTrigger
-          render={
-            <button
-              type="button"
-              className="inline-flex items-center text-muted-foreground/50 transition-colors hover:text-foreground focus:outline-none focus-visible:text-foreground"
-              aria-label="What does this mean?"
-            />
-          }
-        >
-          <Info size={13} strokeWidth={2} />
-        </TooltipTrigger>
-        <TooltipContent>{text}</TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
+    <Popover>
+      <PopoverTrigger
+        openOnHover
+        delay={150}
+        render={
+          <button
+            type="button"
+            className="inline-flex items-center text-muted-foreground/50 transition-colors hover:text-foreground focus:outline-none focus-visible:text-foreground"
+            aria-label="What does this mean?"
+          />
+        }
+      >
+        <Info size={13} strokeWidth={2} />
+      </PopoverTrigger>
+      <PopoverContent className="max-w-xs rounded-md border-transparent bg-foreground px-3 py-2 text-xs leading-relaxed text-background">
+        {text}
+      </PopoverContent>
+    </Popover>
   );
 }
 
@@ -320,7 +325,7 @@ function DashboardPage() {
             {events.total.toLocaleString()} {events.total === 1 ? 'event' : 'events'} across CeolX
           </p>
         </div>
-        <TooltipProvider>
+        <TooltipProvider delay={150}>
           <Tooltip>
             <TooltipTrigger
               render={
