@@ -94,6 +94,14 @@ export function useLocationPickerMap(initialLat: number, initialLng: number) {
     [clearSearch]
   );
 
+  /**
+   * Clear just the search text + suggestions (the field's ✕ button). Leaves the
+   * pin/label where they are — clearing a typo shouldn't move the map.
+   */
+  const clearQuery = useCallback(() => {
+    clearSearch();
+  }, [clearSearch]);
+
   const getCentre = useCallback(() => ({ ...centreRef.current }), []);
 
   return {
@@ -109,6 +117,7 @@ export function useLocationPickerMap(initialLat: number, initialLng: number) {
     handleRegionChangeComplete,
     handleSelect,
     handleUseCurrentLocation,
+    clearQuery,
     reset,
     getCentre,
     ZOOM,

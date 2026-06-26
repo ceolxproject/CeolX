@@ -14,6 +14,10 @@ export interface FeedLocationSheetProps {
   /** User confirmed a location. */
   onConfirm: (loc: { lat: number; lng: number; label: string }) => void;
   onClose: () => void;
+  /** Header title. Defaults to the feed wording; the onboarding host overrides it. */
+  title?: string;
+  /** Primary CTA label. Defaults to the feed wording. */
+  confirmLabel?: string;
 }
 
 export function FeedLocationSheet({
@@ -22,6 +26,8 @@ export function FeedLocationSheet({
   initialLng,
   onConfirm,
   onClose,
+  title = 'Search events by location',
+  confirmLabel = 'Set location · show events here',
 }: FeedLocationSheetProps) {
   const insets = useSafeAreaInsets();
   const {
@@ -36,6 +42,7 @@ export function FeedLocationSheet({
     handleRegionChangeComplete,
     handleSelect,
     handleUseCurrentLocation,
+    clearQuery,
     reset,
     getCentre,
     ZOOM,
@@ -63,9 +70,7 @@ export function FeedLocationSheet({
       <View className="flex-1 bg-[#1a1a1a]" style={{ paddingTop: insets.top + 8 }}>
         {/* Header */}
         <View className="flex-row items-center justify-between px-5 py-3 border-b border-white/10">
-          <Text className="text-lg font-bold text-white font-urbanist">
-            Search events by location
-          </Text>
+          <Text className="text-lg font-bold text-white font-urbanist">{title}</Text>
           <Pressable onPress={onClose} hitSlop={12}>
             <Ionicons name="close" size={24} color="#ffffff" />
           </Pressable>
@@ -86,6 +91,11 @@ export function FeedLocationSheet({
               autoCorrect={false}
             />
             {isSearching && <ActivityIndicator size="small" color="#8D8D8D" />}
+            {query ? (
+              <Pressable hitSlop={8} onPress={clearQuery} accessibilityLabel="Clear search">
+                <Ionicons name="close-circle" size={18} color="#8D8D8D" />
+              </Pressable>
+            ) : null}
           </View>
 
           {/* Suggestions dropdown */}
@@ -172,7 +182,7 @@ export function FeedLocationSheet({
             className="h-12 rounded-full bg-[#C8FF2F] items-center justify-center"
           >
             <Text className="text-black text-[15px] font-semibold font-urbanist">
-              Set location · show events here
+              {confirmLabel}
             </Text>
           </Pressable>
           <Pressable
