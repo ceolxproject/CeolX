@@ -145,7 +145,7 @@ function DetailBody({
       </SheetHeader>
 
       <div className="grid grid-cols-2 border-b border-border">
-        <Stat label="Performers" value={event.performerCount} icon={<Users size={15} />} />
+        <Stat label="Invited + confirmed" value={event.performerCount} icon={<Users size={15} />} />
         <Stat label="Saves" value={event.savedCount} icon={<Bookmark size={15} />} />
       </div>
 
