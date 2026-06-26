@@ -24,6 +24,7 @@ import { FieldLabel } from './FieldLabel';
 import type { ChipItem } from './SelectedChips';
 import { SelectedChips } from './SelectedChips';
 
+import { appToast } from '@/components/AppToast';
 import { CharacterLimitNote } from '@/components/CharacterCount';
 import { useDebouncedValue } from '@/hooks/use-debounced-value';
 import { useMediaUpload } from '@/hooks/use-media-upload';
@@ -109,7 +110,7 @@ export function InviteArtistPicker({
       // canAskAgain === false means the OS prompt is gone for good — sending the
       // user to Settings is the only way to grant access from here.
       if (perm.canAskAgain) {
-        Alert.alert('Permission needed', 'Please allow access to your photo library.');
+        appToast.error('Permission needed', 'Please allow access to your photo library.');
       } else {
         Alert.alert(
           'Permission needed',
@@ -127,7 +128,7 @@ export function InviteArtistPicker({
       if (uri) setInviteImageUri(uri);
     } catch (err) {
       Sentry.captureException(err, { tags: { feature: 'invite-artist-avatar' } });
-      Alert.alert(
+      appToast.error(
         'Could not open photos',
         'Something went wrong opening your library. Please try again.'
       );
@@ -158,7 +159,7 @@ export function InviteArtistPicker({
         imageUrl = cdnUrl;
       } catch (err) {
         Sentry.captureException(err, { tags: { feature: 'invite-artist-avatar' } });
-        Alert.alert(
+        appToast.error(
           'Upload failed',
           err instanceof Error
             ? err.message

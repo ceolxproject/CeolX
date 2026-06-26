@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Alert, KeyboardAvoidingView, ScrollView, Text, View } from 'react-native';
+import { KeyboardAvoidingView, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { changePasswordSchema } from '@CeolX/shared/validators';
@@ -8,6 +8,7 @@ import { changePasswordSchema } from '@CeolX/shared/validators';
 import { AppButton } from '@/components/AppButton';
 import { AppHeader } from '@/components/AppHeader';
 import { AppTextField } from '@/components/AppTextField';
+import { appToast } from '@/components/AppToast';
 import { authClient } from '@/lib/auth-client';
 
 export default function ChangePasswordScreen() {
@@ -47,11 +48,11 @@ export default function ChangePasswordScreen() {
       return;
     }
 
-    Alert.alert(
+    appToast.success(
       'Password updated',
-      'Your password has been changed. You have been signed out on your other devices.',
-      [{ text: 'OK', onPress: () => router.back() }]
+      'Your password has been changed. You have been signed out on your other devices.'
     );
+    router.back();
   };
 
   return (

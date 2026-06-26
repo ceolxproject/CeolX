@@ -2,7 +2,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { launchImageLibraryAsync, requestMediaLibraryPermissionsAsync } from 'expo-image-picker';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { useCallback } from 'react';
-import { ActivityIndicator, Alert, Image, Pressable, Text, View } from 'react-native';
+import { ActivityIndicator, Image, Pressable, Text, View } from 'react-native';
+
+import { appToast } from '@/components/AppToast';
 
 /**
  * Muted, looping preview of the picked video. Isolated in its own component so
@@ -78,7 +80,7 @@ export function MediaPickerField({
     if (readOnly) return;
     const perm = await requestMediaLibraryPermissionsAsync();
     if (!perm.granted) {
-      Alert.alert('Permission needed', 'Please allow access to your photo library.');
+      appToast.error('Permission needed', 'Please allow access to your photo library.');
       return;
     }
 

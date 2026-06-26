@@ -3,8 +3,9 @@ import * as Sentry from '@sentry/react-native';
 import { useQuery } from '@tanstack/react-query';
 import { cn } from 'heroui-native';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 
+import { appToast } from '@/components/AppToast';
 import { CalendarPicker } from '@/components/events/CalendarPicker';
 import { FieldLabel } from '@/components/events/FieldLabel';
 import { TimePickerModal } from '@/components/events/TimePickerModal';
@@ -116,7 +117,7 @@ export function DateVenueStep({
       } else {
         // Geocoding failed — fall back to just setting the address text
         onVenueAddressChange(myVenueAddress);
-        Alert.alert(
+        appToast.warning(
           'Could not locate address',
           "Your venue address was set but we couldn't find it on the map. You can adjust the pin manually."
         );
@@ -126,7 +127,7 @@ export function DateVenueStep({
       // be placed (mirrors the zero-results branch above, not a silent fallback).
       Sentry.captureException(err, { tags: { feature: 'venue-prefill-geocode' } });
       onVenueAddressChange(myVenueAddress);
-      Alert.alert(
+      appToast.warning(
         'Could not locate address',
         "Your venue address was set but we couldn't find it on the map. You can adjust the pin manually."
       );

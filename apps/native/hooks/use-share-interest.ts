@@ -1,6 +1,6 @@
 import { useMutation } from '@tanstack/react-query';
-import { Alert } from 'react-native';
 
+import { appToast } from '@/components/AppToast';
 import { trpc } from '@/utils/trpc';
 
 /**
@@ -15,17 +15,17 @@ export function useShareInterest() {
   const mutation = useMutation({
     ...mutationOptions,
     onSuccess: () => {
-      Alert.alert(
+      appToast.success(
         'Interest shared',
         "They'll be notified that you're interested in collaborating."
       );
     },
     onError: (error) => {
       if (error.data?.code === 'TOO_MANY_REQUESTS') {
-        Alert.alert('Already sent', "You've shared interest recently — try again later.");
+        appToast.info('Already sent', "You've shared interest recently — try again later.");
         return;
       }
-      Alert.alert('Something went wrong', 'Could not share interest. Please try again.');
+      appToast.error('Something went wrong', 'Could not share interest. Please try again.');
     },
   });
 

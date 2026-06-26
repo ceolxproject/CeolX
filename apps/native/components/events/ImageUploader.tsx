@@ -2,7 +2,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { launchImageLibraryAsync, requestMediaLibraryPermissionsAsync } from 'expo-image-picker';
 import { cn } from 'heroui-native';
 import { useCallback } from 'react';
-import { Alert, Image, Pressable, Text, View } from 'react-native';
+import { Image, Pressable, Text, View } from 'react-native';
+
+import { appToast } from '@/components/AppToast';
 
 type Props = {
   imageUri: string | null;
@@ -13,7 +15,7 @@ export function ImageUploader({ imageUri, onImagePicked }: Props) {
   const pickImage = useCallback(async () => {
     const permResult = await requestMediaLibraryPermissionsAsync();
     if (!permResult.granted) {
-      Alert.alert('Permission needed', 'Please allow access to your photo library.');
+      appToast.error('Permission needed', 'Please allow access to your photo library.');
       return;
     }
 

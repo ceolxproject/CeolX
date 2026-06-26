@@ -1,18 +1,11 @@
 import type { BottomSheetModal } from '@gorhom/bottom-sheet';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useRef, useState } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  Pressable,
-  RefreshControl,
-  ScrollView,
-  Text,
-  View,
-} from 'react-native';
+import { ActivityIndicator, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppHeader } from '@/components/AppHeader';
+import { appToast } from '@/components/AppToast';
 import { PostsList } from '@/components/posts/PostsList';
 import {
   EventsTab,
@@ -161,7 +154,7 @@ export default function VenueProfileScreen() {
           {showSubscriptionBanner && (
             <SubscriptionBanner
               onResendEmail={() =>
-                Alert.alert(
+                appToast.info(
                   'Coming Soon',
                   'Activation email resend will be available in a future update.'
                 )

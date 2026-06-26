@@ -1,7 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { cn } from 'heroui-native';
-import { Alert, Image, Linking, Pressable, Text, View } from 'react-native';
+import { Image, Linking, Pressable, Text, View } from 'react-native';
 
+import { appToast } from '@/components/AppToast';
 import { MOCK_PROFILE_IMAGE } from '@/utils/mock-images';
 
 const SOCIAL_ICONS: Record<string, string> = {
@@ -144,7 +145,7 @@ export function ProfileHeader({
             )}
             onPress={
               onFollowPress ??
-              (() => Alert.alert('Coming Soon', 'Follow feature is coming in a future update.'))
+              (() => appToast.info('Coming Soon', 'Follow feature is coming in a future update.'))
             }
           >
             <Text

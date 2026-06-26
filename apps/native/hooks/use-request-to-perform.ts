@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Alert } from 'react-native';
 
+import { appToast } from '@/components/AppToast';
 import { trpc } from '@/utils/trpc';
 
 export function useRequestToPerform() {
@@ -18,17 +18,17 @@ export function useRequestToPerform() {
   const { mutate, isPending: isRequesting } = useMutation(
     trpc.bookings.requestToPerform.mutationOptions({
       onSuccess: () => {
-        Alert.alert('Request Sent!', 'The venue will review your request.');
+        appToast.success('Request Sent!', 'The venue will review your request.');
         refreshRequestState();
       },
       onError: (error) => {
         if (error.message.includes('already applied')) {
-          Alert.alert('Already Applied', "You've already applied to this event.");
+          appToast.info('Already Applied', "You've already applied to this event.");
           refreshRequestState();
         } else if (error.message.includes('already a collaborator')) {
-          Alert.alert('Already Booked', 'You are already a collaborator on this event.');
+          appToast.info('Already Booked', 'You are already a collaborator on this event.');
         } else {
-          Alert.alert('Error', error.message || 'Failed to send request');
+          appToast.error('Error', error.message || 'Failed to send request');
         }
       },
     })

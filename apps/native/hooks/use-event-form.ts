@@ -1,12 +1,12 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { launchImageLibraryAsync, requestMediaLibraryPermissionsAsync } from 'expo-image-picker';
 import { useCallback, useEffect, useState } from 'react';
-import { Alert } from 'react-native';
 
 import type { EventCategory } from '@CeolX/shared';
 import { isValidCoordinate } from '@CeolX/shared';
 import { createEventSchema } from '@CeolX/shared/validators';
 
+import { appToast } from '@/components/AppToast';
 import type { ArtistResult } from '@/components/events/ArtistSearchRow';
 import {
   combineDateAndTime,
@@ -246,7 +246,7 @@ export function useEventForm(options?: UseEventFormOptions) {
   const pickCoverImage = useCallback(async () => {
     const perm = await requestMediaLibraryPermissionsAsync();
     if (!perm.granted) {
-      Alert.alert('Permission needed', 'Please allow access to your photo library.');
+      appToast.error('Permission needed', 'Please allow access to your photo library.');
       return;
     }
 
@@ -490,12 +490,12 @@ export function useEventForm(options?: UseEventFormOptions) {
 
     if (!step1Ok) {
       setCurrentStep(1);
-      Alert.alert('Missing details', 'Please fix the errors on step 1 before submitting.');
+      appToast.error('Missing details', 'Please fix the errors on step 1 before submitting.');
       return;
     }
     if (!step2Ok) {
       setCurrentStep(2);
-      Alert.alert('Missing details', 'Please fix the errors on step 2 before submitting.');
+      appToast.error('Missing details', 'Please fix the errors on step 2 before submitting.');
       return;
     }
     if (!step3Ok) {
@@ -516,7 +516,7 @@ export function useEventForm(options?: UseEventFormOptions) {
         finalCoverImage = cdnUrl;
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Image upload failed.';
-        Alert.alert('Upload failed', message);
+        appToast.error('Upload failed', message);
         return;
       }
     }
@@ -564,7 +564,7 @@ export function useEventForm(options?: UseEventFormOptions) {
       }
       setErrors(fieldErrors);
       setCurrentStep(targetStep);
-      Alert.alert(
+      appToast.error(
         'Invalid event data',
         parsed.error.issues[0]?.message ?? 'Please check all fields.'
       );
@@ -583,7 +583,7 @@ export function useEventForm(options?: UseEventFormOptions) {
     } catch (err) {
       const message =
         err instanceof Error ? err.message : 'Something went wrong. Please try again.';
-      Alert.alert('Failed to save event', message);
+      appToast.error('Failed to save event', message);
       return;
     }
 

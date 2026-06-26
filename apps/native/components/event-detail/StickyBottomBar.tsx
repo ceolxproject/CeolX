@@ -1,8 +1,9 @@
 import * as WebBrowser from 'expo-web-browser';
 import { cn } from 'heroui-native';
-import { ActivityIndicator, Alert, Pressable, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { appToast } from '@/components/AppToast';
 import { useTrackTicketClick } from '@/hooks/use-track-ticket-click';
 import { normalizeOptionalUrl } from '@/utils/normalize-url';
 
@@ -70,7 +71,7 @@ export function StickyBottomBar({
       await WebBrowser.openBrowserAsync(bookableUrl);
     } catch {
       // Surface failures instead of silently swallowing them (the original bug).
-      Alert.alert(
+      appToast.error(
         'Unable to open ticket link',
         "We couldn't open the ticket page. Please try again later."
       );
