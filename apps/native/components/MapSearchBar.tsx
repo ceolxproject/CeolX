@@ -9,6 +9,7 @@ interface MapSearchBarProps {
   placeholder?: string;
   value?: string;
   onChangeText?: (text: string) => void;
+  onClear?: () => void;
   onFilterPress?: () => void;
   activeFilterCount?: number;
   /** Focus the field (and raise the keyboard) as soon as the bar mounts. */
@@ -19,6 +20,7 @@ export function MapSearchBar({
   placeholder = 'Search a place, venue, town or county',
   value,
   onChangeText,
+  onClear,
   onFilterPress,
   activeFilterCount = 0,
   autoFocus = false,
@@ -48,6 +50,11 @@ export function MapSearchBar({
           autoCorrect={false}
           autoFocus={autoFocus}
         />
+        {value ? (
+          <Pressable hitSlop={8} onPress={onClear}>
+            <Ionicons name="close-circle" size={18} color="#8D8D8D" />
+          </Pressable>
+        ) : null}
         <Pressable
           hitSlop={10}
           className={cn(

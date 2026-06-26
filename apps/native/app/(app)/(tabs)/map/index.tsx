@@ -224,6 +224,7 @@ export default function MapScreen() {
     onChangeText: onPlaceChangeText,
     dismissDropdown,
     commitSelection,
+    clearSearch,
   } = usePlaceSearch();
 
   // Surface a place-search failure as a non-blocking toast. Pins are never
@@ -360,6 +361,7 @@ export default function MapScreen() {
       <MapSearchBar
         value={searchText}
         onChangeText={onPlaceChangeText}
+        onClear={clearSearch}
         onFilterPress={() => setFilterSheetVisible(true)}
         activeFilterCount={activeFilterCount}
       />
