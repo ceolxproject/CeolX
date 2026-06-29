@@ -10,7 +10,6 @@ type SinglePinProps = {
   category?: string;
   /** Raw category key (from EVENT_CATEGORIES) used to resolve the vector icon. */
   categoryKey?: string;
-  isSelected?: boolean;
   /**
    * Fires once the pin image has painted. The map marker uses this to stop
    * `tracksViewChanges` (native re-rasterization) so the cover image is
@@ -35,11 +34,9 @@ export function MapEventPin(props: MapEventPinProps) {
     );
   }
 
-  const { coverImageUrl, category, categoryKey, isSelected, onImageLoad } = props;
+  const { coverImageUrl, category, categoryKey, onImageLoad } = props;
 
-  const pinSize = isSelected ? 56 : 44;
-  const pinRadius = isSelected ? 28 : 22;
-  const pinStyle = { width: pinSize, height: pinSize, borderRadius: pinRadius };
+  const pinStyle = { width: 44, height: 44, borderRadius: 22 };
 
   // Clip the circle on the <Image> itself (borderRadius + border) rather than a
   // parent View with `overflow:hidden`. On Android's New Architecture the marker
@@ -68,16 +65,7 @@ export function MapEventPin(props: MapEventPinProps) {
           the category label below it as a non-interactive caption. A label ABOVE
           the circle steals every tap and leaves the circle dead (Asana
           1215961153969025). */}
-      {isSelected ? (
-        <View
-          className="w-[70px] h-[70px] rounded-[35px] border-[3px] border-[#6155F5] items-center justify-center"
-          style={{ boxShadow: '0 0 8px rgba(97,85,245,0.7)' }}
-        >
-          <PinContent />
-        </View>
-      ) : (
-        <PinContent />
-      )}
+      <PinContent />
 
       {/* Category caption below the pin (informational — not tappable). */}
       {(category ?? categoryKey) ? (

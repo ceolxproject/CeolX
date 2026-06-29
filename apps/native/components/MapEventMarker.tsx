@@ -21,7 +21,6 @@ export type MapEvent = {
 
 type MapEventMarkerProps = {
   event: MapEvent;
-  isSelected: boolean;
   onSelect: (event: MapEvent) => void;
 };
 
@@ -31,20 +30,15 @@ type MapEventMarkerProps = {
  * Memoized so unrelated MapScreen state changes (filter sheet, search text,
  * banner) don't re-render every pin. Owns its own `tracksViewChanges` so the
  * native marker only re-rasterizes when there's actual visual work to capture
- * — the cover image painting, or a selection transition — and stays frozen
- * (cheap) the rest of the time.
+ * — the cover image painting — and stays frozen (cheap) the rest of the time.
  */
-function MapEventMarkerComponent({ event, isSelected, onSelect }: MapEventMarkerProps) {
+function MapEventMarkerComponent({ event, onSelect }: MapEventMarkerProps) {
   // `true` = the native map re-snapshots this marker's custom view every frame
   // (correct but expensive). `false` = frozen single snapshot (cheap). We want
   // it true only while something visual is still settling, then false.
   const [tracksViewChanges, setTracksViewChanges] = useState(true);
 
-  // Skip the selection effect on the very first render — initial settling is
-  // driven by the mount fallback / image onLoad instead.
-  const isFirstRender = useRef(true);
-
-  // One shared timer across all freeze triggers (mount, image load, selection)
+  // One shared timer across all freeze triggers (mount, image load)
   // so re-arming cancels the previous pending freeze instead of leaking timers.
   const freezeTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
@@ -73,17 +67,6 @@ function MapEventMarkerComponent({ event, isSelected, onSelect }: MapEventMarker
   // the composited view, then freeze.
   const handleImageLoad = useCallback(() => scheduleFreeze(250), [scheduleFreeze]);
 
-  // Selection flips the pin's visuals (size 44→56, glow ring, title label).
-  // The cached image won't re-fire onLoad, so re-track briefly to capture the
-  // transition (long enough for the glow ring on slower devices).
-  useEffect(() => {
-    if (isFirstRender.current) {
-      isFirstRender.current = false;
-      return;
-    }
-    scheduleFreeze(500);
-  }, [isSelected, scheduleFreeze]);
-
   return (
     <Marker
       coordinate={{ latitude: event.lat, longitude: event.lng }}
@@ -100,7 +83,6 @@ function MapEventMarkerComponent({ event, isSelected, onSelect }: MapEventMarker
           coverImageUrl={event.coverImageUrl}
           category={CATEGORY_LABELS[event.category] ?? event.category}
           categoryKey={event.category}
-          isSelected={isSelected}
           onImageLoad={handleImageLoad}
         />
       </View>

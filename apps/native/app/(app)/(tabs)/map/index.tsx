@@ -208,9 +208,7 @@ export default function MapScreen() {
         return <MapClusterMarker key={`cluster-${clusterId}`} cluster={cluster} />;
       }
       const event = feature.properties.event;
-      return (
-        <MapEventMarker key={event.id} event={event} isSelected={false} onSelect={openEvent} />
-      );
+      return <MapEventMarker key={event.id} event={event} onSelect={openEvent} />;
     },
     [handleClusterPress, openEvent]
   );
