@@ -275,6 +275,45 @@ describe('events.update — artist adds a registered venue', () => {
   });
 });
 
+// ─── events.update — clearing ticket & ads fields persists NULL ───────────────
+// Asana 1216070978559447: clearing a Ticket & Ads field on edit showed a
+// success toast but the old value reappeared. The cleared field must reach the
+// DB as NULL — this exercises the whole chain: updateEventSchema must accept the
+// `null` (input validation runs in the caller) and the update procedure must put
+// it in the `.set()` payload (its `!== undefined` guard lets null through).
+
+describe('events.update — clearing ticket & ads fields', () => {
+  it('writes null to ticketLink/ticketPrice/adTitle/adDescription when a venue clears them', async () => {
+    mockEventsFindFirst.mockResolvedValue({
+      id: EVENT_ID,
+      title: 'X',
+      createdBy: VENUE_USER_ID,
+      status: 'active',
+      venueId: null,
+      dateStart: new Date('2026-07-01T20:00:00Z'),
+    });
+    mockVenuesFindFirst.mockResolvedValue(venueProfile);
+    mockUpdateReturning.mockResolvedValue([
+      { id: EVENT_ID, title: 'X', status: 'active', dateStart: new Date('2026-07-01T20:00:00Z') },
+    ]);
+
+    const caller = createCaller(ctx('venue', VENUE_USER_ID));
+    await caller.events.update({
+      id: EVENT_ID,
+      data: { ticketLink: null, ticketPrice: null, adTitle: null, adDescription: null },
+    });
+
+    expect(mockUpdateSetValues).toHaveBeenCalledWith(
+      expect.objectContaining({
+        ticketLink: null,
+        ticketPrice: null,
+        adTitle: null,
+        adDescription: null,
+      })
+    );
+  });
+});
+
 // ─── bookings.update — venue accepts/rejects the artist's request ──────────────
 
 const heldBooking = {

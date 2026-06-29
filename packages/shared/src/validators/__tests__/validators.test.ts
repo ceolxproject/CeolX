@@ -7,6 +7,7 @@ import {
   resetPasswordSchema,
   consentSchema,
   createEventSchema,
+  updateEventSchema,
   removeEventSchema,
   adminEventListQuerySchema,
   adminRemoveEventSchema,
@@ -327,6 +328,50 @@ describe('createEventSchema', () => {
   it('rejects more than 10 platform invites', () => {
     const tooMany = Array.from({ length: 11 }, (_, i) => `550e8400-e29b-41d4-a716-44665544000${i}`);
     expect(createEventSchema.safeParse({ ...valid, platformInvites: tooMany }).success).toBe(false);
+  });
+});
+
+describe('updateEventSchema — clearing optional ticket & ads fields', () => {
+  const id = '550e8400-e29b-41d4-a716-446655440000';
+
+  // Clearing a field on edit must send an explicit `null` so the server writes
+  // NULL. The schema therefore has to ACCEPT null AND preserve it through the
+  // parse (an `.optional()`-only field would strip/reject it, which is the
+  // root cause of "Ticket & Ads changes not saved" — Asana 1216070978559447).
+  it('accepts null for ticketLink, ticketPrice, adTitle and adDescription and preserves it', () => {
+    const result = updateEventSchema.safeParse({
+      id,
+      data: { ticketLink: null, ticketPrice: null, adTitle: null, adDescription: null },
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.data).toEqual({
+        ticketLink: null,
+        ticketPrice: null,
+        adTitle: null,
+        adDescription: null,
+      });
+    }
+  });
+
+  it('still accepts real values for those fields', () => {
+    expect(
+      updateEventSchema.safeParse({
+        id,
+        data: {
+          ticketLink: 'https://tickets.example.com/x',
+          ticketPrice: 1500,
+          adTitle: 'Special offer',
+          adDescription: 'Early bird discount',
+        },
+      }).success
+    ).toBe(true);
+  });
+
+  it('still rejects a malformed ticketLink url', () => {
+    expect(updateEventSchema.safeParse({ id, data: { ticketLink: 'not-a-url' } }).success).toBe(
+      false
+    );
   });
 });
 

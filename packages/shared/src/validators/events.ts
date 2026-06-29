@@ -29,8 +29,11 @@ const eventBaseShape = {
   venueId: z.string().uuid().optional(),
   venueAddress: z.string().max(255).optional(),
   category: z.enum(EVENT_CATEGORIES),
-  ticketLink: z.string().url().optional(),
-  ticketPrice: z.number().int().min(0).optional(),
+  // `null` is the explicit "clear this field" signal sent on edit — it must
+  // survive validation so the server can write NULL. `.optional()` alone would
+  // strip an undefined and reject a null, silently dropping the clear.
+  ticketLink: z.string().url().optional().nullable(),
+  ticketPrice: z.number().int().min(0).optional().nullable(),
   collectionId: z.string().uuid().optional(),
   // Confirmed collaborators are no longer set at create/edit time. A venue
   // performer becomes confirmed only by accepting a pending invite (see
@@ -48,8 +51,8 @@ const eventBaseShape = {
     )
     .max(10)
     .optional(),
-  adTitle: z.string().max(AD_TITLE_MAX).optional(),
-  adDescription: z.string().max(AD_DESCRIPTION_MAX).optional(),
+  adTitle: z.string().max(AD_TITLE_MAX).optional().nullable(),
+  adDescription: z.string().max(AD_DESCRIPTION_MAX).optional().nullable(),
 } as const;
 
 export const createEventSchema = z

@@ -532,8 +532,11 @@ export function useEventForm(options?: UseEventFormOptions) {
       venueId: venueId || undefined,
       venueAddress: venueAddress.trim() || undefined,
       category: category as EventCategory,
-      ticketLink: ticketLink.trim() || undefined,
-      ticketPrice: priceToCents(ticketPrice),
+      // Cleared ticket & ads fields send `null` (not undefined) so the edit
+      // actually persists the removal — undefined is dropped over the wire and
+      // the server treats an absent key as "leave unchanged". (Asana 1216070978559447)
+      ticketLink: ticketLink.trim() || null,
+      ticketPrice: ticketPrice.trim() ? priceToCents(ticketPrice) : null,
       ticketQuantity: parseQuantity(ticketQuantity),
       collectionId: collectionId || undefined,
       platformInvites: platformInviteIds(platformInvites, isEditing),
@@ -541,8 +544,8 @@ export function useEventForm(options?: UseEventFormOptions) {
         unregisteredCollaborators,
         isEditing
       ),
-      adTitle: adTitle.trim() || undefined,
-      adDescription: adDescription.trim() || undefined,
+      adTitle: adTitle.trim() || null,
+      adDescription: adDescription.trim() || null,
     };
 
     // Final Zod validation against the shared schema
