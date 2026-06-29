@@ -933,10 +933,12 @@ export const update = protectedProcedure
         setValues.adDescription = updateData.adDescription;
 
       // If event was removed by admin and creator is resubmitting, re-activate
+      // and stamp resubmittedAt so the moderation page can surface it.
       const isResubmit = event.status === EventStatus.REMOVED;
       if (isResubmit) {
         setValues.status = EventStatus.ACTIVE;
         setValues.removalReason = null;
+        setValues.resubmittedAt = new Date();
       }
 
       // Hold for venue approval / release back to live based on the venue change.
