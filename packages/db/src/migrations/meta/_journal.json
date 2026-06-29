@@ -169,6 +169,13 @@
       "when": 1782279942284,
       "tag": "20260624054542_add_invited_image_url",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1782900000000,
+      "tag": "20260629100000_add_resubmitted_at",
+      "breakpoints": true
     }
   ]
 }

@@ -72,6 +72,7 @@ export const events = pgTable(
     status: eventStatusEnum('status').notNull().default('active'),
     rejectionReason: text('rejection_reason'), // legacy — kept for enum compat, not used in V1
     removalReason: text('removal_reason'), // populated by admin on post-publication takedown
+    resubmittedAt: timestamp('resubmitted_at'), // set when creator resubmits after admin removal
     viewCount: integer('view_count').default(0),
     ticketClicks: integer('ticket_clicks').default(0), // M11-T3 — clicks on external ticketLink
     createdAt: timestamp('created_at').notNull().defaultNow(),
