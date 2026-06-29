@@ -9,6 +9,7 @@ import { EventRejectedEmail } from '../templates/event-rejected.js';
 import { NotificationEmail } from '../templates/notification.js';
 import { PaymentConfirmationEmail } from '../templates/payment-confirmation.js';
 import { VenueActivationEmail } from '../templates/venue-activation.js';
+import { WelcomeEmail } from '../templates/welcome.js';
 
 // ---------------------------------------------------------------------------
 // venue-activation
@@ -161,6 +162,30 @@ describe('NotificationEmail', () => {
   it('falls back to a generic greeting when userName is empty', async () => {
     const html = await render(React.createElement(NotificationEmail, { ...props, userName: '' }));
     // React Email inserts <!-- --> between text nodes around the fallback
+    expect(html).toContain('>there<');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// welcome (ONB-01 — onboarding)
+// ---------------------------------------------------------------------------
+describe('WelcomeEmail', () => {
+  const props = {
+    userName: 'Aoife',
+    ctaUrl: 'https://api.ceolx.com/r?to=%2F(app)%2F(tabs)%2Fdiscover',
+  };
+
+  it('greets by name, lists what to do, and renders the Open CeolX CTA', async () => {
+    const html = await render(React.createElement(WelcomeEmail, props));
+    expect(html).toContain('Aoife');
+    expect(html).toMatch(/Welcome to CeolX/);
+    expect(html).toContain('Explore events near you');
+    expect(html).toContain('Follow your favourite artists and venues');
+    expect(html).toContain('https://api.ceolx.com/r?to=%2F(app)%2F(tabs)%2Fdiscover');
+  });
+
+  it('falls back to "there" when userName is empty', async () => {
+    const html = await render(React.createElement(WelcomeEmail, { ...props, userName: '' }));
     expect(html).toContain('>there<');
   });
 });

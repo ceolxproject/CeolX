@@ -49,48 +49,60 @@ export function makeDispatchNotification(
   deps: MakeDispatchNotificationDeps
 ): DispatchNotificationFn {
   return async (input) => {
-    const inApp = buildNotification(input.trigger, NotificationSurface.IN_APP, input.vars);
+    // Default fan-out is all surfaces (email still gated on the trigger having
+    // email copy, below). An explicit `surfaces` list runs only that subset —
+    // e.g. the onboarding welcome push, whose inbox row + email already went
+    // out at the first session, passes `[PUSH]`.
+    const wants = (surface: NotificationSurface): boolean =>
+      input.surfaces === undefined || input.surfaces.includes(surface);
 
-    // 1. Content row (notifications). The same row can fan out to many users
-    //    when M4-T5 saved-event reminders land — we write it once.
-    const inserted = (await deps.db
-      .insert(notifications)
-      .values({
-        type: inApp.type,
-        title: inApp.title,
-        body: inApp.body,
-        route: inApp.route,
-        persona: inApp.persona,
-      })
-      .returning({ id: notifications.id })) as Array<{ id: string }>;
+    // 1. Content row (notifications) + per-user delivery row. The same content
+    //    row can fan out to many users when M4-T5 saved-event reminders land —
+    //    we write it once. Mark-read / archive operations target the join row.
+    if (wants(NotificationSurface.IN_APP)) {
+      const inApp = buildNotification(input.trigger, NotificationSurface.IN_APP, input.vars);
 
-    const notificationId = inserted[0]?.id;
-    if (!notificationId) {
-      throw new Error('[dispatchNotification] notifications insert returned no id');
+      const inserted = (await deps.db
+        .insert(notifications)
+        .values({
+          type: inApp.type,
+          title: inApp.title,
+          body: inApp.body,
+          route: inApp.route,
+          persona: inApp.persona,
+        })
+        .returning({ id: notifications.id })) as Array<{ id: string }>;
+
+      const notificationId = inserted[0]?.id;
+      if (!notificationId) {
+        throw new Error('[dispatchNotification] notifications insert returned no id');
+      }
+
+      await deps.db.insert(notificationUsers).values({
+        notificationId,
+        userId: input.recipientUserId,
+      });
     }
 
-    // 2. Per-user delivery row (notification_users). Mark-read /
-    //    mark-all-read / archive operations target this row.
-    await deps.db.insert(notificationUsers).values({
-      notificationId,
-      userId: input.recipientUserId,
-    });
-
-    // 3. Per-user push job — handler resolves tokens + calls sendEach.
+    // 2. Per-user push job — handler resolves tokens + calls sendEach.
     //    Cheap when the user has no devices: handler returns early. We
     //    accept that small cost in exchange for not duplicating the token
     //    lookup here.
-    const push = buildNotification(input.trigger, NotificationSurface.PUSH, input.vars);
+    if (wants(NotificationSurface.PUSH)) {
+      const push = buildNotification(input.trigger, NotificationSurface.PUSH, input.vars);
 
-    await deps.publishJob('notification.push', {
-      userId: input.recipientUserId,
-      title: push.title,
-      body: push.body,
-      persona: push.persona,
-      route: push.route,
-    });
+      await deps.publishJob('notification.push', {
+        userId: input.recipientUserId,
+        title: push.title,
+        body: push.body,
+        persona: push.persona,
+        route: push.route,
+      });
+    }
 
-    // 4. Email fan-out — only for triggers whose matrix row has an EMAIL surface
+    if (!wants(NotificationSurface.EMAIL)) return;
+
+    // 3. Email fan-out — only for triggers whose matrix row has an EMAIL surface
     //    (booking lifecycle: A-09..V-13). Triggers with `email: null` (co-artist,
     //    in-product-only rows) are skipped, so `buildNotification(EMAIL)` is never
     //    asked for copy that doesn't exist. Email-only lifecycle rows (payment

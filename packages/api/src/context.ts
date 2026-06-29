@@ -1,7 +1,7 @@
 import type { Context as HonoContext } from 'hono';
 
 import { auth } from '@CeolX/auth';
-import type { NotificationTrigger } from '@CeolX/shared';
+import type { NotificationSurface, NotificationTrigger } from '@CeolX/shared';
 
 // ─── Notification dispatcher (M7-T1) ─────────────────────────────────────────
 // Routers fan out push + inbox writes through `ctx.dispatchNotification`.
@@ -15,6 +15,13 @@ export type DispatchNotificationInput = {
   recipientUserId: string;
   /** Template vars consumed by the trigger's copy + route (e.g. bookingId, eventTitle, date). */
   vars: Record<string, string>;
+  /**
+   * Restrict which surfaces fire. Omit for the default fan-out (in-app inbox +
+   * push, plus email when the trigger has email copy). Pass an explicit list to
+   * run a subset — e.g. `[NotificationSurface.PUSH]` for the onboarding welcome
+   * push, whose inbox row + email already went out at the first session.
+   */
+  surfaces?: NotificationSurface[];
 };
 
 export type DispatchNotificationFn = (input: DispatchNotificationInput) => Promise<void>;

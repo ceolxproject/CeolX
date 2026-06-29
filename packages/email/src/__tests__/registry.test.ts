@@ -11,6 +11,7 @@ const ALL_TEMPLATES: EmailTemplate[] = [
   'event-approved',
   'event-rejected',
   'notification',
+  'welcome',
   'collaborator-invite',
   'account-deleted',
 ];

@@ -59,6 +59,10 @@ export const NotificationTrigger = {
   // recipient can tap through and view who's interested.
   COLLAB_INTEREST_TO_VENUE: 'collab_interest_to_venue',
   COLLAB_INTEREST_TO_ARTIST: 'collab_interest_to_artist',
+  // Off-matrix — Onboarding. Sent once to every new account: in-app + email at
+  // the first authenticated session, push on first device-token registration.
+  // Flag for Pratiksha's matrix audit (ONB-01).
+  USER_WELCOME: 'user_welcome',
 } as const;
 
 export type NotificationTrigger = (typeof NotificationTrigger)[keyof typeof NotificationTrigger];
@@ -540,6 +544,26 @@ export const NOTIFICATION_TRIGGERS: Record<NotificationTrigger, TriggerDefinitio
     inApp: {
       title: 'New collaboration interest',
       body: '{venueName} is interested in collaborating with you. View their profile and explore a possible performance.',
+    },
+    email: null,
+  },
+  // Off-matrix — Onboarding welcome. Fired once per new account: in-app + email
+  // at the first authenticated session (packages/auth login-hook), push at the
+  // first device-token registration (device-tokens router). `email: null` — a
+  // dedicated rich `welcome` Postmark template is sent directly at the source,
+  // not the generic notification email this dispatcher would otherwise build.
+  [NotificationTrigger.USER_WELCOME]: {
+    matrixRef: 'ONB-01',
+    type: 'welcome',
+    persona: 'spectator',
+    routeTemplate: '/(app)/(tabs)/discover',
+    push: {
+      title: 'Welcome to CeolX 🎶',
+      body: "You're in! Explore live music, artists, and venues happening near you.",
+    },
+    inApp: {
+      title: 'Welcome to CeolX 🎶',
+      body: "You're in! Explore live music, artists, and venues happening near you.",
     },
     email: null,
   },

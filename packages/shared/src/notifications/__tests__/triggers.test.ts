@@ -369,6 +369,30 @@ describe('buildNotification — collaboration interest', () => {
   });
 });
 
+// ─── Onboarding welcome (ONB-01, off-matrix) ─────────────────────────────────
+
+describe('buildNotification — USER_WELCOME', () => {
+  it('push + inApp share the same copy, route to Discover, persona spectator, no vars needed', () => {
+    for (const surface of [NotificationSurface.PUSH, NotificationSurface.IN_APP]) {
+      const n = buildNotification(NotificationTrigger.USER_WELCOME, surface, {});
+      expect(n).toEqual({
+        type: 'welcome',
+        persona: 'spectator',
+        title: 'Welcome to CeolX 🎶',
+        body: "You're in! Explore live music, artists, and venues happening near you.",
+        route: '/(app)/(tabs)/discover',
+      });
+    }
+  });
+
+  it('has no email copy — a dedicated welcome template is sent directly instead', () => {
+    expect(NOTIFICATION_TRIGGERS[NotificationTrigger.USER_WELCOME].email).toBeNull();
+    expect(() =>
+      buildNotification(NotificationTrigger.USER_WELCOME, NotificationSurface.EMAIL, {})
+    ).toThrow(/ONB-01/);
+  });
+});
+
 // ─── Date formatter ──────────────────────────────────────────────────────────
 
 describe('formatNotificationDate', () => {

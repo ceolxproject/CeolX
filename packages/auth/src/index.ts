@@ -58,6 +58,8 @@ export const auth = betterAuth({
       deletionCancelledAt: { type: 'date', required: false, input: false },
       isAnonymized: { type: 'boolean', defaultValue: false, input: false },
       anonymizedAt: { type: 'date', required: false, input: false },
+      welcomeSentAt: { type: 'date', required: false, input: false },
+      welcomePushSentAt: { type: 'date', required: false, input: false },
     },
   },
   databaseHooks: {

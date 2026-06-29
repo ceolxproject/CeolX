@@ -208,6 +208,43 @@ describe('dispatchNotification — email fan-out', () => {
   });
 });
 
+// ─── Surface filter (onboarding welcome push, ONB-01) ───────────────────────
+
+describe('dispatchNotification — surfaces filter', () => {
+  it('push-only: publishes the push job and writes no inbox row', async () => {
+    vi.stubEnv('BETTER_AUTH_URL', 'https://api.ceolx.com');
+    const dispatch = makeDispatchNotification({ db: dbMock, publishJob: mockPublishJob });
+    await dispatch({
+      trigger: NotificationTrigger.USER_WELCOME,
+      recipientUserId: 'user-123',
+      vars: {},
+      surfaces: ['push'],
+    });
+
+    // No notifications / notification_users writes, no email lookup.
+    expect(insertCalls).toEqual([]);
+    expect(mockUserFindFirst).not.toHaveBeenCalled();
+
+    // Exactly the welcome push.
+    expect(mockPublishJob).toHaveBeenCalledTimes(1);
+    expect(mockPublishJob).toHaveBeenCalledWith('notification.push', {
+      userId: 'user-123',
+      title: 'Welcome to CeolX 🎶',
+      body: "You're in! Explore live music, artists, and venues happening near you.",
+      persona: 'spectator',
+      route: '/(app)/(tabs)/discover',
+    });
+  });
+
+  it('in-app-only: writes the inbox row and publishes no push/email', async () => {
+    const dispatch = makeDispatchNotification({ db: dbMock, publishJob: mockPublishJob });
+    await dispatch({ ...baseInput, surfaces: ['inApp'] });
+
+    expect(insertCalls).toEqual(['notifications', 'notification_users']);
+    expect(mockPublishJob).not.toHaveBeenCalled();
+  });
+});
+
 // ─── Error propagation ───────────────────────────────────────────────────────
 
 describe('dispatchNotification — error propagation', () => {

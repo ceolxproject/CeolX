@@ -17,6 +17,8 @@ export const REDIRECT_BRIDGE_PATH = 'r';
 // this list as more notification emails gain CTAs (e.g. event detail).
 const ALLOWED_ROUTE_PATTERNS: readonly RegExp[] = [
   /^\/(?:\(app\)\/\(tabs\)\/)?bookings\/[A-Za-z0-9_-]+$/,
+  // Welcome email CTA — the Discover home feed (ONB-01).
+  /^\/(?:\(app\)\/\(tabs\)\/)?discover$/,
 ];
 
 /** True when `route` is a known, safe in-app destination for an email CTA. */

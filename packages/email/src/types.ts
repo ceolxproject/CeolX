@@ -62,6 +62,12 @@ export type EmailTemplateMap = {
     inviteUrl: string;
   };
   /**
+   * Onboarding welcome (ONB-01). Sent once to every new account at its first
+   * authenticated session. `ctaUrl` is an HTTPS redirect-bridge URL that opens
+   * the in-app Discover feed (web + mobile). Direct-send, not queued.
+   */
+  welcome: { userName: string; ctaUrl: string };
+  /**
    * GDPR erasure confirmation (matrix S-06 / A-18 / V-17). Sent to the account's
    * original email immediately after anonymisation. No CTA — the account no
    * longer exists. `userName` is the pre-erasure display name (may be empty).

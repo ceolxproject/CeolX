@@ -1,14 +1,53 @@
-import { and, eq } from 'drizzle-orm';
+import { and, eq, isNotNull, isNull } from 'drizzle-orm';
 
 import { db } from '@CeolX/db';
+import { user } from '@CeolX/db/schema/auth';
 import { deviceTokens } from '@CeolX/db/schema/notifications';
+import { NotificationSurface, NotificationTrigger } from '@CeolX/shared';
 import {
   refreshDeviceTokenSchema,
   registerDeviceTokenSchema,
   unregisterDeviceTokenSchema,
 } from '@CeolX/shared/validators';
 
+import type { DispatchNotificationFn } from '../context';
 import { protectedProcedure, router } from '../index';
+
+// Onboarding welcome PUSH (ONB-01). The in-app row + welcome email already went
+// out at the user's first authenticated session (packages/auth login-hook); the
+// push is deferred to here because no FCM token exists until the device
+// registers one. Fires exactly once per account via an atomic claim on
+// `welcomePushSentAt`; the `welcomeSentAt IS NOT NULL` guard means pre-launch /
+// backfilled accounts (never welcomed) don't get a stray push. Best-effort —
+// a failure here must never fail token registration.
+async function maybeSendWelcomePush(ctx: {
+  userId: string;
+  dispatchNotification: DispatchNotificationFn;
+}): Promise<void> {
+  try {
+    const [claimed] = await db
+      .update(user)
+      .set({ welcomePushSentAt: new Date() })
+      .where(
+        and(eq(user.id, ctx.userId), isNotNull(user.welcomeSentAt), isNull(user.welcomePushSentAt))
+      )
+      .returning({ id: user.id });
+
+    if (!claimed) return;
+
+    await ctx.dispatchNotification({
+      trigger: NotificationTrigger.USER_WELCOME,
+      recipientUserId: ctx.userId,
+      vars: {},
+      surfaces: [NotificationSurface.PUSH],
+    });
+  } catch (err) {
+    console.error(
+      '[device-tokens] welcome push dispatch failed:',
+      err instanceof Error ? `${err.name}: ${err.message}` : err
+    );
+  }
+}
 
 export const deviceTokensRouter = router({
   // First-time registration after the OS permission prompt is granted.
@@ -46,6 +85,9 @@ export const deviceTokensRouter = router({
       });
     }
 
+    // A token now exists — deliver the one-shot welcome push if it's still due.
+    await maybeSendWelcomePush(ctx);
+
     return { success: true as const };
   }),
 
@@ -75,6 +117,10 @@ export const deviceTokensRouter = router({
         lastUsedAt: now,
       });
     }
+
+    // Covers users who already had push permission before this feature shipped
+    // (their first post-deploy launch hits refresh, not register).
+    await maybeSendWelcomePush(ctx);
 
     return { success: true as const };
   }),

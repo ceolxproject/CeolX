@@ -9,6 +9,7 @@ import { PasswordResetEmail } from './templates/password-reset.js';
 import { PaymentConfirmationEmail } from './templates/payment-confirmation.js';
 import { VenueActivationEmail } from './templates/venue-activation.js';
 import { VerificationEmail } from './templates/verification.js';
+import { WelcomeEmail } from './templates/welcome.js';
 import type { EmailTemplate, EmailTemplateMap } from './types.js';
 
 /**
@@ -30,6 +31,7 @@ export const registry: TemplateRegistry = {
   'event-approved': { component: EventApprovedEmail },
   'event-rejected': { component: EventRejectedEmail },
   notification: { component: NotificationEmail },
+  welcome: { component: WelcomeEmail },
   'collaborator-invite': { component: CollaboratorInviteEmail },
   'account-deleted': { component: AccountDeletedEmail },
 };

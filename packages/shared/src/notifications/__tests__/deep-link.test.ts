@@ -11,8 +11,14 @@ describe('isAllowedDeepLinkRoute', () => {
     expect(isAllowedDeepLinkRoute('/bookings/b-123')).toBe(true);
   });
 
+  it('allows the Discover home feed (welcome email CTA), both forms', () => {
+    expect(isAllowedDeepLinkRoute('/(app)/(tabs)/discover')).toBe(true);
+    expect(isAllowedDeepLinkRoute('/discover')).toBe(true);
+  });
+
   it('rejects unknown routes and junk', () => {
     expect(isAllowedDeepLinkRoute('/(app)/(tabs)/settings')).toBe(false);
+    expect(isAllowedDeepLinkRoute('/(app)/(tabs)/discover/event/e-1')).toBe(false);
     expect(isAllowedDeepLinkRoute('https://evil.example.com')).toBe(false);
     expect(isAllowedDeepLinkRoute('/bookings/')).toBe(false);
     expect(isAllowedDeepLinkRoute('')).toBe(false);
