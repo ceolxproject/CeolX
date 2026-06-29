@@ -21,8 +21,8 @@ const VARIANT_CONFIG: Record<EmptyVariant, { emoji: string; title: string; subti
   },
   'no-bookings': {
     emoji: '📅',
-    title: 'No bookings yet',
-    subtitle: 'Your booking requests will appear here',
+    title: 'No performance requests yet',
+    subtitle: 'Your performance requests will appear here',
   },
   'no-notifications': {
     emoji: '🔔',

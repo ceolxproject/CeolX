@@ -50,12 +50,12 @@ export function ConfirmedBookingCard({
     if (!bookingId) return;
 
     Alert.alert(
-      'Cancel Booking?',
+      'Cancel Performance?',
       `You will be removed as a participant from "${title}". This cannot be undone.`,
       [
-        { text: 'Keep Booking', style: 'cancel' },
+        { text: 'Keep Performance', style: 'cancel' },
         {
-          text: 'Cancel Booking',
+          text: 'Cancel Performance',
           style: 'destructive',
           onPress: () => {
             setIsCancelling(true);
@@ -112,7 +112,7 @@ export function ConfirmedBookingCard({
               <ActivityIndicator size="small" color="#ef4444" />
             ) : (
               <Text className="text-sm font-semibold text-red-500 font-urbanist">
-                Cancel Booking
+                Cancel Performance
               </Text>
             )}
           </Pressable>

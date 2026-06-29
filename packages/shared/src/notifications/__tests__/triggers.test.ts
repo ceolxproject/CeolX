@@ -29,7 +29,7 @@ describe('buildNotification — push surface (matrix copy)', () => {
     ).toEqual({
       type: 'booking_invitation',
       persona: 'artist',
-      title: 'New booking invite',
+      title: 'New performance invite',
       body: 'The Temple Bar invited you to play "Friday Night Trad Session" on Fri 1 May.',
       route: '/(app)/(tabs)/bookings/b-123',
     });
@@ -41,7 +41,7 @@ describe('buildNotification — push surface (matrix copy)', () => {
       NotificationSurface.PUSH,
       baseVars
     );
-    expect(n.title).toBe('New booking request');
+    expect(n.title).toBe('New performance request');
     expect(n.body).toBe('Celtic Thunder applied for "Friday Night Trad Session" on Fri 1 May.');
     expect(n.persona).toBe('venue');
   });
@@ -72,7 +72,7 @@ describe('buildNotification — push surface (matrix copy)', () => {
         NotificationSurface.PUSH,
         baseVars
       ).title
-    ).toBe('Booking Not Accepted');
+    ).toBe('Performance Request Declined');
     expect(
       buildNotification(
         NotificationTrigger.BOOKING_REJECTED_TO_VENUE,
@@ -224,7 +224,7 @@ describe('buildNotification — email surface', () => {
       NotificationSurface.EMAIL,
       baseVars
     );
-    expect(n.title).toBe('New booking request — "Friday Night Trad Session"');
+    expect(n.title).toBe('New performance request — "Friday Night Trad Session"');
     expect(n.body).toContain('Celtic Thunder applied to play');
   });
 

@@ -179,9 +179,9 @@ function MyEventsTab() {
     try {
       await updateBooking.mutateAsync({ id: bookingId, status: 'cancelled' });
       await confirmed.refresh();
-      appToast.success('Booking cancelled');
+      appToast.success('Performance cancelled');
     } catch (err) {
-      appToast.error('Could not cancel booking', getBookingActionErrorBody(err));
+      appToast.error('Could not cancel performance', getBookingActionErrorBody(err));
     }
   };
 

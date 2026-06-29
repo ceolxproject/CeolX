@@ -126,7 +126,7 @@ describe('dispatchNotification — push fan-out', () => {
     expect(mockPublishJob).toHaveBeenCalledTimes(1);
     expect(mockPublishJob).toHaveBeenCalledWith('notification.push', {
       userId: 'user-123',
-      title: 'New booking invite',
+      title: 'New performance invite',
       // push variant — no "Respond before it expires."
       body: 'The Temple Bar invited you to play "Trad Night" on Fri 1 May.',
       persona: 'artist',
@@ -146,7 +146,7 @@ describe('dispatchNotification — push fan-out', () => {
       'notification.push',
       expect.objectContaining({
         userId: 'venue-user-1',
-        title: 'New booking request',
+        title: 'New performance request',
         body: 'Celtic Thunder applied for "Trad Night" on Fri 1 May.',
         persona: 'venue',
       })

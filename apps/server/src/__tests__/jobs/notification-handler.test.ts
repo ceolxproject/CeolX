@@ -60,7 +60,7 @@ import { handleNotificationPush } from '../../jobs/handlers/notification.js';
 
 const validPayload = {
   userId: 'user-123',
-  title: 'New booking invite',
+  title: 'New performance invite',
   body: 'The Temple Bar invited you to play "Trad Night" on Fri 1 May.',
   persona: 'artist' as const,
   route: '/bookings/123',

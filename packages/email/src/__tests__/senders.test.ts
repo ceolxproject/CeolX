@@ -131,7 +131,7 @@ describe('sendNotificationEmail', () => {
   it('dispatches the notification template with subject, body, and CTA', async () => {
     await sendNotificationEmail({
       to: 'a@example.com',
-      subject: 'New booking request — "Trad Night"',
+      subject: 'New performance request — "Trad Night"',
       body: 'Sean applied to play "Trad Night" on 1 May.',
       ctaUrl: 'https://api.ceolx.com/r?to=%2Fbookings%2Fb-1',
       userName: 'Aoife',
@@ -141,7 +141,7 @@ describe('sendNotificationEmail', () => {
       template: 'notification',
       data: {
         userName: 'Aoife',
-        subject: 'New booking request — "Trad Night"',
+        subject: 'New performance request — "Trad Night"',
         body: 'Sean applied to play "Trad Night" on 1 May.',
         ctaUrl: 'https://api.ceolx.com/r?to=%2Fbookings%2Fb-1',
       },
@@ -151,7 +151,7 @@ describe('sendNotificationEmail', () => {
   it('defaults userName to empty string when omitted', async () => {
     await sendNotificationEmail({
       to: 'a@example.com',
-      subject: 'Booking confirmed',
+      subject: 'Performance confirmed',
       body: 'Confirmed.',
       ctaUrl: 'https://api.ceolx.com/r?to=%2Fbookings%2Fb-2',
     });

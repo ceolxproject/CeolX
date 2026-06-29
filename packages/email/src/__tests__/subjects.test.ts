@@ -64,11 +64,11 @@ describe('subjectFor', () => {
     expect(
       subjectFor('notification', {
         userName: 'A',
-        subject: 'New booking request — "Trad Night"',
+        subject: 'New performance request — "Trad Night"',
         body: 'Someone applied.',
         ctaUrl: 'https://api.ceolx.com/r?to=%2Fbookings%2Fx',
       })
-    ).toBe('New booking request — "Trad Night"');
+    ).toBe('New performance request — "Trad Night"');
   });
 
   it('names the inviter and event for collaborator-invite (matrix A-14)', () => {

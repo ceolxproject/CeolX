@@ -141,7 +141,7 @@ function inboxRow(overrides: Partial<Record<string, unknown>> = {}) {
   return {
     id: 'aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa', // notification_users.id
     type: 'booking_invitation',
-    title: 'New booking invite',
+    title: 'New performance invite',
     body: 'A venue invited you',
     route: '/bookings/123',
     persona: 'artist',

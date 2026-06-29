@@ -97,11 +97,11 @@ export const NOTIFICATION_TRIGGERS: Record<NotificationTrigger, TriggerDefinitio
     persona: 'artist',
     routeTemplate: '/(app)/(tabs)/bookings/{bookingId}',
     push: {
-      title: 'New booking invite',
+      title: 'New performance invite',
       body: '{venueName} invited you to play "{eventTitle}" on {date}.',
     },
     inApp: {
-      title: 'New booking invite',
+      title: 'New performance invite',
       body: '{venueName} invited you to play "{eventTitle}" on {date}. Respond before it expires.',
     },
     email: {
@@ -115,15 +115,15 @@ export const NOTIFICATION_TRIGGERS: Record<NotificationTrigger, TriggerDefinitio
     persona: 'venue',
     routeTemplate: '/(app)/(tabs)/bookings/{bookingId}',
     push: {
-      title: 'New booking request',
+      title: 'New performance request',
       body: '{artistName} applied for "{eventTitle}" on {date}.',
     },
     inApp: {
-      title: 'New booking request',
+      title: 'New performance request',
       body: '{artistName} applied for "{eventTitle}" on {date}. Review and respond.',
     },
     email: {
-      title: 'New booking request — "{eventTitle}"',
+      title: 'New performance request — "{eventTitle}"',
       body: '{artistName} applied to play "{eventTitle}" on {date}.',
     },
   },
@@ -133,15 +133,15 @@ export const NOTIFICATION_TRIGGERS: Record<NotificationTrigger, TriggerDefinitio
     persona: 'artist',
     routeTemplate: '/(app)/(tabs)/bookings/{bookingId}',
     push: {
-      title: 'Booking Accepted ✓',
+      title: 'Performance Confirmed ✓',
       body: '{venueName} accepted your application for "{eventTitle}" on {date}.',
     },
     inApp: {
-      title: 'Booking Accepted ✓',
+      title: 'Performance Confirmed ✓',
       body: 'You\'re confirmed for "{eventTitle}" at {venueName} on {date}.',
     },
     email: {
-      title: 'Booking confirmed — "{eventTitle}"',
+      title: 'Performance confirmed — "{eventTitle}"',
       body: '{venueName} accepted your application for "{eventTitle}" on {date}.',
     },
   },
@@ -151,11 +151,11 @@ export const NOTIFICATION_TRIGGERS: Record<NotificationTrigger, TriggerDefinitio
     persona: 'venue',
     routeTemplate: '/(app)/(tabs)/bookings/{bookingId}',
     push: {
-      title: 'Booking Accepted ✓',
+      title: 'Performance Confirmed ✓',
       body: '{artistName} accepted your invite for "{eventTitle}" on {date}.',
     },
     inApp: {
-      title: 'Booking Accepted ✓',
+      title: 'Performance Confirmed ✓',
       body: '{artistName} is confirmed for "{eventTitle}" on {date}.',
     },
     email: {
@@ -169,15 +169,15 @@ export const NOTIFICATION_TRIGGERS: Record<NotificationTrigger, TriggerDefinitio
     persona: 'artist',
     routeTemplate: '/(app)/(tabs)/bookings/{bookingId}',
     push: {
-      title: 'Booking Not Accepted',
+      title: 'Performance Request Declined',
       body: '{venueName} has passed on your application for "{eventTitle}".',
     },
     inApp: {
-      title: 'Booking Not Accepted',
+      title: 'Performance Request Declined',
       body: '{venueName} has passed on your application for "{eventTitle}" on {date}.',
     },
     email: {
-      title: 'Update on your booking request',
+      title: 'Update on your performance request',
       body: '{venueName} has decided not to move ahead with your application for "{eventTitle}" on {date}.',
     },
   },
@@ -195,7 +195,7 @@ export const NOTIFICATION_TRIGGERS: Record<NotificationTrigger, TriggerDefinitio
       body: '{artistName} declined your invitation for "{eventTitle}" on {date}.',
     },
     email: {
-      title: 'Update on your booking invite',
+      title: 'Update on your performance invite',
       body: '{artistName} won\'t be able to play "{eventTitle}" on {date}.',
     },
   },
@@ -240,16 +240,16 @@ export const NOTIFICATION_TRIGGERS: Record<NotificationTrigger, TriggerDefinitio
     persona: 'artist',
     routeTemplate: '/(app)/(tabs)/bookings/{bookingId}',
     push: {
-      title: 'Booking Cancelled',
+      title: 'Performance Cancelled',
       body: '{venueName} cancelled "{eventTitle}" on {date}.',
     },
     inApp: {
-      title: 'Booking Cancelled',
-      body: '{venueName} cancelled your confirmed booking for "{eventTitle}" on {date}.',
+      title: 'Performance Cancelled',
+      body: '{venueName} cancelled your confirmed performance for "{eventTitle}" on {date}.',
     },
     email: {
-      title: '"{eventTitle}" — booking cancelled',
-      body: '{venueName} cancelled the confirmed booking for "{eventTitle}" on {date}.',
+      title: '"{eventTitle}" — performance cancelled',
+      body: '{venueName} cancelled the confirmed performance for "{eventTitle}" on {date}.',
     },
   },
   [NotificationTrigger.BOOKING_CANCELLED_TO_VENUE]: {
@@ -258,16 +258,16 @@ export const NOTIFICATION_TRIGGERS: Record<NotificationTrigger, TriggerDefinitio
     persona: 'venue',
     routeTemplate: '/(app)/(tabs)/bookings/{bookingId}',
     push: {
-      title: 'Booking Cancelled',
+      title: 'Performance Cancelled',
       body: '{artistName} cancelled "{eventTitle}" on {date}.',
     },
     inApp: {
-      title: 'Booking Cancelled',
-      body: '{artistName} cancelled the confirmed booking for "{eventTitle}" on {date}.',
+      title: 'Performance Cancelled',
+      body: '{artistName} cancelled the confirmed performance for "{eventTitle}" on {date}.',
     },
     email: {
-      title: '"{eventTitle}" — booking cancelled',
-      body: '{artistName} cancelled the confirmed booking for "{eventTitle}" on {date}.',
+      title: '"{eventTitle}" — performance cancelled',
+      body: '{artistName} cancelled the confirmed performance for "{eventTitle}" on {date}.',
     },
   },
   // Artist↔artist booking triggers (A-09a…A-13a). The single {coArtistName}
