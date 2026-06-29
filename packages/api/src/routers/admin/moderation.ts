@@ -337,8 +337,10 @@ export const restoreEvent = adminProcedure
         id: events.id,
         status: events.status,
         createdBy: events.createdBy,
+        creatorRole: user.currentRole,
       })
       .from(events)
+      .leftJoin(user, eq(user.id, events.createdBy))
       .where(eq(events.id, input.id))
       .limit(1);
 
@@ -376,9 +378,22 @@ export const restoreEvent = adminProcedure
       console.error('[ADMIN] failed to write admin_audit_log for event.restore', err);
     });
 
+    // Tell the creator their event is live again. Best-effort, mirroring
+    // removeEvent: a transient dispatch failure must not block the restore.
+    const creatorDispatch: DispatchNotificationInput = {
+      trigger:
+        target.creatorRole === UserRole.VENUE
+          ? NotificationTrigger.EVENT_RESTORED_BY_ADMIN_TO_VENUE
+          : NotificationTrigger.EVENT_RESTORED_BY_ADMIN_TO_ARTIST,
+      recipientUserId: target.createdBy,
+      vars: {
+        eventId: result.id,
+        eventTitle: result.title,
+      },
+    };
+    await ctx.dispatchNotification(creatorDispatch).catch(() => {});
+
     // Re-index in Typesense so it reappears on the map/feed immediately.
-    // Silent for the creator: per scope decision, no notification — restore
-    // is an admin reversal, not a creator-driven event.
     await syncEventToTypesense(result).catch(() => {});
 
     return result;

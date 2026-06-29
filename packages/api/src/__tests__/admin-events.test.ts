@@ -15,7 +15,7 @@ import { EventStatus, NotificationTrigger, UserRole as UserRoleEnum } from '@Ceo
 //   db.select({ userId }).from(savedEvents).where()                      (savers)
 //
 // admin.restoreEvent chains:
-//   db.select().from(events).where().limit(1)                            (lookup)
+//   db.select().from(events).leftJoin(user).where().limit(1)             (lookup)
 //   db.update(events).set().where().returning()                          (update)
 
 const {
@@ -24,7 +24,6 @@ const {
   mockLookupLimit,
   mockUpdateReturning,
   mockSaversThen,
-  mockRestoreLookupLimit,
   mockDb,
 } = vi.hoisted(() => {
   const mockListOffset = vi.fn();
@@ -32,7 +31,6 @@ const {
   const mockLookupLimit = vi.fn();
   const mockUpdateReturning = vi.fn();
   const mockSaversThen = vi.fn();
-  const mockRestoreLookupLimit = vi.fn();
 
   // The fluent builder is recursive enough that we let each .from() decide
   // whether the next step is leftJoin (events lookup/list) or where (savers).
@@ -47,16 +45,14 @@ const {
               offset: mockListOffset,
             })),
           })),
-          // removeEvent lookup: from().leftJoin().where().limit(1)
+          // remove/restoreEvent lookup: from().leftJoin().where().limit(1)
           limit: mockLookupLimit,
           // count: from().leftJoin().where() — drizzle builders are thenable
           then: mockCountThen,
         })),
       })),
       // savedEvents path: from(savedEvents).where()
-      // restoreEvent lookup: from(events).where().limit(1)
       where: vi.fn(() => ({
-        limit: mockRestoreLookupLimit,
         then: mockSaversThen,
       })),
     })),
@@ -81,7 +77,6 @@ const {
     mockLookupLimit,
     mockUpdateReturning,
     mockSaversThen,
-    mockRestoreLookupLimit,
     mockDb,
   };
 });
@@ -658,14 +653,14 @@ describe('admin.restoreEvent', () => {
   });
 
   it('throws NOT_FOUND when event does not exist', async () => {
-    mockRestoreLookupLimit.mockResolvedValueOnce([]);
+    mockLookupLimit.mockResolvedValueOnce([]);
 
     const caller = createCaller(authedContext('admin'));
     await expectTRPCError(caller.admin.restoreEvent({ id: validId }), 'NOT_FOUND');
   });
 
   it('throws NOT_FOUND when event is not currently removed', async () => {
-    mockRestoreLookupLimit.mockResolvedValueOnce([
+    mockLookupLimit.mockResolvedValueOnce([
       {
         id: validId,
         status: EventStatus.ACTIVE,
@@ -677,12 +672,13 @@ describe('admin.restoreEvent', () => {
     await expectTRPCError(caller.admin.restoreEvent({ id: validId }), 'NOT_FOUND');
   });
 
-  it('flips status to ACTIVE, clears removalReason, writes audit row, re-syncs Typesense, no creator dispatch', async () => {
-    mockRestoreLookupLimit.mockResolvedValueOnce([
+  it('flips status to ACTIVE, clears removalReason, writes audit row, re-syncs Typesense, dispatches restore notice to artist creator', async () => {
+    mockLookupLimit.mockResolvedValueOnce([
       {
         id: validId,
         status: EventStatus.REMOVED,
         createdBy: 'creator-1',
+        creatorRole: UserRoleEnum.ARTIST,
       },
     ]);
     mockUpdateReturning.mockResolvedValueOnce([
@@ -702,7 +698,15 @@ describe('admin.restoreEvent', () => {
     expect(result.status).toBe(EventStatus.ACTIVE);
     expect(result.removalReason).toBeNull();
     expect(mockSyncToTypesense).toHaveBeenCalledTimes(1);
-    expect(dispatch).not.toHaveBeenCalled();
+    expect(dispatch).toHaveBeenCalledTimes(1);
+    expect(dispatch).toHaveBeenCalledWith({
+      trigger: NotificationTrigger.EVENT_RESTORED_BY_ADMIN_TO_ARTIST,
+      recipientUserId: 'creator-1',
+      vars: {
+        eventId: validId,
+        eventTitle: 'Trad Night',
+      },
+    });
 
     expect(mockLogAdminAction).toHaveBeenCalledTimes(1);
     const args = mockLogAdminAction.mock.calls[0]?.[1] as Record<string, unknown> | undefined;
@@ -714,8 +718,41 @@ describe('admin.restoreEvent', () => {
     expect(args?.reason).toBeNull();
   });
 
+  it('dispatches restore notice to venue creator', async () => {
+    mockLookupLimit.mockResolvedValueOnce([
+      {
+        id: validId,
+        status: EventStatus.REMOVED,
+        createdBy: 'creator-1',
+        creatorRole: UserRoleEnum.VENUE,
+      },
+    ]);
+    mockUpdateReturning.mockResolvedValueOnce([
+      {
+        id: validId,
+        title: 'Trad Night',
+        status: EventStatus.ACTIVE,
+        removalReason: null,
+        createdBy: 'creator-1',
+      },
+    ]);
+
+    const dispatch = vi.fn(async () => {});
+    const caller = createCaller(authedContext('admin', dispatch));
+    await caller.admin.restoreEvent({ id: validId });
+
+    expect(dispatch).toHaveBeenCalledWith({
+      trigger: NotificationTrigger.EVENT_RESTORED_BY_ADMIN_TO_VENUE,
+      recipientUserId: 'creator-1',
+      vars: {
+        eventId: validId,
+        eventTitle: 'Trad Night',
+      },
+    });
+  });
+
   it('still succeeds when Typesense re-sync fails', async () => {
-    mockRestoreLookupLimit.mockResolvedValueOnce([
+    mockLookupLimit.mockResolvedValueOnce([
       {
         id: validId,
         status: EventStatus.REMOVED,

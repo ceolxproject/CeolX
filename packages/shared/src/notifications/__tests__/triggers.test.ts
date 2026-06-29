@@ -138,6 +138,30 @@ describe('buildNotification — inApp surface diverges from push', () => {
     ).toBe('Event Resubmitted ✓');
   });
 
+  it('admin restore — both personas, event-detail route, "live again" copy', () => {
+    const toArtist = buildNotification(
+      NotificationTrigger.EVENT_RESTORED_BY_ADMIN_TO_ARTIST,
+      NotificationSurface.PUSH,
+      { eventId: 'e-1', eventTitle: 'Friday Night Trad' }
+    );
+    expect(toArtist.type).toBe('event_restored');
+    expect(toArtist.persona).toBe('artist');
+    expect(toArtist.route).toBe('/(app)/(tabs)/discover/event/e-1');
+    expect(toArtist.title).toBe('Your event is live again');
+    expect(toArtist.body).toBe('Moderation restored "Friday Night Trad" — it\'s back on CeolX.');
+
+    expect(
+      buildNotification(
+        NotificationTrigger.EVENT_RESTORED_BY_ADMIN_TO_VENUE,
+        NotificationSurface.PUSH,
+        {
+          eventId: 'e-1',
+          eventTitle: 'Friday Night Trad',
+        }
+      ).persona
+    ).toBe('venue');
+  });
+
   it('U-03 saver cascade — push tells the saver the event is gone, route /feed', () => {
     const built = buildNotification(
       NotificationTrigger.SAVED_EVENT_REMOVED_TO_SAVERS,

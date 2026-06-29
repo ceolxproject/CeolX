@@ -49,6 +49,8 @@ export const NotificationTrigger = {
   EVENT_REMOVED_BY_ADMIN_TO_VENUE: 'event_removed_by_admin_to_venue',
   EVENT_RESUBMITTED_TO_ARTIST: 'event_resubmitted_to_artist',
   EVENT_RESUBMITTED_TO_VENUE: 'event_resubmitted_to_venue',
+  EVENT_RESTORED_BY_ADMIN_TO_ARTIST: 'event_restored_by_admin_to_artist',
+  EVENT_RESTORED_BY_ADMIN_TO_VENUE: 'event_restored_by_admin_to_venue',
   // Creator deleted (soft-archived) their own event — tell the linked
   // counterparty (the other side of an invite/request booking).
   EVENT_DELETED_BY_CREATOR_TO_ARTIST: 'event_deleted_by_creator_to_artist',
@@ -476,6 +478,40 @@ export const NOTIFICATION_TRIGGERS: Record<NotificationTrigger, TriggerDefinitio
     inApp: {
       title: 'Event Resubmitted ✓',
       body: 'Your updated event "{eventTitle}" is back live on CeolX.',
+    },
+    email: null,
+  },
+  // Off-matrix — Admin restored a removed event; tell the Artist creator their
+  // event is live again. Routes to the detail page (status is back to active,
+  // so the page resolves). Flag for Pratiksha's matrix audit (Asana 1216066930532455).
+  [NotificationTrigger.EVENT_RESTORED_BY_ADMIN_TO_ARTIST]: {
+    matrixRef: 'off-matrix-event-restored',
+    type: 'event_restored',
+    persona: 'artist',
+    routeTemplate: '/(app)/(tabs)/discover/event/{eventId}',
+    push: {
+      title: 'Your event is live again',
+      body: 'Moderation restored "{eventTitle}" — it\'s back on CeolX.',
+    },
+    inApp: {
+      title: 'Your event is live again',
+      body: '"{eventTitle}" has been restored and is visible on CeolX again.',
+    },
+    email: null,
+  },
+  // Off-matrix — Same restore confirmation for Venue creators.
+  [NotificationTrigger.EVENT_RESTORED_BY_ADMIN_TO_VENUE]: {
+    matrixRef: 'off-matrix-event-restored',
+    type: 'event_restored',
+    persona: 'venue',
+    routeTemplate: '/(app)/(tabs)/discover/event/{eventId}',
+    push: {
+      title: 'Your event is live again',
+      body: 'Moderation restored "{eventTitle}" — it\'s back on CeolX.',
+    },
+    inApp: {
+      title: 'Your event is live again',
+      body: '"{eventTitle}" has been restored and is visible on CeolX again.',
     },
     email: null,
   },
