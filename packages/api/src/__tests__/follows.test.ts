@@ -312,6 +312,44 @@ describe('follows router', () => {
       expect(result.following[0]?.isFollowedByViewer).toBe(false);
     });
 
+    // Regression guard for the de-gate fix (Asana 1215489113550392): the per-row
+    // profile lookup no longer filters on isActive, so a followed venue whose
+    // subscription is inactive (the default while gating is deferred) must still
+    // appear in the list — matching venues.byId. The code comment anticipates a
+    // future revert ("restore the active gate once subscriptions are live"); this
+    // test fails if that gate is reintroduced on the list lookup.
+    // The count query is now de-gated to match: profile-presence only, so an
+    // inactive venue is both listed AND counted. The mocked count value here
+    // reflects the SQL's intent (1 inactive venue = 1 counted); a regression that
+    // re-adds the isActive gate would make the real count exclude this followee
+    // while the list still shows it, reviving the badge/list mismatch.
+    it('keeps a followed inactive venue in the list and the count (de-gated)', async () => {
+      const followRow = { id: 'f-iv', followeeId: 'user-iv', createdAt: new Date() };
+      mockSelectChain.mockResolvedValueOnce([followRow]); // followRows
+      mockSelectChain.mockResolvedValueOnce([{ count: 1 }]); // total — counts the inactive venue
+      mockSelectChain.mockResolvedValueOnce([]); // no artist profile
+      mockSelectChain.mockResolvedValueOnce([
+        {
+          id: 'vp-iv',
+          userId: 'user-iv',
+          displayName: 'Dormant Venue',
+          profileImageUrl: 'https://cdn/venues/dormant.jpg',
+          isActive: false, // subscription not active — still visible
+        },
+      ]); // venue lookup
+      mockSelectChain.mockResolvedValueOnce([{ createdBy: 'user-iv', count: 0 }]); // events
+      mockSelectChain.mockResolvedValueOnce([{ followeeId: 'user-iv' }]); // viewer-follow set
+
+      const caller = authedCaller('user-1');
+      const result = await caller.getFollowing({ limit: 50, offset: 0 });
+
+      expect(result.following).toHaveLength(1);
+      expect(result.following[0]?.profileType).toBe('venue');
+      expect(result.following[0]?.profile?.displayName).toBe('Dormant Venue');
+      // Count matches the rendered list — the divergence fix.
+      expect(result.totalCount).toBe(1);
+    });
+
     it('excludes the current user from their own following list', async () => {
       // A self-follow row (legacy data created before the mutation guard existed)
       // that has a real active profile would survive the profile-presence filter,

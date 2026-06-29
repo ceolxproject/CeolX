@@ -148,9 +148,12 @@ export const followsRouter = router({
       .offset(offset);
 
     // Count only followees that survive the list's filter below — those with an
-    // active artist/venue profile, excluding self-follows — so totalCount matches
-    // the rendered list instead of overcounting deleted/inactive/spectator
-    // followees. Mirrors getFollowerCounts.followingCount. Asana 1216029059011258.
+    // artist/venue profile, excluding self-follows — so totalCount matches the
+    // rendered list instead of overcounting deleted/spectator followees. Profile
+    // presence only, NOT isActive: the per-row lookup below is de-gated (Asana
+    // 1215489113550392) so inactive (unsubscribed) profiles still render, and the
+    // count must include them. Mirrors getFollowerCounts.followingCount.
+    // Asana 1216029059011258.
     const [countResult] = await db
       .select({ count: sql<number>`count(*)::int` })
       .from(follows)
@@ -162,12 +165,10 @@ export const followsRouter = router({
             exists (
               select 1 from ${artistProfiles}
               where ${artistProfiles.userId} = ${follows.followeeId}
-                and ${artistProfiles.isActive} = true
             )
             or exists (
               select 1 from ${venueProfiles}
               where ${venueProfiles.userId} = ${follows.followeeId}
-                and ${venueProfiles.isActive} = true
             )
           )`
         )

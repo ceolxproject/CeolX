@@ -9,8 +9,10 @@ import { artistProfiles, profileSocialLinks, venueProfiles } from '@CeolX/db/sch
  * Shared across artist and venue profile queries.
  *
  * `followingCount` counts only followees that are actually rendered in the
- * Following list — those with an active public profile, excluding self-follows —
- * so the header number always matches the list.
+ * Following list — those with a public artist/venue profile, excluding
+ * self-follows — so the header number always matches the list. Profile presence
+ * only, NOT `isActive`: the list lookup is de-gated (Asana 1215489113550392) so
+ * inactive (e.g. unsubscribed venue) profiles still render; the count must match.
  * `followerCount` stays a raw count because the Followers list renders every
  * follower (spectators included, via a base-user fallback), so it never filters.
  */
@@ -20,11 +22,12 @@ export async function getFollowerCounts(userId: string) {
     .from(follows)
     .where(eq(follows.followeeId, userId));
 
-  // Filter to followees with a visible public profile (active artist OR venue),
-  // mirroring the per-row filter in follows.getFollowing, so the header count
-  // never drifts above the rendered list (count 6 vs list 5 when a followed
-  // account is deleted, downgraded to spectator, or has an inactive
-  // subscription). Asana 1216029059011258.
+  // Filter to followees with a public profile (artist OR venue), mirroring the
+  // per-row filter in follows.getFollowing, so the header count never drifts from
+  // the rendered list (count 6 vs list 5 when a followed account is deleted or
+  // downgraded to spectator). Presence only, NOT isActive — the list lookup is
+  // de-gated so inactive (unsubscribed) profiles still render and must be counted.
+  // Asana 1216029059011258 / 1215489113550392.
   const [followingResult] = await db
     .select({ count: sql<number>`count(*)::int` })
     .from(follows)
@@ -36,12 +39,10 @@ export async function getFollowerCounts(userId: string) {
           exists (
             select 1 from ${artistProfiles}
             where ${artistProfiles.userId} = ${follows.followeeId}
-              and ${artistProfiles.isActive} = true
           )
           or exists (
             select 1 from ${venueProfiles}
             where ${venueProfiles.userId} = ${follows.followeeId}
-              and ${venueProfiles.isActive} = true
           )
         )`
       )

@@ -551,6 +551,65 @@ describe('posts.feed', () => {
     expect(result.totalCount).toBe(1);
   });
 
+  it('annotates author.isFollowedByMe=true when the viewer follows the author', async () => {
+    // hydrateAuthors dequeues, in Promise.all order: users, artists, venues,
+    // followedRows — then the feed handler runs likedRows. A non-empty
+    // followedRows for user-2 must surface as isFollowedByMe on the author.
+    mockSelectChain
+      .mockResolvedValueOnce([
+        {
+          id: 'post-1',
+          createdBy: 'user-2',
+          caption: 'followed author post',
+          mediaType: 'text',
+          mediaUrl: null,
+          likeCount: 0,
+          deletedAt: null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      ]) // paginated posts
+      .mockResolvedValueOnce([{ count: 1 }]) // count
+      .mockResolvedValueOnce([{ id: 'user-2', name: 'Stranger', image: null }]) // users
+      .mockResolvedValueOnce([]) // artists
+      .mockResolvedValueOnce([]) // venues
+      .mockResolvedValueOnce([{ followeeId: 'user-2' }]) // followedRows — viewer follows user-2
+      .mockResolvedValueOnce([]); // likedRows
+
+    const caller = authedCaller('user-1', 'artist' as UserRole);
+    const result = await caller.feed({ limit: 20, offset: 0 });
+    expect(result.posts[0]?.author.isFollowedByMe).toBe(true);
+  });
+
+  it("reports isFollowedByMe=false for the viewer's own authored posts", async () => {
+    // A self-follow row never exists, so the followed lookup returns nothing for
+    // the viewer's own author id → false (the documented "never follows self").
+    mockSelectChain
+      .mockResolvedValueOnce([
+        {
+          id: 'post-1',
+          createdBy: 'user-1',
+          caption: 'my own post',
+          mediaType: 'text',
+          mediaUrl: null,
+          likeCount: 0,
+          deletedAt: null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      ]) // paginated posts
+      .mockResolvedValueOnce([{ count: 1 }]) // count
+      .mockResolvedValueOnce([{ id: 'user-1', name: 'Me', image: null }]) // users
+      .mockResolvedValueOnce([]) // artists
+      .mockResolvedValueOnce([]) // venues
+      .mockResolvedValueOnce([]) // followedRows — no self-follow row
+      .mockResolvedValueOnce([]); // likedRows
+
+    const caller = authedCaller('user-1', 'artist' as UserRole);
+    const result = await caller.feed({ limit: 20, offset: 0 });
+    expect(result.posts[0]?.author.isFollowedByMe).toBe(false);
+  });
+
   it('filters by query — resolves matching author ids before the post page', async () => {
     // With a query present, the procedure first looks up author ids whose
     // display name matches (artist → venue → user), THEN runs the post page +

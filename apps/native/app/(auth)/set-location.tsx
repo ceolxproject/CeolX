@@ -27,6 +27,20 @@ export default function SetLocationScreen() {
   const router = useRouter();
   const [manualVisible, setManualVisible] = useState(false);
 
+  // Persist the completion flag and move on. The flag write can throw (keychain
+  // locked / storage error); if it does, surface a toast and STAY on the step —
+  // otherwise navigation is skipped silently and the gate loops the user right
+  // back here on next launch (the flag never got set).
+  const completeAndContinue = useCallback(async () => {
+    try {
+      await setLocationSetupComplete();
+    } catch {
+      appToast.error('Could not finish setup', 'Please try again.');
+      return;
+    }
+    router.replace('/(app)/(tabs)/map');
+  }, [router]);
+
   // Detect path (incl. permission denial — priming always calls onDone) OR the
   // user opted to pick manually. Manual opens the picker; everything else
   // completes the step. The user is never blocked: GPS/IP/Ireland fallback covers
@@ -37,10 +51,9 @@ export default function SetLocationScreen() {
         setManualVisible(true);
         return;
       }
-      await setLocationSetupComplete();
-      router.replace('/(app)/(tabs)/map');
+      await completeAndContinue();
     },
-    [router]
+    [completeAndContinue]
   );
 
   const handleManualConfirm = useCallback(
@@ -52,10 +65,9 @@ export default function SetLocationScreen() {
         appToast.error('Could not save location', 'Please try again.');
         return; // nothing persisted → stay on the step so they can retry
       }
-      await setLocationSetupComplete();
-      router.replace('/(app)/(tabs)/map');
+      await completeAndContinue();
     },
-    [router]
+    [completeAndContinue]
   );
 
   const headerSlot = (

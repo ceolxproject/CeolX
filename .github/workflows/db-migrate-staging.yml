@@ -43,13 +43,14 @@ jobs:
           ref: refs/heads/staging
 
       # Node must be set up BEFORE pnpm: pnpm/action-setup runs the pnpm binary
-      # during its own step, and pnpm 11.x requires Node >= 22.13 (it imports the
-      # node:sqlite builtin, added in Node 22). Under the runner's default Node 20
-      # pnpm crashes with ERR_UNKNOWN_BUILTIN_MODULE before doing any work.
+      # during its own step. Pin the exact version from .nvmrc so the runner can't
+      # resolve a 24.x below the repo floor — `.npmrc` sets engine-strict=true and
+      # package.json pins engines.node to >=24.18.0, so a lower minor would hard-fail
+      # the engine gate before any work runs.
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 24
+          node-version: 24.18.0
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
