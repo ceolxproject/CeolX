@@ -89,7 +89,7 @@ const yyyyMmDd = z
 
 export const adminEventListQuerySchema = z.object({
   // Omit to list every moderation status (the "All" tab); otherwise narrows to one.
-  status: z.enum(['active', 'removed', 'archived']).optional(),
+  status: z.enum(['active', 'removed', 'archived', 'resubmitted']).optional(),
   persona: z.enum(['artist', 'venue']).optional(),
   // Free-text search — matched server-side against title OR creator name OR
   // free-text venue address, so the moderator can find an event by what it's

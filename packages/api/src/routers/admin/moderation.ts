@@ -1,5 +1,18 @@
 import { TRPCError } from '@trpc/server';
-import { and, asc, count, desc, eq, gte, ilike, inArray, lte, or, sql } from 'drizzle-orm';
+import {
+  and,
+  asc,
+  count,
+  desc,
+  eq,
+  gte,
+  ilike,
+  inArray,
+  isNotNull,
+  lte,
+  or,
+  sql,
+} from 'drizzle-orm';
 
 import { db } from '@CeolX/db';
 import { user } from '@CeolX/db/schema/auth';
@@ -42,10 +55,14 @@ export const listEvents = adminProcedure
   .query(async ({ input }) => {
     // No status → the "All" view: every moderation status, but never drafts /
     // pending / rejected (not used in V1 moderation).
+    // resubmitted is a virtual filter — it queries events with a resubmittedAt
+    // timestamp (creator resubmitted after admin removal). Not an actual status.
     const filters = [
-      input.status
-        ? eq(events.status, input.status)
-        : inArray(events.status, ['active', 'removed', 'archived']),
+      input.status === 'resubmitted'
+        ? isNotNull(events.resubmittedAt)
+        : input.status
+          ? eq(events.status, input.status)
+          : inArray(events.status, ['active', 'removed', 'archived']),
     ];
     if (input.persona) {
       filters.push(eq(user.currentRole, input.persona));
@@ -199,15 +216,16 @@ export const listEvents = adminProcedure
 // filters — it's a top-level backlog overview ("3 removed across the platform"),
 // mirroring admin.users.summary.
 export const eventModerationCounts = adminProcedure.query(async () => {
-  const rows = await db
-    .select({ status: events.status, total: count() })
-    .from(events)
-    .groupBy(events.status);
-  const byStatus = new Map(rows.map((r) => [r.status, Number(r.total)]));
+  const [byStatus, resubmittedResult] = await Promise.all([
+    db.select({ status: events.status, total: count() }).from(events).groupBy(events.status),
+    db.select({ total: count() }).from(events).where(isNotNull(events.resubmittedAt)),
+  ]);
+  const byStatusMap = new Map(byStatus.map((r) => [r.status, Number(r.total)]));
   return {
-    active: byStatus.get('active') ?? 0,
-    removed: byStatus.get('removed') ?? 0,
-    archived: byStatus.get('archived') ?? 0,
+    active: byStatusMap.get('active') ?? 0,
+    removed: byStatusMap.get('removed') ?? 0,
+    archived: byStatusMap.get('archived') ?? 0,
+    resubmitted: Number(resubmittedResult[0]?.total ?? 0),
   };
 });
 
