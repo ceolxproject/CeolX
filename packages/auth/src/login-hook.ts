@@ -26,8 +26,15 @@ interface SessionLike {
  *
  * Idempotent via an atomic claim on `welcomeSentAt`: only the login that flips
  * it from NULL does the work, so repeat logins and concurrent sessions are
- * no-ops. Best-effort — wrapped by the caller so a mail/DB hiccup never blocks
- * the login. The push lives in apps/server (QStash + firebase); this layer only
+ * no-ops. If the post-claim work (inbox insert / email) throws, we release the
+ * claim (reset `welcomeSentAt` to NULL) and rethrow, so the next login retries
+ * rather than leaving the user permanently un-welcomed — Postmark can fail
+ * transiently and we don't want a single blip to suppress the welcome forever.
+ * A rare mid-flight failure may therefore re-insert one inbox row on retry,
+ * which is an acceptable trade against losing the welcome outright.
+ *
+ * Best-effort — wrapped by the caller so a mail/DB hiccup never blocks the
+ * login. The push lives in apps/server (QStash + firebase); this layer only
  * touches the DB + email sender it already depends on.
  */
 async function sendWelcomeOnFirstSession(userId: string): Promise<void> {
@@ -40,34 +47,45 @@ async function sendWelcomeOnFirstSession(userId: string): Promise<void> {
   // Already welcomed (or backfilled pre-launch account) — nothing to do.
   if (!claimed) return;
 
-  const inApp = buildNotification(NotificationTrigger.USER_WELCOME, NotificationSurface.IN_APP, {});
+  try {
+    const inApp = buildNotification(
+      NotificationTrigger.USER_WELCOME,
+      NotificationSurface.IN_APP,
+      {}
+    );
 
-  const [row] = await db
-    .insert(notifications)
-    .values({
-      type: inApp.type,
-      title: inApp.title,
-      body: inApp.body,
-      route: inApp.route,
-      persona: inApp.persona,
-    })
-    .returning({ id: notifications.id });
+    const [row] = await db
+      .insert(notifications)
+      .values({
+        type: inApp.type,
+        title: inApp.title,
+        body: inApp.body,
+        route: inApp.route,
+        persona: inApp.persona,
+      })
+      .returning({ id: notifications.id });
 
-  if (row) {
-    await db.insert(notificationUsers).values({ notificationId: row.id, userId });
+    if (row) {
+      await db.insert(notificationUsers).values({ notificationId: row.id, userId });
+    }
+
+    await sendWelcomeEmail(
+      claimed.email,
+      buildAppRedirectUrl(env.BETTER_AUTH_URL, inApp.route),
+      claimed.name ?? ''
+    );
+  } catch (err) {
+    // Release the claim so a later login can retry the welcome. Rethrow so the
+    // caller's best-effort catch logs it (and still never fails the login).
+    await db.update(user).set({ welcomeSentAt: null }).where(eq(user.id, userId));
+    throw err;
   }
-
-  await sendWelcomeEmail(
-    claimed.email,
-    buildAppRedirectUrl(env.BETTER_AUTH_URL, inApp.route),
-    claimed.name ?? ''
-  );
 }
 
 /**
  * Wired into `databaseHooks.session.create.after` in the Better Auth config.
  *
- * Two responsibilities:
+ * Three responsibilities:
  *   1. Stamp `lastLoginAt` on every successful sign-in (drives the M11-T1 R6
  *      inactivity cron).
  *   2. Cancel a pending GDPR account deletion: clearing `deletionScheduledFor`
@@ -75,6 +93,9 @@ async function sendWelcomeOnFirstSession(userId: string): Promise<void> {
  *      (handler short-circuits when the field is null), so we never need to
  *      cancel the message itself. `deletionCancelledAt` is a one-shot signal
  *      consumed by the next `users.me` query to fire the in-app toast.
+ *   3. Fire the one-shot onboarding welcome (in-app inbox row + email) on the
+ *      first authenticated session. Best-effort — failures are logged, never
+ *      thrown, so they can't block the login.
  *
  * Defence in depth: if the row is somehow already anonymised, refuse the login.
  */
@@ -113,9 +134,8 @@ export async function onSessionCreated(session: SessionLike): Promise<void> {
   try {
     await sendWelcomeOnFirstSession(userId);
   } catch (err) {
-    console.error(
-      '[onSessionCreated] welcome dispatch failed:',
-      err instanceof Error ? `${err.name}: ${err.message}` : err
-    );
+    // Log the full error (stack included) so a persistent bug is distinguishable
+    // from a transient Postmark/DB blip when this scrolls past in the logs.
+    console.error('[onSessionCreated] welcome dispatch failed for user', userId, err);
   }
 }

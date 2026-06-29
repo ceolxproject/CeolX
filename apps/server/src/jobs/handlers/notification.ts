@@ -65,10 +65,24 @@ export async function handleNotificationPush(
 
   const stale: string[] = [];
   response.responses.forEach((result, i) => {
-    if (!result.success && result.error && TERMINAL_TOKEN_ERROR_CODES.has(result.error.code)) {
+    if (result.success) return;
+
+    const code = result.error?.code;
+    if (code && TERMINAL_TOKEN_ERROR_CODES.has(code)) {
       const row = tokens[i];
       if (row) stale.push(row.id);
+      return;
     }
+
+    // Non-terminal failure (bad payload, expired APNs cert, quota/rate limit,
+    // server unavailable, …). sendEach resolved fine and the token is still
+    // valid, so there's nothing to clean up — but swallowing it silently hides
+    // systemic delivery outages (zero pushes delivered, undebuggable). Log it.
+    console.error('[FCM] push delivery failed', {
+      userId: payload.userId,
+      code,
+      message: result.error?.message,
+    });
   });
 
   if (stale.length > 0) {

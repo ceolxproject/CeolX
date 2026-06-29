@@ -176,4 +176,18 @@ describe('onSessionCreated — welcome on first session', () => {
 
     await expect(onSessionCreated(SESSION)).resolves.toBeUndefined();
   });
+
+  it('releases the welcomeSentAt claim when the email send fails, so a later login retries', async () => {
+    mockSelectLimit.mockResolvedValueOnce([{ deletionScheduledFor: null, isAnonymized: false }]);
+    mockWelcomeClaim.mockReturnValueOnce([{ email: 'new@ceolx.ie', name: 'Aoife' }]);
+    mockSendWelcomeEmail.mockRejectedValueOnce(new Error('postmark down'));
+
+    await onSessionCreated(SESSION);
+
+    // updates: [0] lastLoginAt, [1] claim (welcomeSentAt: Date), [2] release.
+    // The release resets welcomeSentAt to null so the guard reopens and the next
+    // login can re-attempt the welcome rather than suppressing it forever.
+    const releaseSet = mockUpdateSet.mock.calls[2]?.[0] as Record<string, unknown>;
+    expect(releaseSet).toEqual({ welcomeSentAt: null });
+  });
 });

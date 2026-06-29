@@ -81,9 +81,32 @@ export interface SurfaceCopy {
   body: string;
 }
 
+/**
+ * Stable persisted value written to `notifications.type` (varchar(100) in the
+ * DB — kept un-enumerated there so milestones add types without a migration).
+ * Closed here at the type level so a typo (`'welcom'`) is a compile error.
+ * Many triggers map to the same `type` (e.g. all the cancel variants share
+ * `'booking_cancelled'`); this is the deduplicated set in use.
+ */
+export type NotificationType =
+  | 'booking_accepted'
+  | 'booking_cancelled'
+  | 'booking_invitation'
+  | 'booking_rejected'
+  | 'booking_request'
+  | 'booking_withdrawn'
+  | 'collaboration_interest'
+  | 'collaborator_added'
+  | 'event_deleted'
+  | 'event_hosted_at_venue'
+  | 'event_removed'
+  | 'event_resubmitted'
+  | 'saved_event_removed'
+  | 'welcome';
+
 export interface TriggerDefinition {
   matrixRef: string;
-  type: string;
+  type: NotificationType;
   persona: NotificationPersona;
   routeTemplate: string;
   push: SurfaceCopy | null;

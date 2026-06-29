@@ -110,6 +110,11 @@ export function makeDispatchNotification(
     //    unwanted inbox row — they call their sender directly at the event source.
     const def = NOTIFICATION_TRIGGERS[input.trigger];
     const base = process.env.BETTER_AUTH_URL;
+    if (def.email && !base) {
+      console.warn('[dispatchNotification] EMAIL surface skipped: BETTER_AUTH_URL unset', {
+        trigger: input.trigger,
+      });
+    }
     if (def.email && base) {
       const recipient = await deps.db.query.user.findFirst({
         where: eq(user.id, input.recipientUserId),

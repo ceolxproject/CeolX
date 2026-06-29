@@ -5,7 +5,8 @@ import { EmailLayout } from './components/email-layout.js';
 import { bodyText, buttonSection, heading, primaryButton } from './components/email-styles.js';
 
 interface WelcomeEmailProps {
-  userName: string;
+  /** Display name; falls back to "there" when absent (e.g. social sign-ups). */
+  userName?: string;
   /** HTTPS redirect-bridge URL that opens the app's Discover feed. */
   ctaUrl: string;
 }

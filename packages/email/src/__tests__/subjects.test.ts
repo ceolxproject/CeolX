@@ -71,6 +71,12 @@ describe('subjectFor', () => {
     ).toBe('New performance request — "Trad Night"');
   });
 
+  it('returns the onboarding subject for welcome (ONB-01)', () => {
+    expect(
+      subjectFor('welcome', { userName: 'Aoife', ctaUrl: 'https://api.ceolx.com/r?to=%2Fdiscover' })
+    ).toBe("You're in! Welcome to CeolX 🎶");
+  });
+
   it('names the inviter and event for collaborator-invite (matrix A-14)', () => {
     expect(
       subjectFor('collaborator-invite', {

@@ -74,14 +74,14 @@ function MapEventMarkerComponent({ event, isSelected, onSelect }: MapEventMarker
   // the composited view, then freeze.
   const handleImageLoad = useCallback(() => scheduleFreeze(250), [scheduleFreeze]);
 
-  // Selection flips the pin's visuals (size 44→56, glow ring, title label) and
-  // grows the marker view downward as the title appears. react-native-maps
+  // Selection grows the pin circle (44→56) and adds a glow ring. react-native-maps
   // derives the native touch frame from the frozen bitmap's size, so freezing
-  // before the grown layout is measured leaves the hit region sized to the
-  // circle alone — taps on the title region then fall outside it. Drive the
-  // re-freeze off the container's actual `onLayout` (fires once the title has
-  // been laid out) instead of racing a fixed timer, guaranteeing the snapshot —
-  // and thus the touch frame — covers both the circle image and the title.
+  // before the grown layout is measured leaves the hit region sized to the old
+  // 44px circle — taps near the enlarged edge then fall outside it. Drive the
+  // re-freeze off the container's actual `onLayout` (fires once the grown circle
+  // is laid out) instead of racing a fixed timer, so the snapshot — and thus the
+  // touch frame — matches the selected circle. The title is an absolute overlay
+  // (below) deliberately excluded from this layout box, so it doesn't factor in.
   const handleLayout = useCallback(
     (_event: LayoutChangeEvent) => {
       if (isFirstRender.current) {

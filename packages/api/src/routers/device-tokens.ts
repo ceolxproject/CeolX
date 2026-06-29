@@ -42,10 +42,9 @@ async function maybeSendWelcomePush(ctx: {
       surfaces: [NotificationSurface.PUSH],
     });
   } catch (err) {
-    console.error(
-      '[device-tokens] welcome push dispatch failed:',
-      err instanceof Error ? `${err.name}: ${err.message}` : err
-    );
+    // Log the full error (stack included) — a missed/duplicate welcome push is
+    // never a reason to fail token registration, but we don't want it silent.
+    console.error('[device-tokens] welcome push dispatch failed for user', ctx.userId, err);
   }
 }
 
@@ -85,7 +84,6 @@ export const deviceTokensRouter = router({
       });
     }
 
-    // A token now exists — deliver the one-shot welcome push if it's still due.
     await maybeSendWelcomePush(ctx);
 
     return { success: true as const };
