@@ -46,7 +46,7 @@ export const Route = createFileRoute('/_admin/events/moderation')({
   component: EventModerationPage,
 });
 
-type StatusFilter = 'all' | 'active' | 'removed' | 'archived';
+type StatusFilter = 'all' | 'active' | 'removed' | 'archived' | 'resubmitted';
 type SortField = 'createdAt' | 'title';
 type SortDir = 'asc' | 'desc';
 
@@ -58,6 +58,7 @@ const TABS: { value: StatusFilter; label: string }[] = [
   { value: 'all', label: 'All' },
   { value: 'active', label: 'Live' },
   { value: 'removed', label: 'Removed' },
+  { value: 'resubmitted', label: 'Resubmitted' },
   { value: 'archived', label: 'Archived' },
 ];
 
@@ -169,7 +170,9 @@ function EventModerationPage() {
   }, [eventId, events]);
 
   const tabCount = (s: StatusFilter) =>
-    s === 'all' ? counts && counts.active + counts.removed + counts.archived : counts?.[s];
+    s === 'all'
+      ? counts && counts.active + counts.removed + counts.archived + counts.resubmitted
+      : counts?.[s];
 
   return (
     <div className="space-y-5">
