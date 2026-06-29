@@ -2,8 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { cn } from 'heroui-native';
 import { Image, Text, View } from 'react-native';
 
-import { CategoryBadge } from './CategoryBadge';
-
+import { CategoryChip } from '@/components/CategoryChip';
 import { EventCollectionBadge } from '@/components/EventCollectionBadge';
 import { getMockEventImage } from '@/utils/mock-images';
 
@@ -40,7 +39,7 @@ export function EventHeroImage({
 
       {/* Category + attendee badges, aligned on one line over the image */}
       <View className="absolute bottom-3 left-4 right-4 flex-row items-center justify-between">
-        <CategoryBadge category={category} />
+        <CategoryChip category={category} size="md" />
         {attendeeCount > 0 && (
           <View className="flex-row items-center bg-white rounded-full px-2 py-1.5 gap-1">
             <Ionicons name="people" size={10} color="#000" />

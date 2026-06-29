@@ -1,4 +1,3 @@
-export { CategoryBadge } from './CategoryBadge';
 export { CollectionEventCard } from './CollectionEventCard';
 export { DescriptionSection } from './DescriptionSection';
 export { EventDetailHeader } from './EventDetailHeader';
