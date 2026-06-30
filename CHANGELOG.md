@@ -1,5 +1,21 @@
 # Changelog
 
+<a name="1.0.8"></a>
+
+## 1.0.8 (2026-06-30)
+
+### Added
+
+- ✨ feat(api): notify event creator when admin restores a removed event [[0998cff](https://github.com/Raft-Labs/CeolX/commit/0998cffde61cbafa72223f44ee4c53311b642376)]
+
+### Changed
+
+- ♻️ refactor(native): remove dead pin-selection path from map markers [[e86fa3a](https://github.com/Raft-Labs/CeolX/commit/e86fa3a4a1b3e1201d0e5a3a662c91cae18cfe5c)]
+
+### Fixed
+
+- 🐛 fix(native): open event detail directly on map pin tap [[5ef8623](https://github.com/Raft-Labs/CeolX/commit/5ef8623d6ddb5e63300dd3c1664ba52b6d146a7e)]
+
 <a name="1.0.7"></a>
 
 ## 1.0.7 (2026-06-30)
