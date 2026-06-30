@@ -1,8 +1,10 @@
 import { Image, Pressable, Text, View } from 'react-native';
 
+import { AdHeadline } from './AdHeadline';
+
 export type AdCardProps = {
   id: string;
-  adTitle: string;
+  adTitle: string | null;
   adDescription: string | null;
   eventTitle: string;
   coverImage: string | null;
@@ -31,10 +33,7 @@ export function AdCard({
           <View className="h-[35px] w-[35px] rounded bg-[#d9d9d9]" />
         )}
         <View className="flex-1">
-          <Text className="text-base font-medium text-black font-urbanist">
-            <Text>{adTitle} on </Text>
-            <Text className="font-bold">&ldquo;{eventTitle}&rdquo;</Text>
-          </Text>
+          <AdHeadline adTitle={adTitle} eventTitle={eventTitle} />
           {adDescription?.trim() ? (
             <Text className="text-[11px] font-light text-black font-urbanist">{adDescription}</Text>
           ) : null}

@@ -1,4 +1,4 @@
-import { and, eq, gte, isNotNull, lte, sql } from 'drizzle-orm';
+import { and, eq, gte, lte, sql } from 'drizzle-orm';
 
 import { db } from '@CeolX/db';
 import { events } from '@CeolX/db/schema/events';
@@ -13,7 +13,7 @@ const FEED_AD_LIMIT = 20;
 
 export type FeedAd = {
   id: string;
-  adTitle: string;
+  adTitle: string | null;
   adDescription: string | null;
   eventTitle: string;
   coverImage: string | null;
@@ -40,8 +40,9 @@ export async function fetchFeedAds(): Promise<FeedAd[]> {
     .where(
       and(
         eq(events.status, 'active'),
-        isNotNull(events.adTitle),
-        sql`length(trim(${events.adTitle})) > 0`,
+        // Ad Title and Ad Description are each independently optional — surface
+        // the ad whenever either one is non-empty. (Mirrors the OfferBlock client gate.)
+        sql`(length(trim(coalesce(${events.adTitle}, ''))) > 0 OR length(trim(coalesce(${events.adDescription}, ''))) > 0)`,
         gte(events.dateStart, sql`now() + (${WINDOW_START_MIN} || ' minutes')::interval`),
         lte(events.dateStart, sql`now() + (${WINDOW_END_MIN} || ' minutes')::interval`)
       )
@@ -51,7 +52,7 @@ export async function fetchFeedAds(): Promise<FeedAd[]> {
 
   return rows.map((r) => ({
     id: r.id,
-    adTitle: r.adTitle ?? '',
+    adTitle: r.adTitle,
     adDescription: r.adDescription,
     eventTitle: r.eventTitle,
     coverImage: r.coverImage,
