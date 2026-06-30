@@ -1,12 +1,14 @@
 import { Ionicons } from '@expo/vector-icons';
 import { cn } from 'heroui-native';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { Image, Pressable, ScrollView, Text, View } from 'react-native';
 
 export interface ChipItem {
   key: string;
   label: string;
   /** Optional leading icon name */
   icon?: keyof typeof Ionicons.glyphMap;
+  /** Optional leading avatar url — takes precedence over `icon` when set */
+  imageUrl?: string;
 }
 
 interface SelectedChipsProps {
@@ -45,7 +47,11 @@ export function SelectedChips({ items, onRemove, variant = 'purple' }: SelectedC
               palette.container
             )}
           >
-            {item.icon && <Ionicons name={item.icon} size={12} color={palette.iconColor} />}
+            {item.imageUrl ? (
+              <Image source={{ uri: item.imageUrl }} className="w-4 h-4 rounded-full" />
+            ) : (
+              item.icon && <Ionicons name={item.icon} size={12} color={palette.iconColor} />
+            )}
             <Text className={cn('text-xs font-semibold font-urbanist', palette.text)}>
               {item.label}
             </Text>

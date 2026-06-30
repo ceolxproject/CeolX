@@ -1,10 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { KeyboardAvoidingView, Pressable, Text, TextInput, View } from 'react-native';
+import { KeyboardAvoidingView, Pressable, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppButton } from '@/components/AppButton';
+import { AppTextField } from '@/components/AppTextField';
 import { authClient } from '@/lib/auth-client';
 
 export default function ForgotPasswordScreen() {
@@ -79,14 +80,13 @@ export default function ForgotPasswordScreen() {
             </Text>
 
             <View className="gap-2 mb-4">
-              <TextInput
-                className="bg-white rounded-lg h-[52px] px-4 text-base text-black"
+              <AppTextField
+                variant="light"
                 placeholder="Enter your email address"
-                placeholderTextColor="#8d8d8d"
                 keyboardType="email-address"
                 autoCapitalize="none"
                 value={email}
-                onChangeText={setEmail}
+                onChangeText={(t) => setEmail(t.toLowerCase())}
               />
               {error ? <Text className="text-red-500 text-sm">{error}</Text> : null}
             </View>

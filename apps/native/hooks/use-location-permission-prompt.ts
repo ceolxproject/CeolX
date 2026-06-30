@@ -2,6 +2,7 @@ import * as Location from 'expo-location';
 import { useCallback, useEffect, useState } from 'react';
 
 import { getBaseLocation } from '@/utils/base-location';
+import { getLocationSetupComplete } from '@/utils/location-setup';
 
 /** Three states to avoid a flash of the map before the permission read resolves. */
 export type LocationPromptState = 'checking' | 'show' | 'done';
@@ -63,11 +64,20 @@ export function useLocationPermissionPrompt(): Result {
   useEffect(() => {
     async function check() {
       try {
-        const [{ status, canAskAgain }, base, servicesEnabled] = await Promise.all([
+        const [{ status, canAskAgain }, base, servicesEnabled, setupComplete] = await Promise.all([
           Location.getForegroundPermissionsAsync(),
           getBaseLocation(),
           Location.hasServicesEnabledAsync(),
+          getLocationSetupComplete(),
         ]);
+        // The standalone onboarding location step is now the primary path. Once a
+        // user has been through it, never show the lazy map prompt. The rest of the
+        // logic stays as a defensive fallback (e.g. guest sessions, missing flag,
+        // permission revoked later).
+        if (setupComplete) {
+          setPromptState('done');
+          return;
+        }
         setPromptState(
           resolvePromptState(status, canAskAgain, shownThisSession, base !== null, servicesEnabled)
         );

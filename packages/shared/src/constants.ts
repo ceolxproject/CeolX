@@ -38,24 +38,6 @@ export const CATEGORY_LABELS: Record<string, string> = {
   Others: 'Others',
 };
 
-// Event category emoji icons
-export const CATEGORY_ICONS: Record<string, string> = {
-  Concerts: '🎤',
-  Gigs: '🎸',
-  Karaoke: '🎶',
-  'Open Mic Nights': '🎙️',
-  Festivals: '🎪',
-  Recital: '🎻',
-  'DJ Sets / Club Nights': '🎧',
-  'Jam Sessions': '🥁',
-  'Tribute / Cover Band Shows': '🎵',
-  Workshops: '🛠️',
-  'Open Trad Sessions': '☘️',
-  Lessons: '📚',
-  Outdoor: '🌳',
-  Others: '✨',
-};
-
 // Geographic centre coordinates for each Irish county (Republic + Northern Ireland).
 // Uses `satisfies` to enforce that every IrishCounty has an entry — a missing county
 // will cause a compile error.
@@ -106,9 +88,22 @@ export const ACCOUNT_ANONYMIZE_DELAY_DAYS = 30;
 // Venue subscription
 export const VENUE_SUBSCRIPTION_URL = 'https://ceolx.ie/subscribe';
 
+/** Public CeolX marketing/landing site — used as the CTA for re-engagement emails. */
+export const CEOLX_WEB_URL = 'https://ceolx.ie';
+
 // FCM
 export const FCM_NOTIFICATION_CLICK_ACTION = 'FLUTTER_NOTIFICATION_CLICK';
 
 // API pagination defaults
 export const DEFAULT_PAGE_LIMIT = 20;
 export const MAX_PAGE_LIMIT = 100;
+
+// Bookings — minimum wait before a pending invite/request can be resent.
+// Anchored on bookings.updatedAt, which for a pending row only moves on
+// creation (first send) or a resend, so it reads as "last sent at".
+// (Asana 1215700058851990 — anti-spam on resend.)
+export const RESEND_COOLDOWN_MS = 24 * 60 * 60 * 1000; // 24 hours
+
+// Collaboration — "Share Interest" anti-spam cooldown. Blocks re-sending
+// interest to the same recipient within this window (M? — Asana 1215700058851992).
+export const SHARE_INTEREST_COOLDOWN_MS = 24 * 60 * 60 * 1000; // 24 hours

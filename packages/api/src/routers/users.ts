@@ -5,6 +5,7 @@ import { db } from '@CeolX/db';
 import { user } from '@CeolX/db/schema/auth';
 import { artistProfiles, venueProfiles } from '@CeolX/db/schema/users';
 import { UserRole } from '@CeolX/shared';
+import { updateAccountSchema } from '@CeolX/shared/validators';
 
 import { protectedProcedure, router } from '../index';
 
@@ -166,6 +167,30 @@ export const usersRouter = router({
       venueProfile,
       deletionCancelledNotice,
     };
+  }),
+
+  /**
+   * Updates the authenticated user's account-level name and avatar on the
+   * BetterAuth `user` row. Backs the spectator "Update Profile" screen — a
+   * spectator has no artist/venue profile table, so name + image live here.
+   *
+   * `image` is tri-state: omit to leave the avatar unchanged, `null` to clear
+   * it, or a CDN url to set a freshly-uploaded picture (uploaded client-side
+   * via the shared presigned-PUT flow before this call). Email is never
+   * editable here — it stays immutable.
+   */
+  updateMe: protectedProcedure.input(updateAccountSchema).mutation(async ({ ctx, input }) => {
+    await db
+      .update(user)
+      .set({
+        name: input.name,
+        // Only touch `image` when the client sent a value (set or clear);
+        // an absent key leaves the existing avatar in place.
+        ...(input.image !== undefined ? { image: input.image } : {}),
+      })
+      .where(eq(user.id, ctx.session.user.id));
+
+    return { ok: true };
   }),
 
   /**

@@ -1,8 +1,8 @@
 import { memo, useCallback, useEffect, useRef, useState } from 'react';
-import { Text, View } from 'react-native';
+import { Text, View, type LayoutChangeEvent } from 'react-native';
 import { Marker } from 'react-native-maps';
 
-import { CATEGORY_ICONS, CATEGORY_LABELS } from '@CeolX/shared';
+import { CATEGORY_LABELS } from '@CeolX/shared';
 
 import { MapEventPin } from '@/components/MapEventPin';
 
@@ -40,8 +40,9 @@ function MapEventMarkerComponent({ event, isSelected, onSelect }: MapEventMarker
   // it true only while something visual is still settling, then false.
   const [tracksViewChanges, setTracksViewChanges] = useState(true);
 
-  // Skip the selection effect on the very first render — initial settling is
-  // driven by the mount fallback / image onLoad instead.
+  // Skip the first `onLayout` (initial mount) — initial settling is driven by
+  // the mount fallback / image onLoad instead; layout-driven freezes are only
+  // for later size changes (e.g. the selection transition).
   const isFirstRender = useRef(true);
 
   // One shared timer across all freeze triggers (mount, image load, selection)
@@ -73,16 +74,24 @@ function MapEventMarkerComponent({ event, isSelected, onSelect }: MapEventMarker
   // the composited view, then freeze.
   const handleImageLoad = useCallback(() => scheduleFreeze(250), [scheduleFreeze]);
 
-  // Selection flips the pin's visuals (size 44→56, glow ring, title label).
-  // The cached image won't re-fire onLoad, so re-track briefly to capture the
-  // transition (long enough for the glow ring on slower devices).
-  useEffect(() => {
-    if (isFirstRender.current) {
-      isFirstRender.current = false;
-      return;
-    }
-    scheduleFreeze(500);
-  }, [isSelected, scheduleFreeze]);
+  // Selection grows the pin circle (44→56) and adds a glow ring. react-native-maps
+  // derives the native touch frame from the frozen bitmap's size, so freezing
+  // before the grown layout is measured leaves the hit region sized to the old
+  // 44px circle — taps near the enlarged edge then fall outside it. Drive the
+  // re-freeze off the container's actual `onLayout` (fires once the grown circle
+  // is laid out) instead of racing a fixed timer, so the snapshot — and thus the
+  // touch frame — matches the selected circle. The title is an absolute overlay
+  // (below) deliberately excluded from this layout box, so it doesn't factor in.
+  const handleLayout = useCallback(
+    (_event: LayoutChangeEvent) => {
+      if (isFirstRender.current) {
+        isFirstRender.current = false;
+        return;
+      }
+      scheduleFreeze(250);
+    },
+    [scheduleFreeze]
+  );
 
   return (
     <Marker
@@ -94,17 +103,23 @@ function MapEventMarkerComponent({ event, isSelected, onSelect }: MapEventMarker
       // Android. Mirrors MapClusterMarker, which is tappable on both platforms.
       onPress={() => onSelect(event)}
     >
-      <View className="items-center">
+      <View className="items-center" onLayout={handleLayout}>
         <MapEventPin
           type="single"
           coverImageUrl={event.coverImageUrl}
           category={CATEGORY_LABELS[event.category] ?? event.category}
-          categoryIcon={CATEGORY_ICONS[event.category]}
+          categoryKey={event.category}
           isSelected={isSelected}
           onImageLoad={handleImageLoad}
         />
         {isSelected ? (
-          <View className="mt-1 bg-[rgba(255,255,255,0.92)] px-2 py-[3px] rounded-[10px] max-w-[140px]">
+          // Absolute overlay below the pin: like the badge, it must not grow the
+          // marker's layout box, or it would push the circle out of the iOS hit
+          // frame and make the (now-larger) selected pin untappable.
+          <View
+            style={{ position: 'absolute', top: '100%', marginTop: 4 }}
+            className="bg-[rgba(255,255,255,0.92)] px-2 py-[3px] rounded-[10px] max-w-[140px]"
+          >
             <Text className="text-[11px] text-[#080808] font-semibold" numberOfLines={1}>
               {event.title}
             </Text>

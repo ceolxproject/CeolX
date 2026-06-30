@@ -1,6 +1,8 @@
 import { Receiver } from '@upstash/qstash';
 import type { Context, Next } from 'hono';
 
+import { getJobWebhookUrl } from './client.js';
+
 // Receiver is instantiated once per process — signing keys are read from env at startup.
 const receiver = new Receiver({
   currentSigningKey: process.env.QSTASH_CURRENT_SIGNING_KEY ?? '',
@@ -25,7 +27,7 @@ export const verifyQStashSignature = async (
     const isValid = await receiver.verify({
       signature,
       body,
-      url: process.env.QSTASH_BASE_URL ?? '',
+      url: getJobWebhookUrl(),
     });
 
     if (!isValid) {

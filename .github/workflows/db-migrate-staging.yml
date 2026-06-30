@@ -42,16 +42,18 @@ jobs:
         with:
           ref: refs/heads/staging
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 10.7.1
-
+      # Node must be set up BEFORE pnpm: pnpm/action-setup runs the pnpm binary
+      # during its own step. Pin the exact version from .nvmrc so the runner can't
+      # resolve a 24.x below the repo floor — `.npmrc` sets engine-strict=true and
+      # package.json pins engines.node to >=24.18.0, so a lower minor would hard-fail
+      # the engine gate before any work runs.
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 20
-          cache: pnpm
+          node-version: 24.18.0
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
 
       # Scoped install: only the @CeolX/db package and its workspace deps.
       # Avoids pulling the heavy native/expo dependency tree.

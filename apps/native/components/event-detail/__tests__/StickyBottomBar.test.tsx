@@ -3,10 +3,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 // --- Mocks ----------------------------------------------------------------
 // vi.hoisted keeps the spies referenceable inside the hoisted vi.mock factories
 // without lazy wrappers (which would leak `any` through the mock boundary).
-const { mutate, openBrowserAsync, alert } = vi.hoisted(() => ({
+const { mutate, openBrowserAsync, toastError } = vi.hoisted(() => ({
   mutate: vi.fn(),
   openBrowserAsync: vi.fn(),
-  alert: vi.fn(),
+  toastError: vi.fn(),
 }));
 
 vi.mock('@/hooks/use-track-ticket-click', () => ({
@@ -15,9 +15,12 @@ vi.mock('@/hooks/use-track-ticket-click', () => ({
 
 vi.mock('expo-web-browser', () => ({ openBrowserAsync }));
 
+vi.mock('@/components/AppToast', () => ({
+  appToast: { success: vi.fn(), error: toastError, info: vi.fn(), warning: vi.fn() },
+}));
+
 vi.mock('react-native', () => ({
   ActivityIndicator: 'ActivityIndicator',
-  Alert: { alert },
   Pressable: 'Pressable',
   Text: 'Text',
   View: 'View',
@@ -67,7 +70,7 @@ const baseProps = {
 
 beforeEach(() => {
   mutate.mockClear();
-  alert.mockClear();
+  toastError.mockClear();
   openBrowserAsync.mockReset();
   openBrowserAsync.mockResolvedValue(undefined);
 });
@@ -98,7 +101,7 @@ describe('StickyBottomBar', () => {
     expect(openBrowserAsync).toHaveBeenCalledWith('https://tix.ie/e/99');
   });
 
-  it('alerts the user when the browser fails to open', async () => {
+  it('toasts the user when the browser fails to open', async () => {
     openBrowserAsync.mockRejectedValueOnce(new Error('no handler'));
     const tree = StickyBottomBar({ ...baseProps, ticketLink: 'https://tix.ie/e' });
     const bookBtn = collect(tree, 'Pressable').find((p) =>
@@ -106,7 +109,7 @@ describe('StickyBottomBar', () => {
     );
     await bookBtn?.props?.onPress?.();
 
-    expect(alert).toHaveBeenCalled();
+    expect(toastError).toHaveBeenCalled();
   });
 
   it('shows Request to Perform (not Book Ticket) for an artist on a linkless venue event', () => {
@@ -119,5 +122,39 @@ describe('StickyBottomBar', () => {
     const labels = collect(tree, 'Pressable').map((p) => textContent(p.props?.children));
     expect(labels.some((l) => l.includes('Request to Perform'))).toBe(true);
     expect(labels.some((l) => l.includes('Book Ticket'))).toBe(false);
+  });
+
+  // ── Request state contract (Asana 1215700058851990, bugs #4/#5) ────────────
+  // The button shown is driven entirely by `hasExistingRequest`. A withdrawn
+  // request flips the server's viewerHasPendingRequest to false, so the artist
+  // must get an actionable "Request to Perform" back — never a stuck "Request
+  // Sent" placeholder.
+
+  it('shows the disabled Request Sent state while a request is pending', () => {
+    const tree = StickyBottomBar({
+      ...baseProps,
+      isArtist: true,
+      isVenueEvent: true,
+      hasExistingRequest: true,
+    });
+    const allLabels = [
+      ...collect(tree, 'Pressable').map((p) => textContent(p.props?.children)),
+      ...collect(tree, 'View').map((v) => textContent(v.props?.children)),
+    ];
+    expect(allLabels.some((l) => l.includes('Request Sent'))).toBe(true);
+    // The actionable button must NOT be present while pending.
+    const pressableLabels = collect(tree, 'Pressable').map((p) => textContent(p.props?.children));
+    expect(pressableLabels.some((l) => l.includes('Request to Perform'))).toBe(false);
+  });
+
+  it('restores the actionable Request to Perform button once the request is gone (withdrawn)', () => {
+    const tree = StickyBottomBar({
+      ...baseProps,
+      isArtist: true,
+      isVenueEvent: true,
+      hasExistingRequest: false,
+    });
+    const pressableLabels = collect(tree, 'Pressable').map((p) => textContent(p.props?.children));
+    expect(pressableLabels.some((l) => l.includes('Request to Perform'))).toBe(true);
   });
 });

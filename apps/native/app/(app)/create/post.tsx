@@ -1,4 +1,3 @@
-import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
@@ -13,9 +12,11 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { createPostSchema, updatePostSchema } from '@CeolX/shared/validators';
+import { createPostSchema, POST_CAPTION_MAX, updatePostSchema } from '@CeolX/shared/validators';
 
+import { AppHeader } from '@/components/AppHeader';
 import { appToast } from '@/components/AppToast';
+import { CharacterCount, CharacterLimitNote } from '@/components/CharacterCount';
 import { MediaPickerField } from '@/components/posts/MediaPickerField';
 import { useCreatePost } from '@/hooks/use-create-post';
 import { useMediaDelete, keyFromCdnUrl } from '@/hooks/use-media-delete';
@@ -24,8 +25,6 @@ import { usePostById } from '@/hooks/use-post-by-id';
 import { useUpdatePost } from '@/hooks/use-update-post';
 import { planPostMediaUpdate } from '@/hooks/use-update-post.utils';
 import { useVideoUpload } from '@/hooks/use-video-upload';
-
-const CAPTION_MAX = 500;
 
 type LocalMedia = {
   uri: string;
@@ -57,16 +56,27 @@ export default function CreatePostScreen() {
   // spinner the instant it's tapped instead of only once the mutation fires.
   const [isPublishing, setIsPublishing] = useState(false);
 
-  // Seed form when editing an existing post.
+  // Seed form when editing an existing post. Both image and video posts carry
+  // a ready mediaUrl (S3/CloudFront for images, the Mux HLS .m3u8 for video) —
+  // seed either so the creator sees their existing media in the edit screen
+  // instead of an empty picker (Asana 1215484454792689). Video is shown
+  // read-only: its media is Mux-managed and is never swapped on edit (see
+  // planPostMediaUpdate + handlePublish). A still-transcoding video has no
+  // mediaUrl yet, so it falls through to the read-only "processing" state.
   useEffect(() => {
     if (!isEditing || !existing.data) return;
-    setCaption(existing.data.caption);
-    if (existing.data.mediaType === 'image' && existing.data.mediaUrl) {
-      setMedia({ uri: existing.data.mediaUrl, cdnUrl: existing.data.mediaUrl, kind: 'image' });
+    const { caption: existingCaption, mediaType, mediaUrl } = existing.data;
+    setCaption(existingCaption);
+    if ((mediaType === 'image' || mediaType === 'video') && mediaUrl) {
+      setMedia({ uri: mediaUrl, cdnUrl: mediaUrl, kind: mediaType });
     } else {
       setMedia(null);
     }
   }, [existing.data, isEditing]);
+
+  // A video post's media is locked on edit — it can't be removed or replaced,
+  // so the picker is presented read-only (no remove button, tapping is inert).
+  const isVideoEdit = isEditing && existing.data?.mediaType === 'video';
 
   // Android-only: a freshly-picked image OR video paints blank until the picker
   // field remounts (same issue as the event cover — see create.tsx and Asana
@@ -140,12 +150,27 @@ export default function CreatePostScreen() {
           uri: media.uri,
           fileSize: media.fileSize ?? null,
         });
+        // Don't present a failed transcode as a successful post. 'errored' means
+        // Mux rejected the upload, so abort instead of persisting a broken post.
+        if (result.status === 'errored') {
+          throw new Error('Video processing failed. Please try a different video.');
+        }
         const input = createPostSchema.parse({
           caption: caption.trim(),
           mediaType: 'video',
           muxUploadId: result.uploadId,
         });
         await createPost.mutateAsync(input);
+        // 'pending' = still transcoding at the poll timeout. The webhook will
+        // finish it, but tell the user rather than implying it's ready now.
+        if (result.status === 'pending') {
+          appToast.success(
+            'Post published',
+            'Your video is still processing and will appear shortly.'
+          );
+          router.back();
+          return;
+        }
       } else if (media) {
         // Image post — s3 upload, persist CDN URL.
         const { cdnUrl } = await imageUpload.uploadMedia({
@@ -179,11 +204,7 @@ export default function CreatePostScreen() {
           and the keyboard covers it — matches the wrapper used on every other
           form (change-password, events/create). */}
       <KeyboardAvoidingView behavior="padding" style={{ flex: 1 }}>
-        <View className="flex-row items-center p-5">
-          <Pressable onPress={() => router.back()} hitSlop={8}>
-            <Ionicons name="arrow-back" size={24} color="#fff" />
-          </Pressable>
-        </View>
+        <AppHeader leading="back" />
 
         <ScrollView
           contentContainerStyle={{ paddingBottom: 32 }}
@@ -210,26 +231,30 @@ export default function CreatePostScreen() {
                 onRemove={handleRemoveMedia}
                 isUploading={isUploading}
                 progress={progress}
+                readOnly={isVideoEdit}
               />
             </View>
 
             <View className="mb-5">
               <View className="mb-2 flex-row items-center justify-between">
                 <Text className="text-sm font-bold text-white/80 font-urbanist">Caption</Text>
-                <Text className="text-base font-medium text-[#8D8D8D] font-urbanist">
-                  {caption.length}/{CAPTION_MAX}
-                </Text>
+                <CharacterCount
+                  count={caption.length}
+                  max={POST_CAPTION_MAX}
+                  className="text-base font-medium text-[#8D8D8D] font-urbanist"
+                />
               </View>
               <TextInput
                 placeholder="Write a caption..."
                 placeholderTextColor="#8D8D8D"
                 multiline
-                maxLength={CAPTION_MAX}
+                maxLength={POST_CAPTION_MAX}
                 value={caption}
-                onChangeText={setCaption}
+                onChangeText={(text) => setCaption(text.slice(0, POST_CAPTION_MAX))}
                 textAlignVertical="top"
                 className="h-[156px] rounded-lg bg-white p-4 text-base font-medium text-black font-urbanist"
               />
+              <CharacterLimitNote count={caption.length} max={POST_CAPTION_MAX} className="mt-2" />
             </View>
           </View>
         </ScrollView>

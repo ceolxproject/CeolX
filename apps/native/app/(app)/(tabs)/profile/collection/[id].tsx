@@ -12,6 +12,10 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { COLLECTION_DESCRIPTION_MAX, COLLECTION_NAME_MAX } from '@CeolX/shared/validators';
+
+import { AppHeader } from '@/components/AppHeader';
+import { CharacterCount, CharacterLimitNote } from '@/components/CharacterCount';
 import { ProfileEventCard } from '@/components/ProfileEventCard';
 import { useCollection, useDeleteCollection, useUpdateCollection } from '@/hooks/use-collections';
 
@@ -71,41 +75,33 @@ export default function CollectionDetailScreen() {
   if (!collection) {
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: '#080808' }}>
-        <View className="flex-row items-center px-5 h-14">
-          <Pressable onPress={() => router.back()} className="mr-3">
-            <Ionicons name="arrow-back" size={24} color="#fff" />
-          </Pressable>
-          <Text className="text-lg font-bold text-white font-urbanist">Not Found</Text>
-        </View>
+        <AppHeader leading="back" title="Not Found" />
       </SafeAreaView>
     );
   }
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#080808' }}>
-      {/* Header */}
-      <View className="flex-row items-center justify-between px-5 h-14">
-        <View className="flex-row items-center flex-1">
-          <Pressable onPress={() => router.back()} className="mr-3">
-            <Ionicons name="arrow-back" size={24} color="#fff" />
-          </Pressable>
-          {editing ? (
+      <AppHeader
+        leading="back"
+        titleNode={
+          editing ? (
             <TextInput
-              className="flex-1 h-8 text-lg font-bold text-white font-urbanist"
+              className="flex-1 h-8 text-[18px] font-bold text-white font-urbanist"
               value={editName}
-              onChangeText={setEditName}
-              maxLength={100}
+              onChangeText={(t) => setEditName(t.slice(0, COLLECTION_NAME_MAX))}
+              maxLength={COLLECTION_NAME_MAX}
               autoFocus
             />
           ) : (
             <Text className="text-lg font-bold text-white font-urbanist" numberOfLines={1}>
               {collection.name}
             </Text>
-          )}
-        </View>
-        <View className="flex-row items-center gap-3">
-          {editing ? (
-            <>
+          )
+        }
+        trailingAccessory={
+          editing ? (
+            <View className="flex-row items-center gap-3">
               <Pressable onPress={() => setEditing(false)}>
                 <Text className="text-sm text-white/60">Cancel</Text>
               </Pressable>
@@ -116,33 +112,50 @@ export default function CollectionDetailScreen() {
                   <Text className="text-sm font-bold text-[#C8FF2F]">Save</Text>
                 )}
               </Pressable>
-            </>
+            </View>
           ) : (
-            <>
+            <View className="flex-row items-center gap-3">
               <Pressable onPress={startEditing}>
                 <Ionicons name="pencil-outline" size={20} color="#fff" />
               </Pressable>
               <Pressable onPress={handleDelete}>
                 <Ionicons name="trash-outline" size={20} color="rgba(255,255,255,0.5)" />
               </Pressable>
-            </>
-          )}
-        </View>
-      </View>
+            </View>
+          )
+        }
+      />
 
       <ScrollView className="flex-1 px-5" showsVerticalScrollIndicator={false}>
+        {/* Name limit note — the name field lives in the header bar, which has no
+            room for an inline counter, so its "limit reached" note surfaces here. */}
+        {editing ? (
+          <CharacterLimitNote count={editName.length} max={COLLECTION_NAME_MAX} className="mb-2" />
+        ) : null}
         {/* Description */}
         {editing ? (
-          <TextInput
-            className="mb-4 rounded-lg bg-white/10 px-3 pt-2 text-white text-sm font-urbanist min-h-[60px]"
-            placeholder="Description (optional)"
-            placeholderTextColor="rgba(255,255,255,0.4)"
-            value={editDescription}
-            onChangeText={setEditDescription}
-            maxLength={500}
-            multiline
-            textAlignVertical="top"
-          />
+          <View className="mb-4 gap-1">
+            <TextInput
+              className="rounded-lg bg-white/10 px-3 pt-2 text-white text-sm font-urbanist min-h-[60px]"
+              placeholder="Description (optional)"
+              placeholderTextColor="rgba(255,255,255,0.4)"
+              value={editDescription}
+              onChangeText={(t) => setEditDescription(t.slice(0, COLLECTION_DESCRIPTION_MAX))}
+              maxLength={COLLECTION_DESCRIPTION_MAX}
+              multiline
+              textAlignVertical="top"
+            />
+            <CharacterCount
+              count={editDescription.length}
+              max={COLLECTION_DESCRIPTION_MAX}
+              className="self-end text-xs text-white/40 font-urbanist"
+            />
+            <CharacterLimitNote
+              count={editDescription.length}
+              max={COLLECTION_DESCRIPTION_MAX}
+              className="self-end"
+            />
+          </View>
         ) : collection.description ? (
           <Text className="text-sm text-white/60 mb-4 font-urbanist">{collection.description}</Text>
         ) : null}

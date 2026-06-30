@@ -57,11 +57,14 @@ export function EventDetailView({
   // Y offset of the "Performing Artist" section within the scroll content, so
   // the Host/Artist box's "VIEW ALL" can jump straight to the per-artist cards.
   const [artistSectionY, setArtistSectionY] = useState(0);
-  const [isSaved, setIsSaved] = useState(event.isSaved);
+  // Derive the bookmark straight from the query cache (not a one-time useState
+  // snapshot): `useSaveEvent` patches the byId cache optimistically, so re-opening
+  // a saved event always reflects the true state instead of a stale `false`.
+  const isSaved = event.isSaved;
   const { initialRegion, locationSource } = useGpsRegion();
   const { mutate: saveEvent } = useSaveEvent();
   const shareEvent = useShareEvent();
-  const { requestToPerform, isRequesting, hasRequested } = useRequestToPerform();
+  const { requestToPerform, isRequesting } = useRequestToPerform();
 
   const distanceKm = useMemo(() => {
     if (locationSource === 'pending') return undefined;
@@ -74,9 +77,9 @@ export function EventDetailView({
   );
 
   const handleToggleSave = () => {
-    const newSaved = !isSaved;
-    setIsSaved(newSaved); // optimistic update
-    saveEvent({ eventId: event.id, saved: newSaved }, { onError: () => setIsSaved(isSaved) });
+    // Optimistic update + error rollback now live in useSaveEvent's cache patch,
+    // so the icon flips instantly via `event.isSaved` and reverts on failure.
+    saveEvent({ eventId: event.id, saved: !isSaved });
   };
 
   const handleShare = () => {
@@ -87,7 +90,14 @@ export function EventDetailView({
     requestToPerform(event.id);
   };
 
+  // flag stop duplicate calendar entries from repeated taps
+  const calendarLock = useRef(false);
+  const [calendarAdded, setCalendarAdded] = useState(false);
+
   const handleAddToCalendar = async () => {
+    if (calendarLock.current || calendarAdded) return;
+    calendarLock.current = true;
+
     const start = new Date(event.dateStart);
     const end = event.dateEnd
       ? new Date(event.dateEnd)
@@ -102,6 +112,7 @@ export function EventDetailView({
         location: event.venueAddress ?? `${event.lat},${event.lng}`,
       });
       appToast.success('Added to calendar');
+      setCalendarAdded(true);
     } catch (err) {
       if (err instanceof Error && err.message === CALENDAR_PERMISSION_DENIED) {
         appToast.error(
@@ -118,6 +129,8 @@ export function EventDetailView({
       } else {
         appToast.error('Could not add to calendar', 'Please try again.');
       }
+    } finally {
+      calendarLock.current = false;
     }
   };
 
@@ -134,23 +147,25 @@ export function EventDetailView({
 
   return (
     <View className="flex-1 bg-background" style={{ paddingTop: insets.top }}>
+      {/* Fixed header — stays pinned while the hero + details scroll beneath it. */}
+      <EventDetailHeader
+        onBack={onBack}
+        title={event.title}
+        isSaved={isSaved}
+        onToggleSave={handleToggleSave}
+        onShare={handleShare}
+      />
+
       <ScrollView
         ref={scrollRef}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 16 }}
       >
-        {/* Header */}
-        <EventDetailHeader
-          onBack={onBack}
-          isSaved={isSaved}
-          onToggleSave={handleToggleSave}
-          onShare={handleShare}
-        />
-
         {/* Hero Image with category + attendee badges */}
         <EventHeroImage
           coverImageUrl={event.coverImageUrl ?? undefined}
           category={event.category}
+          collectionName={event.collection?.name}
           attendeeCount={event.attendeeCount}
         />
 
@@ -195,25 +210,16 @@ export function EventDetailView({
             }}
           />
 
-          {/* Ticket Price */}
-          {event.ticketPrice !== undefined && event.ticketPrice !== null && (
-            <Text className="text-white font-urbanist">
-              <Text className="text-lg text-gray-7">Ticket Price: </Text>
-              <Text className="text-xl font-bold">€{(event.ticketPrice / 100).toFixed(0)}</Text>
-            </Text>
-          )}
-
-          {/* Description */}
-          <DescriptionSection description={event.description} />
-
-          {/* Date / Time */}
+          {/* Key facts — when / where / how much, grouped above the description
+              so the essentials are scannable before any long prose. */}
           <View className="gap-4">
             <EventInfoRow
               icon="calendar-outline"
               title={formattedDate}
               subtitle={formattedTime}
-              actionLabel="Add to calendar"
+              actionLabel={calendarAdded ? 'Added' : 'Add to calendar'}
               onAction={handleAddToCalendar}
+              actionDisabled={calendarAdded}
             />
 
             {/* Location */}
@@ -229,12 +235,25 @@ export function EventDetailView({
                   : undefined
               }
             />
+
+            {/* Ticket price — info-only row (booking lives in the sticky bar) */}
+            {event.ticketPrice !== undefined && event.ticketPrice !== null && (
+              <EventInfoRow
+                icon="pricetag-outline"
+                title={event.ticketPrice > 0 ? `€${(event.ticketPrice / 100).toFixed(0)}` : 'Free'}
+                subtitle="Ticket price"
+              />
+            )}
           </View>
+
+          {/* Description */}
+          <DescriptionSection description={event.description} />
         </View>
 
         {/* Offers — only this event's own ad, if it has one */}
         <OfferBlock
           adTitle={event.adTitle}
+          adDescription={event.adDescription}
           eventTitle={event.title}
           coverImage={event.coverImageUrl ?? null}
         />
@@ -304,7 +323,11 @@ export function EventDetailView({
               data={event.relatedEvents}
               keyExtractor={(item) => item.id}
               renderItem={({ item }) => (
-                <CollectionEventCard event={item} onPress={() => onNavigateToEvent(item.id)} />
+                <CollectionEventCard
+                  event={item}
+                  collectionName={event.collection?.name}
+                  onPress={() => onNavigateToEvent(item.id)}
+                />
               )}
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={{ paddingHorizontal: 16, gap: 8 }}
@@ -326,7 +349,7 @@ export function EventDetailView({
           isVenueEvent={event.creator.type === UserRole.VENUE}
           isCollaborator={isCollaborator}
           isRequesting={isRequesting}
-          hasExistingRequest={hasRequested}
+          hasExistingRequest={event.viewerHasPendingRequest}
           onRequestToPerform={handleRequestToPerform}
         />
       )}

@@ -1,5 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Text, TextInput, View } from 'react-native';
+import { Text, View } from 'react-native';
+
+import { AppTextField } from '@/components/AppTextField';
 
 type SocialLinkInputProps = {
   icon: keyof typeof Ionicons.glyphMap;
@@ -22,14 +24,19 @@ export function SocialLinkInput({
         <View className="w-9 h-9 rounded-full bg-[#333335] items-center justify-center">
           <Ionicons name={icon} size={18} color="#fff" />
         </View>
-        <TextInput
-          className="flex-1 bg-[#1C1C1E] rounded-lg h-[44px] px-3 text-sm font-medium text-white"
+        <AppTextField
+          variant="dark"
+          containerClassName="flex-1"
+          fieldClassName="h-[44px] px-3"
+          className="text-[14px] font-medium"
           placeholder={placeholder}
-          placeholderTextColor="#8d8d8d"
           value={value}
           onChangeText={onChange}
           autoCapitalize="none"
           keyboardType="url"
+          autoComplete="off"
+          textContentType="none"
+          importantForAutofill="no"
         />
       </View>
       {error ? (

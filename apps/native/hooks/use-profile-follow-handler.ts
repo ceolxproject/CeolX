@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 
+import { appToast } from '@/components/AppToast';
 import { useFollow } from '@/hooks/use-follow';
 
 type FollowableProfile = { userId: string; isFollowing: boolean } | null | undefined;
@@ -34,7 +35,14 @@ export function useProfileFollowHandler(profile: FollowableProfile) {
     mutation.mutate(
       { followeeId: profile.userId, isFollowing: prev },
       // Roll back to the real value on failure; success is reconciled by the effect.
-      { onError: () => setOptimistic(null) }
+      // Surface the failure too — without this the button silently snapped back to
+      // its prior state, reading as an unresponsive tap on every post-card/profile CTA.
+      {
+        onError: () => {
+          setOptimistic(null);
+          appToast.error(prev ? 'Could not unfollow' : 'Could not follow', 'Please try again.');
+        },
+      }
     );
   };
 

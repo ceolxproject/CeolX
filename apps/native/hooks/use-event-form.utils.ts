@@ -5,18 +5,48 @@
 /**
  * Reduce the selected platform-artist invites (full display objects, the form's
  * single source of truth) to the array of artist IDs the create/update payload
- * expects. Returns undefined when nothing is selected so the optional
- * `platformInvites` field is omitted rather than sent as an empty array.
+ * expects.
  *
  * The form holds the full {@link ArtistResult} objects — not just IDs — so the
  * invite chips survive a step change (the picker is unmounted between steps;
  * keeping only IDs there meant the chips vanished on back-navigation). IDs are
  * derived here, at submit time, from that persisted list.
+ *
+ * The absent-vs-empty rule mirrors {@link unregisteredCollaboratorsPayload}:
+ * on EDIT the server diffs the sent list against the event's existing pending
+ * invites to know which to withdraw, so clearing the last invite must send an
+ * empty array — collapsing it to `undefined` (as we still do on create, to omit
+ * the optional field) would make the server skip the diff and the removed
+ * artist would silently stay invited. (Asana 1215912673233456)
  */
 export function platformInviteIds(
-  invites: ReadonlyArray<{ id: string }>
+  invites: ReadonlyArray<{ id: string }>,
+  isEditing: boolean
 ): string[] | undefined {
+  if (isEditing) return invites.map((a) => a.id);
   return invites.length > 0 ? invites.map((a) => a.id) : undefined;
+}
+
+/**
+ * Resolve the outside-platform (email) invitees for the create/update payload.
+ *
+ * The server replaces ALL invited-only collaborator rows with whatever this
+ * field contains — but only when it is sent (`!== undefined`). That makes the
+ * absent-vs-empty distinction load-bearing on EDIT: clearing the last invited
+ * artist leaves an empty array, and if we collapsed that to `undefined` (as we
+ * still do on create, to omit the optional field) the server would skip the
+ * replace and the removed artist would silently persist.
+ *
+ * So: on edit, always send the array — even empty — so removal sticks. On
+ * create there is nothing to clear, so an empty selection stays omitted.
+ * (Asana 1215700058851952 — external artist couldn't be removed while editing.)
+ */
+export function unregisteredCollaboratorsPayload<T>(
+  collaborators: ReadonlyArray<T>,
+  isEditing: boolean
+): T[] | undefined {
+  if (isEditing) return [...collaborators];
+  return collaborators.length > 0 ? [...collaborators] : undefined;
 }
 
 /**

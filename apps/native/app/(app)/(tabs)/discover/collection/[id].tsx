@@ -1,10 +1,10 @@
-import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
-import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { EventStatus } from '@CeolX/shared/enums';
 
+import { AppHeader } from '@/components/AppHeader';
 import { ProfileEventCard } from '@/components/ProfileEventCard';
 import { useCollection } from '@/hooks/use-collections';
 
@@ -34,12 +34,7 @@ export default function PublicCollectionScreen() {
   if (!collection) {
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: '#080808' }}>
-        <View className="flex-row items-center px-5 h-14">
-          <Pressable onPress={() => router.back()} className="mr-3">
-            <Ionicons name="arrow-back" size={24} color="#fff" />
-          </Pressable>
-          <Text className="text-lg font-bold text-white font-urbanist">Not Found</Text>
-        </View>
+        <AppHeader leading="back" title="Not Found" />
       </SafeAreaView>
     );
   }
@@ -48,15 +43,7 @@ export default function PublicCollectionScreen() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#080808' }}>
-      {/* Header */}
-      <View className="flex-row items-center px-5 h-14">
-        <Pressable onPress={() => router.back()} className="mr-3">
-          <Ionicons name="arrow-back" size={24} color="#fff" />
-        </Pressable>
-        <Text className="flex-1 text-lg font-bold text-white font-urbanist" numberOfLines={1}>
-          {collection.name}
-        </Text>
-      </View>
+      <AppHeader leading="back" title={collection.name} />
 
       <ScrollView className="flex-1 px-5" showsVerticalScrollIndicator={false}>
         {/* Description */}

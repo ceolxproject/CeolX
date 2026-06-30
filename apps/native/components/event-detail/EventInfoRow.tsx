@@ -6,8 +6,10 @@ interface EventInfoRowProps {
   icon: keyof typeof Ionicons.glyphMap;
   title: string;
   subtitle: string;
-  actionLabel: string;
-  onAction: () => void;
+  /** Optional trailing action (e.g. "Add to calendar"). Omit for info-only rows like price. */
+  actionLabel?: string;
+  onAction?: () => void;
+  actionDisabled?: boolean;
   onTitlePress?: () => void;
   className?: string;
 }
@@ -18,6 +20,7 @@ export function EventInfoRow({
   subtitle,
   actionLabel,
   onAction,
+  actionDisabled,
   onTitlePress,
   className,
 }: EventInfoRowProps) {
@@ -32,8 +35,10 @@ export function EventInfoRow({
     </View>
   );
 
+  const hasAction = !!actionLabel && !!onAction;
+
   return (
-    <View className={cn('flex-row items-start justify-between mt-4', className)}>
+    <View className={cn('flex-row items-start justify-between', className)}>
       {onTitlePress ? (
         <Pressable
           onPress={onTitlePress}
@@ -50,11 +55,21 @@ export function EventInfoRow({
         </View>
       )}
 
-      <Pressable onPress={onAction} hitSlop={8} className="active:opacity-70 mt-0.5">
-        <Text className="text-xs font-bold text-green-10 tracking-wider uppercase font-sans">
-          {actionLabel}
-        </Text>
-      </Pressable>
+      {hasAction &&
+        (actionDisabled ? (
+          <View className="flex-row items-center gap-1 mt-0.5">
+            <Ionicons name="checkmark" size={14} color="rgba(255,255,255,0.4)" />
+            <Text className="text-xs font-bold text-white/40 tracking-wider uppercase font-sans">
+              {actionLabel}
+            </Text>
+          </View>
+        ) : (
+          <Pressable onPress={onAction} hitSlop={8} className="active:opacity-70 mt-0.5">
+            <Text className="text-xs font-bold text-green-10 tracking-wider uppercase font-sans">
+              {actionLabel}
+            </Text>
+          </Pressable>
+        ))}
     </View>
   );
 }

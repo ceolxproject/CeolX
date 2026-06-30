@@ -2,6 +2,8 @@ import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 
 import { PostCard, type PostCardPost } from './PostCard';
 
+import { EmptyState } from '@/components/EmptyState';
+
 type Props = {
   posts: PostCardPost[];
   isLoading: boolean;
@@ -11,6 +13,7 @@ type Props = {
   onLoadMore: () => void;
   hideAuthorHeader?: boolean;
   emptyMessage?: string;
+  emptySubtitle?: string;
 };
 
 export function PostsList({
@@ -22,6 +25,7 @@ export function PostsList({
   onLoadMore,
   hideAuthorHeader,
   emptyMessage = 'No posts yet.',
+  emptySubtitle,
 }: Props) {
   if (isLoading) {
     return (
@@ -32,11 +36,7 @@ export function PostsList({
   }
 
   if (posts.length === 0) {
-    return (
-      <View className="py-16 items-center px-5">
-        <Text className="text-base text-white/60 text-center font-urbanist">{emptyMessage}</Text>
-      </View>
-    );
+    return <EmptyState variant="no-posts" title={emptyMessage} subtitle={emptySubtitle} />;
   }
 
   return (

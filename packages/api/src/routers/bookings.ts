@@ -1,18 +1,23 @@
+import { randomUUID } from 'node:crypto';
+
 import { TRPCError } from '@trpc/server';
 import { and, desc, eq, inArray, isNull, or, sql } from 'drizzle-orm';
 
 import { db } from '@CeolX/db';
 import { user } from '@CeolX/db/schema/auth';
 import { bookings } from '@CeolX/db/schema/bookings';
-import { eventCollaborators, events } from '@CeolX/db/schema/events';
+import { collections, eventCollaborators, events } from '@CeolX/db/schema/events';
 import { artistProfiles, venueProfiles } from '@CeolX/db/schema/users';
+import { sendCollaboratorInviteEmail } from '@CeolX/email';
 import {
   BookingDirection,
   BookingStatus,
   type BookingStatus as BookingStatusType,
   EventStatus,
   formatNotificationDate,
+  isEventUnavailableForCollaboration,
   NotificationTrigger,
+  RESEND_COOLDOWN_MS,
   UserRole,
 } from '@CeolX/shared';
 import {
@@ -25,6 +30,7 @@ import {
   updateBookingSchema,
 } from '@CeolX/shared/validators';
 
+import type { DispatchNotificationFn, DispatchNotificationInput } from '../context';
 import {
   artistProcedure,
   creatorProcedure,
@@ -33,6 +39,28 @@ import {
   venueProcedure,
 } from '../index';
 import { syncEventToTypesense } from '../services/event-sync';
+
+import { resolveProfileImageUrl } from './events/helpers';
+
+// Best-effort notification dispatch — call AFTER the booking write has committed.
+// The dispatcher throws on push/inbox failure, but the state change is the source
+// of truth: a 500 here would report the action as failed and, for cooldown-gated
+// flows, block the retry of something that actually succeeded. Log and continue —
+// mirrors the best-effort Typesense sync in this router.
+async function dispatchBestEffort(
+  dispatch: DispatchNotificationFn,
+  input: DispatchNotificationInput,
+  label: string
+): Promise<void> {
+  try {
+    await dispatch(input);
+  } catch (err) {
+    console.error(
+      `[bookings.${label}] notification dispatch failed:`,
+      err instanceof Error ? `${err.name}: ${err.message}` : err
+    );
+  }
+}
 
 // ─── Valid state transitions (enforced at application layer) ──────────────────
 //   pending  → accepted  (artist only)
@@ -189,17 +217,21 @@ export const bookingsRouter = router({
     });
 
     // 6. Notify the artist (matrix A-09 — booking invitation received)
-    await ctx.dispatchNotification({
-      trigger: NotificationTrigger.BOOKING_INVITE_TO_ARTIST,
-      recipientUserId: artistProfile.userId,
-      vars: {
-        bookingId: result.id,
-        venueName: venueProfile.venueName,
-        artistName: artistProfile.stageName,
-        eventTitle: event.title,
-        date: formatNotificationDate(event.dateStart),
+    await dispatchBestEffort(
+      ctx.dispatchNotification,
+      {
+        trigger: NotificationTrigger.BOOKING_INVITE_TO_ARTIST,
+        recipientUserId: artistProfile.userId,
+        vars: {
+          bookingId: result.id,
+          venueName: venueProfile.venueName,
+          artistName: artistProfile.stageName,
+          eventTitle: event.title,
+          date: formatNotificationDate(event.dateStart),
+        },
       },
-    });
+      'create'
+    );
 
     // 7. Return BookingSummary
     const artistUser = await db.query.user.findFirst({
@@ -218,11 +250,11 @@ export const bookingsRouter = router({
       artistId: artistProfile.id,
       artistUserId: artistProfile.userId,
       artistName: artistProfile.stageName,
-      artistImage: artistUser?.image ?? undefined,
+      artistImage: resolveProfileImageUrl(artistProfile, artistUser?.image) ?? undefined,
       venueId: venueProfile.id,
       venueUserId: venueProfile.userId,
       venueName: venueProfile.venueName,
-      venueImage: venueUser?.image ?? undefined,
+      venueImage: resolveProfileImageUrl(venueProfile, venueUser?.image) ?? undefined,
       eventId: event.id,
       eventTitle: event.title,
       eventCoverImage: event.coverImage ?? undefined,
@@ -230,6 +262,7 @@ export const bookingsRouter = router({
       eventDateStart: event.dateStart.toISOString(),
       eventDateEnd: event.dateEnd?.toISOString() ?? undefined,
       eventVenueAddress: event.venueAddress ?? undefined,
+      eventStatus: event.status,
       createdAt: result.createdAt.toISOString(),
       updatedAt: result.updatedAt.toISOString(),
     };
@@ -253,6 +286,16 @@ export const bookingsRouter = router({
       });
       if (!event) {
         throw new TRPCError({ code: 'NOT_FOUND', message: 'Event not found' });
+      }
+
+      // 2b. Block requests once the event is gone. An archived (creator-deleted)
+      // or admin-removed event can still be reachable via stale links/cards; this
+      // is the server-side backstop mirroring bookings.update (Asana 1215700058852004).
+      if (isEventUnavailableForCollaboration(event.status)) {
+        throw new TRPCError({
+          code: 'BAD_REQUEST',
+          message: 'This event is no longer available',
+        });
       }
 
       // 3. Resolve venue — prefer event.venueId, fallback to creator's venue profile
@@ -333,17 +376,21 @@ export const bookingsRouter = router({
       });
 
       // 7. Notify venue (matrix V-09 — booking request received)
-      await ctx.dispatchNotification({
-        trigger: NotificationTrigger.BOOKING_REQUEST_TO_VENUE,
-        recipientUserId: venueProfile.userId,
-        vars: {
-          bookingId: result.id,
-          venueName: venueProfile.venueName,
-          artistName: artistProfile.stageName,
-          eventTitle: event.title,
-          date: formatNotificationDate(event.dateStart),
+      await dispatchBestEffort(
+        ctx.dispatchNotification,
+        {
+          trigger: NotificationTrigger.BOOKING_REQUEST_TO_VENUE,
+          recipientUserId: venueProfile.userId,
+          vars: {
+            bookingId: result.id,
+            venueName: venueProfile.venueName,
+            artistName: artistProfile.stageName,
+            eventTitle: event.title,
+            date: formatNotificationDate(event.dateStart),
+          },
         },
-      });
+        'requestToPerform'
+      );
 
       // 8. Return BookingSummary
       const [artistUser, venueUser] = await Promise.all([
@@ -364,11 +411,11 @@ export const bookingsRouter = router({
         artistId: artistProfile.id,
         artistUserId: artistProfile.userId,
         artistName: artistProfile.stageName,
-        artistImage: artistUser?.image ?? undefined,
+        artistImage: resolveProfileImageUrl(artistProfile, artistUser?.image) ?? undefined,
         venueId: venueProfile.id,
         venueUserId: venueProfile.userId,
         venueName: venueProfile.venueName,
-        venueImage: venueUser?.image ?? undefined,
+        venueImage: resolveProfileImageUrl(venueProfile, venueUser?.image) ?? undefined,
         eventId: event.id,
         eventTitle: event.title,
         eventCoverImage: event.coverImage ?? undefined,
@@ -409,6 +456,19 @@ export const bookingsRouter = router({
 
     if (!isInvitedArtist && !isInviterArtist && !isVenue) {
       throw new TRPCError({ code: 'FORBIDDEN', message: 'You are not a party to this booking' });
+    }
+
+    // 2b. Block all actions once the linked event is gone. A deleted (archived)
+    // or admin-removed event leaves its bookings reachable through the
+    // collaboration/request cards; without this guard a stale client could
+    // still accept/reject/withdraw against an event that no longer exists.
+    // (Asana 1215700058852004) — the UI disables these buttons too, this is the
+    // server-side backstop.
+    if (booking.event && isEventUnavailableForCollaboration(booking.event.status)) {
+      throw new TRPCError({
+        code: 'BAD_REQUEST',
+        message: 'This event is no longer available',
+      });
     }
 
     // 3. State machine validation
@@ -514,22 +574,26 @@ export const bookingsRouter = router({
       const recipientUserId = isInviterArtist
         ? booking.artist.userId // inviter acted → notify the invited artist
         : inviterArtist.userId; // invited acted → notify the inviter
-      await ctx.dispatchNotification({
-        trigger: resolveA2ABookingTrigger({
-          actorIsInviter: isInviterArtist,
-          currentStatus,
-          newStatus,
-        }),
-        recipientUserId,
-        vars: {
-          bookingId: booking.id,
-          coArtistName: isInviterArtist
-            ? inviterArtist.stageName // inviter acted; recipient sees inviter's name
-            : booking.artist.stageName, // invited acted; recipient sees invited's name
-          eventTitle: booking.event?.title ?? 'event',
-          date: formatNotificationDate(booking.event?.dateStart ?? new Date()),
+      await dispatchBestEffort(
+        ctx.dispatchNotification,
+        {
+          trigger: resolveA2ABookingTrigger({
+            actorIsInviter: isInviterArtist,
+            currentStatus,
+            newStatus,
+          }),
+          recipientUserId,
+          vars: {
+            bookingId: booking.id,
+            coArtistName: isInviterArtist
+              ? inviterArtist.stageName // inviter acted; recipient sees inviter's name
+              : booking.artist.stageName, // invited acted; recipient sees invited's name
+            eventTitle: booking.event?.title ?? 'event',
+            date: formatNotificationDate(booking.event?.dateStart ?? new Date()),
+          },
         },
-      });
+        'update'
+      );
     } else {
       // Venue flow. Matrix rows: A-10/V-10 (accepted), A-11/V-11 (rejected),
       // V-13 (withdraw), A-12/V-12 (cancelled). Venue↔artist rows always have a venue.
@@ -541,17 +605,21 @@ export const bookingsRouter = router({
         });
       }
       const recipientUserId = isArtist ? venue.userId : booking.artist.userId;
-      await ctx.dispatchNotification({
-        trigger: resolveBookingUpdateTrigger({ isArtist, currentStatus, newStatus }),
-        recipientUserId,
-        vars: {
-          bookingId: booking.id,
-          venueName: venue.venueName,
-          artistName: booking.artist.stageName,
-          eventTitle: booking.event?.title ?? 'event',
-          date: formatNotificationDate(booking.event?.dateStart ?? new Date()),
+      await dispatchBestEffort(
+        ctx.dispatchNotification,
+        {
+          trigger: resolveBookingUpdateTrigger({ isArtist, currentStatus, newStatus }),
+          recipientUserId,
+          vars: {
+            bookingId: booking.id,
+            venueName: venue.venueName,
+            artistName: booking.artist.stageName,
+            eventTitle: booking.event?.title ?? 'event',
+            date: formatNotificationDate(booking.event?.dateStart ?? new Date()),
+          },
         },
-      });
+        'update'
+      );
     }
 
     return { id: updated.id, status: updated.status };
@@ -597,9 +665,26 @@ export const bookingsRouter = router({
         });
       }
 
+      // Anti-spam: block resends inside the cooldown window. For a pending row
+      // updatedAt is the last time the invite was sent (create or prior resend),
+      // so this also covers resending too soon after the original invitation.
+      const sinceLastSent = Date.now() - booking.updatedAt.getTime();
+      if (sinceLastSent < RESEND_COOLDOWN_MS) {
+        throw new TRPCError({
+          code: 'TOO_MANY_REQUESTS',
+          message: 'Recently sent — please wait before sending again.',
+        });
+      }
+
       const eventTitle = booking.event?.title ?? 'event';
       const date = formatNotificationDate(booking.event?.dateStart ?? new Date());
 
+      // Resolve the single notification this resend should send. Unlike the
+      // other surfaces, the notification IS the deliverable here — so we dispatch
+      // first (letting a failure propagate) and only bump the cooldown anchor
+      // once it succeeds. Otherwise a dispatch failure would roll the cooldown
+      // forward while sending nothing, locking the user out of retrying.
+      let dispatchInput: DispatchNotificationInput;
       if (isA2A) {
         // Co-artist invite → notify the invited artist (A-09a). The sender check
         // above guarantees the inviter row exists.
@@ -609,7 +694,7 @@ export const bookingsRouter = router({
             message: 'Co-artist booking is missing its inviter',
           });
         }
-        await ctx.dispatchNotification({
+        dispatchInput = {
           trigger: NotificationTrigger.BOOKING_INVITE_TO_COARTIST,
           recipientUserId: booking.artist.userId,
           vars: {
@@ -618,46 +703,51 @@ export const bookingsRouter = router({
             eventTitle,
             date,
           },
-        });
-        return { id: booking.id, success: true };
-      }
-
-      // Venue flow (venue↔artist) — these rows always have a venue.
-      if (!booking.venue) {
-        throw new TRPCError({
-          code: 'INTERNAL_SERVER_ERROR',
-          message: 'Venue booking is missing its venue',
-        });
-      }
-      const { venue } = booking;
-
-      if (booking.direction === BookingDirection.VENUE_TO_ARTIST) {
-        // Venue invitation → notify the artist (A-09).
-        await ctx.dispatchNotification({
-          trigger: NotificationTrigger.BOOKING_INVITE_TO_ARTIST,
-          recipientUserId: booking.artist.userId,
-          vars: {
-            bookingId: booking.id,
-            venueName: venue.venueName,
-            artistName: booking.artist.stageName,
-            eventTitle,
-            date,
-          },
-        });
+        };
       } else {
-        // Artist→venue performance request → notify the venue (V-09).
-        await ctx.dispatchNotification({
-          trigger: NotificationTrigger.BOOKING_REQUEST_TO_VENUE,
-          recipientUserId: venue.userId,
-          vars: {
-            bookingId: booking.id,
-            venueName: venue.venueName,
-            artistName: booking.artist.stageName,
-            eventTitle,
-            date,
-          },
-        });
+        // Venue flow (venue↔artist) — these rows always have a venue.
+        if (!booking.venue) {
+          throw new TRPCError({
+            code: 'INTERNAL_SERVER_ERROR',
+            message: 'Venue booking is missing its venue',
+          });
+        }
+        const { venue } = booking;
+        dispatchInput =
+          booking.direction === BookingDirection.VENUE_TO_ARTIST
+            ? {
+                // Venue invitation → notify the artist (A-09).
+                trigger: NotificationTrigger.BOOKING_INVITE_TO_ARTIST,
+                recipientUserId: booking.artist.userId,
+                vars: {
+                  bookingId: booking.id,
+                  venueName: venue.venueName,
+                  artistName: booking.artist.stageName,
+                  eventTitle,
+                  date,
+                },
+              }
+            : {
+                // Artist→venue performance request → notify the venue (V-09).
+                trigger: NotificationTrigger.BOOKING_REQUEST_TO_VENUE,
+                recipientUserId: venue.userId,
+                vars: {
+                  bookingId: booking.id,
+                  venueName: venue.venueName,
+                  artistName: booking.artist.stageName,
+                  eventTitle,
+                  date,
+                },
+              };
       }
+
+      await ctx.dispatchNotification(dispatchInput);
+
+      // Bump updatedAt so the cooldown window rolls forward from this resend.
+      // Only after a successful dispatch — see the comment above. Safe on a
+      // pending row: no status change rides along, so the booking stays pending
+      // and updatedAt keeps meaning "last sent at".
+      await db.update(bookings).set({ updatedAt: new Date() }).where(eq(bookings.id, booking.id));
 
       return { id: booking.id, success: true };
     }),
@@ -750,26 +840,46 @@ export const bookingsRouter = router({
 
     const whereClause = and(...conditions);
 
-    // Count + fetch in parallel
-    const [countResult, rows] = await Promise.all([
-      db
-        .select({ count: sql<number>`count(*)::int` })
-        .from(bookings)
-        .where(whereClause)
-        .then((r) => r[0]?.count ?? 0),
-      db.query.bookings.findMany({
-        where: whereClause,
-        with: {
-          artist: true,
-          inviterArtist: true,
-          venue: true,
-          event: true,
-        },
-        orderBy: (b, { desc }) => [desc(b.createdAt)],
-        limit: input.limit,
-        offset: input.offset,
-      }),
-    ]);
+    // Fetch every row for this tab (no SQL paging) so repeat attempts at the
+    // same event collapse into one card BEFORE pagination. A withdraw→re-request
+    // leaves the old (cancelled) row behind and inserts a fresh one; without the
+    // collapse the Collaboration tab showed a separate card per attempt
+    // (Asana 1215700058851996, Issue 1). At launch scale (<1k users) a user's
+    // booking history is small, so fetching all rows is fine.
+    const allRows = await db.query.bookings.findMany({
+      where: whereClause,
+      with: {
+        artist: true,
+        inviterArtist: true,
+        venue: true,
+        event: true,
+      },
+      orderBy: (b, { desc }) => [desc(b.createdAt)],
+    });
+
+    // Collapse to one group per (event, direction, artist, counterparty). Rows
+    // arrive newest-first, so the first row seen per key is the representative
+    // (latest attempt → its status drives the card) and Map insertion order
+    // keeps groups newest-first. Dedup guarantees at most one ACTIVE
+    // (pending/accepted) row per (artist, event), so the representative is never
+    // ambiguous; older rows only bump the attempt count.
+    type BookingRow = (typeof allRows)[number];
+    const groups = new Map<string, { row: BookingRow; count: number; lastRequestedAt: Date }>();
+    for (const row of allRows) {
+      const counterpartyId = row.venueId ?? row.inviterArtistId ?? '';
+      const key = `${row.eventId ?? ''}::${row.direction}::${row.artistId}::${counterpartyId}`;
+      const existing = groups.get(key);
+      if (existing) {
+        existing.count += 1;
+      } else {
+        groups.set(key, { row, count: 1, lastRequestedAt: row.createdAt });
+      }
+    }
+
+    const countResult = groups.size;
+    const pageGroups = [...groups.values()].slice(input.offset, input.offset + input.limit);
+    const groupByBookingId = new Map(pageGroups.map((g) => [g.row.id, g]));
+    const rows = pageGroups.map((g) => g.row);
 
     // Batch-fetch user images for all artists + inviters + venues in results.
     // venue + inviterArtist are nullable (artist↔artist rows have no venue;
@@ -801,19 +911,23 @@ export const bookingsRouter = router({
           artistId: row.artist.id,
           artistUserId: row.artist.userId,
           artistName: row.artist.stageName,
-          artistImage: imageMap.get(row.artist.userId) ?? undefined,
+          artistImage:
+            resolveProfileImageUrl(row.artist, imageMap.get(row.artist.userId)) ?? undefined,
           inviterArtistId: row.inviterArtist?.id,
           inviterArtistUserId: row.inviterArtist?.userId,
           inviterArtistName: row.inviterArtist?.stageName,
           inviterArtistImage: row.inviterArtist
-            ? (imageMap.get(row.inviterArtist.userId) ?? undefined)
+            ? (resolveProfileImageUrl(row.inviterArtist, imageMap.get(row.inviterArtist.userId)) ??
+              undefined)
             : undefined,
           // For the caller's perspective on a co-artist row: are they the inviter?
           viewerIsSender: isA2A ? row.inviterArtist?.id === profileId : undefined,
           venueId: row.venue?.id ?? '',
           venueUserId: row.venue?.userId ?? '',
           venueName: row.venue?.venueName ?? '',
-          venueImage: row.venue ? (imageMap.get(row.venue.userId) ?? undefined) : undefined,
+          venueImage: row.venue
+            ? (resolveProfileImageUrl(row.venue, imageMap.get(row.venue.userId)) ?? undefined)
+            : undefined,
           eventId: row.event?.id ?? '',
           eventTitle: row.event?.title ?? '',
           eventCoverImage: row.event?.coverImage ?? undefined,
@@ -821,8 +935,14 @@ export const bookingsRouter = router({
           eventDateStart: row.event?.dateStart?.toISOString() ?? '',
           eventDateEnd: row.event?.dateEnd?.toISOString() ?? undefined,
           eventVenueAddress: row.event?.venueAddress ?? undefined,
+          // No event row → treat as deleted so the card fails safe (disabled).
+          eventStatus: row.event?.status ?? EventStatus.ARCHIVED,
           createdAt: row.createdAt.toISOString(),
           updatedAt: row.updatedAt.toISOString(),
+          requestCount: groupByBookingId.get(row.id)?.count ?? 1,
+          lastRequestedAt: (
+            groupByBookingId.get(row.id)?.lastRequestedAt ?? row.createdAt
+          ).toISOString(),
         };
       }),
       total: countResult,
@@ -886,16 +1006,17 @@ export const bookingsRouter = router({
         artistId: booking.artist.id,
         artistUserId: booking.artist.userId,
         artistName: booking.artist.stageName,
-        artistImage: artistUser?.image ?? undefined,
+        artistImage: resolveProfileImageUrl(booking.artist, artistUser?.image) ?? undefined,
         inviterArtistId: booking.inviterArtist?.id,
         inviterArtistUserId: booking.inviterArtist?.userId,
         inviterArtistName: booking.inviterArtist?.stageName,
-        inviterArtistImage: inviterUser?.image ?? undefined,
+        inviterArtistImage:
+          resolveProfileImageUrl(booking.inviterArtist, inviterUser?.image) ?? undefined,
         viewerIsSender: isA2A ? booking.inviterArtist?.userId === ctx.userId : undefined,
         venueId: booking.venue?.id ?? '',
         venueUserId: booking.venue?.userId ?? '',
         venueName: booking.venue?.venueName ?? '',
-        venueImage: venueUser?.image ?? undefined,
+        venueImage: resolveProfileImageUrl(booking.venue, venueUser?.image) ?? undefined,
         eventId: booking.event?.id ?? '',
         eventTitle: booking.event?.title ?? '',
         eventCoverImage: booking.event?.coverImage ?? undefined,
@@ -903,8 +1024,16 @@ export const bookingsRouter = router({
         eventDateStart: booking.event?.dateStart?.toISOString() ?? '',
         eventDateEnd: booking.event?.dateEnd?.toISOString() ?? undefined,
         eventVenueAddress: booking.event?.venueAddress ?? undefined,
+        // No event row → treat as deleted so the detail screen fails safe.
+        eventStatus: booking.event?.status ?? EventStatus.ARCHIVED,
         createdAt: booking.createdAt.toISOString(),
         updatedAt: booking.updatedAt.toISOString(),
+        // byId addresses a single booking row, so it always represents one
+        // attempt — the "Requested N times" note is a list-level affordance
+        // (bookings.list collapses repeats). Kept so byId stays a structural
+        // superset of BookingSummary for the detail screen. Asana 1215700058851996.
+        requestCount: 1,
+        lastRequestedAt: booking.createdAt.toISOString(),
         cancelledByName: booking.cancelledByUser?.name ?? null,
       };
     }),
@@ -917,6 +1046,7 @@ export const bookingsRouter = router({
         stageName: artistProfiles.stageName,
         genre: artistProfiles.genre,
         userId: artistProfiles.userId,
+        profileImageUrl: artistProfiles.profileImageUrl,
       })
       .from(artistProfiles)
       .where(
@@ -945,7 +1075,7 @@ export const bookingsRouter = router({
         userId: r.userId,
         stageName: r.stageName,
         genre: r.genre,
-        image: imageMap.get(r.userId) ?? null,
+        image: resolveProfileImageUrl(r, imageMap.get(r.userId)),
       })),
     };
   }),
@@ -969,11 +1099,15 @@ export const bookingsRouter = router({
         });
       }
 
+      // Canonicalize the email so dedup + the email-match claim on signup
+      // (onboarding.createArtistProfile) agree on one key, regardless of casing.
+      const email = input.email.trim().toLowerCase();
+
       // Dedup by email for this event
       const existing = await db.query.eventCollaborators.findFirst({
         where: and(
           eq(eventCollaborators.eventId, input.eventId),
-          eq(eventCollaborators.invitedEmail, input.email)
+          eq(eventCollaborators.invitedEmail, email)
         ),
       });
       if (existing) {
@@ -983,19 +1117,49 @@ export const bookingsRouter = router({
         });
       }
 
+      // Opaque invite token + 14-day expiry (matrix A-14). The token powers the
+      // public /invite/:token landing; the claim itself matches on invitedEmail.
+      const inviteToken = randomUUID();
+      const inviteTokenExpiresAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
+
       // Insert collaborator with invitedName/invitedEmail, no booking (non-platform)
       const [collaborator] = await db
         .insert(eventCollaborators)
         .values({
           eventId: input.eventId,
           invitedName: input.name,
-          invitedEmail: input.email,
+          invitedEmail: email,
+          inviteToken,
+          inviteTokenExpiresAt,
           // artistProfileId = null (non-platform), bookingId = null (no booking until signup)
         })
         .returning();
 
       if (!collaborator) {
         throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Insert failed' });
+      }
+
+      // Send the invite email. A send failure must NOT fail the invite — the
+      // row is persisted and the venue sees the pending collaborator regardless
+      // (R8.5). Resolve the inviting venue's display name for the copy.
+      try {
+        const venue = await db.query.venueProfiles.findFirst({
+          where: eq(venueProfiles.userId, ctx.userId),
+          columns: { venueName: true },
+        });
+        // Read process.env directly (not @CeolX/env) so importing this router
+        // never triggers t3-env validation in consumers/tests. Mirrors
+        // jobs/client.ts. PUBLIC_WEB_ORIGIN is the ceolx.ie web origin.
+        const origin = process.env.PUBLIC_WEB_ORIGIN ?? 'https://ceolx.ie';
+        await sendCollaboratorInviteEmail({
+          to: email,
+          inviterName: venue?.venueName ?? 'A CeolX venue',
+          eventTitle: event.title,
+          eventDate: formatNotificationDate(event.dateStart),
+          inviteUrl: `${origin}/invite/${inviteToken}`,
+        });
+      } catch (emailErr) {
+        console.error('[bookings.inviteExternal] invite email failed', emailErr);
       }
 
       return {
@@ -1041,9 +1205,11 @@ export const bookingsRouter = router({
             venueAddress: events.venueAddress,
             status: events.status,
             bookingId: eventCollaborators.bookingId,
+            collectionName: collections.name,
           })
           .from(eventCollaborators)
           .innerJoin(events, eq(events.id, eventCollaborators.eventId))
+          .leftJoin(collections, eq(events.collectionId, collections.id))
           .where(whereClause)
           .orderBy(desc(events.dateStart))
           .limit(input.limit)
@@ -1061,6 +1227,7 @@ export const bookingsRouter = router({
           venueAddress: e.venueAddress ?? null,
           status: e.status,
           bookingId: e.bookingId ?? null,
+          collectionName: e.collectionName ?? null,
         })),
         total: countResult,
         hasNextPage: input.offset + input.limit < countResult,
@@ -1108,9 +1275,11 @@ export const bookingsRouter = router({
           venueAddress: events.venueAddress,
           status: events.status,
           bookingId: eventCollaborators.bookingId,
+          collectionName: collections.name,
         })
         .from(eventCollaborators)
         .innerJoin(events, eq(events.id, eventCollaborators.eventId))
+        .leftJoin(collections, eq(events.collectionId, collections.id))
         .where(whereClause)
         .orderBy(desc(events.dateStart))
         .limit(input.limit)
@@ -1128,6 +1297,7 @@ export const bookingsRouter = router({
         venueAddress: e.venueAddress ?? null,
         status: e.status,
         bookingId: e.bookingId ?? null,
+        collectionName: e.collectionName ?? null,
       })),
       total: countResult,
       hasNextPage: input.offset + input.limit < countResult,

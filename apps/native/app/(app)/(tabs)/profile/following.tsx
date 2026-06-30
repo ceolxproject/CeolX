@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -14,14 +14,16 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { ProfileTypeTag } from '@/components/profiles';
 import { useFollow } from '@/hooks/use-follow';
+import { useMe } from '@/hooks/use-me';
 import { MOCK_PROFILE_IMAGE } from '@/utils/mock-images';
 import { trpc } from '@/utils/trpc';
 
 type FollowingItem = {
   id: string;
   followeeId: string;
-  profileType: string | null;
+  profileType: 'artist' | 'venue' | null;
   profile: {
     id: string;
     userId: string;
@@ -30,16 +32,18 @@ type FollowingItem = {
     genres: string[] | null;
   } | null;
   eventsCount: number;
+  isFollowedByViewer: boolean;
+  isSelf: boolean;
 };
 
 function FollowingRow({
   item,
-  onUnfollow,
-  isUnfollowing,
+  onToggle,
+  isPending,
 }: {
   item: FollowingItem;
-  onUnfollow: (followeeId: string) => void;
-  isUnfollowing: boolean;
+  onToggle: (followeeId: string, isFollowedByViewer: boolean) => void;
+  isPending: boolean;
 }) {
   if (!item.profile) return null;
 
@@ -60,26 +64,51 @@ function FollowingRow({
         className="w-[45px] h-[45px] rounded-full bg-surface"
       />
       <View className="flex-1 ml-3">
-        <Text className="text-[15px] font-medium text-white font-urbanist" numberOfLines={1}>
-          {item.profile.displayName}
-        </Text>
+        <View className="flex-row items-center gap-2">
+          <Text
+            className="shrink text-[15px] font-medium text-white font-urbanist"
+            numberOfLines={1}
+          >
+            {item.profile.displayName}
+          </Text>
+          <ProfileTypeTag type={item.profileType} />
+        </View>
         <Text className="text-[13px] text-[#8a8a8f] font-urbanist mt-0.5">
           {item.eventsCount} events
         </Text>
       </View>
-      <Pressable
-        className="border border-gray-10 rounded-[20px] h-8 px-3 items-center justify-center"
-        onPress={() => onUnfollow(item.followeeId)}
-        disabled={isUnfollowing}
-      >
-        {isUnfollowing ? (
-          <ActivityIndicator size="small" color="#fff" />
+      {/* The toggle is viewer-relative: on another profile's Following list it
+          reflects whether *you* follow each person, not the profile owner. */}
+      {!item.isSelf &&
+        (item.isFollowedByViewer ? (
+          <Pressable
+            className="border border-gray-10 rounded-[20px] h-8 px-3 items-center justify-center"
+            onPress={() => onToggle(item.followeeId, true)}
+            disabled={isPending}
+          >
+            {isPending ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <Text className="text-[12px] font-bold text-white uppercase tracking-[0.24px] font-urbanist">
+                Following
+              </Text>
+            )}
+          </Pressable>
         ) : (
-          <Text className="text-[12px] font-bold text-white uppercase tracking-[0.24px] font-urbanist">
-            Following
-          </Text>
-        )}
-      </Pressable>
+          <Pressable
+            className="bg-blue-10 rounded-[20px] h-8 px-4 items-center justify-center"
+            onPress={() => onToggle(item.followeeId, false)}
+            disabled={isPending}
+          >
+            {isPending ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <Text className="text-[12px] font-bold text-white uppercase tracking-[0.24px] font-urbanist">
+                Follow
+              </Text>
+            )}
+          </Pressable>
+        ))}
     </Pressable>
   );
 }
@@ -89,13 +118,19 @@ function ItemDivider() {
 }
 
 export default function FollowingScreen() {
-  const [unfollowingId, setUnfollowingId] = useState<string | null>(null);
+  // `userId`/`name` are passed when viewing ANOTHER profile's following (from the
+  // artist/venue screens). Absent → the viewer's own list.
+  const { userId, name } = useLocalSearchParams<{ userId?: string; name?: string }>();
+  const { data: me } = useMe();
+  const isOwnList = !userId || userId === me?.id;
+
+  const [pendingId, setPendingId] = useState<string | null>(null);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const followMutation = useFollow();
 
   const { data, isLoading, refetch, isRefetching } = useQuery({
-    ...trpc.follows.getFollowing.queryOptions({ limit: 50, offset: 0 }),
+    ...trpc.follows.getFollowing.queryOptions({ limit: 50, offset: 0, userId }),
   });
 
   const filteredFollowing = useMemo(() => {
@@ -105,11 +140,11 @@ export default function FollowingScreen() {
     return following.filter((item) => item.profile?.displayName?.toLowerCase().includes(query));
   }, [data?.following, searchQuery]);
 
-  const handleUnfollow = (followeeId: string) => {
-    setUnfollowingId(followeeId);
+  const handleToggle = (followeeId: string, isFollowedByViewer: boolean) => {
+    setPendingId(followeeId);
     followMutation.mutate(
-      { followeeId, isFollowing: true },
-      { onSettled: () => setUnfollowingId(null) }
+      { followeeId, isFollowing: isFollowedByViewer },
+      { onSettled: () => setPendingId(null) }
     );
   };
 
@@ -172,8 +207,8 @@ export default function FollowingScreen() {
           renderItem={({ item }) => (
             <FollowingRow
               item={item}
-              onUnfollow={handleUnfollow}
-              isUnfollowing={unfollowingId === item.followeeId}
+              onToggle={handleToggle}
+              isPending={pendingId === item.followeeId}
             />
           )}
           ItemSeparatorComponent={ItemDivider}
@@ -182,7 +217,9 @@ export default function FollowingScreen() {
               <Text className="text-base text-white/60 text-center font-urbanist">
                 {searchQuery.trim()
                   ? `No results for "${searchQuery.trim()}"`
-                  : "You're not following anyone yet"}
+                  : isOwnList
+                    ? "You're not following anyone yet"
+                    : `${name ?? 'This profile'} hasn't found their crowd yet`}
               </Text>
             </View>
           }

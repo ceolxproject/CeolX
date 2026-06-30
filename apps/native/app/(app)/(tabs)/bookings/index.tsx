@@ -1,8 +1,8 @@
-import { Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { UserRole } from '@CeolX/shared/enums';
 
+import { AppHeader } from '@/components/AppHeader';
 import { SavedEventsContent } from '@/components/saved-events/SavedEventsContent';
 import { authClient } from '@/lib/auth-client';
 
@@ -20,9 +20,7 @@ export default function BookingsTabScreen() {
       style={{ flex: 1, backgroundColor: '#080808' }}
       edges={['top']}
     >
-      <View className="px-5 pt-2 pb-3">
-        <Text className="text-2xl font-bold text-white font-urbanist">{title}</Text>
-      </View>
+      <AppHeader leading="none" title={title} showBell />
       <SavedEventsContent />
     </SafeAreaView>
   );

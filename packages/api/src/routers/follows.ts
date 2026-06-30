@@ -122,11 +122,16 @@ export const followsRouter = router({
   }),
 
   /**
-   * List all users the authenticated user follows, with profile data.
+   * List all users `targetUserId` follows, with profile data. `targetUserId`
+   * defaults to the authenticated viewer when `input.userId` is omitted, so the
+   * same procedure powers both "my Following" and "their Following" screens.
+   * Per-row `isFollowedByViewer` is always computed relative to the *viewer*
+   * (ctx.userId) so the Follow/Following toggle stays correct on others' lists.
    * Optionally filter by profileType ('artist' or 'venue').
    */
   getFollowing: protectedProcedure.input(followingQuerySchema).query(async ({ ctx, input }) => {
     const { limit, offset, profileType } = input;
+    const targetUserId = input.userId ?? ctx.userId;
 
     const followRows = await db
       .select({
@@ -137,15 +142,37 @@ export const followsRouter = router({
       .from(follows)
       // Exclude any self-follow row (legacy data predating the mutation guard) —
       // a user must never appear in their own Following list.
-      .where(and(eq(follows.followerId, ctx.userId), ne(follows.followeeId, ctx.userId)))
+      .where(and(eq(follows.followerId, targetUserId), ne(follows.followeeId, targetUserId)))
       .orderBy(desc(follows.createdAt))
       .limit(limit + 1)
       .offset(offset);
 
+    // Count only followees that survive the list's filter below — those with an
+    // artist/venue profile, excluding self-follows — so totalCount matches the
+    // rendered list instead of overcounting deleted/spectator followees. Profile
+    // presence only, NOT isActive: the per-row lookup below is de-gated (Asana
+    // 1215489113550392) so inactive (unsubscribed) profiles still render, and the
+    // count must include them. Mirrors getFollowerCounts.followingCount.
+    // Asana 1216029059011258.
     const [countResult] = await db
       .select({ count: sql<number>`count(*)::int` })
       .from(follows)
-      .where(eq(follows.followerId, ctx.userId));
+      .where(
+        and(
+          eq(follows.followerId, targetUserId),
+          ne(follows.followeeId, targetUserId),
+          sql`(
+            exists (
+              select 1 from ${artistProfiles}
+              where ${artistProfiles.userId} = ${follows.followeeId}
+            )
+            or exists (
+              select 1 from ${venueProfiles}
+              where ${venueProfiles.userId} = ${follows.followeeId}
+            )
+          )`
+        )
+      );
     const totalCount = countResult?.count ?? 0;
 
     const hasNextPage = followRows.length > limit;
@@ -153,6 +180,14 @@ export const followsRouter = router({
 
     const following = await Promise.all(
       rows.map(async (row) => {
+        // NOTE: intentionally NOT gated on `isActive`. The follow mutation and the
+        // profile read paths (venues.byId / artists.byId) render inactive profiles
+        // while subscription gating is deferred (Asana 1215489113550392). Gating
+        // the Following list on `isActive` diverged from that: a user could follow
+        // an inactive venue/artist (CTA flips to "Following", profile opens) yet it
+        // silently vanished from their Following list. Match the read paths — show
+        // followed profiles regardless of active state. Restore the active gate
+        // here alongside the read-path gate once subscriptions are live.
         const [artist] = await db
           .select({
             id: artistProfiles.id,
@@ -163,7 +198,7 @@ export const followsRouter = router({
             isActive: artistProfiles.isActive,
           })
           .from(artistProfiles)
-          .where(and(eq(artistProfiles.userId, row.followeeId), eq(artistProfiles.isActive, true)))
+          .where(eq(artistProfiles.userId, row.followeeId))
           .limit(1);
 
         const [venue] = await db
@@ -175,10 +210,10 @@ export const followsRouter = router({
             isActive: venueProfiles.isActive,
           })
           .from(venueProfiles)
-          .where(and(eq(venueProfiles.userId, row.followeeId), eq(venueProfiles.isActive, true)))
+          .where(eq(venueProfiles.userId, row.followeeId))
           .limit(1);
 
-        const type = artist ? 'artist' : venue ? 'venue' : null;
+        const type: 'artist' | 'venue' | null = artist ? 'artist' : venue ? 'venue' : null;
         const profile = artist ?? venue;
 
         return {
@@ -201,16 +236,34 @@ export const followsRouter = router({
 
     const filtered = following.filter((f) => {
       if (!f.profile) return false;
-      // Defensive: never surface the viewer themselves in their own list.
-      if (f.followeeId === ctx.userId) return false;
+      // Defensive: never surface the profile owner inside their own Following list.
+      if (f.followeeId === targetUserId) return false;
       if (profileType && f.profileType !== profileType) return false;
       return true;
     });
 
-    const eventsCounts = await getActiveEventsCounts(filtered.map((f) => f.followeeId));
+    const followeeIds = filtered.map((f) => f.followeeId);
+    const eventsCounts = await getActiveEventsCounts(followeeIds);
+
+    // Viewer-relative follow state: which of these followees the *current viewer*
+    // (not the profile owner) already follows. Drives the Follow/Following toggle
+    // so it behaves correctly when viewing someone else's Following list.
+    const viewerFollowRows =
+      followeeIds.length === 0
+        ? []
+        : await db
+            .select({ followeeId: follows.followeeId })
+            .from(follows)
+            .where(
+              and(eq(follows.followerId, ctx.userId), inArray(follows.followeeId, followeeIds))
+            );
+    const viewerFollowingSet = new Set(viewerFollowRows.map((r) => r.followeeId));
+
     const enriched = filtered.map((f) => ({
       ...f,
       eventsCount: eventsCounts.get(f.followeeId) ?? 0,
+      isFollowedByViewer: viewerFollowingSet.has(f.followeeId),
+      isSelf: f.followeeId === ctx.userId,
     }));
 
     return { following: enriched, totalCount, hasNextPage };
@@ -226,6 +279,7 @@ export const followsRouter = router({
    */
   getFollowers: protectedProcedure.input(followersQuerySchema).query(async ({ ctx, input }) => {
     const { limit, offset } = input;
+    const targetUserId = input.userId ?? ctx.userId;
 
     const followRows = await db
       .select({
@@ -234,7 +288,7 @@ export const followsRouter = router({
         createdAt: follows.createdAt,
       })
       .from(follows)
-      .where(eq(follows.followeeId, ctx.userId))
+      .where(eq(follows.followeeId, targetUserId))
       .orderBy(desc(follows.createdAt))
       .limit(limit + 1)
       .offset(offset);
@@ -242,7 +296,7 @@ export const followsRouter = router({
     const [countResult] = await db
       .select({ count: sql<number>`count(*)::int` })
       .from(follows)
-      .where(eq(follows.followeeId, ctx.userId));
+      .where(eq(follows.followeeId, targetUserId));
     const totalCount = countResult?.count ?? 0;
 
     const hasNextPage = followRows.length > limit;
@@ -254,6 +308,9 @@ export const followsRouter = router({
     }
 
     const [artists, venues, baseUsers, followBackRows, eventsCountRows] = await Promise.all([
+      // Not gated on `isActive` — see the note in getFollowing. Inactive followers
+      // still render their public profile (matching the deferred-subscription read
+      // paths); restore the active gate once subscriptions ship.
       db
         .select({
           userId: artistProfiles.userId,
@@ -262,7 +319,7 @@ export const followsRouter = router({
           genres: artistProfiles.genres,
         })
         .from(artistProfiles)
-        .where(and(inArray(artistProfiles.userId, followerIds), eq(artistProfiles.isActive, true))),
+        .where(inArray(artistProfiles.userId, followerIds)),
       db
         .select({
           userId: venueProfiles.userId,
@@ -270,7 +327,7 @@ export const followsRouter = router({
           profileImageUrl: venueProfiles.profileImageUrl,
         })
         .from(venueProfiles)
-        .where(and(inArray(venueProfiles.userId, followerIds), eq(venueProfiles.isActive, true))),
+        .where(inArray(venueProfiles.userId, followerIds)),
       db
         .select({ id: user.id, name: user.name, image: user.image })
         .from(user)
@@ -312,6 +369,9 @@ export const followsRouter = router({
         profile,
         eventsCount: eventsCounts.get(row.followerId) ?? 0,
         isFollowedBack: followedBackSet.has(row.followerId),
+        // The viewer themselves can appear in another profile's followers list;
+        // suppress the Follow toggle for that row (can't follow yourself).
+        isSelf: row.followerId === ctx.userId,
       };
     });
 

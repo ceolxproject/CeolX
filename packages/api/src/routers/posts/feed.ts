@@ -73,7 +73,10 @@ export const feed = protectedProcedure.input(postFeedQuerySchema).query(async ({
   const page = hasNextPage ? rows.slice(0, limit) : rows;
 
   const [authors, likedRows] = await Promise.all([
-    hydrateAuthors(page.map((p) => p.createdBy)),
+    hydrateAuthors(
+      page.map((p) => p.createdBy),
+      viewerId
+    ),
     page.length > 0
       ? db
           .select({ postId: postLikes.postId })
@@ -100,6 +103,7 @@ export const feed = protectedProcedure.input(postFeedQuerySchema).query(async ({
         displayName: 'Unknown',
         profileImageUrl: null,
         profileType: 'user' as const,
+        isFollowedByMe: false,
       },
       likedByMe: likedSet.has(p.id),
     })),

@@ -4,12 +4,13 @@ import { cn } from 'heroui-native';
 import { Image, Pressable, Text, View } from 'react-native';
 
 import type { BookingSummary } from '@CeolX/shared';
-import { CATEGORY_LABELS } from '@CeolX/shared';
+import { CATEGORY_LABELS, isEventUnavailableForCollaboration } from '@CeolX/shared';
 import { BookingDirection, BookingStatus, UserRole } from '@CeolX/shared/enums';
 
 import { RequestActions, type RequestAction } from './RequestActions';
 
 import { formatEventDate } from '@/utils/format-event-date';
+import { formatRequestAttempts } from '@/utils/format-request-attempts';
 import { getMockEventImage, MOCK_PROFILE_IMAGE } from '@/utils/mock-images';
 
 interface RequestCardProps {
@@ -38,6 +39,13 @@ export function RequestCard({
   const categoryLabel = CATEGORY_LABELS[booking.eventCategory] ?? booking.eventCategory;
   const formattedDate = formatEventDate(booking.eventDateStart, booking.eventDateEnd);
   const timeSince = getTimeSince(booking.createdAt);
+  // Non-null only when this card collapses more than one attempt at the same
+  // event (e.g. requested → withdrawn → requested again). Asana 1215700058851996.
+  const repeatNote = formatRequestAttempts(booking.requestCount, booking.lastRequestedAt);
+
+  // Event deleted by the creator (archived) or removed by admin → the card is a
+  // read-only tombstone: dimmed, non-tappable, no actions. (Asana 1215700058852004)
+  const isEventDeleted = isEventUnavailableForCollaboration(booking.eventStatus);
 
   const isA2A = booking.direction === BookingDirection.ARTIST_TO_ARTIST;
 
@@ -81,9 +89,15 @@ export function RequestCard({
 
   return (
     <Pressable
-      onPress={() => router.push(`/(app)/(tabs)/profile/booking/${booking.id}`)}
+      onPress={
+        isEventDeleted
+          ? undefined
+          : () => router.push(`/(app)/(tabs)/profile/booking/${booking.id}`)
+      }
+      disabled={isEventDeleted}
       className={cn(
         'rounded-2xl border border-[rgba(141,141,141,0.4)] bg-[rgba(141,141,141,0.1)] overflow-hidden active:opacity-90',
+        isEventDeleted && 'opacity-60',
         className
       )}
     >
@@ -98,6 +112,9 @@ export function RequestCard({
           className="absolute inset-0 w-full h-full"
           resizeMode="cover"
         />
+
+        {/* Dim overlay for deleted events */}
+        {isEventDeleted && <View className="absolute inset-0 bg-black/50" />}
 
         {/* Top-left category badge */}
         <View className="absolute top-3 left-3 bg-[#080808] rounded-xl px-2 py-1.5">
@@ -135,46 +152,68 @@ export function RequestCard({
           </View>
         </View>
 
-        {/* Direction label + other party */}
-        <View className="mt-3">
-          <Text className="text-xs text-white/50 font-urbanist mb-1.5">{directionLabel}</Text>
-          <View className="flex-row items-center gap-2">
-            <Image
-              source={otherPartyImage ? { uri: otherPartyImage } : MOCK_PROFILE_IMAGE}
-              className="w-8 h-8 rounded-full"
-            />
-            <Text className="text-sm font-semibold text-white font-urbanist flex-1">
-              {otherPartyName}
+        {/* Repeat-attempt note — only when this card collapses >1 attempt. */}
+        {repeatNote && (
+          <View className="flex-row items-center gap-1 mt-2">
+            <Ionicons name="repeat" size={12} color="rgba(255,255,255,0.5)" />
+            <Text className="text-[11px] text-white/50 font-urbanist" numberOfLines={1}>
+              {repeatNote}
             </Text>
-            {isAccepted && (
-              <Pressable onPress={() => router.push(contactHref)} hitSlop={8}>
-                <Text className="text-xs font-bold text-[#D4FC5A] font-urbanist tracking-wide">
-                  {userRole === UserRole.ARTIST && !isA2A ? 'CONTACT VENUE' : 'CONTACT ARTIST'}
-                </Text>
-              </Pressable>
-            )}
           </View>
-        </View>
+        )}
 
-        {/* Accepted confirmation or action buttons */}
-        {isAccepted ? (
+        {isEventDeleted ? (
+          /* Deleted-event tombstone — no actions, no navigation. */
           <View className="flex-row items-center gap-1.5 mt-3">
-            <Ionicons name="checkmark-circle" size={16} color="#C8FF2F" />
-            <Text className="text-xs text-white/60 font-urbanist">
-              Request Accepted on {formatAcceptedDate(booking.updatedAt)}
+            <Ionicons name="alert-circle-outline" size={16} color="rgba(255,255,255,0.6)" />
+            <Text className="text-xs text-white/60 font-urbanist flex-1">
+              This event is no longer available — it was deleted by the venue.
             </Text>
           </View>
         ) : (
-          <RequestActions
-            booking={booking}
-            userRole={userRole}
-            onAccept={onAccept}
-            onReject={onReject}
-            onWithdraw={onWithdraw}
-            onResend={onResend}
-            onCancel={onCancel}
-            pendingAction={pendingAction}
-          />
+          <>
+            {/* Direction label + other party */}
+            <View className="mt-3">
+              <Text className="text-xs text-white/50 font-urbanist mb-1.5">{directionLabel}</Text>
+              <View className="flex-row items-center gap-2">
+                <Image
+                  source={otherPartyImage ? { uri: otherPartyImage } : MOCK_PROFILE_IMAGE}
+                  className="w-8 h-8 rounded-full"
+                />
+                <Text className="text-sm font-semibold text-white font-urbanist flex-1">
+                  {otherPartyName}
+                </Text>
+                {isAccepted && (
+                  <Pressable onPress={() => router.push(contactHref)} hitSlop={8}>
+                    <Text className="text-xs font-bold text-[#D4FC5A] font-urbanist tracking-wide">
+                      {userRole === UserRole.ARTIST && !isA2A ? 'CONTACT VENUE' : 'CONTACT ARTIST'}
+                    </Text>
+                  </Pressable>
+                )}
+              </View>
+            </View>
+
+            {/* Accepted confirmation or action buttons */}
+            {isAccepted ? (
+              <View className="flex-row items-center gap-1.5 mt-3">
+                <Ionicons name="checkmark-circle" size={16} color="#C8FF2F" />
+                <Text className="text-xs text-white/60 font-urbanist">
+                  Request Accepted on {formatAcceptedDate(booking.updatedAt)}
+                </Text>
+              </View>
+            ) : (
+              <RequestActions
+                booking={booking}
+                userRole={userRole}
+                onAccept={onAccept}
+                onReject={onReject}
+                onWithdraw={onWithdraw}
+                onResend={onResend}
+                onCancel={onCancel}
+                pendingAction={pendingAction}
+              />
+            )}
+          </>
         )}
       </View>
     </Pressable>

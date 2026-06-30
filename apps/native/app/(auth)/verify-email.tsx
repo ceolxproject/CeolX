@@ -1,11 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useMutation } from '@tanstack/react-query';
-import * as IntentLauncher from 'expo-intent-launcher';
-import * as Linking from 'expo-linking';
 import { router, useLocalSearchParams } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
-import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Platform, Pressable, Text, View } from 'react-native';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, Alert, BackHandler, Pressable, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { UserRole } from '@CeolX/shared/enums';
@@ -14,13 +12,10 @@ import { AppButton } from '@/components/AppButton';
 import { appToast } from '@/components/AppToast';
 import { CeolxLogo } from '@/components/CeolxLogo';
 import { authClient } from '@/lib/auth-client';
+import { openEmailApp } from '@/utils/open-email-app';
 import { trpc } from '@/utils/trpc';
 
 const RESEND_COOLDOWN_SECONDS = 60;
-
-// Intent.FLAG_ACTIVITY_NEW_TASK (0x10000000) — required to launch another
-// app's task (the email client) from our process on Android.
-const FLAG_ACTIVITY_NEW_TASK = 0x10000000;
 
 export default function VerifyEmailScreen() {
   const { token } = useLocalSearchParams<{ token?: string }>();
@@ -39,7 +34,9 @@ export default function VerifyEmailScreen() {
   // Load pending email from SecureStore (set during sign-up)
   useEffect(() => {
     SecureStore.getItemAsync('pendingVerificationEmail')
-      .then((val) => setEmail(val))
+      // Lowercase defensively — guards any legacy uppercase value already in
+      // SecureStore so the displayed/resent email stays normalized (Asana 1215700058851852).
+      .then((val) => setEmail(val?.toLowerCase() ?? null))
       .catch(() => {});
   }, []);
 
@@ -52,7 +49,11 @@ export default function VerifyEmailScreen() {
       .verifyEmail({ query: { token } })
       .then(async ({ error }) => {
         if (error) {
-          setVerifyError(error.message ?? 'Verification failed. The link may have expired.');
+          setVerifyError(
+            error.status === 401
+              ? 'The link has expired or is invalid. Please request a new verification email and try again.'
+              : 'Something went wrong. Please try again.'
+          );
           return;
         }
 
@@ -125,6 +126,30 @@ export default function VerifyEmailScreen() {
     };
   }, []);
 
+  // Confirm before leaving for the sign-in screen, so an accidental back tap
+  // mid-verification doesn't drop the user out of the flow (Asana 1215960789817674).
+  const confirmLeave = useCallback(() => {
+    Alert.alert('Are you sure you want to go back?', 'Your verification progress will be lost.', [
+      { text: 'Stay', style: 'cancel' },
+      {
+        text: 'Go to Login',
+        style: 'destructive',
+        onPress: () => router.replace('/(auth)/sign-in'),
+      },
+    ]);
+  }, []);
+
+  // Intercept the Android hardware back button. Returning true swallows the
+  // default pop so the OS doesn't navigate away before the user confirms.
+  // (No-op on iOS, which has no hardware back; the on-screen Pressable covers it.)
+  useEffect(() => {
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      confirmLeave();
+      return true;
+    });
+    return () => sub.remove();
+  }, [confirmLeave]);
+
   const handleResend = async () => {
     if (!email || resendCooldown > 0) return;
     setResendSuccess(false);
@@ -152,40 +177,13 @@ export default function VerifyEmailScreen() {
   };
 
   const handleOpenEmailApp = async () => {
-    // We deliberately avoid mailto: — it's defined as "compose a new message",
-    // the opposite of what the "Open Email App" button promises (the inbox).
-    if (Platform.OS === 'ios') {
-      // iOS apps register inbox-specific URL schemes in their Info.plist.
-      for (const scheme of ['message://', 'googlegmail://', 'ms-outlook://']) {
-        try {
-          await Linking.openURL(scheme);
-          return;
-        } catch {
-          // No app handles this scheme — try the next one.
-        }
-      }
-    } else {
-      // Android: googlegmail:// / ms-outlook:// are iOS-only schemes with no
-      // Android handler, which is why the old loop always fell through to the
-      // error toast. The correct way to open the default email *inbox* is an
-      // ACTION_MAIN + CATEGORY_APP_EMAIL intent. expo-intent-launcher fires it
-      // via startActivity (categorized intents can't go through Linking.openURL,
-      // and startActivity isn't subject to Android 11+ package-visibility rules).
-      try {
-        await IntentLauncher.startActivityAsync('android.intent.action.MAIN', {
-          category: 'android.intent.category.APP_EMAIL',
-          flags: FLAG_ACTIVITY_NEW_TASK,
-        });
-        return;
-      } catch {
-        // No app advertises CATEGORY_APP_EMAIL — fall through to the toast.
-      }
+    const opened = await openEmailApp();
+    if (!opened) {
+      appToast.error(
+        "Couldn't open your email app",
+        'Open it manually and tap the verification link we sent you.'
+      );
     }
-
-    appToast.error(
-      "Couldn't open your email app",
-      'Open it manually and tap the verification link we sent you.'
-    );
   };
 
   if (isVerifying) {
@@ -262,7 +260,7 @@ export default function VerifyEmailScreen() {
             </Text>
           </Pressable>
 
-          <Pressable onPress={() => router.replace('/(auth)/sign-in')}>
+          <Pressable onPress={confirmLeave}>
             <Text className="text-white/40 text-sm text-center">Back to Sign In</Text>
           </Pressable>
         </View>

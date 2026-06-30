@@ -1,10 +1,10 @@
 import { TRPCError } from '@trpc/server';
-import { and, desc, eq, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 import { z } from 'zod';
 
 import { db } from '@CeolX/db';
 import { user } from '@CeolX/db/schema/auth';
-import { events, savedEvents } from '@CeolX/db/schema/events';
+import { collections, events, savedEvents } from '@CeolX/db/schema/events';
 import { EventStatus } from '@CeolX/shared';
 import { savedEventsQuerySchema } from '@CeolX/shared/validators';
 
@@ -31,15 +31,28 @@ export const unsave = protectedProcedure
 
 // ─── Saved Events List ───────────────────────────────────────────────────────
 
+/**
+ * Which event statuses a saved-events view may surface. The default list shows
+ * only live events; the "past / archived" view (`includeArchived`) additionally
+ * shows the creator-archived ones. Admin-removed events — and the pre-publication
+ * draft / pending_review / rejected states — are never returned in either view,
+ * so a taken-down event drops out of a user's saved list. The `includeArchived`
+ * branch previously applied no status filter at all, leaking removed events into
+ * the saved list. Asana 1216029035679712.
+ */
+export function savedVisibleStatuses(includeArchived: boolean): EventStatus[] {
+  return includeArchived ? [EventStatus.ACTIVE, EventStatus.ARCHIVED] : [EventStatus.ACTIVE];
+}
+
 export const getSavedEvents = protectedProcedure
   .input(savedEventsQuerySchema)
   .query(async ({ input, ctx }) => {
     const { limit, offset, includeArchived } = input;
 
-    const conditions = [eq(savedEvents.userId, ctx.userId)];
-    if (!includeArchived) {
-      conditions.push(eq(events.status, EventStatus.ACTIVE));
-    }
+    const conditions = [
+      eq(savedEvents.userId, ctx.userId),
+      inArray(events.status, savedVisibleStatuses(includeArchived)),
+    ];
 
     const [rows, countResult] = await Promise.all([
       db
@@ -55,10 +68,12 @@ export const getSavedEvents = protectedProcedure
           savedAt: savedEvents.createdAt,
           creatorId: events.createdBy,
           creatorName: user.name,
+          collectionName: collections.name,
         })
         .from(savedEvents)
         .innerJoin(events, eq(savedEvents.eventId, events.id))
         .leftJoin(user, eq(events.createdBy, user.id))
+        .leftJoin(collections, eq(events.collectionId, collections.id))
         .where(and(...conditions))
         .orderBy(desc(savedEvents.createdAt))
         .limit(limit)
@@ -84,6 +99,7 @@ export const getSavedEvents = protectedProcedure
         venueAddress: r.venueAddress ?? null,
         savedAt: r.savedAt.toISOString(),
         creatorName: r.creatorName ?? 'Unknown',
+        collectionName: r.collectionName ?? null,
       })),
       totalCount,
       hasNextPage: offset + limit < totalCount,

@@ -31,6 +31,17 @@ describe('GET /verify-email', () => {
 
     // Visible manual fallback for clients that block scripted scheme launches.
     expect(html).toContain('href="ceolx://verify-email?token=abc123"');
+
+    // Desktop/web fallback: when the deep link can't open the app, complete
+    // verification server-side so the link works from any device. (Asana 1215700058851863)
+    expect(html).toContain("fetch('/verify-email/confirm?token=abc123'");
+    expect(html).toContain('visibilitychange');
+  });
+
+  it('relaxes CSP to allow the same-origin confirm fetch', async () => {
+    const app = buildApp();
+    const res = await app.request('/verify-email?token=abc');
+    expect(res.headers.get('content-security-policy')).toContain("connect-src 'self'");
   });
 
   it('sets no-store cache headers (link is one-shot)', async () => {

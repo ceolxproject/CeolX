@@ -69,7 +69,7 @@ async function computeStats() {
     venueSubsNew30,
     venueSubsPrev30,
     followsRow,
-    bookingsByStatusRows,
+    bookingsByDirectionRows,
     postsCountRow,
     postsLikesSumRow,
     pendingRow,
@@ -137,7 +137,10 @@ async function computeStats() {
         )
       ),
     db.select({ count: count() }).from(follows),
-    db.select({ status: bookings.status, count: count() }).from(bookings).groupBy(bookings.status),
+    db
+      .select({ direction: bookings.direction, count: count() })
+      .from(bookings)
+      .groupBy(bookings.direction),
     db.select({ count: count() }).from(posts),
     db.select({ total: sql<number>`coalesce(sum(${posts.likeCount}), 0)::int` }).from(posts),
     db.select({ count: count() }).from(events).where(eq(events.status, 'pending_review')),
@@ -196,11 +199,11 @@ async function computeStats() {
       newPrev30Days: venueSubsPrev30[0]?.count ?? 0,
     }),
     bookings: shapeBookingStats({
-      byStatus: bookingsByStatusRows.map((r) => ({ status: r.status, count: r.count })),
+      byDirection: bookingsByDirectionRows.map((r) => ({ direction: r.direction, count: r.count })),
     }),
     engagement: shapeEngagementStats({
       totalFollows: followsRow[0]?.count ?? 0,
-      totalBookings: bookingsByStatusRows.reduce((sum, r) => sum + r.count, 0),
+      totalBookings: bookingsByDirectionRows.reduce((sum, r) => sum + r.count, 0),
       totalPosts: postsCountRow[0]?.count ?? 0,
       totalLikes: Number(postsLikesSumRow[0]?.total ?? 0),
     }),

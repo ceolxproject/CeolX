@@ -74,7 +74,12 @@ export default function DiscoverScreen() {
   // A row tap blurs the input; delay hiding so the tap registers first.
   const blurTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Shared with the Map tab — a place pick on either screen syncs to the other.
-  const { override: locationOverride, setOverride } = useLocationOverride();
+  const {
+    override: locationOverride,
+    overrideKind,
+    setOverride,
+    clearOverride,
+  } = useLocationOverride();
   const [locationSheetVisible, setLocationSheetVisible] = useState(false);
 
   const effectiveLocation = resolveFeedLocation(
@@ -202,7 +207,8 @@ export default function DiscoverScreen() {
 
   const handleLocationConfirm = useCallback(
     (loc: FeedLocation) => {
-      setOverride(loc);
+      // A pick from the sheet is a temporary search — not the saved/default.
+      setOverride(loc, 'search');
       setLocationSheetVisible(false);
     },
     [setOverride]
@@ -230,12 +236,16 @@ export default function DiscoverScreen() {
     >
       <FeedHeader
         locationText={locationText}
+        locationIsSearch={overrideKind === 'search'}
+        onLocationReset={clearOverride}
         onLocationPress={() => setLocationSheetVisible(true)}
         onCalendarPress={() => setDatePickerVisible(true)}
         onFilterPress={() => setFilterSheetVisible(true)}
         onNotificationPress={() => router.push('/notifications')}
         calendarActive={activeSegment === 0 && !!date}
         filterActive={activeSegment === 0 && !!category}
+        showEventActions={activeSegment === 0}
+        showLocation={activeSegment === 0}
       />
 
       {/* Search bar */}
@@ -250,7 +260,7 @@ export default function DiscoverScreen() {
                 : 'Find Music, Artist or Event'
             }
             placeholderTextColor="rgba(255,255,255,0.6)"
-            className="flex-1 text-sm text-white font-urbanist"
+            className="flex-1 text-[14px] text-white font-urbanist"
             onChangeText={handleSearchChange}
             onFocus={handleSearchFocus}
             onBlur={handleSearchBlur}
@@ -263,8 +273,10 @@ export default function DiscoverScreen() {
       {/* Everything below the search bar lives in one relative container so the
           autocomplete can float on top of the feed instead of pushing it down. */}
       <View className="flex-1 relative">
-        {/* Segment toggle */}
-        <View className="px-5 mt-4">
+        {/* Segment toggle — mb-3 keeps a persistent gap between the pinned tabs
+            and the scrollable feed below (the feed clips at the list frame, so
+            this gap never fills with content even when scrolled). */}
+        <View className="px-5 mt-4 mb-3">
           <SegmentToggle
             segments={SEGMENTS}
             activeIndex={activeSegment}

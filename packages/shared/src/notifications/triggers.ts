@@ -49,11 +49,22 @@ export const NotificationTrigger = {
   EVENT_REMOVED_BY_ADMIN_TO_VENUE: 'event_removed_by_admin_to_venue',
   EVENT_RESUBMITTED_TO_ARTIST: 'event_resubmitted_to_artist',
   EVENT_RESUBMITTED_TO_VENUE: 'event_resubmitted_to_venue',
+  EVENT_RESTORED_BY_ADMIN_TO_ARTIST: 'event_restored_by_admin_to_artist',
+  EVENT_RESTORED_BY_ADMIN_TO_VENUE: 'event_restored_by_admin_to_venue',
   // Creator deleted (soft-archived) their own event — tell the linked
   // counterparty (the other side of an invite/request booking).
   EVENT_DELETED_BY_CREATOR_TO_ARTIST: 'event_deleted_by_creator_to_artist',
   EVENT_DELETED_BY_CREATOR_TO_VENUE: 'event_deleted_by_creator_to_venue',
   SAVED_EVENT_REMOVED_TO_SAVERS: 'saved_event_removed_to_savers',
+  // Share Interest — lightweight artist↔venue collaboration discovery, not
+  // tied to any event. The route points to the SENDER's profile so the
+  // recipient can tap through and view who's interested.
+  COLLAB_INTEREST_TO_VENUE: 'collab_interest_to_venue',
+  COLLAB_INTEREST_TO_ARTIST: 'collab_interest_to_artist',
+  // Off-matrix — Onboarding. Sent once to every new account: in-app + email at
+  // the first authenticated session, push on first device-token registration.
+  // Flag for Pratiksha's matrix audit (ONB-01).
+  USER_WELCOME: 'user_welcome',
 } as const;
 
 export type NotificationTrigger = (typeof NotificationTrigger)[keyof typeof NotificationTrigger];
@@ -72,9 +83,32 @@ export interface SurfaceCopy {
   body: string;
 }
 
+/**
+ * Stable persisted value written to `notifications.type` (varchar(100) in the
+ * DB — kept un-enumerated there so milestones add types without a migration).
+ * Closed here at the type level so a typo (`'welcom'`) is a compile error.
+ * Many triggers map to the same `type` (e.g. all the cancel variants share
+ * `'booking_cancelled'`); this is the deduplicated set in use.
+ */
+export type NotificationType =
+  | 'booking_accepted'
+  | 'booking_cancelled'
+  | 'booking_invitation'
+  | 'booking_rejected'
+  | 'booking_request'
+  | 'booking_withdrawn'
+  | 'collaboration_interest'
+  | 'collaborator_added'
+  | 'event_deleted'
+  | 'event_hosted_at_venue'
+  | 'event_removed'
+  | 'event_resubmitted'
+  | 'saved_event_removed'
+  | 'welcome';
+
 export interface TriggerDefinition {
   matrixRef: string;
-  type: string;
+  type: NotificationType;
   persona: NotificationPersona;
   routeTemplate: string;
   push: SurfaceCopy | null;
@@ -92,14 +126,17 @@ export const NOTIFICATION_TRIGGERS: Record<NotificationTrigger, TriggerDefinitio
     persona: 'artist',
     routeTemplate: '/(app)/(tabs)/bookings/{bookingId}',
     push: {
-      title: 'New booking invite',
+      title: 'New performance invite',
       body: '{venueName} invited you to play "{eventTitle}" on {date}.',
     },
     inApp: {
-      title: 'New booking invite',
+      title: 'New performance invite',
       body: '{venueName} invited you to play "{eventTitle}" on {date}. Respond before it expires.',
     },
-    email: null,
+    email: {
+      title: 'You\'ve been invited to play "{eventTitle}"',
+      body: '{venueName} invited you to perform at "{eventTitle}" on {date}.',
+    },
   },
   [NotificationTrigger.BOOKING_REQUEST_TO_VENUE]: {
     matrixRef: 'V-09',
@@ -107,14 +144,17 @@ export const NOTIFICATION_TRIGGERS: Record<NotificationTrigger, TriggerDefinitio
     persona: 'venue',
     routeTemplate: '/(app)/(tabs)/bookings/{bookingId}',
     push: {
-      title: 'New booking request',
+      title: 'New performance request',
       body: '{artistName} applied for "{eventTitle}" on {date}.',
     },
     inApp: {
-      title: 'New booking request',
+      title: 'New performance request',
       body: '{artistName} applied for "{eventTitle}" on {date}. Review and respond.',
     },
-    email: null,
+    email: {
+      title: 'New performance request — "{eventTitle}"',
+      body: '{artistName} applied to play "{eventTitle}" on {date}.',
+    },
   },
   [NotificationTrigger.BOOKING_ACCEPTED_TO_ARTIST]: {
     matrixRef: 'A-10',
@@ -122,14 +162,17 @@ export const NOTIFICATION_TRIGGERS: Record<NotificationTrigger, TriggerDefinitio
     persona: 'artist',
     routeTemplate: '/(app)/(tabs)/bookings/{bookingId}',
     push: {
-      title: 'Booking Accepted ✓',
+      title: 'Performance Confirmed ✓',
       body: '{venueName} accepted your application for "{eventTitle}" on {date}.',
     },
     inApp: {
-      title: 'Booking Accepted ✓',
+      title: 'Performance Confirmed ✓',
       body: 'You\'re confirmed for "{eventTitle}" at {venueName} on {date}.',
     },
-    email: null,
+    email: {
+      title: 'Performance confirmed — "{eventTitle}"',
+      body: '{venueName} accepted your application for "{eventTitle}" on {date}.',
+    },
   },
   [NotificationTrigger.BOOKING_ACCEPTED_TO_VENUE]: {
     matrixRef: 'V-10',
@@ -137,14 +180,17 @@ export const NOTIFICATION_TRIGGERS: Record<NotificationTrigger, TriggerDefinitio
     persona: 'venue',
     routeTemplate: '/(app)/(tabs)/bookings/{bookingId}',
     push: {
-      title: 'Booking Accepted ✓',
+      title: 'Performance Confirmed ✓',
       body: '{artistName} accepted your invite for "{eventTitle}" on {date}.',
     },
     inApp: {
-      title: 'Booking Accepted ✓',
+      title: 'Performance Confirmed ✓',
       body: '{artistName} is confirmed for "{eventTitle}" on {date}.',
     },
-    email: null,
+    email: {
+      title: 'Artist confirmed — "{eventTitle}"',
+      body: '{artistName} accepted your invitation to play "{eventTitle}" on {date}.',
+    },
   },
   [NotificationTrigger.BOOKING_REJECTED_TO_ARTIST]: {
     matrixRef: 'A-11',
@@ -152,14 +198,17 @@ export const NOTIFICATION_TRIGGERS: Record<NotificationTrigger, TriggerDefinitio
     persona: 'artist',
     routeTemplate: '/(app)/(tabs)/bookings/{bookingId}',
     push: {
-      title: 'Booking Not Accepted',
+      title: 'Performance Request Declined',
       body: '{venueName} has passed on your application for "{eventTitle}".',
     },
     inApp: {
-      title: 'Booking Not Accepted',
+      title: 'Performance Request Declined',
       body: '{venueName} has passed on your application for "{eventTitle}" on {date}.',
     },
-    email: null,
+    email: {
+      title: 'Update on your performance request',
+      body: '{venueName} has decided not to move ahead with your application for "{eventTitle}" on {date}.',
+    },
   },
   [NotificationTrigger.BOOKING_REJECTED_TO_VENUE]: {
     matrixRef: 'V-11',
@@ -174,7 +223,10 @@ export const NOTIFICATION_TRIGGERS: Record<NotificationTrigger, TriggerDefinitio
       title: 'Invitation Declined',
       body: '{artistName} declined your invitation for "{eventTitle}" on {date}.',
     },
-    email: null,
+    email: {
+      title: 'Update on your performance invite',
+      body: '{artistName} won\'t be able to play "{eventTitle}" on {date}.',
+    },
   },
   [NotificationTrigger.BOOKING_WITHDRAWN_TO_VENUE]: {
     matrixRef: 'V-13',
@@ -189,7 +241,10 @@ export const NOTIFICATION_TRIGGERS: Record<NotificationTrigger, TriggerDefinitio
       title: 'Application Withdrawn',
       body: '{artistName} withdrew their application for "{eventTitle}" on {date}.',
     },
-    email: null,
+    email: {
+      title: 'Application withdrawn — "{eventTitle}"',
+      body: '{artistName} withdrew their application for "{eventTitle}" on {date}. The slot is open again.',
+    },
   },
   // No matrix row for the inverse — Venue withdrawing a pending invitation —
   // mirror V-13 phrasing. Flag for Pratiksha's matrix audit.
@@ -214,14 +269,17 @@ export const NOTIFICATION_TRIGGERS: Record<NotificationTrigger, TriggerDefinitio
     persona: 'artist',
     routeTemplate: '/(app)/(tabs)/bookings/{bookingId}',
     push: {
-      title: 'Booking Cancelled',
+      title: 'Performance Cancelled',
       body: '{venueName} cancelled "{eventTitle}" on {date}.',
     },
     inApp: {
-      title: 'Booking Cancelled',
-      body: '{venueName} cancelled your confirmed booking for "{eventTitle}" on {date}.',
+      title: 'Performance Cancelled',
+      body: '{venueName} cancelled your confirmed performance for "{eventTitle}" on {date}.',
     },
-    email: null,
+    email: {
+      title: '"{eventTitle}" — performance cancelled',
+      body: '{venueName} cancelled the confirmed performance for "{eventTitle}" on {date}.',
+    },
   },
   [NotificationTrigger.BOOKING_CANCELLED_TO_VENUE]: {
     matrixRef: 'V-12',
@@ -229,14 +287,17 @@ export const NOTIFICATION_TRIGGERS: Record<NotificationTrigger, TriggerDefinitio
     persona: 'venue',
     routeTemplate: '/(app)/(tabs)/bookings/{bookingId}',
     push: {
-      title: 'Booking Cancelled',
+      title: 'Performance Cancelled',
       body: '{artistName} cancelled "{eventTitle}" on {date}.',
     },
     inApp: {
-      title: 'Booking Cancelled',
-      body: '{artistName} cancelled the confirmed booking for "{eventTitle}" on {date}.',
+      title: 'Performance Cancelled',
+      body: '{artistName} cancelled the confirmed performance for "{eventTitle}" on {date}.',
     },
-    email: null,
+    email: {
+      title: '"{eventTitle}" — performance cancelled',
+      body: '{artistName} cancelled the confirmed performance for "{eventTitle}" on {date}.',
+    },
   },
   // Artist↔artist booking triggers (A-09a…A-13a). The single {coArtistName}
   // placeholder is always "the OTHER co-artist, from the recipient's
@@ -420,6 +481,40 @@ export const NOTIFICATION_TRIGGERS: Record<NotificationTrigger, TriggerDefinitio
     },
     email: null,
   },
+  // Off-matrix — Admin restored a removed event; tell the Artist creator their
+  // event is live again. Routes to the detail page (status is back to active,
+  // so the page resolves). Flag for Pratiksha's matrix audit (Asana 1216066930532455).
+  [NotificationTrigger.EVENT_RESTORED_BY_ADMIN_TO_ARTIST]: {
+    matrixRef: 'off-matrix-event-restored',
+    type: 'event_restored',
+    persona: 'artist',
+    routeTemplate: '/(app)/(tabs)/discover/event/{eventId}',
+    push: {
+      title: 'Your event is live again',
+      body: 'Moderation restored "{eventTitle}" — it\'s back on CeolX.',
+    },
+    inApp: {
+      title: 'Your event is live again',
+      body: '"{eventTitle}" has been restored and is visible on CeolX again.',
+    },
+    email: null,
+  },
+  // Off-matrix — Same restore confirmation for Venue creators.
+  [NotificationTrigger.EVENT_RESTORED_BY_ADMIN_TO_VENUE]: {
+    matrixRef: 'off-matrix-event-restored',
+    type: 'event_restored',
+    persona: 'venue',
+    routeTemplate: '/(app)/(tabs)/discover/event/{eventId}',
+    push: {
+      title: 'Your event is live again',
+      body: 'Moderation restored "{eventTitle}" — it\'s back on CeolX.',
+    },
+    inApp: {
+      title: 'Your event is live again',
+      body: '"{eventTitle}" has been restored and is visible on CeolX again.',
+    },
+    email: null,
+  },
   // A-17 — Creator deleted their event; tell the linked Artist (confirmed or
   // invited via a pending/accepted booking). Routes to the feed because the
   // event is archived and its detail page 404s for non-creators.
@@ -473,6 +568,61 @@ export const NOTIFICATION_TRIGGERS: Record<NotificationTrigger, TriggerDefinitio
     inApp: {
       title: 'A saved event was removed',
       body: '"{eventTitle}" was removed by moderation. Browse the feed for similar events.',
+    },
+    email: null,
+  },
+  // Off-matrix — Share Interest. An artist signalled interest in a venue.
+  // Routes to the artist's profile ({artistUserId}). Flag for Pratiksha's
+  // matrix audit (note: off-matrix-collaboration-interest).
+  [NotificationTrigger.COLLAB_INTEREST_TO_VENUE]: {
+    matrixRef: 'off-matrix-collaboration-interest',
+    type: 'collaboration_interest',
+    persona: 'venue',
+    routeTemplate: '/(app)/artist/{artistUserId}',
+    push: {
+      title: 'New collaboration interest',
+      body: '{artistName} is interested in collaborating with you. View their profile and plan your next event.',
+    },
+    inApp: {
+      title: 'New collaboration interest',
+      body: '{artistName} is interested in collaborating with you. View their profile and plan your next event.',
+    },
+    email: null,
+  },
+  // Off-matrix — Share Interest. A venue signalled interest in an artist.
+  // Routes to the venue's profile ({venueUserId}).
+  [NotificationTrigger.COLLAB_INTEREST_TO_ARTIST]: {
+    matrixRef: 'off-matrix-collaboration-interest',
+    type: 'collaboration_interest',
+    persona: 'artist',
+    routeTemplate: '/(app)/venue/{venueUserId}',
+    push: {
+      title: 'New collaboration interest',
+      body: '{venueName} is interested in collaborating with you. View their profile and explore a possible performance.',
+    },
+    inApp: {
+      title: 'New collaboration interest',
+      body: '{venueName} is interested in collaborating with you. View their profile and explore a possible performance.',
+    },
+    email: null,
+  },
+  // Off-matrix — Onboarding welcome. Fired once per new account: in-app + email
+  // at the first authenticated session (packages/auth login-hook), push at the
+  // first device-token registration (device-tokens router). `email: null` — a
+  // dedicated rich `welcome` Postmark template is sent directly at the source,
+  // not the generic notification email this dispatcher would otherwise build.
+  [NotificationTrigger.USER_WELCOME]: {
+    matrixRef: 'ONB-01',
+    type: 'welcome',
+    persona: 'spectator',
+    routeTemplate: '/(app)/(tabs)/discover',
+    push: {
+      title: 'Welcome to CeolX 🎶',
+      body: "You're in! Explore live music, artists, and venues happening near you.",
+    },
+    inApp: {
+      title: 'Welcome to CeolX 🎶',
+      body: "You're in! Explore live music, artists, and venues happening near you.",
     },
     email: null,
   },

@@ -1,5 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Text, TextInput, View } from 'react-native';
+import { Text, View } from 'react-native';
+
+import { AppTextField } from '@/components/AppTextField';
 
 interface SocialInputProps {
   icon: keyof typeof Ionicons.glyphMap;
@@ -11,21 +13,16 @@ interface SocialInputProps {
 
 export function SocialInput({ icon, placeholder, value, onChangeText, error }: SocialInputProps) {
   return (
-    <View className="gap-1.5">
-      <View className="flex-row items-center bg-white rounded-lg h-[52px] px-4 gap-3">
-        <Ionicons name={icon} size={20} color="#8d8d8d" />
-        <TextInput
-          className="flex-1 text-base text-black"
-          placeholder={placeholder}
-          placeholderTextColor="#8d8d8d"
-          value={value}
-          onChangeText={onChangeText}
-          autoCapitalize="none"
-          keyboardType="url"
-        />
-      </View>
-      {error ? <Text className="text-xs text-error">{error}</Text> : null}
-    </View>
+    <AppTextField
+      variant="light"
+      leftIcon={<Ionicons name={icon} size={20} color="#8d8d8d" />}
+      placeholder={placeholder}
+      value={value}
+      onChangeText={onChangeText}
+      autoCapitalize="none"
+      keyboardType="url"
+      error={error}
+    />
   );
 }
 

@@ -47,6 +47,9 @@ export function useFollow() {
       void queryClient.invalidateQueries({ queryKey: [['venues', 'me']] });
       void queryClient.invalidateQueries({ queryKey: [['users', 'me']] });
       void queryClient.invalidateQueries({ queryKey: [['follows']] });
+      // Refetch post feeds/detail so author follow state (the post-card CTA)
+      // reconciles across every surface, not just the tapped profile header.
+      void queryClient.invalidateQueries({ queryKey: [['posts']] });
     },
   });
 }

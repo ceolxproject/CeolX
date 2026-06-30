@@ -3,7 +3,10 @@ import { describe, expect, it } from 'vitest';
 import {
   EXPORT_MAX_ROWS,
   computePagination,
+  osFromUserAgent,
+  shapeRichUserRow,
   shapeUserRow,
+  type RawRichUserRow,
   type RawUserRow,
 } from '../lib/admin-users';
 
@@ -63,5 +66,60 @@ describe('shapeUserRow', () => {
 describe('EXPORT_MAX_ROWS', () => {
   it('caps CSV export at a sensible V1 ceiling', () => {
     expect(EXPORT_MAX_ROWS).toBe(5000);
+  });
+});
+
+describe('osFromUserAgent', () => {
+  it('detects iOS from an Expo/iPhone user agent', () => {
+    expect(osFromUserAgent('CeolX/1.0 CFNetwork/1410 Darwin/22.4.0')).toBe('iOS');
+    expect(osFromUserAgent('Mozilla/5.0 (iPhone; CPU iPhone OS 17_0)')).toBe('iOS');
+  });
+
+  it('detects Android', () => {
+    expect(osFromUserAgent('Mozilla/5.0 (Linux; Android 14; Pixel 8)')).toBe('Android');
+  });
+
+  it('detects desktop browsers', () => {
+    expect(osFromUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64)')).toBe('Windows');
+    expect(osFromUserAgent('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)')).toBe('macOS');
+  });
+
+  it('returns null for missing or unrecognised agents', () => {
+    expect(osFromUserAgent(null)).toBeNull();
+    expect(osFromUserAgent('')).toBeNull();
+    expect(osFromUserAgent('SomeUnknownBot/1.0')).toBeNull();
+  });
+});
+
+describe('shapeRichUserRow', () => {
+  const base: RawRichUserRow = {
+    id: 'user_1',
+    name: 'Aoife Murphy',
+    email: 'aoife@example.com',
+    currentRole: 'artist',
+    lastLoginAt: null,
+    flaggedInactive: null,
+    emailVerified: true,
+    image: null,
+    venueSubscriptionStatus: null,
+    artistActive: true,
+    profileImageUrl: null,
+    eventsCount: 3,
+    authProviders: ['google'],
+  };
+
+  it('coerces a null flaggedInactive to false and serialises lastLoginAt', () => {
+    const row = shapeRichUserRow({ ...base, lastLoginAt: new Date('2026-01-02T00:00:00Z') });
+    expect(row.flaggedInactive).toBe(false);
+    expect(row.lastLoginAt).toBe('2026-01-02T00:00:00.000Z');
+    expect(shapeRichUserRow(base).lastLoginAt).toBeNull();
+    expect(row.authProviders).toEqual(['google']);
+  });
+
+  it('passes the uploaded profile image through to the wire row', () => {
+    expect(
+      shapeRichUserRow({ ...base, profileImageUrl: 'https://cdn/p.jpg' }).profileImageUrl
+    ).toBe('https://cdn/p.jpg');
+    expect(shapeRichUserRow(base).profileImageUrl).toBeNull();
   });
 });

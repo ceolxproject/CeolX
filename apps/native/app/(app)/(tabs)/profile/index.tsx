@@ -17,9 +17,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import type { BookingSummary } from '@CeolX/shared';
 import { BookingStatus, UserRole } from '@CeolX/shared/enums';
 
+import { AppHeader } from '@/components/AppHeader';
 import { appToast } from '@/components/AppToast';
 import { ConfirmedBookingCard } from '@/components/bookings/ConfirmedBookingCard';
-import { BellWithBadge } from '@/components/notifications/BellWithBadge';
+import { EmptyState } from '@/components/EmptyState';
 import { PostsList } from '@/components/posts/PostsList';
 import { ProfileEventCard } from '@/components/ProfileEventCard';
 import { SegmentControl } from '@/components/profiles';
@@ -35,6 +36,7 @@ import { useMe } from '@/hooks/use-me';
 import { useMyEvents } from '@/hooks/use-my-events';
 import { useMyPosts } from '@/hooks/use-my-posts';
 import { useResendBooking } from '@/hooks/use-resend-booking';
+import { useSavedEvents } from '@/hooks/use-saved-events';
 import { useUpdateBooking } from '@/hooks/use-update-booking';
 import { getBookingActionErrorBody } from '@/utils/booking-error';
 import { MOCK_PROFILE_IMAGE } from '@/utils/mock-images';
@@ -56,7 +58,6 @@ function ProfileHeader({
   currentRole,
   artistProfile,
   venueProfile,
-  onBookmarkPress,
   onSettingsPress,
 }: {
   me: { name: string | null; image: string | null; venueAddress: string | null };
@@ -77,7 +78,6 @@ function ProfileHeader({
     followerCount: number;
     followingCount: number;
   } | null;
-  onBookmarkPress?: () => void;
   onSettingsPress: () => void;
 }) {
   const isVenue = currentRole === UserRole.VENUE;
@@ -92,17 +92,7 @@ function ProfileHeader({
   const genres = artistProfile?.genres ?? [];
 
   return (
-    <View className="items-center pt-2 pb-4 bg-background">
-      {/* Header bar with bookmark + bell for venues, just bell for artists */}
-      <View className="w-full flex-row items-center justify-end px-5 mb-3 gap-4">
-        {onBookmarkPress && (
-          <Pressable onPress={onBookmarkPress}>
-            <Ionicons name="bookmark-outline" size={23} color="#fff" />
-          </Pressable>
-        )}
-        <BellWithBadge onPress={() => router.push('/notifications')} size={24} />
-      </View>
-
+    <View className="items-center pb-4 bg-background">
       {/* Avatar + followers/following row */}
       <View className="flex-row items-center justify-center gap-6 mb-3">
         <Pressable
@@ -131,9 +121,14 @@ function ProfileHeader({
       <View className="items-center gap-1.5 mb-3">
         <Text className="text-xl font-bold text-white font-urbanist">{displayName}</Text>
         {isVenue && (venueProfile?.address ?? me.venueAddress) && (
-          <View className="flex-row items-center gap-1">
-            <Ionicons name="location-outline" size={12} color="rgba(255,255,255,0.6)" />
-            <Text className="text-xs font-semibold text-white/60 font-urbanist">
+          <View className="flex-row items-start justify-center gap-1 max-w-[292px]">
+            <Ionicons
+              name="location-outline"
+              size={12}
+              color="rgba(255,255,255,0.6)"
+              style={{ marginTop: 2 }}
+            />
+            <Text className="shrink text-xs font-semibold text-white/60 font-urbanist text-center">
               {venueProfile?.address ?? me.venueAddress}
             </Text>
           </View>
@@ -172,33 +167,10 @@ function ProfileHeader({
   );
 }
 
-// ─── Empty State ──────────────────────────────────────────────────────────────
-
-function EmptyState({
-  message,
-  action,
-}: {
-  message: string;
-  action?: { label: string; onPress: () => void };
-}) {
-  return (
-    <View className="py-16 items-center px-5">
-      <Text className="text-base text-white/60 text-center font-urbanist mb-4">{message}</Text>
-      {action && (
-        <Pressable onPress={action.onPress} className="rounded-full bg-[#662FFF] px-6 py-3">
-          <Text className="text-xs font-bold text-white uppercase tracking-wider font-urbanist">
-            {action.label}
-          </Text>
-        </Pressable>
-      )}
-    </View>
-  );
-}
-
 // ─── My Events Tab ────────────────────────────────────────────────────────────
 
 function MyEventsTab() {
-  const { events, isLoading, loadMore, isFetchingNextPage, refresh } = useMyEvents();
+  const { events, isLoading, loadMore, isFetchingNextPage, refresh, hasNextPage } = useMyEvents();
   const confirmed = useConfirmedEvents();
   const archive = useArchiveEvent({ onSuccess: () => void refresh() });
   const updateBooking = useUpdateBooking();
@@ -207,9 +179,9 @@ function MyEventsTab() {
     try {
       await updateBooking.mutateAsync({ id: bookingId, status: 'cancelled' });
       await confirmed.refresh();
-      appToast.success('Booking cancelled');
+      appToast.success('Performance cancelled');
     } catch (err) {
-      appToast.error('Could not cancel booking', getBookingActionErrorBody(err));
+      appToast.error('Could not cancel performance', getBookingActionErrorBody(err));
     }
   };
 
@@ -228,8 +200,10 @@ function MyEventsTab() {
   if (!hasCreated && !hasConfirmed) {
     return (
       <EmptyState
-        message="You haven't created any events yet"
-        action={{
+        variant="no-events"
+        title="No events yet"
+        subtitle="Create your first event to get started."
+        cta={{
           label: 'Create Event',
           onPress: () => router.push('/(app)/events/create'),
         }}
@@ -250,6 +224,7 @@ function MyEventsTab() {
           dateEnd={event.dateEnd}
           category={event.category}
           venueAddress={event.venueAddress}
+          collectionName={event.collectionName}
           status={event.status}
           joinedCount={event.joinedCount}
           ownerActions={{
@@ -265,7 +240,7 @@ function MyEventsTab() {
           <ActivityIndicator color="#C8FF2F" />
         </View>
       )}
-      {hasCreated && !isFetchingNextPage && (
+      {hasNextPage && !isFetchingNextPage && (
         <Pressable onPress={loadMore} className="py-2 items-center">
           <Text className="text-xs text-white/40">Load more</Text>
         </Pressable>
@@ -286,7 +261,9 @@ function MyEventsTab() {
               dateEnd={event.dateEnd}
               category={event.category}
               venueAddress={event.venueAddress}
+              collectionName={event.collectionName}
               bookingId={event.bookingId}
+              eventStatus={event.status}
               onCancel={handleCancelBooking}
               onPress={() => router.push(`/(app)/(tabs)/profile/event/${event.id}`)}
             />
@@ -476,7 +453,8 @@ function PostsTab() {
       hasNextPage={hasNextPage}
       currentUserId={me?.id ?? null}
       onLoadMore={loadMore}
-      emptyMessage="You haven't posted anything yet."
+      emptyMessage="You haven't posted anything yet"
+      emptySubtitle="Share your first post to get started."
     />
   );
 }
@@ -485,7 +463,10 @@ function PostsTab() {
 
 function SpectatorProfile() {
   const { user, logout } = useAuth();
+  const { data: me } = useMe();
   const settingsRef = useRef<BottomSheetModal>(null);
+
+  const email = me?.email ?? user?.email ?? '—';
 
   const handleLogout = async () => {
     settingsRef.current?.dismiss();
@@ -505,8 +486,26 @@ function SpectatorProfile() {
       </View>
 
       <View className="items-center py-8">
-        <Image source={MOCK_PROFILE_IMAGE} className="w-20 h-20 rounded-full bg-surface mb-3" />
-        <Text className="text-lg font-semibold text-white mb-2">{user?.email ?? '—'}</Text>
+        <Image
+          source={me?.image ? { uri: me.image } : MOCK_PROFILE_IMAGE}
+          className="w-20 h-20 rounded-full bg-surface mb-3"
+        />
+        {me?.name ? (
+          <>
+            <Text className="text-lg font-semibold text-white">{me.name}</Text>
+            <Text className="text-sm text-white/60 mb-3">{email}</Text>
+          </>
+        ) : (
+          <Text className="text-lg font-semibold text-white mb-3">{email}</Text>
+        )}
+        <Pressable
+          className="border border-[#8D8D8D] rounded-[20px] h-9 px-5 items-center justify-center mb-3"
+          onPress={() => router.push('/(app)/(tabs)/profile/account-edit')}
+        >
+          <Text className="text-xs font-bold text-white uppercase tracking-wider font-urbanist">
+            Edit Profile
+          </Text>
+        </Pressable>
         <View className="rounded-full bg-surface px-3 py-1">
           <Text className="text-xs font-medium text-white capitalize">spectator</Text>
         </View>
@@ -614,6 +613,7 @@ function CreatorProfile({
   const settingsRef = useRef<BottomSheetModal>(null);
 
   const myEvents = useMyEvents();
+  const { totalCount: savedCount } = useSavedEvents();
 
   const handleRefresh = useCallback(async () => {
     await myEvents.refresh();
@@ -639,6 +639,21 @@ function CreatorProfile({
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#080808' }} edges={['top']}>
+      {/* Standard header: logo left, then notification bell, then bookmark. Fixed
+          above the scroll so it stays pinned, consistent with Discover / My Events. */}
+      <AppHeader
+        leading="logo"
+        showBell
+        bgClassName="bg-background"
+        actions={[
+          {
+            key: 'saved',
+            icon: savedCount > 0 ? 'bookmark' : 'bookmark-outline',
+            onPress: () => router.push('/(app)/(tabs)/profile/saved-events'),
+            accessibilityLabel: 'Saved events',
+          },
+        ]}
+      />
       <ScrollView
         contentContainerStyle={{ flexGrow: 1 }}
         refreshControl={
@@ -655,7 +670,6 @@ function CreatorProfile({
           currentRole={currentRole}
           artistProfile={me?.artistProfile}
           venueProfile={me?.venueProfile}
-          onBookmarkPress={() => router.push('/(app)/(tabs)/profile/saved-events')}
           onSettingsPress={() => settingsRef.current?.present()}
         />
         {/* Rounded background behind segment + content */}
@@ -666,7 +680,7 @@ function CreatorProfile({
             activeTab={activeTab}
             onTabChange={setActiveTab}
           />
-          <View className="mt-4">{renderTabContent()}</View>
+          <View className="mt-4 flex-1">{renderTabContent()}</View>
         </View>
       </ScrollView>
 

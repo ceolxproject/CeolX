@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Alert } from 'react-native';
 
+import { appToast } from '@/components/AppToast';
 import { trpc } from '@/utils/trpc';
 
 type UseArchiveEventOpts = {
@@ -14,13 +14,13 @@ export function useArchiveEvent(opts?: UseArchiveEventOpts) {
     trpc.events.archive.mutationOptions({
       onSuccess: () => {
         void queryClient.invalidateQueries({ queryKey: [['events', 'byId']] });
-        Alert.alert('Deleted', 'Your event has been deleted.');
+        appToast.success('Deleted', 'Your event has been deleted.');
         opts?.onSuccess?.();
       },
       // Without this, a rejected delete (e.g. the event is no longer active) was
       // a silent no-op — the user tapped Delete and nothing happened.
       onError: (error) => {
-        Alert.alert(
+        appToast.error(
           'Could not delete event',
           error.message || 'Something went wrong. Please try again.'
         );

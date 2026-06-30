@@ -4,6 +4,8 @@ import { eq } from 'drizzle-orm';
 import { db } from '@CeolX/db';
 import { user } from '@CeolX/db/schema/auth';
 
+import { normalizeEmail } from './normalize-email.js';
+
 /**
  * Wired into `hooks.before` in the Better Auth config, scoped to
  * `POST /sign-up/email`.
@@ -29,8 +31,7 @@ import { user } from '@CeolX/db/schema/auth';
 export async function assertEmailAvailable(rawEmail: unknown): Promise<void> {
   // Malformed/empty bodies are not our concern — let Better Auth's own input
   // validation produce its standard error rather than masking it here.
-  if (typeof rawEmail !== 'string') return;
-  const email = rawEmail.trim().toLowerCase();
+  const email = normalizeEmail(rawEmail);
   if (!email) return;
 
   const [existing] = await db

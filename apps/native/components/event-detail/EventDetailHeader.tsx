@@ -1,13 +1,9 @@
-import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
-import { cn } from 'heroui-native';
-import { Pressable, View } from 'react-native';
-
-import { CeolxLogo } from '@/components/CeolxLogo';
-import { BellWithBadge } from '@/components/notifications/BellWithBadge';
+import { AppHeader } from '@/components/AppHeader';
 
 interface EventDetailHeaderProps {
   onBack: () => void;
+  /** Event title shown in the bar (replaces the old centered logo). */
+  title?: string;
   isSaved: boolean;
   onToggleSave: () => void;
   onShare: () => void;
@@ -16,30 +12,35 @@ interface EventDetailHeaderProps {
 
 export function EventDetailHeader({
   onBack,
+  title,
   isSaved,
   onToggleSave,
   onShare,
   className,
 }: EventDetailHeaderProps) {
+  // Standard trailing order: notification bell first, then bookmark, then share.
   return (
-    <View
-      className={cn('flex-row items-center justify-between px-5 h-14 bg-background', className)}
-    >
-      <Pressable onPress={onBack} hitSlop={12} className="active:opacity-70">
-        <Ionicons name="arrow-back" size={24} color="#fff" />
-      </Pressable>
-
-      <CeolxLogo fontSize={16} letterSpacing={2} />
-
-      <View className="flex-row items-center gap-4">
-        <Pressable onPress={onShare} hitSlop={12} className="active:opacity-70">
-          <Ionicons name="share-outline" size={23} color="#fff" />
-        </Pressable>
-        <Pressable onPress={onToggleSave} hitSlop={12} className="active:opacity-70">
-          <Ionicons name={isSaved ? 'bookmark' : 'bookmark-outline'} size={23} color="#fff" />
-        </Pressable>
-        <BellWithBadge onPress={() => router.push('/notifications')} size={24} />
-      </View>
-    </View>
+    <AppHeader
+      leading="back"
+      onBack={onBack}
+      title={title}
+      bgClassName="bg-background"
+      className={className}
+      showBell
+      actions={[
+        {
+          key: 'save',
+          icon: isSaved ? 'bookmark' : 'bookmark-outline',
+          onPress: onToggleSave,
+          accessibilityLabel: isSaved ? 'Remove from saved' : 'Save event',
+        },
+        {
+          key: 'share',
+          icon: 'share-outline',
+          onPress: onShare,
+          accessibilityLabel: 'Share event',
+        },
+      ]}
+    />
   );
 }

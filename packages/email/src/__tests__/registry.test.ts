@@ -10,6 +10,10 @@ const ALL_TEMPLATES: EmailTemplate[] = [
   'payment-confirmation',
   'event-approved',
   'event-rejected',
+  'notification',
+  'welcome',
+  'collaborator-invite',
+  'account-deleted',
 ];
 
 describe('email template registry', () => {

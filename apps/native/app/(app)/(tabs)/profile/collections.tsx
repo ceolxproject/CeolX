@@ -12,6 +12,10 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { COLLECTION_DESCRIPTION_MAX, COLLECTION_NAME_MAX } from '@CeolX/shared/validators';
+
+import { AppHeader } from '@/components/AppHeader';
+import { CharacterCount, CharacterLimitNote } from '@/components/CharacterCount';
 import { useCollections, useCreateCollection, useDeleteCollection } from '@/hooks/use-collections';
 
 export default function CollectionsScreen() {
@@ -51,42 +55,67 @@ export default function CollectionsScreen() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#080808' }}>
-      {/* Header */}
-      <View className="flex-row items-center justify-between px-5 h-14">
-        <View className="flex-row items-center">
-          <Pressable onPress={() => router.back()} className="mr-3">
-            <Ionicons name="arrow-back" size={24} color="#fff" />
-          </Pressable>
-          <Text className="text-lg font-bold text-white font-urbanist">Collections</Text>
-        </View>
-        <Pressable onPress={() => setShowCreate(!showCreate)}>
-          <Ionicons name={showCreate ? 'close' : 'add'} size={24} color="#C8FF2F" />
-        </Pressable>
-      </View>
+      <AppHeader
+        leading="back"
+        title="Collections"
+        actions={[
+          {
+            key: 'toggle-create',
+            icon: showCreate ? 'close' : 'add',
+            onPress: () => setShowCreate(!showCreate),
+            iconColor: '#C8FF2F',
+            accessibilityLabel: showCreate ? 'Close new collection form' : 'New collection',
+          },
+        ]}
+      />
 
       <ScrollView className="flex-1 px-5" showsVerticalScrollIndicator={false}>
         {/* Inline create form */}
         {showCreate && (
           <View className="mb-4 rounded-2xl border border-[rgba(141,141,141,0.4)] bg-[rgba(141,141,141,0.1)] p-4 gap-3">
             <Text className="text-sm font-bold text-white font-urbanist">New Collection</Text>
-            <TextInput
-              className="h-10 rounded-lg bg-white/10 px-3 text-white text-sm font-urbanist"
-              placeholder="Collection name"
-              placeholderTextColor="rgba(255,255,255,0.4)"
-              value={newName}
-              onChangeText={setNewName}
-              maxLength={100}
-            />
-            <TextInput
-              className="h-20 rounded-lg bg-white/10 px-3 pt-2 text-white text-sm font-urbanist"
-              placeholder="Description (optional)"
-              placeholderTextColor="rgba(255,255,255,0.4)"
-              value={newDescription}
-              onChangeText={setNewDescription}
-              maxLength={500}
-              multiline
-              textAlignVertical="top"
-            />
+            <View className="gap-1">
+              <TextInput
+                className="h-10 rounded-lg bg-white/10 px-3 text-white text-[14px] font-urbanist"
+                placeholder="Collection name"
+                placeholderTextColor="rgba(255,255,255,0.4)"
+                value={newName}
+                onChangeText={(t) => setNewName(t.slice(0, COLLECTION_NAME_MAX))}
+                maxLength={COLLECTION_NAME_MAX}
+              />
+              <CharacterCount
+                count={newName.length}
+                max={COLLECTION_NAME_MAX}
+                className="self-end text-xs text-white/40 font-urbanist"
+              />
+              <CharacterLimitNote
+                count={newName.length}
+                max={COLLECTION_NAME_MAX}
+                className="self-end"
+              />
+            </View>
+            <View className="gap-1">
+              <TextInput
+                className="h-20 rounded-lg bg-white/10 px-3 pt-2 text-white text-sm font-urbanist"
+                placeholder="Description (optional)"
+                placeholderTextColor="rgba(255,255,255,0.4)"
+                value={newDescription}
+                onChangeText={(t) => setNewDescription(t.slice(0, COLLECTION_DESCRIPTION_MAX))}
+                maxLength={COLLECTION_DESCRIPTION_MAX}
+                multiline
+                textAlignVertical="top"
+              />
+              <CharacterCount
+                count={newDescription.length}
+                max={COLLECTION_DESCRIPTION_MAX}
+                className="self-end text-xs text-white/40 font-urbanist"
+              />
+              <CharacterLimitNote
+                count={newDescription.length}
+                max={COLLECTION_DESCRIPTION_MAX}
+                className="self-end"
+              />
+            </View>
             <Pressable
               className="h-10 rounded-lg bg-[#C8FF2F] items-center justify-center"
               onPress={handleCreate}

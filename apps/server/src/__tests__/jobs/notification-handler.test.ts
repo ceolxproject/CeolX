@@ -60,7 +60,7 @@ import { handleNotificationPush } from '../../jobs/handlers/notification.js';
 
 const validPayload = {
   userId: 'user-123',
-  title: 'New booking invite',
+  title: 'New performance invite',
   body: 'The Temple Bar invited you to play "Trad Night" on Fri 1 May.',
   persona: 'artist' as const,
   route: '/bookings/123',
@@ -213,7 +213,8 @@ describe('handleNotificationPush — soft-deactivate on terminal errors', () => 
     expect(mockDb.update).toHaveBeenCalledTimes(1);
   });
 
-  it('only soft-deactivates terminal errors — leaves transient per-message errors alone', async () => {
+  it('only soft-deactivates terminal errors — logs but leaves transient per-message errors alone', async () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
     captures.selectResult = [
       { id: 'row-1', fcmToken: 'token-1' },
       { id: 'row-2', fcmToken: 'token-2' },
@@ -238,6 +239,48 @@ describe('handleNotificationPush — soft-deactivate on terminal errors', () => 
     // will retry these tokens via QStash; if they keep failing for a real
     // terminal reason, the cleanup catches them later.
     expect(mockDb.update).not.toHaveBeenCalled();
+    // …but non-terminal failures MUST surface in the logs, or a systemic
+    // outage (bad payload, expired APNs cert, quota) delivers zero pushes
+    // silently. One log line per failed message.
+    expect(errorSpy).toHaveBeenCalledTimes(2);
+    expect(errorSpy).toHaveBeenCalledWith(
+      '[FCM] push delivery failed',
+      expect.objectContaining({ userId: 'user-123', code: 'messaging/server-unavailable' })
+    );
+    errorSpy.mockRestore();
+  });
+
+  it('logs non-terminal failures even alongside a terminal one it deactivates', async () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    captures.selectResult = [
+      { id: 'row-dead', fcmToken: 'token-dead' },
+      { id: 'row-bad-payload', fcmToken: 'token-bad' },
+    ];
+    mockSendEach.mockResolvedValueOnce({
+      successCount: 0,
+      failureCount: 2,
+      responses: [
+        {
+          success: false,
+          error: { code: 'messaging/registration-token-not-registered', message: 'gone' },
+        },
+        {
+          success: false,
+          error: { code: 'messaging/invalid-argument', message: 'malformed payload' },
+        },
+      ],
+    });
+
+    await expect(handleNotificationPush(validPayload)).resolves.toBeUndefined();
+    // Terminal row deactivated…
+    expect(mockDb.update).toHaveBeenCalledTimes(1);
+    // …and the non-terminal (real bug) failure still logged, not swallowed.
+    expect(errorSpy).toHaveBeenCalledTimes(1);
+    expect(errorSpy).toHaveBeenCalledWith(
+      '[FCM] push delivery failed',
+      expect.objectContaining({ code: 'messaging/invalid-argument' })
+    );
+    errorSpy.mockRestore();
   });
 });
 

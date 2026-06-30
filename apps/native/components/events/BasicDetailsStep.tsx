@@ -3,12 +3,15 @@ import { cn } from 'heroui-native';
 import { Image, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 
 import type { EventCategory } from '@CeolX/shared';
+import { EVENT_DESCRIPTION_MAX, EVENT_TITLE_MAX } from '@CeolX/shared/validators';
 
 import type { ArtistResult } from './ArtistSearchRow';
 import { CategoryPicker } from './CategoryPicker';
 import { CollectionPicker } from './CollectionPicker';
 import { FieldLabel } from './FieldLabel';
 import { InviteArtistPicker } from './InviteArtistPicker';
+
+import { CharacterCount, CharacterLimitNote } from '@/components/CharacterCount';
 
 type Props = {
   title: string;
@@ -28,16 +31,16 @@ type Props = {
   onCollectionIdChange: (v: string) => void;
   platformInvites: ArtistResult[];
   onPlatformInvitesChange: (artists: ArtistResult[]) => void;
-  unregisteredCollaborators: Array<{ name: string; email: string }>;
-  onUnregisteredCollaboratorsChange: (invites: Array<{ name: string; email: string }>) => void;
+  unregisteredCollaborators: Array<{ name: string; email: string; imageUrl?: string }>;
+  onUnregisteredCollaboratorsChange: (
+    invites: Array<{ name: string; email: string; imageUrl?: string }>
+  ) => void;
   errors: Record<string, string>;
   onContinue: () => void;
   isVenue: boolean;
   /** Current user's id — excluded from the invite search so a creator can't invite themselves. */
   myUserId?: string;
 };
-
-const MAX_DESCRIPTION_LENGTH = 2000;
 
 export function BasicDetailsStep({
   title,
@@ -71,13 +74,20 @@ export function BasicDetailsStep({
     >
       {/* ── Event Title ── */}
       <View className="gap-2">
-        <FieldLabel
-          label="Event Title"
-          hint="The name of your event as it appears on the map, feed and event page. Keep it short and descriptive."
-        />
+        <View className="flex-row items-center justify-between">
+          <FieldLabel
+            label="Event Title"
+            hint="The name of your event as it appears on the map, feed and event page. Keep it short and descriptive."
+          />
+          <CharacterCount
+            count={title.length}
+            max={EVENT_TITLE_MAX}
+            className="text-xs text-gray-7 font-urbanist"
+          />
+        </View>
         <TextInput
           className={cn(
-            'rounded-lg border bg-surface px-4 py-3 text-sm text-white font-urbanist',
+            'rounded-lg border bg-surface px-4 py-3 text-[14px] text-white font-urbanist',
             errors.title ? 'border-error' : 'border-gray-8'
           )}
           placeholder="Enter event title"
@@ -85,9 +95,10 @@ export function BasicDetailsStep({
           value={title}
           onChangeText={onTitleChange}
           onBlur={onTitleBlur}
-          maxLength={120}
+          maxLength={EVENT_TITLE_MAX}
         />
         {errors.title && <Text className="text-xs text-error font-urbanist">{errors.title}</Text>}
+        <CharacterLimitNote count={title.length} max={EVENT_TITLE_MAX} />
       </View>
 
       {/* ── Event Banner / Image ── */}
@@ -148,9 +159,11 @@ export function BasicDetailsStep({
             label="Event Description"
             hint="Tell fans what to expect — the acts, the vibe, and any details they should know before they go."
           />
-          <Text className="text-xs text-gray-7 font-urbanist">
-            {description.length}/{MAX_DESCRIPTION_LENGTH}
-          </Text>
+          <CharacterCount
+            count={description.length}
+            max={EVENT_DESCRIPTION_MAX}
+            className="text-xs text-gray-7 font-urbanist"
+          />
         </View>
         <TextInput
           className={cn(
@@ -160,19 +173,18 @@ export function BasicDetailsStep({
           placeholder="Describe your event"
           placeholderTextColor="#8d8d8d"
           value={description}
-          onChangeText={(text) => {
-            if (text.length <= MAX_DESCRIPTION_LENGTH) {
-              onDescriptionChange(text);
-            }
-          }}
+          // Cap natively so the limit also applies to paste, and slice
+          // defensively so an over-long paste can never reach state.
+          onChangeText={(text) => onDescriptionChange(text.slice(0, EVENT_DESCRIPTION_MAX))}
           onBlur={onDescriptionBlur}
           multiline
           textAlignVertical="top"
-          maxLength={MAX_DESCRIPTION_LENGTH}
+          maxLength={EVENT_DESCRIPTION_MAX}
         />
         {errors.description && (
           <Text className="text-xs text-error font-urbanist">{errors.description}</Text>
         )}
+        <CharacterLimitNote count={description.length} max={EVENT_DESCRIPTION_MAX} />
       </View>
 
       {/* ── Category ── */}

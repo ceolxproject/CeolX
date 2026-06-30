@@ -7,9 +7,11 @@ import {
   resetPasswordSchema,
   consentSchema,
   createEventSchema,
+  updateEventSchema,
   removeEventSchema,
   adminEventListQuerySchema,
   adminRemoveEventSchema,
+  adminUsersListInputSchema,
   onboardingSchema,
   switchRoleSchema,
   createArtistOnboardingSchema,
@@ -20,7 +22,57 @@ import {
   venueOnboardingStep1Schema,
   venueOnboardingStep2Schema,
   venueOnboardingStep3Schema,
+  BIO_MAX_LENGTH,
 } from '../index.js';
+
+// ─── Admin users filters ─────────────────────────────────────────────────────
+
+describe('adminUsersListInputSchema', () => {
+  it('accepts a from <= to date range', () => {
+    expect(
+      adminUsersListInputSchema.safeParse({
+        registeredFrom: '2026-01-01',
+        registeredTo: '2026-06-01',
+      }).success
+    ).toBe(true);
+  });
+
+  it('accepts an equal range and single-sided ranges', () => {
+    expect(
+      adminUsersListInputSchema.safeParse({
+        registeredFrom: '2026-01-01',
+        registeredTo: '2026-01-01',
+      }).success
+    ).toBe(true);
+    expect(adminUsersListInputSchema.safeParse({ registeredFrom: '2026-01-01' }).success).toBe(
+      true
+    );
+    expect(adminUsersListInputSchema.safeParse({ registeredTo: '2026-01-01' }).success).toBe(true);
+  });
+
+  it('rejects from > to', () => {
+    expect(
+      adminUsersListInputSchema.safeParse({
+        registeredFrom: '2026-06-01',
+        registeredTo: '2026-01-01',
+      }).success
+    ).toBe(false);
+  });
+
+  it('rejects a malformed or impossible date', () => {
+    expect(adminUsersListInputSchema.safeParse({ registeredFrom: '01-06-2026' }).success).toBe(
+      false
+    );
+    expect(adminUsersListInputSchema.safeParse({ registeredFrom: '2026-13-40' }).success).toBe(
+      false
+    );
+  });
+
+  it('caps search at 100 characters', () => {
+    expect(adminUsersListInputSchema.safeParse({ search: 'a'.repeat(101) }).success).toBe(false);
+    expect(adminUsersListInputSchema.safeParse({ search: 'a'.repeat(100) }).success).toBe(true);
+  });
+});
 
 // ─── Auth validators ────────────────────────────────────────────────────────
 
@@ -279,6 +331,50 @@ describe('createEventSchema', () => {
   });
 });
 
+describe('updateEventSchema — clearing optional ticket & ads fields', () => {
+  const id = '550e8400-e29b-41d4-a716-446655440000';
+
+  // Clearing a field on edit must send an explicit `null` so the server writes
+  // NULL. The schema therefore has to ACCEPT null AND preserve it through the
+  // parse (an `.optional()`-only field would strip/reject it, which is the
+  // root cause of "Ticket & Ads changes not saved" — Asana 1216070978559447).
+  it('accepts null for ticketLink, ticketPrice, adTitle and adDescription and preserves it', () => {
+    const result = updateEventSchema.safeParse({
+      id,
+      data: { ticketLink: null, ticketPrice: null, adTitle: null, adDescription: null },
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.data).toEqual({
+        ticketLink: null,
+        ticketPrice: null,
+        adTitle: null,
+        adDescription: null,
+      });
+    }
+  });
+
+  it('still accepts real values for those fields', () => {
+    expect(
+      updateEventSchema.safeParse({
+        id,
+        data: {
+          ticketLink: 'https://tickets.example.com/x',
+          ticketPrice: 1500,
+          adTitle: 'Special offer',
+          adDescription: 'Early bird discount',
+        },
+      }).success
+    ).toBe(true);
+  });
+
+  it('still rejects a malformed ticketLink url', () => {
+    expect(updateEventSchema.safeParse({ id, data: { ticketLink: 'not-a-url' } }).success).toBe(
+      false
+    );
+  });
+});
+
 // ─── Profile validators ──────────────────────────────────────────────────────
 
 describe('createArtistOnboardingSchema', () => {
@@ -310,9 +406,12 @@ describe('createArtistOnboardingSchema', () => {
     );
   });
 
-  it('rejects bio longer than 50 characters', () => {
+  it('rejects bio longer than BIO_MAX_LENGTH characters', () => {
     expect(
-      createArtistOnboardingSchema.safeParse({ stageName: 'Seán', bio: 'a'.repeat(51) }).success
+      createArtistOnboardingSchema.safeParse({
+        stageName: 'Seán',
+        bio: 'a'.repeat(BIO_MAX_LENGTH + 1),
+      }).success
     ).toBe(false);
   });
 
@@ -481,8 +580,10 @@ describe('artistOnboardingStep1Schema', () => {
 });
 
 describe('artistOnboardingStep2Schema (D1.A — bio optional)', () => {
-  it('accepts bio at exactly 50 characters', () => {
-    expect(artistOnboardingStep2Schema.safeParse({ bio: 'a'.repeat(50) }).success).toBe(true);
+  it('accepts bio at exactly BIO_MAX_LENGTH characters', () => {
+    expect(artistOnboardingStep2Schema.safeParse({ bio: 'a'.repeat(BIO_MAX_LENGTH) }).success).toBe(
+      true
+    );
   });
 
   it('accepts empty body — bio omitted', () => {
@@ -495,8 +596,10 @@ describe('artistOnboardingStep2Schema (D1.A — bio optional)', () => {
     if (result.success) expect(result.data.bio).toBe('short bio');
   });
 
-  it('rejects bio longer than 50 characters', () => {
-    expect(artistOnboardingStep2Schema.safeParse({ bio: 'a'.repeat(51) }).success).toBe(false);
+  it('rejects bio longer than BIO_MAX_LENGTH characters', () => {
+    expect(
+      artistOnboardingStep2Schema.safeParse({ bio: 'a'.repeat(BIO_MAX_LENGTH + 1) }).success
+    ).toBe(false);
   });
 });
 
@@ -612,13 +715,13 @@ describe('venueOnboardingStep2Schema', () => {
     expect(venueOnboardingStep2Schema.safeParse({}).success).toBe(false);
   });
 
-  it('rejects bio longer than 50 characters', () => {
+  it('rejects bio longer than BIO_MAX_LENGTH characters', () => {
     expect(
       venueOnboardingStep2Schema.safeParse({
         address: 'Galway',
         lat: 53.2707,
         lng: -9.0568,
-        bio: 'a'.repeat(51),
+        bio: 'a'.repeat(BIO_MAX_LENGTH + 1),
       }).success
     ).toBe(false);
   });
@@ -789,7 +892,7 @@ describe('adminEventListQuerySchema', () => {
     const result = adminEventListQuerySchema.safeParse({});
     expect(result.success).toBe(true);
     if (result.success) {
-      expect(result.data.status).toBe('active');
+      expect(result.data.status).toBeUndefined();
       expect(result.data.limit).toBe(20);
       expect(result.data.offset).toBe(0);
       expect(result.data.persona).toBeUndefined();

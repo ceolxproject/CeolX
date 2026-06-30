@@ -1,10 +1,11 @@
-import { Ionicons } from '@expo/vector-icons';
 import { Link, router } from 'expo-router';
 import { useState } from 'react';
-import { KeyboardAvoidingView, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { KeyboardAvoidingView, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppButton } from '@/components/AppButton';
+import { AppHeader } from '@/components/AppHeader';
+import { AppTextField } from '@/components/AppTextField';
 import { CeolxLogo } from '@/components/CeolxLogo';
 import { SocialLoginButtons } from '@/components/SocialLoginButtons';
 import { useAuth } from '@/contexts/auth-context';
@@ -23,7 +24,6 @@ type ErrorState =
 export default function SignInScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [passwordVisible, setPasswordVisible] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorState, setErrorState] = useState<ErrorState>(null);
   const { signInWithGoogle, signInWithApple } = useSocialAuth();
@@ -33,15 +33,24 @@ export default function SignInScreen() {
     setErrorState(null);
     setIsSubmitting(true);
 
+    // Canonicalize before sending so login matches the lowercased email stored
+    // at signup — the byte-exact email lookup otherwise fails on a casing
+    // difference and reports "not verified" (Asana 1215700058851867). The
+    // server normalizes too; this keeps the resend banner's email consistent.
+    const normalizedEmail = email.trim().toLowerCase();
+
     try {
-      const { error: authError } = await authClient.signIn.email({ email, password });
+      const { error: authError } = await authClient.signIn.email({
+        email: normalizedEmail,
+        password,
+      });
 
       if (authError) {
         const status = authError.status ?? 0;
         const msg = authError.message?.toLowerCase() ?? '';
 
         if (status === 403 || msg.includes('email_not_verified') || msg.includes('not verified')) {
-          setErrorState({ type: 'unverified', email });
+          setErrorState({ type: 'unverified', email: normalizedEmail });
         } else if (status === 429) {
           setErrorState({
             type: 'generic',
@@ -74,18 +83,20 @@ export default function SignInScreen() {
     <View style={{ flex: 1, backgroundColor: '#0d0c0f' }}>
       <SafeAreaView style={{ flex: 1 }}>
         <KeyboardAvoidingView behavior="padding" style={{ flex: 1 }}>
-          {/* Header — Urbanist Bold 12 */}
-          <View className="flex-row justify-between items-center p-5 bg-surface-dark">
-            <CeolxLogo />
-            <Pressable
-              onPress={handleSkip}
-              className="border border-gray-10 rounded-[20px] h-9 px-5 items-center justify-center"
-            >
-              <Text className="text-white text-xs font-bold tracking-wide uppercase font-sans">
-                skip
-              </Text>
-            </Pressable>
-          </View>
+          <AppHeader
+            bgClassName="bg-surface-dark"
+            leadingNode={<CeolxLogo />}
+            trailingAccessory={
+              <Pressable
+                onPress={handleSkip}
+                className="border border-gray-10 rounded-[20px] h-9 px-5 items-center justify-center"
+              >
+                <Text className="text-white text-xs font-bold tracking-wide uppercase font-sans">
+                  skip
+                </Text>
+              </Pressable>
+            }
+          />
 
           <ScrollView
             contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 24, paddingBottom: 40 }}
@@ -131,15 +142,15 @@ export default function SignInScreen() {
               <Text className="text-sm font-medium font-inter text-white/80 leading-5">
                 Email Address
               </Text>
-              <TextInput
-                className="bg-white rounded-lg h-[52px] px-4 text-base font-sans font-medium text-black leading-5"
+              <AppTextField
+                variant="light"
+                className="font-sans font-medium"
                 placeholder="Enter your email address"
-                placeholderTextColor="#8d8d8d"
                 keyboardType="email-address"
                 autoCapitalize="none"
                 autoComplete="email"
                 value={email}
-                onChangeText={setEmail}
+                onChangeText={(t) => setEmail(t.toLowerCase())}
               />
             </View>
 
@@ -148,27 +159,15 @@ export default function SignInScreen() {
               <Text className="text-sm font-medium font-inter text-white/80 leading-5">
                 Password
               </Text>
-              <View className="flex-row items-center">
-                <TextInput
-                  className="flex-1 bg-white rounded-lg h-[52px] px-4 text-base font-sans font-medium text-black leading-5"
-                  placeholder="Enter your password"
-                  placeholderTextColor="#8d8d8d"
-                  secureTextEntry={!passwordVisible}
-                  autoComplete="current-password"
-                  value={password}
-                  onChangeText={setPassword}
-                />
-                <Pressable
-                  className="absolute right-4 h-[52px] justify-center"
-                  onPress={() => setPasswordVisible((v) => !v)}
-                >
-                  <Ionicons
-                    name={passwordVisible ? 'eye-outline' : 'eye-off-outline'}
-                    size={20}
-                    color="#8d8d8d"
-                  />
-                </Pressable>
-              </View>
+              <AppTextField
+                variant="light"
+                className="font-sans font-medium"
+                placeholder="Enter your password"
+                secureTextEntry
+                autoComplete="current-password"
+                value={password}
+                onChangeText={setPassword}
+              />
             </View>
 
             {/* Forgot password — Inter Medium 14/20 */}

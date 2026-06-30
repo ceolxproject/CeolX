@@ -28,6 +28,7 @@ export default tseslint.config(
       'apps/native/fingerprint.config.cjs',
       'apps/native/plugins/**',
       'apps/native/scripts/*.cjs',
+      'apps/native/scripts/*.mjs',
     ],
   },
 

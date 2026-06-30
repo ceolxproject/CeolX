@@ -47,7 +47,8 @@ describe('parseDuration', () => {
 describe('publishJob', () => {
   beforeEach(() => {
     vi.stubEnv('QSTASH_TOKEN', 'test-token');
-    vi.stubEnv('QSTASH_BASE_URL', 'https://api.ceolx.ie/api/webhooks/qstash');
+    vi.stubEnv('QSTASH_BASE_URL', 'https://qstash-eu-central-1.upstash.io');
+    vi.stubEnv('BETTER_AUTH_URL', 'https://api.ceolx.ie');
   });
 
   afterEach(() => {
@@ -83,10 +84,11 @@ describe('publishJob', () => {
     expect(mockPublishJSON).toHaveBeenCalledWith(expect.objectContaining({ delay: 2592000 }));
   });
 
-  it('throws when QSTASH_BASE_URL is not set', async () => {
+  it('throws when BETTER_AUTH_URL is not set', async () => {
     vi.unstubAllEnvs();
     vi.stubEnv('QSTASH_TOKEN', 'test-token');
-    await expect(publishJob('notification.batch', {})).rejects.toThrow('QSTASH_BASE_URL');
+    vi.stubEnv('BETTER_AUTH_URL', ''); // blank — overrides any value loaded from .env
+    await expect(publishJob('notification.batch', {})).rejects.toThrow('BETTER_AUTH_URL');
   });
 });
 
@@ -96,7 +98,8 @@ describe('publishJob', () => {
 describe('publishCron', () => {
   beforeEach(() => {
     vi.stubEnv('QSTASH_TOKEN', 'test-token');
-    vi.stubEnv('QSTASH_BASE_URL', 'https://api.ceolx.ie/api/webhooks/qstash');
+    vi.stubEnv('QSTASH_BASE_URL', 'https://qstash-eu-central-1.upstash.io');
+    vi.stubEnv('BETTER_AUTH_URL', 'https://api.ceolx.ie');
   });
 
   afterEach(() => {

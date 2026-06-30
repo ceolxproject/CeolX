@@ -5,6 +5,7 @@
   },
   "build": {
     "development": {
+      "node": "24.18.0",
       "developmentClient": true,
       "distribution": "internal",
       "ios": {
@@ -12,9 +13,11 @@
       }
     },
     "preview": {
+      "node": "24.18.0",
       "distribution": "internal"
     },
     "staging": {
+      "node": "24.18.0",
       "distribution": "internal",
       "channel": "staging",
       "environment": "preview",
@@ -40,6 +43,7 @@
       }
     },
     "production": {
+      "node": "24.18.0",
       "distribution": "store",
       "channel": "production",
       "autoIncrement": true,

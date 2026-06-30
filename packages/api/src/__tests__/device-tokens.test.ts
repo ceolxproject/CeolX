@@ -16,6 +16,11 @@ const { mockDb, mocks } = vi.hoisted(() => {
   const deleteCalls: Array<{ table: unknown; where: unknown }> = [];
   let selectResult: unknown[] = [];
   let updateReturningResult: unknown[] = [];
+  // The ONB-01 welcome-push claim updates the `user` table; keep its
+  // .returning() result independent of the device-token updates.
+  let welcomeClaimResult: unknown[] = [];
+  const isUserTable = (table: unknown): boolean =>
+    (table as { __table?: string } | null)?.__table === 'user';
 
   return {
     mockDb: {
@@ -43,7 +48,9 @@ const { mockDb, mocks } = vi.hoisted(() => {
             const result = Promise.resolve(undefined) as Promise<undefined> & {
               returning: () => Promise<unknown[]>;
             };
-            result.returning = vi.fn(() => Promise.resolve(updateReturningResult));
+            result.returning = vi.fn(() =>
+              Promise.resolve(isUserTable(table) ? welcomeClaimResult : updateReturningResult)
+            );
             return result;
           }),
         })),
@@ -78,12 +85,20 @@ const { mockDb, mocks } = vi.hoisted(() => {
       setUpdateReturning(rows: unknown[]) {
         updateReturningResult = rows;
       },
+      setWelcomeClaim(rows: unknown[]) {
+        welcomeClaimResult = rows;
+      },
+      // Device-token updates only (excludes the user-table welcome-push claim).
+      get tokenUpdateCalls() {
+        return updateCalls.filter((c) => !isUserTable(c.table));
+      },
       reset() {
         insertCalls.length = 0;
         updateCalls.length = 0;
         deleteCalls.length = 0;
         selectResult = [];
         updateReturningResult = [];
+        welcomeClaimResult = [];
       },
     },
   };
@@ -101,6 +116,15 @@ vi.mock('@CeolX/db/schema/notifications', () => ({
     lastUsedAt: 'last_used_at',
     createdAt: 'created_at',
     updatedAt: 'updated_at',
+  },
+}));
+
+vi.mock('@CeolX/db/schema/auth', () => ({
+  user: {
+    __table: 'user',
+    id: 'id',
+    welcomeSentAt: 'welcome_sent_at',
+    welcomePushSentAt: 'welcome_push_sent_at',
   },
 }));
 
@@ -200,7 +224,7 @@ describe('deviceTokens.register', () => {
       platform: 'ios',
       isActive: true,
     });
-    expect(mocks.updateCalls).toHaveLength(0);
+    expect(mocks.tokenUpdateCalls).toHaveLength(0);
   });
 
   it('reassigns an existing row when the token already belongs to another user', async () => {
@@ -214,8 +238,8 @@ describe('deviceTokens.register', () => {
     });
 
     expect(result).toEqual({ success: true });
-    expect(mocks.updateCalls).toHaveLength(1);
-    expect(mocks.updateCalls[0]?.set).toMatchObject({
+    expect(mocks.tokenUpdateCalls).toHaveLength(1);
+    expect(mocks.tokenUpdateCalls[0]?.set).toMatchObject({
       userId: USER_ID,
       platform: 'android',
       isActive: true,
@@ -275,12 +299,12 @@ describe('deviceTokens.refresh', () => {
     });
 
     expect(result).toEqual({ success: true });
-    expect(mocks.updateCalls).toHaveLength(1);
-    expect(mocks.updateCalls[0]?.set).toMatchObject({
+    expect(mocks.tokenUpdateCalls).toHaveLength(1);
+    expect(mocks.tokenUpdateCalls[0]?.set).toMatchObject({
       isActive: true,
       platform: 'ios',
     });
-    expect(mocks.updateCalls[0]?.set).toHaveProperty('lastUsedAt');
+    expect(mocks.tokenUpdateCalls[0]?.set).toHaveProperty('lastUsedAt');
     expect(mocks.insertCalls).toHaveLength(0);
   });
 
@@ -294,7 +318,7 @@ describe('deviceTokens.refresh', () => {
     });
 
     expect(result).toEqual({ success: true });
-    expect(mocks.updateCalls).toHaveLength(1); // attempted update first
+    expect(mocks.tokenUpdateCalls).toHaveLength(1); // attempted update first
     expect(mocks.insertCalls).toHaveLength(1); // then inserted
     expect(mocks.insertCalls[0]?.values).toMatchObject({
       userId: USER_ID,
@@ -318,6 +342,69 @@ describe('deviceTokens.refresh', () => {
       caller.deviceTokens.refresh({ token: VALID_TOKEN, platform: 'ios' }),
       'UNAUTHORIZED'
     );
+  });
+});
+
+// ─── onboarding welcome push (ONB-01) ───────────────────────────────────────
+
+describe('deviceTokens — welcome push (ONB-01)', () => {
+  it('register fires the push-only welcome dispatch when the claim succeeds', async () => {
+    mocks.setSelectResult([]); // fresh token insert
+    mocks.setWelcomeClaim([{ id: USER_ID }]); // welcome due (claimed)
+
+    const ctx = authedContext('spectator');
+    await createCaller(ctx).deviceTokens.register({ token: VALID_TOKEN, platform: 'ios' });
+
+    // The claim targets the user table and stamps welcomePushSentAt.
+    const claim = mocks.updateCalls.find(
+      (c) => (c.set as Record<string, unknown>).welcomePushSentAt
+    );
+    expect(claim).toBeDefined();
+    expect((claim?.set as Record<string, unknown>).welcomePushSentAt).toBeInstanceOf(Date);
+
+    expect(ctx.dispatchNotification).toHaveBeenCalledTimes(1);
+    expect(ctx.dispatchNotification).toHaveBeenCalledWith({
+      trigger: 'user_welcome',
+      recipientUserId: USER_ID,
+      vars: {},
+      surfaces: ['push'],
+    });
+  });
+
+  it('register does NOT dispatch when the welcome push is not due (claim empty)', async () => {
+    mocks.setSelectResult([]);
+    mocks.setWelcomeClaim([]); // already pushed, or never welcomed (backfilled)
+
+    const ctx = authedContext('spectator');
+    await createCaller(ctx).deviceTokens.register({ token: VALID_TOKEN, platform: 'ios' });
+
+    expect(ctx.dispatchNotification).not.toHaveBeenCalled();
+  });
+
+  it('refresh also fires the welcome push when due', async () => {
+    mocks.setUpdateReturning([{ id: 'token-row-uuid' }]); // existing token
+    mocks.setWelcomeClaim([{ id: USER_ID }]);
+
+    const ctx = authedContext('artist');
+    await createCaller(ctx).deviceTokens.refresh({ token: VALID_TOKEN, platform: 'android' });
+
+    expect(ctx.dispatchNotification).toHaveBeenCalledWith(
+      expect.objectContaining({ trigger: 'user_welcome', surfaces: ['push'] })
+    );
+  });
+
+  it('a dispatch failure never fails token registration', async () => {
+    mocks.setSelectResult([]);
+    mocks.setWelcomeClaim([{ id: USER_ID }]);
+
+    const ctx = authedContext('spectator');
+    (ctx.dispatchNotification as ReturnType<typeof vi.fn>).mockRejectedValueOnce(
+      new Error('qstash down')
+    );
+
+    await expect(
+      createCaller(ctx).deviceTokens.register({ token: VALID_TOKEN, platform: 'ios' })
+    ).resolves.toEqual({ success: true });
   });
 });
 

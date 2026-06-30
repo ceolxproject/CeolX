@@ -4,60 +4,73 @@ import { describe, expect, it, beforeEach, vi } from 'vitest';
 // `db.select().from(table).where().limit()` routes its result by table identity,
 // so one mock serves both the artist and venue queries.
 
-const { mockDb, artistProfilesToken, venueProfilesToken, setArtistRows, setVenueRows, mockSearch } =
-  vi.hoisted(() => {
-    const artistProfilesToken = {
-      stageName: 'stage_name',
-      genres: 'genres',
-      isActive: 'is_active',
-      userId: 'user_id',
-    };
-    const venueProfilesToken = {
-      venueName: 'venue_name',
-      subscriptionStatus: 'subscription_status',
-      userId: 'user_id',
-    };
+// NOTE: this mock returns preset rows by *table identity* and ignores the WHERE
+// clause entirely — so it verifies result *shaping/grouping*, NOT the SQL filter.
+// The genre/account-name matching added for Asana 1216029035897869 is a WHERE
+// predicate and therefore cannot be exercised here; it is verified directly
+// against Postgres (unnest(genres) ILIKE) rather than by this unit test.
+const {
+  mockDb,
+  artistProfilesToken,
+  venueProfilesToken,
+  userToken,
+  setArtistRows,
+  setVenueRows,
+  mockSearch,
+} = vi.hoisted(() => {
+  const artistProfilesToken = {
+    stageName: 'stage_name',
+    genres: 'genres',
+    genre: 'genre',
+    isActive: 'is_active',
+    userId: 'user_id',
+  };
+  const venueProfilesToken = {
+    venueName: 'venue_name',
+    subscriptionStatus: 'subscription_status',
+    userId: 'user_id',
+  };
+  const userToken = { id: 'id', name: 'name' };
 
-    let artistRows: unknown[] = [];
-    let venueRows: unknown[] = [];
+  let artistRows: unknown[] = [];
+  let venueRows: unknown[] = [];
 
-    const mockDb = {
-      select: vi.fn(() => ({
-        from: vi.fn((table: unknown) => ({
-          where: vi.fn(() => ({
-            limit: vi.fn(() =>
-              Promise.resolve(
-                table === artistProfilesToken
-                  ? artistRows
-                  : table === venueProfilesToken
-                    ? venueRows
-                    : []
-              )
-            ),
-          })),
-        })),
-      })),
-    };
+  // Resolve rows by the table passed to `.from()`. The artist query now joins
+  // `user`, so the chain must also accept `.innerJoin()` before `.where()`.
+  const chainFor = (table: unknown) => {
+    const resolve = () =>
+      Promise.resolve(
+        table === artistProfilesToken ? artistRows : table === venueProfilesToken ? venueRows : []
+      );
+    const whereStep = { where: vi.fn(() => ({ limit: vi.fn(resolve) })) };
+    return { ...whereStep, innerJoin: vi.fn(() => whereStep) };
+  };
 
-    return {
-      mockDb,
-      artistProfilesToken,
-      venueProfilesToken,
-      setArtistRows: (r: unknown[]) => {
-        artistRows = r;
-      },
-      setVenueRows: (r: unknown[]) => {
-        venueRows = r;
-      },
-      mockSearch: vi.fn(),
-    };
-  });
+  const mockDb = {
+    select: vi.fn(() => ({ from: vi.fn((table: unknown) => chainFor(table)) })),
+  };
+
+  return {
+    mockDb,
+    artistProfilesToken,
+    venueProfilesToken,
+    userToken,
+    setArtistRows: (r: unknown[]) => {
+      artistRows = r;
+    },
+    setVenueRows: (r: unknown[]) => {
+      venueRows = r;
+    },
+    mockSearch: vi.fn(),
+  };
+});
 
 vi.mock('@CeolX/db', () => ({ db: mockDb }));
 vi.mock('@CeolX/db/schema/users', () => ({
   artistProfiles: artistProfilesToken,
   venueProfiles: venueProfilesToken,
 }));
+vi.mock('@CeolX/db/schema/auth', () => ({ user: userToken }));
 vi.mock('../lib/typesense', () => ({
   typesenseClient: {
     collections: () => ({ documents: () => ({ search: mockSearch }) }),

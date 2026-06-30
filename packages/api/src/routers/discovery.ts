@@ -1,6 +1,7 @@
-import { and, eq, ilike } from 'drizzle-orm';
+import { and, eq, ilike, or, sql } from 'drizzle-orm';
 
 import { db } from '@CeolX/db';
+import { user } from '@CeolX/db/schema/auth';
 import { artistProfiles, venueProfiles } from '@CeolX/db/schema/users';
 import { suggestSchema, type Suggestion } from '@CeolX/shared/validators';
 
@@ -22,9 +23,18 @@ function dedupeByLabel(items: Suggestion[]): Suggestion[] {
   return out;
 }
 
-// Artist stage-name matches, visible profiles only (isActive mirrors the
-// `bookings.searchArtists` / `posts/feed.ts` visibility rule). Sub-line = genre.
+// Artist suggestions for the search box. The placeholder promises "Find Music,
+// Artist or Event", so the term is matched against four things:
+//   - stage name (the public artist name),
+//   - account name (matched like `artists.search`, never displayed — GDPR),
+//   - the deprecated `genre` varchar, and
+//   - any element of the `genres[]` array.
+// The genre matches are what make a *music* query ("Trad", "Folk") surface the
+// artists who play it — without them the dropdown only ever matched stage names,
+// so genre searches returned nothing (Asana 1216029035897869).
+// Visible profiles only (`isActive`); sub-line = first genre.
 async function suggestArtists(term: string): Promise<Suggestion[]> {
+  const pattern = `%${term}%`;
   const rows = await db
     .select({
       stageName: artistProfiles.stageName,
@@ -32,7 +42,18 @@ async function suggestArtists(term: string): Promise<Suggestion[]> {
       imageUrl: artistProfiles.profileImageUrl,
     })
     .from(artistProfiles)
-    .where(and(ilike(artistProfiles.stageName, `%${term}%`), eq(artistProfiles.isActive, true)))
+    .innerJoin(user, eq(artistProfiles.userId, user.id))
+    .where(
+      and(
+        eq(artistProfiles.isActive, true),
+        or(
+          ilike(artistProfiles.stageName, pattern),
+          ilike(user.name, pattern),
+          ilike(artistProfiles.genre, pattern),
+          sql`EXISTS (SELECT 1 FROM unnest(${artistProfiles.genres}) AS g WHERE g ILIKE ${pattern})`
+        )
+      )
+    )
     .limit(GROUP_LIMIT);
 
   return dedupeByLabel(

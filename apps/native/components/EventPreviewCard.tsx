@@ -2,6 +2,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { Image, Pressable, Text, View } from 'react-native';
 
+import { appToast } from '@/components/AppToast';
+import { useSaveEvent } from '@/hooks/use-save-event';
 import { getMockEventImage } from '@/utils/mock-images';
 
 interface EventPreviewCardProps {
@@ -18,6 +20,13 @@ interface EventPreviewCardProps {
 
 export function EventPreviewCard({ event, onDismiss }: EventPreviewCardProps) {
   const router = useRouter();
+  const { mutate: saveEvent } = useSaveEvent();
+
+  const handleSave = () => {
+    saveEvent({ eventId: event.id, saved: true });
+    appToast.success('Event saved');
+    onDismiss?.();
+  };
 
   return (
     <View
@@ -54,7 +63,7 @@ export function EventPreviewCard({ event, onDismiss }: EventPreviewCardProps) {
         </Pressable>
         <Pressable
           className="flex-1 h-11 rounded-full bg-[#662FFF] items-center justify-center"
-          onPress={() => router.push(`/(app)/(tabs)/map/event/${event.id}`)}
+          onPress={handleSave}
         >
           <Text className="text-[14px] font-semibold text-white tracking-[0.5px]">SAVE</Text>
         </Pressable>

@@ -1,7 +1,9 @@
 import { useCallback } from 'react';
-import { Alert, Share } from 'react-native';
+import { Share } from 'react-native';
 
 import { env } from '@CeolX/env/native';
+
+import { appToast } from '@/components/AppToast';
 
 // Prod marketing domain by default; staging overrides via env to point at the
 // staging server's Vercel URL (no custom domain off prod). Must stay in sync
@@ -28,7 +30,7 @@ export function useSharePost() {
         title: 'Check out this post on CeolX',
       });
     } catch {
-      Alert.alert('Unable to share', 'Please try again.');
+      appToast.error('Unable to share', 'Please try again.');
     }
   }, []);
 }

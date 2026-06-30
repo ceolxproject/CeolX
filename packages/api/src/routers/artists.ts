@@ -1,10 +1,10 @@
 import { TRPCError } from '@trpc/server';
-import { and, eq, ilike, inArray, or } from 'drizzle-orm';
+import { and, eq, ilike, isNull, or, sql } from 'drizzle-orm';
 import { z } from 'zod';
 
 import { db } from '@CeolX/db';
 import { user } from '@CeolX/db/schema/auth';
-import { eventCollaborators, events } from '@CeolX/db/schema/events';
+import { collections, eventCollaborators, events } from '@CeolX/db/schema/events';
 import { follows } from '@CeolX/db/schema/social';
 import { artistProfiles } from '@CeolX/db/schema/users';
 import { updateArtistProfileSchema } from '@CeolX/shared/validators';
@@ -103,13 +103,24 @@ export const artistsRouter = router({
         venueAddress: events.venueAddress,
         category: events.category,
         status: events.status,
+        collectionName: collections.name,
       })
       .from(events)
+      .leftJoin(collections, eq(events.collectionId, collections.id))
       .where(
-        and(eq(events.createdBy, profile.userId), inArray(events.status, ['active', 'archived']))
+        // 'archived' = creator-deleted (the only writer of that status). A deleted
+        // event must vanish from every persona's view, so the public profile shows
+        // ACTIVE only; naturally-past events stay ACTIVE with a past date and still
+        // surface under Past Events below. (Asana 1216029058657584)
+        and(eq(events.createdBy, profile.userId), eq(events.status, 'active'))
       );
 
-    // Events where artist is a collaborator (via event_collaborators)
+    // Events where artist is a *confirmed* collaborator. A row is created at
+    // invite time linked to a PENDING booking, so we must gate on acceptance:
+    // show only rows with no booking (legacy direct-add, pre-31/05/2026) or an
+    // accepted booking. Pending/declined/cancelled invites stay off the public
+    // profile. Mirrors bookings.confirmedEvents / isConfirmedPerformer.
+    // (Asana 1215700058851964)
     const collaboratedEvents = await db
       .select({
         id: events.id,
@@ -120,13 +131,25 @@ export const artistsRouter = router({
         venueAddress: events.venueAddress,
         category: events.category,
         status: events.status,
+        collectionName: collections.name,
       })
       .from(events)
       .innerJoin(eventCollaborators, eq(eventCollaborators.eventId, events.id))
+      .leftJoin(collections, eq(events.collectionId, collections.id))
       .where(
         and(
           eq(eventCollaborators.artistProfileId, profile.userId),
-          inArray(events.status, ['active', 'archived'])
+          // Deleted (archived) events are hidden from everyone — see created-events
+          // query above. (Asana 1216029058657584)
+          eq(events.status, 'active'),
+          or(
+            isNull(eventCollaborators.bookingId),
+            sql`EXISTS (
+              SELECT 1 FROM bookings b
+              WHERE b.id = ${eventCollaborators.bookingId}
+              AND b.status = 'accepted'
+            )`
+          )
         )
       );
 
@@ -137,12 +160,15 @@ export const artistsRouter = router({
     }
     const allEvents = Array.from(allEventsMap.values());
 
+    // Past vs upcoming is purely date-driven now that only ACTIVE events reach here.
+    // Keep the explicit status guard as defense-in-depth so a deleted event can never
+    // slip into either bucket even if a query filter regresses.
     const upcomingEvents = allEvents
       .filter((e) => e.status === 'active' && new Date(e.dateStart) > now)
       .sort((a, b) => new Date(a.dateStart).getTime() - new Date(b.dateStart).getTime());
 
     const pastEvents = allEvents
-      .filter((e) => e.status === 'archived' || new Date(e.dateStart) <= now)
+      .filter((e) => e.status === 'active' && new Date(e.dateStart) <= now)
       .sort((a, b) => new Date(b.dateStart).getTime() - new Date(a.dateStart).getTime());
 
     return {

@@ -17,6 +17,9 @@ vi.mock('expo-image-picker', () => ({
   requestMediaLibraryPermissionsAsync: vi.fn(),
 }));
 vi.mock('react-native', () => ({ Alert: { alert: vi.fn() } }));
+vi.mock('@/components/AppToast', () => ({
+  appToast: { success: vi.fn(), error: vi.fn(), info: vi.fn(), warning: vi.fn() },
+}));
 vi.mock('@/hooks/use-media-delete', () => ({ keyFromCdnUrl: vi.fn(), useMediaDelete: vi.fn() }));
 vi.mock('@/hooks/use-media-upload', () => ({ useMediaUpload: vi.fn() }));
 vi.mock('@/utils/trpc', () => ({ trpc: {} }));

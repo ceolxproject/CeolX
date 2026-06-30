@@ -1,7 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { cn } from 'heroui-native';
-import { Alert, Image, Linking, Pressable, Text, View } from 'react-native';
+import { Image, Linking, Pressable, Text, View } from 'react-native';
 
+import { appToast } from '@/components/AppToast';
 import { MOCK_PROFILE_IMAGE } from '@/utils/mock-images';
 
 const SOCIAL_ICONS: Record<string, string> = {
@@ -25,7 +26,6 @@ type ProfileHeaderProps = {
   isFollowing: boolean;
   socialLinks: Record<string, string>;
   contactEmail?: string | null;
-  websiteUrl?: string | null;
   onEditPress?: () => void;
   onSettingsPress?: () => void;
   onFollowPress?: () => void;
@@ -71,7 +71,6 @@ export function ProfileHeader({
   isFollowing,
   socialLinks,
   contactEmail,
-  websiteUrl,
   onEditPress,
   onSettingsPress,
   onFollowPress,
@@ -80,7 +79,6 @@ export function ProfileHeader({
   secondaryCta,
 }: ProfileHeaderProps) {
   const trimmedEmail = contactEmail?.trim();
-  const trimmedWebsite = websiteUrl?.trim();
   return (
     <View className="items-center pt-2 pb-4">
       {/* Avatar + followers/following row */}
@@ -99,11 +97,18 @@ export function ProfileHeader({
       <View className="items-center gap-1.5 mb-3">
         <Text className="text-xl font-bold text-white font-urbanist">{displayName}</Text>
         {subtitle && (
-          <View className="flex-row items-center gap-1">
+          <View className="flex-row items-start justify-center gap-1 max-w-[292px]">
             {subtitleIcon && (
-              <Ionicons name={subtitleIcon} size={12} color="rgba(255,255,255,0.6)" />
+              <Ionicons
+                name={subtitleIcon}
+                size={12}
+                color="rgba(255,255,255,0.6)"
+                style={{ marginTop: 2 }}
+              />
             )}
-            <Text className="text-xs font-semibold text-white/60 font-urbanist">{subtitle}</Text>
+            <Text className="shrink text-xs font-semibold text-white/60 font-urbanist text-center">
+              {subtitle}
+            </Text>
           </View>
         )}
         {secondarySubtitle && (
@@ -140,7 +145,7 @@ export function ProfileHeader({
             )}
             onPress={
               onFollowPress ??
-              (() => Alert.alert('Coming Soon', 'Follow feature is coming in a future update.'))
+              (() => appToast.info('Coming Soon', 'Follow feature is coming in a future update.'))
             }
           >
             <Text
@@ -164,28 +169,15 @@ export function ProfileHeader({
       )}
 
       {/* Contact details */}
-      {(trimmedEmail || trimmedWebsite) && (
+      {trimmedEmail && (
         <View className="items-center gap-2 mt-4">
-          {trimmedEmail && (
-            <Pressable
-              onPress={() => Linking.openURL(`mailto:${trimmedEmail}`)}
-              className="flex-row items-center gap-2 px-3 py-2 rounded-full bg-[#333335]"
-            >
-              <Ionicons name="mail-outline" size={14} color="#C8FF2F" />
-              <Text className="text-xs font-semibold text-white">{trimmedEmail}</Text>
-            </Pressable>
-          )}
-          {trimmedWebsite && (
-            <Pressable
-              onPress={() => Linking.openURL(trimmedWebsite)}
-              className="flex-row items-center gap-2 px-3 py-2 rounded-full bg-[#333335]"
-            >
-              <Ionicons name="globe-outline" size={14} color="#C8FF2F" />
-              <Text className="text-xs font-semibold text-white" numberOfLines={1}>
-                {trimmedWebsite.replace(/^https?:\/\//i, '')}
-              </Text>
-            </Pressable>
-          )}
+          <Pressable
+            onPress={() => Linking.openURL(`mailto:${trimmedEmail}`)}
+            className="flex-row items-center gap-2 px-3 py-2 rounded-full bg-[#333335]"
+          >
+            <Ionicons name="mail-outline" size={14} color="#C8FF2F" />
+            <Text className="text-xs font-semibold text-white">{trimmedEmail}</Text>
+          </Pressable>
         </View>
       )}
 

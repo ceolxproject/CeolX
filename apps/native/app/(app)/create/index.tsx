@@ -3,6 +3,8 @@ import { router } from 'expo-router';
 import { Pressable, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { AppHeader } from '@/components/AppHeader';
+
 type ChoiceProps = {
   icon: 'calendar' | 'create';
   title: string;
@@ -32,12 +34,7 @@ function Choice({ icon, title, description, onPress }: ChoiceProps) {
 export default function CreateChooserScreen() {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#080808' }} edges={['top']}>
-      {/* Header */}
-      <View className="flex-row items-center p-5">
-        <Pressable onPress={() => router.back()} hitSlop={8}>
-          <Ionicons name="arrow-back" size={24} color="#fff" />
-        </Pressable>
-      </View>
+      <AppHeader leading="back" />
 
       <View className="px-5">
         <Text className="text-[28px] font-bold text-white font-urbanist leading-[32px]">

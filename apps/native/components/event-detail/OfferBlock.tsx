@@ -1,13 +1,19 @@
 import { Image, Text, View } from 'react-native';
 
+import { AdHeadline } from '@/components/ads/AdHeadline';
+
 export type OfferBlockProps = {
   adTitle: string | null | undefined;
+  adDescription: string | null | undefined;
   eventTitle: string;
   coverImage: string | null | undefined;
 };
 
-export function OfferBlock({ adTitle, eventTitle, coverImage }: OfferBlockProps) {
-  if (!adTitle || adTitle.trim().length === 0) return null;
+export function OfferBlock({ adTitle, adDescription, eventTitle, coverImage }: OfferBlockProps) {
+  // Ad Title and Ad Description are each independently optional — show the
+  // offer whenever either one carries content. (Matches the feed-ads server filter.)
+  const hasAd = !!adTitle?.trim() || !!adDescription?.trim();
+  if (!hasAd) return null;
 
   return (
     <View className="mt-6 px-4">
@@ -25,11 +31,12 @@ export function OfferBlock({ adTitle, eventTitle, coverImage }: OfferBlockProps)
             <View className="h-[35px] w-[35px] rounded bg-[#d9d9d9]" />
           )}
           <View className="flex-1">
-            <Text className="text-base font-medium text-black font-urbanist">
-              <Text>{adTitle} on </Text>
-              <Text className="font-bold">&ldquo;{eventTitle}&rdquo;</Text>
-            </Text>
-            <Text className="text-[11px] font-light text-black font-urbanist">{eventTitle}</Text>
+            <AdHeadline adTitle={adTitle} eventTitle={eventTitle} />
+            {adDescription?.trim() ? (
+              <Text className="text-[11px] font-light text-black font-urbanist">
+                {adDescription}
+              </Text>
+            ) : null}
           </View>
         </View>
       </View>

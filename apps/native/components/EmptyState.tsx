@@ -1,13 +1,18 @@
 import { cn } from 'heroui-native';
 import { Pressable, Text, View } from 'react-native';
 
-type EmptyVariant = 'no-events' | 'no-results' | 'no-bookings' | 'no-notifications';
+type EmptyVariant = 'no-events' | 'no-posts' | 'no-results' | 'no-bookings' | 'no-notifications';
 
 const VARIANT_CONFIG: Record<EmptyVariant, { emoji: string; title: string; subtitle: string }> = {
   'no-events': {
     emoji: '🎵',
     title: 'No events nearby',
     subtitle: 'Try searching for Dublin, Galway, or Cork',
+  },
+  'no-posts': {
+    emoji: '📝',
+    title: 'No posts yet',
+    subtitle: 'Posts from this profile will appear here.',
   },
   'no-results': {
     emoji: '🔍',
@@ -16,8 +21,8 @@ const VARIANT_CONFIG: Record<EmptyVariant, { emoji: string; title: string; subti
   },
   'no-bookings': {
     emoji: '📅',
-    title: 'No bookings yet',
-    subtitle: 'Your booking requests will appear here',
+    title: 'No performance requests yet',
+    subtitle: 'Your performance requests will appear here',
   },
   'no-notifications': {
     emoji: '🔔',
@@ -49,9 +54,11 @@ export function EmptyState({ variant, title, subtitle, cta, className }: EmptySt
       {cta && (
         <Pressable
           onPress={cta.onPress}
-          className="mt-2 px-6 py-3 bg-blue-10 rounded-lg active:opacity-80"
+          className="mt-2 px-6 py-3 bg-[#662FFF] rounded-full active:opacity-80"
         >
-          <Text className="text-white font-semibold text-sm">{cta.label}</Text>
+          <Text className="text-xs font-bold text-white uppercase tracking-wider font-urbanist">
+            {cta.label}
+          </Text>
         </Pressable>
       )}
     </View>

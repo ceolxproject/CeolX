@@ -29,7 +29,7 @@ describe('buildNotification — push surface (matrix copy)', () => {
     ).toEqual({
       type: 'booking_invitation',
       persona: 'artist',
-      title: 'New booking invite',
+      title: 'New performance invite',
       body: 'The Temple Bar invited you to play "Friday Night Trad Session" on Fri 1 May.',
       route: '/(app)/(tabs)/bookings/b-123',
     });
@@ -41,7 +41,7 @@ describe('buildNotification — push surface (matrix copy)', () => {
       NotificationSurface.PUSH,
       baseVars
     );
-    expect(n.title).toBe('New booking request');
+    expect(n.title).toBe('New performance request');
     expect(n.body).toBe('Celtic Thunder applied for "Friday Night Trad Session" on Fri 1 May.');
     expect(n.persona).toBe('venue');
   });
@@ -72,7 +72,7 @@ describe('buildNotification — push surface (matrix copy)', () => {
         NotificationSurface.PUSH,
         baseVars
       ).title
-    ).toBe('Booking Not Accepted');
+    ).toBe('Performance Request Declined');
     expect(
       buildNotification(
         NotificationTrigger.BOOKING_REJECTED_TO_VENUE,
@@ -138,6 +138,30 @@ describe('buildNotification — inApp surface diverges from push', () => {
     ).toBe('Event Resubmitted ✓');
   });
 
+  it('admin restore — both personas, event-detail route, "live again" copy', () => {
+    const toArtist = buildNotification(
+      NotificationTrigger.EVENT_RESTORED_BY_ADMIN_TO_ARTIST,
+      NotificationSurface.PUSH,
+      { eventId: 'e-1', eventTitle: 'Friday Night Trad' }
+    );
+    expect(toArtist.type).toBe('event_restored');
+    expect(toArtist.persona).toBe('artist');
+    expect(toArtist.route).toBe('/(app)/(tabs)/discover/event/e-1');
+    expect(toArtist.title).toBe('Your event is live again');
+    expect(toArtist.body).toBe('Moderation restored "Friday Night Trad" — it\'s back on CeolX.');
+
+    expect(
+      buildNotification(
+        NotificationTrigger.EVENT_RESTORED_BY_ADMIN_TO_VENUE,
+        NotificationSurface.PUSH,
+        {
+          eventId: 'e-1',
+          eventTitle: 'Friday Night Trad',
+        }
+      ).persona
+    ).toBe('venue');
+  });
+
   it('U-03 saver cascade — push tells the saver the event is gone, route /feed', () => {
     const built = buildNotification(
       NotificationTrigger.SAVED_EVENT_REMOVED_TO_SAVERS,
@@ -201,17 +225,42 @@ describe('buildNotification — inApp surface diverges from push', () => {
   });
 });
 
-// ─── Email surface is null until M7-T3 ───────────────────────────────────────
+// ─── Email surface — booking lifecycle wired in M7-T4 PR1 ────────────────────
 
 describe('buildNotification — email surface', () => {
-  it('throws a clear error pointing at the matrix ref until M7-T3 wires copy', () => {
+  it('A-09 invite-to-artist email carries subject + body (matrix copy)', () => {
+    const n = buildNotification(
+      NotificationTrigger.BOOKING_INVITE_TO_ARTIST,
+      NotificationSurface.EMAIL,
+      baseVars
+    );
+    expect(n.title).toBe('You\'ve been invited to play "Friday Night Trad Session"');
+    expect(n.body).toBe(
+      'The Temple Bar invited you to perform at "Friday Night Trad Session" on Fri 1 May.'
+    );
+    expect(n.route).toBe('/(app)/(tabs)/bookings/b-123');
+    expect(n.persona).toBe('artist');
+  });
+
+  it('V-09 booking-request-to-venue email is populated', () => {
+    const n = buildNotification(
+      NotificationTrigger.BOOKING_REQUEST_TO_VENUE,
+      NotificationSurface.EMAIL,
+      baseVars
+    );
+    expect(n.title).toBe('New performance request — "Friday Night Trad Session"');
+    expect(n.body).toContain('Celtic Thunder applied to play');
+  });
+
+  it('still throws for triggers with no email copy (e.g. co-artist invite)', () => {
     expect(() =>
-      buildNotification(
-        NotificationTrigger.BOOKING_INVITE_TO_ARTIST,
-        NotificationSurface.EMAIL,
-        baseVars
-      )
-    ).toThrow(/A-09/);
+      buildNotification(NotificationTrigger.BOOKING_INVITE_TO_COARTIST, NotificationSurface.EMAIL, {
+        bookingId: 'b1',
+        coArtistName: 'Tune Bomb',
+        eventTitle: 'Trad Night',
+        date: 'Fri 6 Jun',
+      })
+    ).toThrow(/A-09a/);
   });
 });
 
@@ -300,6 +349,71 @@ describe('artist↔artist booking triggers', () => {
       expect(n.body).toContain('Tune Bomb');
       expect(n.persona).toBe('artist');
     }
+  });
+});
+
+// ─── Collaboration interest (Share Interest, off-matrix) ─────────────────────
+
+describe('buildNotification — collaboration interest', () => {
+  it('artist → venue carries the artist name and routes to the artist profile', () => {
+    const n = buildNotification(
+      NotificationTrigger.COLLAB_INTEREST_TO_VENUE,
+      NotificationSurface.PUSH,
+      { artistName: 'Celtic Thunder', artistUserId: 'artist-user-1' }
+    );
+    expect(n).toEqual({
+      type: 'collaboration_interest',
+      persona: 'venue',
+      title: 'New collaboration interest',
+      body: 'Celtic Thunder is interested in collaborating with you. View their profile and plan your next event.',
+      route: '/(app)/artist/artist-user-1',
+    });
+  });
+
+  it('venue → artist carries the venue name and routes to the venue profile', () => {
+    const n = buildNotification(
+      NotificationTrigger.COLLAB_INTEREST_TO_ARTIST,
+      NotificationSurface.IN_APP,
+      { venueName: 'The Temple Bar', venueUserId: 'venue-user-1' }
+    );
+    expect(n.type).toBe('collaboration_interest');
+    expect(n.persona).toBe('artist');
+    expect(n.body).toBe(
+      'The Temple Bar is interested in collaborating with you. View their profile and explore a possible performance.'
+    );
+    expect(n.route).toBe('/(app)/venue/venue-user-1');
+  });
+
+  it('throws when a required name var is missing', () => {
+    expect(() =>
+      buildNotification(NotificationTrigger.COLLAB_INTEREST_TO_VENUE, NotificationSurface.PUSH, {
+        artistUserId: 'artist-user-1',
+      })
+    ).toThrow(/artistName/);
+  });
+});
+
+// ─── Onboarding welcome (ONB-01, off-matrix) ─────────────────────────────────
+
+describe('buildNotification — USER_WELCOME', () => {
+  it('push + inApp share the same copy, route to Discover, persona spectator, no vars needed', () => {
+    for (const surface of [NotificationSurface.PUSH, NotificationSurface.IN_APP]) {
+      const n = buildNotification(NotificationTrigger.USER_WELCOME, surface, {});
+      expect(n).toEqual({
+        type: 'welcome',
+        persona: 'spectator',
+        title: 'Welcome to CeolX 🎶',
+        body: "You're in! Explore live music, artists, and venues happening near you.",
+        route: '/(app)/(tabs)/discover',
+      });
+    }
+  });
+
+  it('has no email copy — a dedicated welcome template is sent directly instead', () => {
+    expect(NOTIFICATION_TRIGGERS[NotificationTrigger.USER_WELCOME].email).toBeNull();
+    expect(() =>
+      buildNotification(NotificationTrigger.USER_WELCOME, NotificationSurface.EMAIL, {})
+    ).toThrow(/ONB-01/);
   });
 });
 

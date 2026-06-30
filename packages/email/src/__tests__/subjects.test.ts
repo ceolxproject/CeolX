@@ -59,4 +59,37 @@ describe('subjectFor', () => {
     // R6 copy convention: rejection titles are neutral, not punitive
     expect(subject).not.toMatch(/rejected|denied|failed/i);
   });
+
+  it('passes the pre-built subject straight through for notification', () => {
+    expect(
+      subjectFor('notification', {
+        userName: 'A',
+        subject: 'New performance request — "Trad Night"',
+        body: 'Someone applied.',
+        ctaUrl: 'https://api.ceolx.com/r?to=%2Fbookings%2Fx',
+      })
+    ).toBe('New performance request — "Trad Night"');
+  });
+
+  it('returns the onboarding subject for welcome (ONB-01)', () => {
+    expect(
+      subjectFor('welcome', { userName: 'Aoife', ctaUrl: 'https://api.ceolx.com/r?to=%2Fdiscover' })
+    ).toBe("You're in! Welcome to CeolX 🎶");
+  });
+
+  it('names the inviter and event for collaborator-invite (matrix A-14)', () => {
+    expect(
+      subjectFor('collaborator-invite', {
+        inviterName: 'The Temple Bar',
+        eventTitle: 'Trad Night',
+        inviteUrl: 'https://ceolx.ie/invite/tok-abc',
+      })
+    ).toBe('The Temple Bar added you to "Trad Night" on CeolX');
+  });
+
+  it('returns the matrix S-06 subject for account-deleted', () => {
+    expect(subjectFor('account-deleted', { userName: 'Aoife' })).toBe(
+      'Your CeolX account has been deleted'
+    );
+  });
 });

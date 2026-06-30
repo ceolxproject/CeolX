@@ -2,6 +2,7 @@ import { z } from 'zod';
 
 export const passwordSchema = z
   .string()
+  .min(1, 'Password is required')
   .min(8, 'Minimum 8 characters')
   .regex(/[A-Z]/, 'Must include an uppercase letter')
   .regex(/[a-z]/, 'Must include a lowercase letter')
@@ -10,12 +11,17 @@ export const passwordSchema = z
 
 const emailField = z
   .string()
+  .min(1, 'Email is required')
   .check(z.email())
   .transform((s) => s.toLowerCase());
 
+// Account display-name cap (characters). Exported so the sign-up form caps the
+// field with the exact value the schema enforces (no schema/UI drift).
+export const SIGNUP_NAME_MAX = 100;
+
 export const signUpSchema = z
   .object({
-    name: z.string().min(1, 'Name is required').max(100),
+    name: z.string().min(1, 'Name is required').max(SIGNUP_NAME_MAX),
     email: emailField,
     password: passwordSchema,
     confirmPassword: z.string(),

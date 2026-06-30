@@ -3,6 +3,7 @@ import { router } from '../index';
 import { adminRouter } from './admin';
 import { artistsRouter } from './artists';
 import { bookingsRouter } from './bookings';
+import { collaborationRouter } from './collaboration';
 import { collectionsRouter } from './collections';
 import { deviceTokensRouter } from './device-tokens';
 import { discoveryRouter } from './discovery';
@@ -23,6 +24,7 @@ export const appRouter = router({
   artists: artistsRouter,
   venues: venuesRouter,
   bookings: bookingsRouter,
+  collaboration: collaborationRouter,
   collections: collectionsRouter,
   follows: followsRouter,
   notifications: notificationsRouter,

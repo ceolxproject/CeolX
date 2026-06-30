@@ -4,8 +4,27 @@ import { db } from '@CeolX/db';
 import { session, user } from '@CeolX/db/schema/auth';
 import { deviceTokens } from '@CeolX/db/schema/notifications';
 import { artistProfiles, profileSocialLinks, venueProfiles } from '@CeolX/db/schema/users';
+import { sendAccountDeletedEmail } from '@CeolX/email';
 
 import type { JobPayload } from '../types.js';
+
+/**
+ * GDPR S-06 / A-18 / V-17 confirmation. Sent to the original address captured
+ * before erasure. Non-blocking: a mail failure is logged and never rolls back
+ * or re-throws — erasure durability comes first (R8.5). Skips the synthetic
+ * post-erasure address defensively.
+ */
+async function sendDeletionConfirmation(
+  userId: string,
+  { email, name }: { email: string | null; name: string | null }
+): Promise<void> {
+  if (!email || email.endsWith('@deleted.ceolx.ie')) return;
+  try {
+    await sendAccountDeletedEmail({ to: email, userName: name ?? '' });
+  } catch (err) {
+    console.error('[account] account-deleted email failed', userId, err);
+  }
+}
 
 /**
  * Core erasure transaction for a single user. Single source of truth for "what
@@ -14,7 +33,10 @@ import type { JobPayload } from '../types.js';
  * Callers MUST have already confirmed the row is due (not anonymised, deletion
  * still scheduled) before invoking this.
  */
-async function applyAnonymization(userId: string): Promise<void> {
+async function applyAnonymization(
+  userId: string,
+  contact: { email: string | null; name: string | null }
+): Promise<void> {
   const now = new Date();
 
   await db.transaction(async (tx) => {
@@ -75,6 +97,8 @@ async function applyAnonymization(userId: string): Promise<void> {
     await tx.delete(deviceTokens).where(eq(deviceTokens.userId, userId));
     await tx.delete(session).where(eq(session.userId, userId));
   });
+
+  await sendDeletionConfirmation(userId, contact);
 }
 
 /**
@@ -96,6 +120,8 @@ export async function handleAccountAnonymize(
     .select({
       isAnonymized: user.isAnonymized,
       deletionScheduledFor: user.deletionScheduledFor,
+      email: user.email,
+      name: user.name,
     })
     .from(user)
     .where(eq(user.id, userId))
@@ -105,7 +131,7 @@ export async function handleAccountAnonymize(
     return;
   }
 
-  await applyAnonymization(userId);
+  await applyAnonymization(userId, { email: row.email, name: row.name });
 }
 
 /**
@@ -134,7 +160,7 @@ export async function handleAccountAnonymizeSweep(
   const now = new Date();
 
   const due = await db
-    .select({ id: user.id })
+    .select({ id: user.id, email: user.email, name: user.name })
     .from(user)
     .where(
       and(
@@ -144,8 +170,8 @@ export async function handleAccountAnonymizeSweep(
       )
     );
 
-  for (const { id } of due) {
-    await applyAnonymization(id);
+  for (const u of due) {
+    await applyAnonymization(u.id, { email: u.email, name: u.name });
   }
 }
 

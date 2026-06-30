@@ -2,7 +2,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { launchImageLibraryAsync, requestMediaLibraryPermissionsAsync } from 'expo-image-picker';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { useCallback } from 'react';
-import { ActivityIndicator, Alert, Image, Pressable, Text, View } from 'react-native';
+import { ActivityIndicator, Image, Pressable, Text, View } from 'react-native';
+
+import { appToast } from '@/components/AppToast';
 
 /**
  * Muted, looping preview of the picked video. Isolated in its own component so
@@ -48,6 +50,12 @@ type Props = {
   isUploading?: boolean;
   /** 0–1 progress while uploading. */
   progress?: number;
+  /**
+   * Lock the field: no re-pick, no remove. Used when editing a video post —
+   * Mux-managed media can't be swapped on edit, so it's shown for reference
+   * only (Asana 1215484454792689).
+   */
+  readOnly?: boolean;
 };
 
 /**
@@ -66,11 +74,13 @@ export function MediaPickerField({
   onRemove,
   isUploading,
   progress,
+  readOnly,
 }: Props) {
   const handlePick = useCallback(async () => {
+    if (readOnly) return;
     const perm = await requestMediaLibraryPermissionsAsync();
     if (!perm.granted) {
-      Alert.alert('Permission needed', 'Please allow access to your photo library.');
+      appToast.error('Permission needed', 'Please allow access to your photo library.');
       return;
     }
 
@@ -92,7 +102,7 @@ export function MediaPickerField({
         });
       }
     }
-  }, [onPick]);
+  }, [onPick, readOnly]);
 
   return (
     <View>
@@ -100,7 +110,7 @@ export function MediaPickerField({
 
       <Pressable
         onPress={handlePick}
-        disabled={isUploading}
+        disabled={isUploading || readOnly}
         className={
           mediaUri
             ? mediaKind === 'video'
@@ -124,7 +134,7 @@ export function MediaPickerField({
                 </Text>
               </View>
             )}
-            {!isUploading && onRemove && (
+            {!isUploading && !readOnly && onRemove && (
               <Pressable
                 onPress={onRemove}
                 className="absolute right-2 top-2 h-8 w-8 items-center justify-center rounded-full bg-black/60"
@@ -134,6 +144,16 @@ export function MediaPickerField({
               </Pressable>
             )}
           </>
+        ) : readOnly ? (
+          // Locked video being edited but still transcoding — no playable URL
+          // yet, so show a non-interactive "processing" state rather than the
+          // upload prompt (which would imply the video can be changed).
+          <View className="items-center gap-2 px-4">
+            <Ionicons name="hourglass-outline" size={24} color="#8D8D8D" />
+            <Text className="text-sm font-bold text-white/80 font-urbanist">
+              Video is processing…
+            </Text>
+          </View>
         ) : (
           <View className="items-center gap-2 px-4">
             <Ionicons name="cloud-upload-outline" size={24} color="#C8FF2F" />

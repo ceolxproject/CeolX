@@ -1,11 +1,12 @@
-import { Ionicons } from '@expo/vector-icons';
 import * as Sentry from '@sentry/react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { KeyboardAvoidingView, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { KeyboardAvoidingView, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppButton } from '@/components/AppButton';
+import { AppHeader } from '@/components/AppHeader';
+import { AppTextField } from '@/components/AppTextField';
 import { CeolxLogo } from '@/components/CeolxLogo';
 import { authClient } from '@/lib/auth-client';
 
@@ -25,7 +26,6 @@ export default function ResetPasswordScreen() {
 
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [passwordVisible, setPasswordVisible] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -75,10 +75,7 @@ export default function ResetPasswordScreen() {
     <View style={{ flex: 1, backgroundColor: '#0d0c0f' }}>
       <SafeAreaView style={{ flex: 1 }}>
         <KeyboardAvoidingView behavior="padding" style={{ flex: 1 }}>
-          {/* Header — brand logo, matches sign-in */}
-          <View className="flex-row justify-between items-center p-5 bg-surface-dark">
-            <CeolxLogo />
-          </View>
+          <AppHeader bgClassName="bg-surface-dark" leadingNode={<CeolxLogo />} />
 
           <ScrollView
             contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 24, paddingBottom: 40 }}
@@ -98,27 +95,15 @@ export default function ResetPasswordScreen() {
               <Text className="text-sm font-medium font-inter text-white/80 leading-5">
                 New Password
               </Text>
-              <View className="flex-row items-center">
-                <TextInput
-                  className="flex-1 bg-white rounded-lg h-[52px] px-4 text-base font-sans font-medium text-black leading-5"
-                  placeholder="Enter your new password"
-                  placeholderTextColor="#8d8d8d"
-                  secureTextEntry={!passwordVisible}
-                  autoComplete="new-password"
-                  value={newPassword}
-                  onChangeText={setNewPassword}
-                />
-                <Pressable
-                  className="absolute right-4 h-[52px] justify-center"
-                  onPress={() => setPasswordVisible((v) => !v)}
-                >
-                  <Ionicons
-                    name={passwordVisible ? 'eye-outline' : 'eye-off-outline'}
-                    size={20}
-                    color="#8d8d8d"
-                  />
-                </Pressable>
-              </View>
+              <AppTextField
+                variant="light"
+                className="font-sans font-medium"
+                placeholder="Enter your new password"
+                secureTextEntry
+                autoComplete="new-password"
+                value={newPassword}
+                onChangeText={setNewPassword}
+              />
             </View>
 
             {/* Confirm password */}
@@ -126,11 +111,11 @@ export default function ResetPasswordScreen() {
               <Text className="text-sm font-medium font-inter text-white/80 leading-5">
                 Confirm Password
               </Text>
-              <TextInput
-                className="bg-white rounded-lg h-[52px] px-4 text-base font-sans font-medium text-black leading-5"
+              <AppTextField
+                variant="light"
+                className="font-sans font-medium"
                 placeholder="Re-enter your new password"
-                placeholderTextColor="#8d8d8d"
-                secureTextEntry={!passwordVisible}
+                secureTextEntry
                 autoComplete="new-password"
                 value={confirmPassword}
                 onChangeText={setConfirmPassword}

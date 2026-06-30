@@ -1,27 +1,20 @@
-import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useState } from 'react';
-import {
-  Alert,
-  KeyboardAvoidingView,
-  Pressable,
-  ScrollView,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { KeyboardAvoidingView, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { changePasswordSchema } from '@CeolX/shared/validators';
 
 import { AppButton } from '@/components/AppButton';
+import { AppHeader } from '@/components/AppHeader';
+import { AppTextField } from '@/components/AppTextField';
+import { appToast } from '@/components/AppToast';
 import { authClient } from '@/lib/auth-client';
 
 export default function ChangePasswordScreen() {
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [passwordVisible, setPasswordVisible] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -55,23 +48,18 @@ export default function ChangePasswordScreen() {
       return;
     }
 
-    Alert.alert(
+    appToast.success(
       'Password updated',
-      'Your password has been changed. You have been signed out on your other devices.',
-      [{ text: 'OK', onPress: () => router.back() }]
+      'Your password has been changed. You have been signed out on your other devices.'
     );
+    router.back();
   };
 
   return (
     <View style={{ flex: 1, backgroundColor: '#0d0c0f' }}>
       <SafeAreaView style={{ flex: 1 }} edges={['top']}>
         <KeyboardAvoidingView behavior="padding" style={{ flex: 1 }}>
-          {/* Header — back button */}
-          <View className="flex-row items-center p-5">
-            <Pressable onPress={() => router.back()} hitSlop={8} className="active:opacity-70">
-              <Ionicons name="chevron-back" size={26} color="#fff" />
-            </Pressable>
-          </View>
+          <AppHeader leading="back" />
 
           <ScrollView
             contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 24, paddingBottom: 40 }}
@@ -91,11 +79,11 @@ export default function ChangePasswordScreen() {
               <Text className="text-sm font-medium font-inter text-white/80 leading-5">
                 Current Password
               </Text>
-              <TextInput
-                className="bg-white rounded-lg h-[52px] px-4 text-base font-sans font-medium text-black leading-5"
+              <AppTextField
+                variant="light"
+                className="font-sans font-medium"
                 placeholder="Enter current password"
-                placeholderTextColor="#8d8d8d"
-                secureTextEntry={!passwordVisible}
+                secureTextEntry
                 autoComplete="current-password"
                 value={currentPassword}
                 onChangeText={setCurrentPassword}
@@ -107,27 +95,15 @@ export default function ChangePasswordScreen() {
               <Text className="text-sm font-medium font-inter text-white/80 leading-5">
                 New Password
               </Text>
-              <View className="flex-row items-center">
-                <TextInput
-                  className="flex-1 bg-white rounded-lg h-[52px] px-4 text-base font-sans font-medium text-black leading-5"
-                  placeholder="Enter new password"
-                  placeholderTextColor="#8d8d8d"
-                  secureTextEntry={!passwordVisible}
-                  autoComplete="new-password"
-                  value={newPassword}
-                  onChangeText={setNewPassword}
-                />
-                <Pressable
-                  className="absolute right-4 h-[52px] justify-center"
-                  onPress={() => setPasswordVisible((v) => !v)}
-                >
-                  <Ionicons
-                    name={passwordVisible ? 'eye-outline' : 'eye-off-outline'}
-                    size={20}
-                    color="#8d8d8d"
-                  />
-                </Pressable>
-              </View>
+              <AppTextField
+                variant="light"
+                className="font-sans font-medium"
+                placeholder="Enter new password"
+                secureTextEntry
+                autoComplete="new-password"
+                value={newPassword}
+                onChangeText={setNewPassword}
+              />
             </View>
 
             {/* Confirm password */}
@@ -135,11 +111,11 @@ export default function ChangePasswordScreen() {
               <Text className="text-sm font-medium font-inter text-white/80 leading-5">
                 Confirm New Password
               </Text>
-              <TextInput
-                className="bg-white rounded-lg h-[52px] px-4 text-base font-sans font-medium text-black leading-5"
+              <AppTextField
+                variant="light"
+                className="font-sans font-medium"
                 placeholder="Re-enter new password"
-                placeholderTextColor="#8d8d8d"
-                secureTextEntry={!passwordVisible}
+                secureTextEntry
                 autoComplete="new-password"
                 value={confirmPassword}
                 onChangeText={setConfirmPassword}

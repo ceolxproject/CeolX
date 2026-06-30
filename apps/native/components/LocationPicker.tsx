@@ -1,10 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
 import { cn } from 'heroui-native';
-import { useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, Text, TextInput, View } from 'react-native';
+import { useRef } from 'react';
+import { ActivityIndicator, Keyboard, Pressable, Text, TextInput, View } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
 
-import { geocodeAddress, reverseGeocode } from '@/utils/geocode';
+import { usePlaceSearch } from '@/hooks/use-place-search';
+import { type GeocodeResult, reverseGeocode } from '@/utils/geocode';
 
 const IRELAND_CENTER = { latitude: 53.1424, longitude: -7.6921 };
 const IRELAND_DELTA = { latitudeDelta: 4, longitudeDelta: 4 };
@@ -38,8 +39,18 @@ export function LocationPicker({
   searchPlaceholder = 'Search city, county or venue name…',
 }: LocationPickerProps) {
   const mapRef = useRef<MapView>(null);
-  const [search, setSearch] = useState('');
-  const [isSearching, setIsSearching] = useState(false);
+  // Live place/venue autocomplete — same engine the map screen and Feed/Add
+  // Location sheets use, so the onboarding search behaves consistently with
+  // the rest of the app (type → debounced suggestions → tap to pin).
+  const {
+    query,
+    suggestions,
+    isSearching,
+    isDropdownVisible,
+    hasError,
+    onChangeText,
+    commitSelection,
+  } = usePlaceSearch();
 
   const hasPin = lat !== null && lng !== null;
 
@@ -57,54 +68,83 @@ export function LocationPicker({
     onChange({ lat: latitude, lng: longitude, address: resolved });
   };
 
-  const handleSearch = async () => {
-    const query = search.trim();
-    if (!query) return;
-    setIsSearching(true);
-    try {
-      // Server-proxied Google geocoding (global — no region bias). Works
-      // regardless of whether the device has location services enabled.
-      const results = await geocodeAddress(query);
-      const first = results[0];
-      if (first) {
-        mapRef.current?.animateToRegion(
-          { latitude: first.lat, longitude: first.lng, ...PIN_DELTA },
-          400
-        );
-        // The geocoder already returns a formatted address — use it directly
-        // rather than making a second reverse-geocode round-trip.
-        await commit(first.lat, first.lng, first.address || query);
-      } else {
-        Alert.alert('No results', `No location found for "${query}". Try a different search.`);
-      }
-    } catch {
-      Alert.alert('Search failed', 'Could not search for that location. Please try again.');
-    } finally {
-      setIsSearching(false);
-    }
+  // Picking a suggestion already gives us coordinates + a formatted address, so
+  // pin it directly (no second geocode round-trip) and fly the map there.
+  const handleSelect = (result: GeocodeResult) => {
+    Keyboard.dismiss();
+    commitSelection(result.address);
+    mapRef.current?.animateToRegion(
+      { latitude: result.lat, longitude: result.lng, ...PIN_DELTA },
+      400
+    );
+    onChange({ lat: result.lat, lng: result.lng, address: result.address });
   };
 
   return (
     <View className="gap-2">
-      {/* Search */}
-      <View className="flex-row items-center rounded-lg border bg-surface px-3 py-2.5 gap-2 border-gray-8">
-        <Ionicons name="search-outline" size={16} color="#8d8d8d" />
-        <TextInput
-          className="flex-1 text-sm text-white font-urbanist"
-          placeholder={searchPlaceholder}
-          placeholderTextColor="#8d8d8d"
-          value={search}
-          onChangeText={setSearch}
-          returnKeyType="search"
-          autoCorrect={false}
-          onSubmitEditing={handleSearch}
-        />
-        {isSearching ? (
-          <ActivityIndicator size="small" color="#6C63FF" />
-        ) : search.length > 0 ? (
-          <Pressable onPress={handleSearch} hitSlop={8}>
-            <Ionicons name="arrow-forward-circle" size={20} color="#6C63FF" />
-          </Pressable>
+      {/* Search — relative+z so the absolute suggestions card overlays the map below. */}
+      <View className="relative z-10">
+        <View className="flex-row items-center rounded-lg border bg-surface px-3 py-2.5 gap-2 border-gray-8">
+          <Ionicons name="search-outline" size={16} color="#8d8d8d" />
+          <TextInput
+            className="flex-1 text-[14px] text-white font-urbanist"
+            placeholder={searchPlaceholder}
+            placeholderTextColor="#8d8d8d"
+            value={query}
+            onChangeText={onChangeText}
+            returnKeyType="search"
+            autoCorrect={false}
+          />
+          {isSearching ? <ActivityIndicator size="small" color="#6C63FF" /> : null}
+        </View>
+
+        {/* Live suggestions — mirrors the Feed/Add Location dropdown. */}
+        {isDropdownVisible ? (
+          <View
+            accessibilityRole="list"
+            accessibilityLabel="Place suggestions"
+            className="absolute left-0 right-0 top-[52px] bg-white rounded-2xl overflow-hidden shadow-lg"
+            style={{ elevation: 8 }}
+          >
+            {hasError ? (
+              <Text className="px-4 py-3 text-[13px] text-[#8D8D8D] font-urbanist">
+                Couldn&apos;t search places. Check your connection.
+              </Text>
+            ) : suggestions.length === 0 ? (
+              <View className="flex-row items-center px-4 py-3 gap-3">
+                {isSearching ? (
+                  <>
+                    <ActivityIndicator size="small" color="#8D8D8D" />
+                    <Text className="text-[14px] text-[#8D8D8D] font-urbanist">Searching…</Text>
+                  </>
+                ) : (
+                  <Text className="text-[14px] text-[#8D8D8D] font-urbanist">
+                    No places found — try a town or county.
+                  </Text>
+                )}
+              </View>
+            ) : (
+              suggestions.map((result) => (
+                <Pressable
+                  key={`${result.lat},${result.lng},${result.address}`}
+                  accessibilityRole="button"
+                  accessibilityLabel={result.address}
+                  className="flex-row items-center px-4 py-3 gap-3 active:bg-[#F5F5F5]"
+                  onPress={() => handleSelect(result)}
+                >
+                  <View className="w-9 h-9 rounded-full bg-[#F0F0F0] items-center justify-center">
+                    <Ionicons name="location-outline" size={20} color="#666" />
+                  </View>
+                  <Text
+                    className="flex-1 text-[14px] text-[#1A1A1A] font-urbanist"
+                    numberOfLines={2}
+                  >
+                    {result.address}
+                  </Text>
+                </Pressable>
+              ))
+            )}
+          </View>
         ) : null}
       </View>
 

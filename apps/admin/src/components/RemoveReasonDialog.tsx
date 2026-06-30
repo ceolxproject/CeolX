@@ -12,6 +12,7 @@ import {
 import { Textarea } from '@CeolX/ui/components/textarea';
 
 const MIN_REASON_LENGTH = 10;
+const MAX_REASON_LENGTH = 500;
 
 interface RemoveReasonDialogProps {
   open: boolean;
@@ -22,7 +23,7 @@ interface RemoveReasonDialogProps {
 export function RemoveReasonDialog({ open, onOpenChange, onConfirm }: RemoveReasonDialogProps) {
   const [reason, setReason] = useState('');
   const trimmed = reason.trim();
-  const isValid = trimmed.length >= MIN_REASON_LENGTH;
+  const isValid = trimmed.length >= MIN_REASON_LENGTH && trimmed.length <= MAX_REASON_LENGTH;
 
   function handleConfirm() {
     if (!isValid) return;
@@ -42,7 +43,8 @@ export function RemoveReasonDialog({ open, onOpenChange, onConfirm }: RemoveReas
         <DialogHeader className="space-y-2">
           <DialogTitle className="text-xl">Remove Event</DialogTitle>
           <DialogDescription className="leading-relaxed">
-            Provide a reason for removal. The creator will be notified and can edit and resubmit.
+            This temporarily hides the event from the map and feed — it isn&rsquo;t deleted. The
+            creator is notified with your reason and can edit and resubmit to make it live again.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-1.5">
@@ -52,10 +54,18 @@ export function RemoveReasonDialog({ open, onOpenChange, onConfirm }: RemoveReas
             placeholder="Explain why this event is being removed…"
             className="min-h-30 resize-none"
             aria-label="Removal reason"
+            maxLength={MAX_REASON_LENGTH}
           />
-          <p className="text-xs text-muted-foreground text-right tabular-nums">
-            {trimmed.length}/{MIN_REASON_LENGTH} characters
-          </p>
+          <div className="flex items-center justify-between text-xs text-muted-foreground tabular-nums">
+            <span>
+              {reason.length > 0 && trimmed.length < MIN_REASON_LENGTH
+                ? `Minimum ${MIN_REASON_LENGTH} characters`
+                : ''}
+            </span>
+            <span>
+              {reason.length}/{MAX_REASON_LENGTH} characters
+            </span>
+          </div>
         </div>
         <DialogFooter className="gap-2">
           <Button variant="outline" onClick={() => handleOpenChange(false)} className="min-w-24">

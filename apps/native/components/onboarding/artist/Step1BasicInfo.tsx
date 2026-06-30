@@ -1,6 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Text, TextInput, View } from 'react-native';
 
+import { STAGE_NAME_MAX } from '@CeolX/shared/validators';
+
+import { AppTextField } from '@/components/AppTextField';
 import { ProfilePicture } from '@/components/onboarding/ProfilePicture';
 
 interface Step1BasicInfoProps {
@@ -47,21 +50,17 @@ export function Step1BasicInfo({
       <View className="gap-4">
         <View className="gap-2">
           <Text className="text-sm font-bold text-white/80">Artist / Band Name</Text>
-          <View
-            className={`h-[52px] justify-center rounded-lg bg-white px-4 ${errors.stageName ? 'border border-error' : ''}`}
-          >
-            <TextInput
-              className="text-base text-black"
-              placeholder="Enter your artist or band name"
-              placeholderTextColor="#8d8d8d"
-              value={stageName}
-              onChangeText={setStageName}
-              onBlur={() => handleBlur('stageName')}
-              autoCapitalize="words"
-              autoCorrect={false}
-            />
-          </View>
-          {errors.stageName ? <Text className="text-xs text-error">{errors.stageName}</Text> : null}
+          <AppTextField
+            variant="light"
+            placeholder="Enter your artist or band name"
+            value={stageName}
+            onChangeText={setStageName}
+            onBlur={() => handleBlur('stageName')}
+            autoCapitalize="words"
+            autoCorrect={false}
+            error={errors.stageName}
+            maxLength={STAGE_NAME_MAX}
+          />
         </View>
 
         <View className="gap-2">
@@ -70,7 +69,7 @@ export function Step1BasicInfo({
               it can't be changed during onboarding. */}
           <View className="h-[52px] flex-row items-center justify-between rounded-lg bg-[#e4e4e4] px-4">
             <TextInput
-              className="flex-1 text-base text-black/50"
+              className="flex-1 text-[16px] text-black/50"
               value={contactEmail}
               editable={false}
               selectTextOnFocus={false}

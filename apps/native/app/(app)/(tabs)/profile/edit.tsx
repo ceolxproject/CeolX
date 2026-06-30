@@ -1,4 +1,3 @@
-import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
@@ -13,9 +12,12 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { UserRole } from '@CeolX/shared/enums';
-import { isRealDomain, socialLinksSchema, venueLinksSchema } from '@CeolX/shared/validators';
+import { BIO_MAX_LENGTH, socialLinksSchema, venueLinksSchema } from '@CeolX/shared/validators';
 
+import { AppHeader } from '@/components/AppHeader';
+import { AppTextField } from '@/components/AppTextField';
 import { appToast } from '@/components/AppToast';
+import { CharacterCount, CharacterLimitNote } from '@/components/CharacterCount';
 import { LocationPicker, type PickedLocation } from '@/components/LocationPicker';
 import { ProfilePicture } from '@/components/onboarding/ProfilePicture';
 import { SocialLinkInput } from '@/components/profiles';
@@ -53,10 +55,10 @@ export default function EditProfileScreen() {
   const [imageTouched, setImageTouched] = useState(false);
   const [imageError, setImageError] = useState<string | null>(null);
 
-  // Per-field URL validation errors, keyed by `socialLinks.<PLATFORM>` and
-  // `websiteUrl` so they line up with the inputs below. Mirrors the inline
-  // errors the onboarding wizard shows; the actual save is still guarded by the
-  // shared schema on the server.
+  // Per-field URL validation errors, keyed by `socialLinks.<PLATFORM>` so they
+  // line up with the inputs below. Mirrors the inline errors the onboarding
+  // wizard shows; the actual save is still guarded by the shared schema on the
+  // server.
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   // Artist-only fields
@@ -68,7 +70,6 @@ export default function EditProfileScreen() {
   const [venueLat, setVenueLat] = useState<number | null>(null);
   const [venueLng, setVenueLng] = useState<number | null>(null);
   const [county, setCounty] = useState('');
-  const [websiteUrl, setWebsiteUrl] = useState('');
   const [phone, setPhone] = useState('');
 
   // Social links — artist: INSTAGRAM, FACEBOOK, TIKTOK, YOUTUBE
@@ -92,7 +93,6 @@ export default function EditProfileScreen() {
       setVenueLat(vp.lat ?? null);
       setVenueLng(vp.lng ?? null);
       setCounty(vp.county ?? '');
-      setWebsiteUrl(vp.websiteUrl ?? '');
       setPhone(vp.phone ?? '');
       setWebsite(vp.socialLinks?.WEBSITE ?? '');
       setInstagram(vp.socialLinks?.INSTAGRAM ?? '');
@@ -172,12 +172,6 @@ export default function EditProfileScreen() {
         fieldErrors[`socialLinks.${issue.path.join('.')}`] = issue.message;
       }
     }
-    if (isVenue) {
-      const normalizedWebsite = normalizeOptionalUrl(websiteUrl);
-      if (normalizedWebsite && !isRealDomain(normalizedWebsite)) {
-        fieldErrors.websiteUrl = 'Enter a valid link (e.g. yourvenue.com)';
-      }
-    }
     if (Object.keys(fieldErrors).length > 0) {
       setErrors(fieldErrors);
       appToast.warning('Check your links', 'Please fix the highlighted fields and try again.');
@@ -212,7 +206,6 @@ export default function EditProfileScreen() {
           lat: venueLat ?? undefined,
           lng: venueLng ?? undefined,
           county: county.trim() || undefined,
-          websiteUrl: normalizeOptionalUrl(websiteUrl),
           phone: phone.trim() || undefined,
           profileImageUrl,
           socialLinks: {
@@ -278,20 +271,19 @@ export default function EditProfileScreen() {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#080808' }}>
       <KeyboardAvoidingView behavior="padding" className="flex-1">
-        {/* Header */}
-        <View className="flex-row items-center justify-between px-4 py-3">
-          <Pressable onPress={() => router.back()}>
-            <Ionicons name="arrow-back" size={24} color="#fff" />
-          </Pressable>
-          <Text className="text-lg font-bold text-white font-urbanist">Edit Profile</Text>
-          <Pressable onPress={handleSave} disabled={isPending}>
-            {isPending ? (
-              <ActivityIndicator color="#C8FF2F" size="small" />
-            ) : (
-              <Text className="text-sm font-bold text-[#C8FF2F] font-urbanist">Save</Text>
-            )}
-          </Pressable>
-        </View>
+        <AppHeader
+          leading="back"
+          title="Edit Profile"
+          trailingAccessory={
+            <Pressable onPress={handleSave} disabled={isPending} hitSlop={8}>
+              {isPending ? (
+                <ActivityIndicator color="#C8FF2F" size="small" />
+              ) : (
+                <Text className="text-sm font-bold text-[#C8FF2F] font-urbanist">Save</Text>
+              )}
+            </Pressable>
+          }
+        />
 
         <ScrollView className="flex-1 px-4" showsVerticalScrollIndicator={false}>
           {/* Profile Image */}
@@ -313,10 +305,10 @@ export default function EditProfileScreen() {
           <Text className="text-xs font-semibold text-white/60 uppercase tracking-wide mb-1.5 font-urbanist">
             {isVenue ? 'Venue Name' : 'Display Name'} *
           </Text>
-          <TextInput
-            className="bg-[#1C1C1E] rounded-lg h-[48px] px-4 text-base font-medium text-white mb-4"
+          <AppTextField
+            variant="dark"
+            containerClassName="mb-4"
             placeholder={isVenue ? 'Your venue name' : 'Your stage name'}
-            placeholderTextColor="#8d8d8d"
             value={displayName}
             onChangeText={setDisplayName}
             maxLength={isVenue ? 150 : 100}
@@ -336,9 +328,14 @@ export default function EditProfileScreen() {
             style={{ textAlignVertical: 'top' }}
             value={bio}
             onChangeText={setBio}
-            maxLength={2000}
+            maxLength={BIO_MAX_LENGTH}
           />
-          <Text className="text-xs text-white/40 mb-4 self-end">{bio.length}/2000</Text>
+          <CharacterCount
+            count={bio.length}
+            max={BIO_MAX_LENGTH}
+            className="text-xs text-white/40 self-end mb-1"
+          />
+          <CharacterLimitNote count={bio.length} max={BIO_MAX_LENGTH} className="self-end mb-4" />
 
           {/* Artist-only: Genres */}
           {!isVenue && (
@@ -346,10 +343,10 @@ export default function EditProfileScreen() {
               <Text className="text-xs font-semibold text-white/60 uppercase tracking-wide mb-1.5 font-urbanist">
                 Genres
               </Text>
-              <TextInput
-                className="bg-[#1C1C1E] rounded-lg h-[48px] px-4 text-base font-medium text-white mb-4"
+              <AppTextField
+                variant="dark"
+                containerClassName="mb-4"
                 placeholder="e.g. Traditional, Folk, Sean-nós"
-                placeholderTextColor="#8d8d8d"
                 value={genre}
                 onChangeText={setGenre}
               />
@@ -357,10 +354,10 @@ export default function EditProfileScreen() {
               <Text className="text-xs font-semibold text-white/60 uppercase tracking-wide mb-1.5 font-urbanist">
                 Location
               </Text>
-              <TextInput
-                className="bg-[#1C1C1E] rounded-lg h-[48px] px-4 text-base font-medium text-white mb-4"
+              <AppTextField
+                variant="dark"
+                containerClassName="mb-4"
                 placeholder="e.g. Galway, Ireland"
-                placeholderTextColor="#8d8d8d"
                 value={location}
                 onChangeText={setLocation}
                 maxLength={255}
@@ -390,41 +387,27 @@ export default function EditProfileScreen() {
               <Text className="text-xs font-semibold text-white/60 uppercase tracking-wide mb-1.5 font-urbanist">
                 County
               </Text>
-              <TextInput
-                className="bg-[#1C1C1E] rounded-lg h-[48px] px-4 text-base font-medium text-white mb-4"
+              <AppTextField
+                variant="dark"
+                containerClassName="mb-4"
                 placeholder="e.g. Dublin, Cork, Galway"
-                placeholderTextColor="#8d8d8d"
                 value={county}
                 onChangeText={setCounty}
                 maxLength={100}
               />
 
               <Text className="text-xs font-semibold text-white/60 uppercase tracking-wide mb-1.5 font-urbanist">
-                Website
-              </Text>
-              <TextInput
-                className={`bg-[#1C1C1E] rounded-lg h-[48px] px-4 text-base font-medium text-white ${errors.websiteUrl ? 'mb-1' : 'mb-4'}`}
-                placeholder="https://yourvenue.com"
-                placeholderTextColor="#8d8d8d"
-                value={websiteUrl}
-                onChangeText={setWebsiteUrl}
-                autoCapitalize="none"
-                keyboardType="url"
-              />
-              {errors.websiteUrl ? (
-                <Text className="text-xs text-red-400 mb-4 font-urbanist">{errors.websiteUrl}</Text>
-              ) : null}
-
-              <Text className="text-xs font-semibold text-white/60 uppercase tracking-wide mb-1.5 font-urbanist">
                 Phone
               </Text>
-              <TextInput
-                className="bg-[#1C1C1E] rounded-lg h-[48px] px-4 text-base font-medium text-white mb-4"
+              <AppTextField
+                variant="dark"
+                containerClassName="mb-4"
                 placeholder="+353 1 234 5678"
-                placeholderTextColor="#8d8d8d"
                 value={phone}
                 onChangeText={setPhone}
                 keyboardType="phone-pad"
+                autoComplete="tel"
+                textContentType="telephoneNumber"
                 maxLength={30}
               />
             </>

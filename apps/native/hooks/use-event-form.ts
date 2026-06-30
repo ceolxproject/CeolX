@@ -1,17 +1,18 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { launchImageLibraryAsync, requestMediaLibraryPermissionsAsync } from 'expo-image-picker';
 import { useCallback, useEffect, useState } from 'react';
-import { Alert } from 'react-native';
 
 import type { EventCategory } from '@CeolX/shared';
 import { isValidCoordinate } from '@CeolX/shared';
 import { createEventSchema } from '@CeolX/shared/validators';
 
+import { appToast } from '@/components/AppToast';
 import type { ArtistResult } from '@/components/events/ArtistSearchRow';
 import {
   combineDateAndTime,
   endDateTimeError,
   platformInviteIds,
+  unregisteredCollaboratorsPayload,
 } from '@/hooks/use-event-form.utils';
 import { keyFromCdnUrl, useMediaDelete } from '@/hooks/use-media-delete';
 import { useMediaUpload } from '@/hooks/use-media-upload';
@@ -32,7 +33,7 @@ export interface EventFormData {
   // across step changes — the picker unmounts between steps, so holding the
   // display data there lost it on back-navigation. IDs are derived at submit.
   platformInvites: ArtistResult[];
-  unregisteredCollaborators: Array<{ name: string; email: string }>;
+  unregisteredCollaborators: Array<{ name: string; email: string; imageUrl?: string }>;
 
   // Step 2 — Date & Venue
   dateStart: Date | null;
@@ -192,7 +193,7 @@ export function useEventForm(options?: UseEventFormOptions) {
   const [collectionId, setCollectionId] = useState(init.collectionId);
   const [platformInvites, setPlatformInvites] = useState<ArtistResult[]>(init.platformInvites);
   const [unregisteredCollaborators, setUnregisteredCollaborators] = useState<
-    Array<{ name: string; email: string }>
+    Array<{ name: string; email: string; imageUrl?: string }>
   >(init.unregisteredCollaborators);
 
   // Step 2 — Date & Venue
@@ -245,7 +246,7 @@ export function useEventForm(options?: UseEventFormOptions) {
   const pickCoverImage = useCallback(async () => {
     const perm = await requestMediaLibraryPermissionsAsync();
     if (!perm.granted) {
-      Alert.alert('Permission needed', 'Please allow access to your photo library.');
+      appToast.error('Permission needed', 'Please allow access to your photo library.');
       return;
     }
 
@@ -489,12 +490,12 @@ export function useEventForm(options?: UseEventFormOptions) {
 
     if (!step1Ok) {
       setCurrentStep(1);
-      Alert.alert('Missing details', 'Please fix the errors on step 1 before submitting.');
+      appToast.error('Missing details', 'Please fix the errors on step 1 before submitting.');
       return;
     }
     if (!step2Ok) {
       setCurrentStep(2);
-      Alert.alert('Missing details', 'Please fix the errors on step 2 before submitting.');
+      appToast.error('Missing details', 'Please fix the errors on step 2 before submitting.');
       return;
     }
     if (!step3Ok) {
@@ -515,7 +516,7 @@ export function useEventForm(options?: UseEventFormOptions) {
         finalCoverImage = cdnUrl;
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Image upload failed.';
-        Alert.alert('Upload failed', message);
+        appToast.error('Upload failed', message);
         return;
       }
     }
@@ -531,15 +532,20 @@ export function useEventForm(options?: UseEventFormOptions) {
       venueId: venueId || undefined,
       venueAddress: venueAddress.trim() || undefined,
       category: category as EventCategory,
-      ticketLink: ticketLink.trim() || undefined,
-      ticketPrice: priceToCents(ticketPrice),
+      // Cleared ticket & ads fields send `null` (not undefined) so the edit
+      // actually persists the removal — undefined is dropped over the wire and
+      // the server treats an absent key as "leave unchanged". (Asana 1216070978559447)
+      ticketLink: ticketLink.trim() || null,
+      ticketPrice: ticketPrice.trim() ? priceToCents(ticketPrice) : null,
       ticketQuantity: parseQuantity(ticketQuantity),
       collectionId: collectionId || undefined,
-      platformInvites: platformInviteIds(platformInvites),
-      unregisteredCollaborators:
-        unregisteredCollaborators.length > 0 ? unregisteredCollaborators : undefined,
-      adTitle: adTitle.trim() || undefined,
-      adDescription: adDescription.trim() || undefined,
+      platformInvites: platformInviteIds(platformInvites, isEditing),
+      unregisteredCollaborators: unregisteredCollaboratorsPayload(
+        unregisteredCollaborators,
+        isEditing
+      ),
+      adTitle: adTitle.trim() || null,
+      adDescription: adDescription.trim() || null,
     };
 
     // Final Zod validation against the shared schema
@@ -561,7 +567,7 @@ export function useEventForm(options?: UseEventFormOptions) {
       }
       setErrors(fieldErrors);
       setCurrentStep(targetStep);
-      Alert.alert(
+      appToast.error(
         'Invalid event data',
         parsed.error.issues[0]?.message ?? 'Please check all fields.'
       );
@@ -580,7 +586,7 @@ export function useEventForm(options?: UseEventFormOptions) {
     } catch (err) {
       const message =
         err instanceof Error ? err.message : 'Something went wrong. Please try again.';
-      Alert.alert('Failed to save event', message);
+      appToast.error('Failed to save event', message);
       return;
     }
 

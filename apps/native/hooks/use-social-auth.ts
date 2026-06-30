@@ -2,7 +2,7 @@ import * as AppleAuthentication from 'expo-apple-authentication';
 import { router } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import { useState } from 'react';
-import { Alert, Platform } from 'react-native';
+import { Platform } from 'react-native';
 
 import { appToast } from '@/components/AppToast';
 import { authClient } from '@/lib/auth-client';
@@ -163,7 +163,7 @@ export function useSocialAuth() {
     } catch (error) {
       const msg = toUserMessage(error);
       if (!msg.includes('cancelled')) {
-        Alert.alert('Google Sign-In', msg);
+        appToast.error('Google Sign-In', msg);
       }
     } finally {
       setIsLoading(false);
@@ -212,7 +212,7 @@ export function useSocialAuth() {
     } catch (error) {
       const msg = toUserMessage(error);
       if (!msg.includes('cancelled')) {
-        Alert.alert('Apple Sign-In', msg);
+        appToast.error('Apple Sign-In', msg);
       }
     } finally {
       setIsLoading(false);

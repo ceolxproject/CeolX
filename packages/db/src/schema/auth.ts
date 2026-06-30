@@ -28,6 +28,12 @@ export const user = pgTable('user', {
   deletionCancelledAt: timestamp('deletion_cancelled_at'),
   isAnonymized: boolean('is_anonymized').notNull().default(false),
   anonymizedAt: timestamp('anonymized_at'),
+  // Onboarding welcome (ONB-01). One-shot guards, both nullable:
+  //  - welcomeSentAt: in-app row + welcome email sent at first session (login-hook).
+  //  - welcomePushSentAt: welcome push sent on first device-token registration.
+  // Migration backfills existing rows so pre-launch accounts aren't re-welcomed.
+  welcomeSentAt: timestamp('welcome_sent_at'),
+  welcomePushSentAt: timestamp('welcome_push_sent_at'),
 });
 
 export const session = pgTable(

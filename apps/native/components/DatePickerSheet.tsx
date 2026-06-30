@@ -1,6 +1,7 @@
-import DateTimePicker, { type DateTimePickerEvent } from '@react-native-community/datetimepicker';
-import { Modal, Platform, Pressable, Text, View } from 'react-native';
+import { Modal, Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+import { CalendarGrid } from '@/components/events/CalendarGrid';
 
 interface DatePickerSheetProps {
   visible: boolean;
@@ -16,9 +17,8 @@ interface DatePickerSheetProps {
 /**
  * Cross-platform single-day calendar picker for the feed header.
  *
- * Android renders the native date dialog directly (it manages its own scrim and
- * dismissal). iOS has no built-in modal, so the inline calendar is hosted in a
- * bottom sheet with explicit Clear / Done actions.
+ * Uses the app's themed {@link CalendarGrid} on both iOS and Android (no native
+ * date dialog), hosted in a CeolX bottom sheet with explicit Clear / Done actions.
  */
 export function DatePickerSheet({
   visible,
@@ -29,33 +29,8 @@ export function DatePickerSheet({
   onClose,
 }: DatePickerSheetProps) {
   const insets = useSafeAreaInsets();
-  const initial = value ?? minimumDate ?? new Date();
 
   if (!visible) return null;
-
-  // ── Android: native dialog, no custom chrome ──────────────────────────────
-  if (Platform.OS === 'android') {
-    const handleChange = (event: DateTimePickerEvent, picked?: Date) => {
-      if (event.type === 'set' && picked) {
-        onSelect(picked);
-      }
-      onClose();
-    };
-    return (
-      <DateTimePicker
-        value={initial}
-        mode="date"
-        display="calendar"
-        minimumDate={minimumDate}
-        onChange={handleChange}
-      />
-    );
-  }
-
-  // ── iOS: host the inline calendar in a bottom sheet ───────────────────────
-  const handleChange = (_event: DateTimePickerEvent, picked?: Date) => {
-    if (picked) onSelect(picked);
-  };
 
   return (
     <Modal visible transparent animationType="slide" onRequestClose={onClose}>
@@ -65,23 +40,15 @@ export function DatePickerSheet({
         style={{ paddingBottom: insets.bottom + 16 }}
       >
         <View className="flex-row items-center justify-between mb-2">
-          <Pressable onPress={onClear} hitSlop={12}>
+          <Pressable onPress={onClear} hitSlop={12} accessibilityRole="button">
             <Text className="text-[15px] text-white/60 font-urbanist underline">Clear</Text>
           </Pressable>
           <Text className="text-base font-bold text-white font-urbanist">Pick a date</Text>
-          <Pressable onPress={onClose} hitSlop={12}>
+          <Pressable onPress={onClose} hitSlop={12} accessibilityRole="button">
             <Text className="text-[15px] font-semibold text-[#C8FF2F] font-urbanist">Done</Text>
           </Pressable>
         </View>
-        <DateTimePicker
-          value={initial}
-          mode="date"
-          display="inline"
-          minimumDate={minimumDate}
-          accentColor="#C8FF2F"
-          themeVariant="dark"
-          onChange={handleChange}
-        />
+        <CalendarGrid value={value} onChange={onSelect} minimumDate={minimumDate} />
       </View>
     </Modal>
   );

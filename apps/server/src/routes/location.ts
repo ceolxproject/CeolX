@@ -18,7 +18,56 @@ function extractIp(req: Request): string {
   return '127.0.0.1';
 }
 
+type IpGeo = { latitude: number; longitude: number; city: string | null; region: string | null };
+
+/** decodeURIComponent throws on malformed `%` sequences — never let that 500 the route. */
+function safeDecode(value: string): string {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
+}
+
+/**
+ * Vercel's edge network adds geolocation headers (derived from the real client
+ * IP) to every incoming request. The server runs on Vercel, so in production
+ * this is the primary source: free, instant, and — unlike ipapi.co — not subject
+ * to a shared per-IP rate limit. Returns null when the headers are absent
+ * (local dev / non-Vercel host) so the caller falls back to ipapi.co.
+ *
+ * Both coordinate headers must be present and numeric; a partial set is treated
+ * as no data rather than a bad fix. (`Number('')`/`Number(null)` is 0 and would
+ * silently geolocate to the Gulf of Guinea, so the empty check is load-bearing.)
+ */
+function geoFromVercelHeaders(req: Request): IpGeo | null {
+  const latRaw = req.headers.get('x-vercel-ip-latitude');
+  const lngRaw = req.headers.get('x-vercel-ip-longitude');
+  if (!latRaw || !lngRaw) return null;
+
+  const latitude = Number(latRaw);
+  const longitude = Number(lngRaw);
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null;
+
+  // City is URL-encoded by Vercel ("Galway%20City"); region is a plain code.
+  const city = req.headers.get('x-vercel-ip-city');
+  return {
+    latitude,
+    longitude,
+    city: city ? safeDecode(city) : null,
+    region: req.headers.get('x-vercel-ip-country-region'),
+  };
+}
+
 location.get('/ip', async (c) => {
+  // Primary: Vercel edge geolocation (production). No upstream call, no rate limit.
+  const vercelGeo = geoFromVercelHeaders(c.req.raw);
+  if (vercelGeo) {
+    return c.json({ ok: true, ...vercelGeo });
+  }
+
+  // Fallback: ipapi.co (local dev / non-Vercel hosts). Free tier is rate-limited,
+  // so this is best-effort — on failure the client drops to the Ireland default.
   const ip = extractIp(c.req.raw);
 
   try {

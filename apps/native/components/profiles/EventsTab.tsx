@@ -1,6 +1,7 @@
 import { router } from 'expo-router';
 import { Text, View } from 'react-native';
 
+import { EmptyState } from '@/components/EmptyState';
 import { ProfileEventCard } from '@/components/ProfileEventCard';
 
 type ProfileEvent = {
@@ -11,6 +12,7 @@ type ProfileEvent = {
   dateEnd: Date | string | null;
   category: string;
   venueAddress: string | null;
+  collectionName?: string | null;
 };
 
 type EventsTabProps = {
@@ -21,9 +23,11 @@ type EventsTabProps = {
 export function EventsTab({ upcomingEvents, pastEvents }: EventsTabProps) {
   if (upcomingEvents.length === 0 && pastEvents.length === 0) {
     return (
-      <View className="py-16 items-center">
-        <Text className="text-base text-white/60 text-center font-urbanist">No events yet</Text>
-      </View>
+      <EmptyState
+        variant="no-events"
+        title="No events yet"
+        subtitle="Events from this profile will appear here."
+      />
     );
   }
 
@@ -44,6 +48,7 @@ export function EventsTab({ upcomingEvents, pastEvents }: EventsTabProps) {
               dateEnd={event.dateEnd ? new Date(event.dateEnd).toISOString() : null}
               category={event.category}
               venueAddress={event.venueAddress}
+              collectionName={event.collectionName}
               onPress={() => router.push(`/(app)/events/${event.id}`)}
             />
           ))}
@@ -65,6 +70,7 @@ export function EventsTab({ upcomingEvents, pastEvents }: EventsTabProps) {
               dateEnd={event.dateEnd ? new Date(event.dateEnd).toISOString() : null}
               category={event.category}
               venueAddress={event.venueAddress}
+              collectionName={event.collectionName}
               status="archived"
               onPress={() => router.push(`/(app)/events/${event.id}`)}
             />

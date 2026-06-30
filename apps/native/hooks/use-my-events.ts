@@ -20,6 +20,7 @@ type MyEvent = {
   venueAddress: string | null;
   createdAt: string;
   joinedCount: number;
+  collectionName: string | null;
 };
 
 export function useMyEvents() {

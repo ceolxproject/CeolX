@@ -2,10 +2,15 @@ import { z } from 'zod';
 
 // ─── Collection schemas ──────────────────────────────────────────────────────
 
+// Field length limits (characters). Exported so the mobile UI caps inputs with
+// the exact same numbers used for validation (no schema/UI drift).
+export const COLLECTION_NAME_MAX = 100;
+export const COLLECTION_DESCRIPTION_MAX = 500;
+
 export const createCollectionSchema = z.object({
-  name: z.string().min(1, 'Collection name is required').max(100).trim(),
+  name: z.string().min(1, 'Collection name is required').max(COLLECTION_NAME_MAX).trim(),
   logo: z.string().url().optional(),
-  description: z.string().max(500).optional(),
+  description: z.string().max(COLLECTION_DESCRIPTION_MAX).optional(),
 });
 
 export const updateCollectionSchema = z.object({
