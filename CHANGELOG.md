@@ -1,5 +1,17 @@
 # Changelog
 
+<a name="1.0.7"></a>
+
+## 1.0.7 (2026-06-30)
+
+### Changed
+
+- 🔧 chore(claude): add neon agent skills and init marker [[5fd2d19](https://github.com/Raft-Labs/CeolX/commit/5fd2d1932967a4fbb8d7c44e2b9896961beb15b8)]
+
+### Fixed
+
+- 🐛 fix(db): correct out-of-order migration journal timestamp [[9c7d70e](https://github.com/Raft-Labs/CeolX/commit/9c7d70e6659d36b1a15cb37df2df2c8cf07700d6)]
+
 <a name="1.0.6"></a>
 
 ## 1.0.6 (2026-06-30)
