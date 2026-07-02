@@ -133,7 +133,7 @@ describe('onSessionCreated — defensive: row not found', () => {
 describe('onSessionCreated — welcome on first session', () => {
   it('claims welcomeSentAt, writes the inbox row, and sends the welcome email', async () => {
     mockSelectLimit.mockResolvedValueOnce([{ deletionScheduledFor: null, isAnonymized: false }]);
-    mockWelcomeClaim.mockReturnValueOnce([{ email: 'new@ceolx.ie', name: 'Aoife' }]);
+    mockWelcomeClaim.mockReturnValueOnce([{ email: 'new@ceolx.com', name: 'Aoife' }]);
 
     await onSessionCreated(SESSION);
 
@@ -153,7 +153,7 @@ describe('onSessionCreated — welcome on first session', () => {
     // Email with the HTTPS redirect-bridge CTA to the Discover feed.
     expect(mockSendWelcomeEmail).toHaveBeenCalledTimes(1);
     const call = mockSendWelcomeEmail.mock.calls[0] as [string, string, string] | undefined;
-    expect(call?.[0]).toBe('new@ceolx.ie');
+    expect(call?.[0]).toBe('new@ceolx.com');
     expect(call?.[2]).toBe('Aoife');
     expect(call?.[1]).toContain('https://api.ceolx.test/r?to=');
     expect(call?.[1]).toContain(encodeURIComponent('/(app)/(tabs)/discover'));
@@ -171,7 +171,7 @@ describe('onSessionCreated — welcome on first session', () => {
 
   it('never lets a welcome failure bubble out and fail the login', async () => {
     mockSelectLimit.mockResolvedValueOnce([{ deletionScheduledFor: null, isAnonymized: false }]);
-    mockWelcomeClaim.mockReturnValueOnce([{ email: 'new@ceolx.ie', name: 'Aoife' }]);
+    mockWelcomeClaim.mockReturnValueOnce([{ email: 'new@ceolx.com', name: 'Aoife' }]);
     mockSendWelcomeEmail.mockRejectedValueOnce(new Error('postmark down'));
 
     await expect(onSessionCreated(SESSION)).resolves.toBeUndefined();
@@ -179,7 +179,7 @@ describe('onSessionCreated — welcome on first session', () => {
 
   it('releases the welcomeSentAt claim when the email send fails, so a later login retries', async () => {
     mockSelectLimit.mockResolvedValueOnce([{ deletionScheduledFor: null, isAnonymized: false }]);
-    mockWelcomeClaim.mockReturnValueOnce([{ email: 'new@ceolx.ie', name: 'Aoife' }]);
+    mockWelcomeClaim.mockReturnValueOnce([{ email: 'new@ceolx.com', name: 'Aoife' }]);
     mockSendWelcomeEmail.mockRejectedValueOnce(new Error('postmark down'));
 
     await onSessionCreated(SESSION);

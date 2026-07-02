@@ -49,7 +49,7 @@ Fans discovering events. No public profile → nobody can follow them → no "ne
 | S-04 | New event posted by a followed Venue                  | ⏳   | ⏳     | —     | `/events/:id`             | M3-T4 / M6-T3 |
 | S-05 | New post from a followed Artist / Venue (feed update) | ⏳   | ⏳     | —     | `/posts/:id`              | M6-T4         |
 | S-06 | GDPR — account deletion complete                      | —    | —      | ✅    | —                         | M11-T1        |
-| S-07 | GDPR — data export ready for download                 | —    | —      | ✅    | `ceolx.ie/export/:token`  | M11-T1        |
+| S-07 | GDPR — data export ready for download                 | —    | —      | ✅    | `ceolx.com/export/:token` | M11-T1        |
 | S-08 | Inactive account warning (24-month dormancy)          | —    | —      | ✅    | —                         | M11-T1        |
 
 **Spectator V1 summary:** 0 push, 0 in-app, 5 email (auth + GDPR). All saved-event notifications are shared with Artist/Venue — see Section 5.
@@ -64,23 +64,23 @@ Paid persona. Subscription lifecycle mirrors Venue but at a lower tier (MoM 3rd 
 | ---- | ---------------------------------------------------------------------- | ---- | ------ | ----- | ------------------------- | ------------- |
 | A-01 | Sign-up — email verification                                           | —    | —      | ✅    | `/verify-email?token=…`   | M2-T1         |
 | A-02 | Password reset                                                         | —    | —      | ✅    | `/reset-password?token=…` | M2-T3         |
-| A-03 | Artist persona selected — activation email (Stripe subscribe link)     | —    | —      | ✅    | `ceolx.ie/subscribe`      | M8-T5 / M2-T4 |
-| A-04 | Activation email resent (user-initiated from in-app pending screen)    | —    | —      | ✅    | `ceolx.ie/subscribe`      | M8-T2         |
+| A-03 | Artist persona selected — activation email (Stripe subscribe link)     | —    | —      | ✅    | `ceolx.com/subscribe`     | M8-T5 / M2-T4 |
+| A-04 | Activation email resent (user-initiated from in-app pending screen)    | —    | —      | ✅    | `ceolx.com/subscribe`     | M8-T2         |
 | A-05 | Subscription activated (Stripe `invoice.payment_succeeded`, first run) | ✅   | ✅     | ✅    | `/profile`                | M8-T5 / M8-T2 |
 | A-06 | Subscription renewed (recurring `invoice.payment_succeeded`)           | ✅   | ✅     | ✅    | `/profile`                | M8-T3         |
-| A-07 | Payment failed (`invoice.payment_failed` → `past_due`)                 | —    | —      | ✅    | `ceolx.ie/account`        | M8-T3 R2.1    |
-| A-08 | Subscription cancelled (`customer.subscription.deleted`)               | —    | —      | ✅    | `ceolx.ie/account`        | M8-T3 R3.1    |
+| A-07 | Payment failed (`invoice.payment_failed` → `past_due`)                 | —    | —      | ✅    | `ceolx.com/account`       | M8-T3 R2.1    |
+| A-08 | Subscription cancelled (`customer.subscription.deleted`)               | —    | —      | ✅    | `ceolx.com/account`       | M8-T3 R3.1    |
 | A-09 | Booking invitation received — Venue invited Artist to an event         | ✅   | ✅     | ✅    | `/bookings/:id`           | M5-T1         |
 | A-10 | Booking accepted — Artist's application to a Venue event was accepted  | ✅   | ✅     | ✅    | `/bookings/:id`           | M5-T2         |
 | A-11 | Booking rejected — Venue declined the Artist's application             | ✅   | ✅     | ✅    | `/bookings/:id`           | M5-T2         |
 | A-12 | Booking cancelled — counter-party cancelled an accepted booking        | ✅   | ✅     | ✅    | `/bookings/:id`           | M5-T3         |
 | A-13 | Added as confirmed Collaborator on a Venue's event                     | ✅   | ✅     | —     | `/events/:id`             | M4-T1         |
-| A-14 | Invited as outside-platform collaborator (recipient has no account)    | —    | —      | ✅    | `ceolx.ie/invite/:token`  | M4-T1 / M7-T3 |
+| A-14 | Invited as outside-platform collaborator (recipient has no account)    | —    | —      | ✅    | `ceolx.com/invite/:token` | M4-T1 / M7-T3 |
 | A-15 | Event removed by admin (Artist is creator) — with reason               | ✅   | ✅     | ✅    | `/events/:id`             | M4-T3         |
 | A-16 | Event resubmitted successfully (creator edited + saved)                | ✅   | ✅     | —     | `/events/:id`             | M4-T3         |
 | A-17 | New follower on Artist profile                                         | ⏳   | ⏳     | —     | `/profile/followers`      | M6-T3         |
 | A-18 | GDPR — account deletion complete                                       | —    | —      | ✅    | —                         | M11-T1        |
-| A-19 | GDPR — data export ready                                               | —    | —      | ✅    | `ceolx.ie/export/:token`  | M11-T1        |
+| A-19 | GDPR — data export ready                                               | —    | —      | ✅    | `ceolx.com/export/:token` | M11-T1        |
 
 **Artist V1 summary:** 9 push + 9 in-app + 16 email. Every booking state change now produces an email fallback alongside push/in-app.
 
@@ -94,12 +94,12 @@ Paid persona (higher tier). Receives booking requests from Artists and invites A
 | ---- | ------------------------------------------------------------------- | ---- | ------ | ----- | ------------------------- | ------------- |
 | V-01 | Sign-up — email verification                                        | —    | —      | ✅    | `/verify-email?token=…`   | M2-T1         |
 | V-02 | Password reset                                                      | —    | —      | ✅    | `/reset-password?token=…` | M2-T3         |
-| V-03 | Venue persona selected — activation email (Stripe subscribe link)   | —    | —      | ✅    | `ceolx.ie/subscribe`      | M7-T3 / M2-T4 |
-| V-04 | Activation email resent (user-initiated from in-app pending screen) | —    | —      | ✅    | `ceolx.ie/subscribe`      | M8-T2         |
+| V-03 | Venue persona selected — activation email (Stripe subscribe link)   | —    | —      | ✅    | `ceolx.com/subscribe`     | M7-T3 / M2-T4 |
+| V-04 | Activation email resent (user-initiated from in-app pending screen) | —    | —      | ✅    | `ceolx.com/subscribe`     | M8-T2         |
 | V-05 | Subscription activated (first successful payment)                   | ✅   | ✅     | ✅    | `/profile`                | M8-T1 / M8-T2 |
 | V-06 | Subscription renewed (recurring payment)                            | ✅   | ✅     | ✅    | `/profile`                | M8-T3         |
-| V-07 | Payment failed (`past_due`)                                         | —    | —      | ✅    | `ceolx.ie/account`        | M8-T3 R2.1    |
-| V-08 | Subscription cancelled                                              | —    | —      | ✅    | `ceolx.ie/account`        | M8-T3 R3.1    |
+| V-07 | Payment failed (`past_due`)                                         | —    | —      | ✅    | `ceolx.com/account`       | M8-T3 R2.1    |
+| V-08 | Subscription cancelled                                              | —    | —      | ✅    | `ceolx.com/account`       | M8-T3 R3.1    |
 | V-09 | Booking request received — Artist applied to Venue's event          | ✅   | ✅     | ✅    | `/bookings/:id`           | M5-T2         |
 | V-10 | Booking accepted — Artist accepted Venue's invitation               | ✅   | ✅     | ✅    | `/bookings/:id`           | M5-T1         |
 | V-11 | Booking rejected — Artist declined Venue's invitation               | ✅   | ✅     | ✅    | `/bookings/:id`           | M5-T1         |
@@ -109,7 +109,7 @@ Paid persona (higher tier). Receives booking requests from Artists and invites A
 | V-15 | Event resubmitted successfully                                      | ✅   | ✅     | —     | `/events/:id`             | M4-T3         |
 | V-16 | New follower on Venue profile                                       | ⏳   | ⏳     | —     | `/profile/followers`      | M6-T3         |
 | V-17 | GDPR — account deletion complete                                    | —    | —      | ✅    | —                         | M11-T1        |
-| V-18 | GDPR — data export ready                                            | —    | —      | ✅    | `ceolx.ie/export/:token`  | M11-T1        |
+| V-18 | GDPR — data export ready                                            | —    | —      | ✅    | `ceolx.com/export/:token` | M11-T1        |
 
 **Venue V1 summary:** 9 push + 9 in-app + 16 email. Same shape as Artist; the activation / payment email _copy_ differs per persona but template structure is shared.
 

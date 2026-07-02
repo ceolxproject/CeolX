@@ -8,7 +8,7 @@ export const env = createEnv({
     EXPO_PUBLIC_SENTRY_DSN: z.url().optional(),
     // Origin the native Share sheet builds shared-post links against, and the
     // host iOS/Android verify Universal/App Links against. Prod is the marketing
-    // domain (https://ceolx.ie, which rewrites /post + /.well-known to the API);
+    // domain (https://ceolx.com, which rewrites /post + /.well-known to the API);
     // staging has no custom domain, so it points straight at the staging server
     // Vercel URL (the Hono backend serves the page + .well-known itself). Must
     // match the host used in app.config.js's associatedDomains / intentFilters.

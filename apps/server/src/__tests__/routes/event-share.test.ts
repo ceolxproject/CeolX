@@ -31,7 +31,7 @@ function activeEvent(overrides: Record<string, unknown> = {}) {
     id: VALID_ID,
     title: 'Trad Session at The Cobblestone',
     description: 'A lively night of Irish music',
-    coverImage: 'https://cdn.ceolx.ie/events/cover.jpg',
+    coverImage: 'https://cdn.ceolx.com/events/cover.jpg',
     dateStart: new Date('2026-07-15T20:00:00.000Z'),
     venueAddress: '77 King St N, Dublin',
     status: 'active',
@@ -56,8 +56,10 @@ describe('GET /event/:id', () => {
     const html = await res.text();
     expect(html).toContain('<meta property="og:title" content="Trad Session at The Cobblestone">');
     expect(html).toContain('The Cobblestone');
-    expect(html).toContain(`<meta property="og:url" content="https://ceolx.ie/event/${VALID_ID}">`);
-    expect(html).toContain('https://cdn.ceolx.ie/events/cover.jpg');
+    expect(html).toContain(
+      `<meta property="og:url" content="https://ceolx.com/event/${VALID_ID}">`
+    );
+    expect(html).toContain('https://cdn.ceolx.com/events/cover.jpg');
     expect(html).toContain('<meta name="twitter:card" content="summary_large_image">');
     expect(html).toContain(`href="ceolx://event/${VALID_ID}"`);
     expect(html).toContain('play.google.com/store/apps/details?id=ie.ceolx.app');

@@ -70,7 +70,7 @@ describe('GET /post/:id', () => {
     const html = await res.text();
     expect(html).toContain('<meta property="og:title" content="Tune Bomb on CeolX">');
     expect(html).toContain('Live trad session tonight');
-    expect(html).toContain(`<meta property="og:url" content="https://ceolx.ie/post/${VALID_ID}">`);
+    expect(html).toContain(`<meta property="og:url" content="https://ceolx.com/post/${VALID_ID}">`);
     expect(html).toContain('https://image.mux.com/pb_xyz/thumbnail.jpg');
     expect(html).toContain('<meta name="twitter:card" content="summary_large_image">');
     // Manual "open in app" deep link + both store buttons.

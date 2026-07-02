@@ -15,7 +15,7 @@ import {
  * Web fallback for a shared event link, `GET /event/:id`.
  *
  * Mirrors post-share (apps/server/src/routes/post-share.ts). The native Share
- * sheet hands out `https://ceolx.ie/event/<id>`
+ * sheet hands out `https://ceolx.com/event/<id>`
  * (apps/native/hooks/use-share-event.ts). App installed → the OS deep-links via
  * Universal / App Links and this page is never seen. App absent / desktop /
  * in-app webview → this page unfurls the event (cover + title + date + venue)

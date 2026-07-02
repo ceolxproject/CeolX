@@ -119,7 +119,7 @@ describe('handleAccountAnonymizeSweep — anonymisation per due user', () => {
 
     const userSet = mockTxUpdateSet.mock.calls[0]?.[0] as Record<string, unknown>;
     expect(userSet.name).toBe('Deleted User');
-    expect(userSet.email).toBe('user-a@deleted.ceolx.ie');
+    expect(userSet.email).toBe('user-a@deleted.ceolx.com');
     expect(userSet.isAnonymized).toBe(true);
     expect(userSet.anonymizedAt).toBeInstanceOf(Date);
   });

@@ -120,7 +120,7 @@ CREATE TABLE venue_subscriptions (
 - R1.5: Include two CTAs:
   - **"Check Email"** button (links to email app or shows instructions)
   - **"Resend Email"** button (calls `POST /api/v1/venues/me/resend-activation`)
-- R1.6: No external URL (`ceolx.ie/subscribe`, Stripe, payment links) shown or linked inside the app
+- R1.6: No external URL (`ceolx.com/subscribe`, Stripe, payment links) shown or linked inside the app
 - R1.7: Footer: _"If you didn't receive the email, check your spam folder or contact support"_
 
 ### Subscription Status Polling
@@ -283,7 +283,7 @@ router.post('/venues/me/resend-activation', async (c) => {
       templateAlias: 'venue-activation',
       templateModel: {
         venueName: venue.name,
-        ActivationLink: 'https://ceolx.ie/subscribe',
+        ActivationLink: 'https://ceolx.com/subscribe',
       },
     });
 

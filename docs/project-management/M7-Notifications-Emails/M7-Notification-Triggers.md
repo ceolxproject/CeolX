@@ -193,14 +193,14 @@ export const NOTIFICATION_REGISTRY: Record<NotificationTrigger, NotificationDefi
     inApp: null,
     email: {
       subject: 'Your CeolX account has been deleted',
-      body: "Hi {firstName},\n\nYour CeolX account and associated personal data have been permanently deleted on {deletedAt}. We're sorry to see you go.\n\nIf this wasn't you, please contact support@ceolx.ie immediately.",
+      body: "Hi {firstName},\n\nYour CeolX account and associated personal data have been permanently deleted on {deletedAt}. We're sorry to see you go.\n\nIf this wasn't you, please contact admin@ceolx.com immediately.",
     },
   },
   [NotificationTrigger.DATA_EXPORT_READY_SPECTATOR]: {
     matrixRef: 'S-07',
     type: 'data_export_ready',
     persona: 'spectator',
-    routeTemplate: 'ceolx.ie/export/{token}',
+    routeTemplate: 'ceolx.com/export/{token}',
     push: null,
     inApp: null,
     email: {
@@ -252,7 +252,7 @@ export const NOTIFICATION_REGISTRY: Record<NotificationTrigger, NotificationDefi
     matrixRef: 'A-03',
     type: 'subscription_activation',
     persona: 'artist',
-    routeTemplate: 'ceolx.ie/subscribe',
+    routeTemplate: 'ceolx.com/subscribe',
     push: null,
     inApp: null,
     email: {
@@ -264,7 +264,7 @@ export const NOTIFICATION_REGISTRY: Record<NotificationTrigger, NotificationDefi
     matrixRef: 'A-04',
     type: 'subscription_activation_resent',
     persona: 'artist',
-    routeTemplate: 'ceolx.ie/subscribe',
+    routeTemplate: 'ceolx.com/subscribe',
     push: null,
     inApp: null,
     email: {
@@ -312,7 +312,7 @@ export const NOTIFICATION_REGISTRY: Record<NotificationTrigger, NotificationDefi
     matrixRef: 'A-07',
     type: 'payment_failed',
     persona: 'artist',
-    routeTemplate: 'ceolx.ie/account',
+    routeTemplate: 'ceolx.com/account',
     push: null,
     inApp: null,
     email: {
@@ -324,7 +324,7 @@ export const NOTIFICATION_REGISTRY: Record<NotificationTrigger, NotificationDefi
     matrixRef: 'A-08',
     type: 'subscription_cancelled',
     persona: 'artist',
-    routeTemplate: 'ceolx.ie/account',
+    routeTemplate: 'ceolx.com/account',
     push: null,
     inApp: null,
     email: {
@@ -423,7 +423,7 @@ export const NOTIFICATION_REGISTRY: Record<NotificationTrigger, NotificationDefi
     matrixRef: 'A-14',
     type: 'collaborator_invite_external',
     persona: 'artist',
-    routeTemplate: 'ceolx.ie/invite/{token}',
+    routeTemplate: 'ceolx.com/invite/{token}',
     push: null,
     inApp: null,
     email: {
@@ -489,14 +489,14 @@ export const NOTIFICATION_REGISTRY: Record<NotificationTrigger, NotificationDefi
     inApp: null,
     email: {
       subject: 'Your CeolX account has been deleted',
-      body: "Hi {firstName},\n\nYour CeolX Artist account and all associated personal data have been permanently deleted on {deletedAt}. If this wasn't you, contact support@ceolx.ie immediately.",
+      body: "Hi {firstName},\n\nYour CeolX Artist account and all associated personal data have been permanently deleted on {deletedAt}. If this wasn't you, contact admin@ceolx.com immediately.",
     },
   },
   [NotificationTrigger.DATA_EXPORT_READY_ARTIST]: {
     matrixRef: 'A-19',
     type: 'data_export_ready',
     persona: 'artist',
-    routeTemplate: 'ceolx.ie/export/{token}',
+    routeTemplate: 'ceolx.com/export/{token}',
     push: null,
     inApp: null,
     email: {
@@ -536,7 +536,7 @@ export const NOTIFICATION_REGISTRY: Record<NotificationTrigger, NotificationDefi
     matrixRef: 'V-03',
     type: 'subscription_activation',
     persona: 'venue',
-    routeTemplate: 'ceolx.ie/subscribe',
+    routeTemplate: 'ceolx.com/subscribe',
     push: null,
     inApp: null,
     email: {
@@ -548,7 +548,7 @@ export const NOTIFICATION_REGISTRY: Record<NotificationTrigger, NotificationDefi
     matrixRef: 'V-04',
     type: 'subscription_activation_resent',
     persona: 'venue',
-    routeTemplate: 'ceolx.ie/subscribe',
+    routeTemplate: 'ceolx.com/subscribe',
     push: null,
     inApp: null,
     email: {
@@ -596,7 +596,7 @@ export const NOTIFICATION_REGISTRY: Record<NotificationTrigger, NotificationDefi
     matrixRef: 'V-07',
     type: 'payment_failed',
     persona: 'venue',
-    routeTemplate: 'ceolx.ie/account',
+    routeTemplate: 'ceolx.com/account',
     push: null,
     inApp: null,
     email: {
@@ -608,7 +608,7 @@ export const NOTIFICATION_REGISTRY: Record<NotificationTrigger, NotificationDefi
     matrixRef: 'V-08',
     type: 'subscription_cancelled',
     persona: 'venue',
-    routeTemplate: 'ceolx.ie/account',
+    routeTemplate: 'ceolx.com/account',
     push: null,
     inApp: null,
     email: {
@@ -771,7 +771,7 @@ export const NOTIFICATION_REGISTRY: Record<NotificationTrigger, NotificationDefi
     matrixRef: 'V-18',
     type: 'data_export_ready',
     persona: 'venue',
-    routeTemplate: 'ceolx.ie/export/{token}',
+    routeTemplate: 'ceolx.com/export/{token}',
     push: null,
     inApp: null,
     email: {
@@ -792,7 +792,7 @@ export const NOTIFICATION_REGISTRY: Record<NotificationTrigger, NotificationDefi
     inApp: null,
     email: {
       subject: 'Reset your CeolX Admin password',
-      body: "Hi {firstName},\n\nWe received a password reset request for the CeolX admin dashboard. Tap below to choose a new password. Link expires in 30 minutes.\n\n[Reset my password]\n\nIf you didn't request this, contact security@ceolx.ie immediately.",
+      body: "Hi {firstName},\n\nWe received a password reset request for the CeolX admin dashboard. Tap below to choose a new password. Link expires in 30 minutes.\n\n[Reset my password]\n\nIf you didn't request this, contact security@ceolx.com immediately.",
     },
   },
   [NotificationTrigger.ADMIN_NEW_EVENT_FOR_REVIEW]: {

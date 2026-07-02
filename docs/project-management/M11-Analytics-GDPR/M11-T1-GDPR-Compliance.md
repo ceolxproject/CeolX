@@ -48,7 +48,7 @@ GDPR compliance is mandatory — CeolX is an Irish client and the platform colle
 - R4 ❌ **Dropped for V1**: data portability (`GET /users/me/export`) is not implemented. The original `data-export.process` / `data-export.notify` job stubs are retained for forward compatibility but unused.
 - R5 (Out of scope this PR): on-demand location only. Mobile already enforces this via the existing location permission UX.
 - R6 ✅ **Inactivity flag (implemented)**: daily QStash cron (`account.flag-inactive`, `0 2 * * *`) sets `flagged_inactive = true` for accounts with `last_login_at < now − 24mo` that aren't already flagged or anonymised. Cron is registered via `apps/server/src/jobs/setup-crons.ts` (run once per environment).
-- R7 ❌ **Dropped for V1**: cookie/tracking consent on `apps/admin`. The admin dashboard is internal-only (single Super Admin) and ships without web analytics. If analytics are later added — particularly to the public `ceolx.ie/subscribe` page hit by paying Artists/Venues — a cookie banner must land in the same PR.
+- R7 ❌ **Dropped for V1**: cookie/tracking consent on `apps/admin`. The admin dashboard is internal-only (single Super Admin) and ships without web analytics. If analytics are later added — particularly to the public `ceolx.com/subscribe` page hit by paying Artists/Venues — a cookie banner must land in the same PR.
 
 ---
 
@@ -88,7 +88,7 @@ app.delete('/api/v1/users/me', authMiddleware, async (c) => {
     .update(users)
     .set({
       name: 'Deleted User',
-      email: `${userId}@deleted.ceolx.ie`,
+      email: `${userId}@deleted.ceolx.com`,
       avatar: null,
       bio: null,
       phoneNumber: null,
@@ -364,7 +364,7 @@ export function DeleteAccountScreen() {
 
 ## Common Gotchas
 
-- **Anonymisation is not optional**: Simply setting a user as "deleted" while keeping their email on file is not GDPR-compliant. The email must be hashed or replaced with a placeholder like `{uuid}@deleted.ceolx.ie`.
+- **Anonymisation is not optional**: Simply setting a user as "deleted" while keeping their email on file is not GDPR-compliant. The email must be hashed or replaced with a placeholder like `{uuid}@deleted.ceolx.com`.
 
 - **Privacy Policy must be live before launch**: Many developers forget to draft and host the Privacy Policy and Terms of Service until the last minute. Flag this as a legal/client dependency early.
 

@@ -20,7 +20,7 @@ import { protectedProcedure, router } from '../index';
 // Always points to the admin app's Stripe checkout page (R4.3 — the URL
 // lives in email only, never inside the mobile app, per Apple Rule 3.1.1).
 // TEMP (Asana 1215188774672224): unused while the activation email is disabled.
-// const VENUE_ACTIVATION_URL = 'https://ceolx.ie/subscribe';
+// const VENUE_ACTIVATION_URL = 'https://ceolx.com/subscribe';
 
 function isUniqueConstraintError(err: unknown): boolean {
   return (

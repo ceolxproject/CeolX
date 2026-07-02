@@ -17,15 +17,15 @@ describe('buildAllowedOrigins', () => {
 
   it('returns configured origins from pipe-separated env var in production', () => {
     vi.stubEnv('NODE_ENV', 'production');
-    vi.stubEnv('CORS_ALLOWED_ORIGINS', 'https://app.ceolx.ie|https://admin.ceolx.ie');
-    expect(buildAllowedOrigins()).toEqual(['https://app.ceolx.ie', 'https://admin.ceolx.ie']);
+    vi.stubEnv('CORS_ALLOWED_ORIGINS', 'https://app.ceolx.com|https://admin.ceolx.com');
+    expect(buildAllowedOrigins()).toEqual(['https://app.ceolx.com', 'https://admin.ceolx.com']);
   });
 
   it('auto-injects dev origins when NODE_ENV is development', () => {
     vi.stubEnv('NODE_ENV', 'development');
-    vi.stubEnv('CORS_ALLOWED_ORIGINS', 'https://app.ceolx.ie');
+    vi.stubEnv('CORS_ALLOWED_ORIGINS', 'https://app.ceolx.com');
     const origins = buildAllowedOrigins();
-    expect(origins).toContain('https://app.ceolx.ie');
+    expect(origins).toContain('https://app.ceolx.com');
     expect(origins).toContain('http://localhost:3000');
     expect(origins).toContain('http://localhost:3001');
     expect(origins).toContain('http://localhost:8081');
@@ -34,7 +34,7 @@ describe('buildAllowedOrigins', () => {
 
   it('does not include dev origins in production', () => {
     vi.stubEnv('NODE_ENV', 'production');
-    vi.stubEnv('CORS_ALLOWED_ORIGINS', 'https://app.ceolx.ie');
+    vi.stubEnv('CORS_ALLOWED_ORIGINS', 'https://app.ceolx.com');
     const origins = buildAllowedOrigins();
     expect(origins).not.toContain('http://localhost:3000');
     expect(origins).not.toContain('http://localhost:8081');
@@ -42,7 +42,7 @@ describe('buildAllowedOrigins', () => {
 
   it('deduplicates origins when env var repeats a dev origin', () => {
     vi.stubEnv('NODE_ENV', 'development');
-    vi.stubEnv('CORS_ALLOWED_ORIGINS', 'http://localhost:3000|https://app.ceolx.ie');
+    vi.stubEnv('CORS_ALLOWED_ORIGINS', 'http://localhost:3000|https://app.ceolx.com');
     const origins = buildAllowedOrigins();
     const count = origins.filter((o) => o === 'http://localhost:3000').length;
     expect(count).toBe(1);
@@ -50,8 +50,8 @@ describe('buildAllowedOrigins', () => {
 
   it('trims whitespace from origins', () => {
     vi.stubEnv('NODE_ENV', 'production');
-    vi.stubEnv('CORS_ALLOWED_ORIGINS', ' https://app.ceolx.ie | https://admin.ceolx.ie ');
-    expect(buildAllowedOrigins()).toEqual(['https://app.ceolx.ie', 'https://admin.ceolx.ie']);
+    vi.stubEnv('CORS_ALLOWED_ORIGINS', ' https://app.ceolx.com | https://admin.ceolx.com ');
+    expect(buildAllowedOrigins()).toEqual(['https://app.ceolx.com', 'https://admin.ceolx.com']);
   });
 
   it('returns only dev origins when CORS_ALLOWED_ORIGINS is empty in development', () => {
@@ -76,25 +76,25 @@ describe('isAllowedOrigin', () => {
 
   it('returns true for a whitelisted origin', () => {
     vi.stubEnv('NODE_ENV', 'production');
-    vi.stubEnv('CORS_ALLOWED_ORIGINS', 'https://app.ceolx.ie');
-    expect(isAllowedOrigin('https://app.ceolx.ie')).toBe(true);
+    vi.stubEnv('CORS_ALLOWED_ORIGINS', 'https://app.ceolx.com');
+    expect(isAllowedOrigin('https://app.ceolx.com')).toBe(true);
   });
 
   it('returns false for a non-whitelisted origin', () => {
     vi.stubEnv('NODE_ENV', 'production');
-    vi.stubEnv('CORS_ALLOWED_ORIGINS', 'https://app.ceolx.ie');
+    vi.stubEnv('CORS_ALLOWED_ORIGINS', 'https://app.ceolx.com');
     expect(isAllowedOrigin('https://evil.example.com')).toBe(false);
   });
 
   it('is case-sensitive', () => {
     vi.stubEnv('NODE_ENV', 'production');
-    vi.stubEnv('CORS_ALLOWED_ORIGINS', 'https://app.ceolx.ie');
+    vi.stubEnv('CORS_ALLOWED_ORIGINS', 'https://app.ceolx.com');
     expect(isAllowedOrigin('https://APP.CEOLX.IE')).toBe(false);
   });
 
   it('returns true for dev origin in development', () => {
     vi.stubEnv('NODE_ENV', 'development');
-    vi.stubEnv('CORS_ALLOWED_ORIGINS', 'https://app.ceolx.ie');
+    vi.stubEnv('CORS_ALLOWED_ORIGINS', 'https://app.ceolx.com');
     expect(isAllowedOrigin('http://localhost:8081')).toBe(true);
   });
 });
@@ -128,7 +128,7 @@ function buildTestApp(allowedOrigins: string[]) {
 }
 
 describe('CORS middleware integration', () => {
-  const allowed = ['https://app.ceolx.ie', 'http://localhost:3000'];
+  const allowed = ['https://app.ceolx.com', 'http://localhost:3000'];
 
   beforeEach(() => {
     vi.unstubAllEnvs();
@@ -137,15 +137,15 @@ describe('CORS middleware integration', () => {
   it('echoes allowed origin as Access-Control-Allow-Origin', async () => {
     const app = buildTestApp(allowed);
     const res = await app.request('/test', {
-      headers: { Origin: 'https://app.ceolx.ie' },
+      headers: { Origin: 'https://app.ceolx.com' },
     });
-    expect(res.headers.get('Access-Control-Allow-Origin')).toBe('https://app.ceolx.ie');
+    expect(res.headers.get('Access-Control-Allow-Origin')).toBe('https://app.ceolx.com');
   });
 
   it('sets Access-Control-Allow-Credentials: true for allowed origin', async () => {
     const app = buildTestApp(allowed);
     const res = await app.request('/test', {
-      headers: { Origin: 'https://app.ceolx.ie' },
+      headers: { Origin: 'https://app.ceolx.com' },
     });
     expect(res.headers.get('Access-Control-Allow-Credentials')).toBe('true');
   });
@@ -170,7 +170,7 @@ describe('CORS middleware integration', () => {
     const res = await app.request('/test', {
       method: 'OPTIONS',
       headers: {
-        Origin: 'https://app.ceolx.ie',
+        Origin: 'https://app.ceolx.com',
         'Access-Control-Request-Method': 'POST',
         'Access-Control-Request-Headers': 'Content-Type',
       },
@@ -183,7 +183,7 @@ describe('CORS middleware integration', () => {
     const res = await app.request('/test', {
       method: 'OPTIONS',
       headers: {
-        Origin: 'https://app.ceolx.ie',
+        Origin: 'https://app.ceolx.com',
         'Access-Control-Request-Method': 'POST',
       },
     });
@@ -193,7 +193,7 @@ describe('CORS middleware integration', () => {
   it('exposes X-RateLimit-* headers via Access-Control-Expose-Headers', async () => {
     const app = buildTestApp(allowed);
     const res = await app.request('/test', {
-      headers: { Origin: 'https://app.ceolx.ie' },
+      headers: { Origin: 'https://app.ceolx.com' },
     });
     const exposed = res.headers.get('Access-Control-Expose-Headers') ?? '';
     expect(exposed).toContain('X-RateLimit-Limit');
@@ -206,7 +206,7 @@ describe('CORS middleware integration', () => {
     const res = await app.request('/test', {
       method: 'OPTIONS',
       headers: {
-        Origin: 'https://app.ceolx.ie',
+        Origin: 'https://app.ceolx.com',
         'Access-Control-Request-Method': 'PATCH',
       },
     });

@@ -121,7 +121,7 @@ QSTASH_TOKEN=                    # API token for publishing messages
 QSTASH_CURRENT_SIGNING_KEY=      # Webhook signature verification
 QSTASH_NEXT_SIGNING_KEY=         # Key rotation support
 QSTASH_BASE_URL=                 # Public URL of the API webhook endpoint
-                                 # e.g. https://api.ceolx.ie/api/v1/webhooks/qstash
+                                 # e.g. https://api.ceolx.com/api/v1/webhooks/qstash
 ```
 
 Add to `packages/env/src/server.ts` alongside existing vars:

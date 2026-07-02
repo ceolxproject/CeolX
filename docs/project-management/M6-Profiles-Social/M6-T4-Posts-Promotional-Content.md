@@ -481,12 +481,12 @@ None
 
 - [x] Posts are public — `posts.byId` + `posts.byUser` are `publicProcedure`
 - [x] Edit post allows caption AND media swap (not caption-only)
-- [x] Share button uses native Share sheet with `https://ceolx.ie/post/<id>` deep link
+- [x] Share button uses native Share sheet with `https://ceolx.com/post/<id>` deep link
 - [x] `app/(app)/post/[postId].tsx` deep-link landing route
 - [x] `app.config.ts` universal-link entries (iOS associatedDomains + Android intentFilters)
 - [x] "What would you like to create?" chooser screen (Figma 1-10934) — FAB now routes here
-- [ ] Web-side `https://ceolx.ie/post/<id>` redirect page — **deferred: admin-app task**
-- [ ] `apple-app-site-association` + `assetlinks.json` hosted at `ceolx.ie/.well-known/` — **deferred: prod signing + hosting**
+- [ ] Web-side `https://ceolx.com/post/<id>` redirect page — **deferred: admin-app task**
+- [ ] `apple-app-site-association` + `assetlinks.json` hosted at `ceolx.com/.well-known/` — **deferred: prod signing + hosting**
 
 ---
 

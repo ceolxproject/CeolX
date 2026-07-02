@@ -18,7 +18,7 @@ describe('createPostSchema', () => {
     const result = createPostSchema.safeParse({
       caption: 'hello',
       mediaType: 'text',
-      mediaUrl: 'https://cdn.ceolx.ie/posts/u/x.jpg',
+      mediaUrl: 'https://cdn.ceolx.com/posts/u/x.jpg',
     });
     expect(result.success).toBe(false);
   });
@@ -27,7 +27,7 @@ describe('createPostSchema', () => {
     const result = createPostSchema.safeParse({
       caption: 'sunset',
       mediaType: 'image',
-      mediaUrl: 'https://cdn.ceolx.ie/posts/u/x.jpg',
+      mediaUrl: 'https://cdn.ceolx.com/posts/u/x.jpg',
     });
     expect(result.success).toBe(true);
   });
@@ -41,7 +41,7 @@ describe('createPostSchema', () => {
     const result = createPostSchema.safeParse({
       caption: 'sunset',
       mediaType: 'image',
-      mediaUrl: 'https://cdn.ceolx.ie/posts/u/x.jpg',
+      mediaUrl: 'https://cdn.ceolx.com/posts/u/x.jpg',
       muxUploadId: 'upl_123',
     });
     expect(result.success).toBe(false);
@@ -51,7 +51,7 @@ describe('createPostSchema', () => {
     const result = createPostSchema.safeParse({
       caption: 'live take',
       mediaType: 'audio',
-      mediaUrl: 'https://cdn.ceolx.ie/posts/u/x.mp3',
+      mediaUrl: 'https://cdn.ceolx.com/posts/u/x.mp3',
     });
     expect(result.success).toBe(true);
   });
@@ -93,7 +93,7 @@ describe('updatePostSchema', () => {
     const result = updatePostSchema.safeParse({
       id,
       mediaType: 'audio',
-      mediaUrl: 'https://cdn.ceolx.ie/posts/u/x.mp3',
+      mediaUrl: 'https://cdn.ceolx.com/posts/u/x.mp3',
     });
     expect(result.success).toBe(true);
   });

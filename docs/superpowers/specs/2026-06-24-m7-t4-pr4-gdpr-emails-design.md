@@ -42,12 +42,12 @@ Explicitly **out of scope** (deferred, recorded in the parent task doc):
 
 PR4's four row-groups were assumed equal by the parent task doc. They are not:
 
-| Email                | Wireable now? | Finding                                                                                                                                                  |
-| -------------------- | ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `account-deleted`    | ✅ Yes        | Wire into the anonymise sweep. `applyAnonymization` overwrites the email to `{userId}@deleted.ceolx.ie`, so capture the real address **before** erasing. |
-| `inactivity-warning` | ✅ Yes        | `account.flag-inactive` works; send the warning to newly-flagged users.                                                                                  |
-| `data-export-ready`  | ⚠️ Partial    | `data-export.process` AND `.notify` are stubs that reject. No working trigger. Deferred.                                                                 |
-| X-01 admin reset     | ⚠️ Covered    | Admin shares the same BetterAuth instance; existing `password-reset` already covers it. Deferred.                                                        |
+| Email                | Wireable now? | Finding                                                                                                                                                   |
+| -------------------- | ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `account-deleted`    | ✅ Yes        | Wire into the anonymise sweep. `applyAnonymization` overwrites the email to `{userId}@deleted.ceolx.com`, so capture the real address **before** erasing. |
+| `inactivity-warning` | ✅ Yes        | `account.flag-inactive` works; send the warning to newly-flagged users.                                                                                   |
+| `data-export-ready`  | ⚠️ Partial    | `data-export.process` AND `.notify` are stubs that reject. No working trigger. Deferred.                                                                  |
+| X-01 admin reset     | ⚠️ Covered    | Admin shares the same BetterAuth instance; existing `password-reset` already covers it. Deferred.                                                         |
 
 ---
 
@@ -82,7 +82,7 @@ No new template/type/sender. The flag-inactive handler calls the existing
 - Subject + body copy are taken verbatim from matrix row S-08 during implementation;
   the design assumes a reminder subject (e.g. _"We miss you at CeolX"_) and a body that
   states the account has been idle ~24 months and to log in to keep it.
-- CTA → app landing (`EXPO_PUBLIC_SHARE_BASE_URL` / `ceolx.ie`).
+- CTA → app landing (`EXPO_PUBLIC_SHARE_BASE_URL` / `ceolx.com`).
 
 ---
 
@@ -101,7 +101,7 @@ Constraints:
 
 - Erasure is the priority. The send is wrapped in `try/catch`; a failure is logged and
   **never** rolls back the deletion (R8.5 non-blocking).
-- Skip the send if the captured email is missing or already a `@deleted.ceolx.ie` address
+- Skip the send if the captured email is missing or already a `@deleted.ceolx.com` address
   (defensive — callers already guard on `isAnonymized`).
 - Centralising the send in `applyAnonymization` covers both callers automatically.
 

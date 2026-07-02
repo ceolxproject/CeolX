@@ -52,7 +52,7 @@ export type EmailTemplateMap = {
   /**
    * Outside-platform collaborator invite (matrix A-14). Sent to a non-platform
    * artist a venue tagged by name+email. The recipient has no account yet, so
-   * there is no `userName`. `inviteUrl` is the public `ceolx.ie/invite/:token`
+   * there is no `userName`. `inviteUrl` is the public `ceolx.com/invite/:token`
    * landing; the link expires in 14 days.
    */
   'collaborator-invite': {

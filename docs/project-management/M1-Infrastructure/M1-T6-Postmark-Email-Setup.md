@@ -34,7 +34,7 @@ Local development always routes through **Mailpit** (SMTP) — regardless of whe
 ### 1. Postmark Account Configuration
 
 - Create Postmark account (or use existing RaftLabs account) with a dedicated **Server** for CeolX
-- Configure **Sender Signature** for `noreply@ceolx.ie` — verify domain DNS records (SPF, DKIM, DMARC)
+- Configure **Sender Signature** for `noreply@ceolx.com` — verify domain DNS records (SPF, DKIM, DMARC)
 - Set up one **Message Stream**:
   - `outbound` — all transactional emails (verification, reset, notifications)
   - Do NOT use the broadcast stream in V1
@@ -91,12 +91,12 @@ Templates for each email are implemented in the milestone that triggers them (M2
 ```bash
 # apps/server .env
 POSTMARK_API_TOKEN=your-postmark-server-token   # absent in local dev — Mailpit used instead
-POSTMARK_FROM_ADDRESS=noreply@ceolx.ie
+POSTMARK_FROM_ADDRESS=noreply@ceolx.com
 SMTP_HOST=localhost                              # local dev Mailpit
 SMTP_PORT=1025                                  # local dev Mailpit
 ```
 
-Add `POSTMARK_API_TOKEN`, `POSTMARK_FROM_ADDRESS`, `SMTP_HOST`, `SMTP_PORT` to `packages/env/src/server.ts` Zod schema (all optional except `POSTMARK_FROM_ADDRESS` which defaults to `noreply@ceolx.ie`).
+Add `POSTMARK_API_TOKEN`, `POSTMARK_FROM_ADDRESS`, `SMTP_HOST`, `SMTP_PORT` to `packages/env/src/server.ts` Zod schema (all optional except `POSTMARK_FROM_ADDRESS` which defaults to `noreply@ceolx.com`).
 
 ### 6. Local Development — Mailpit
 
@@ -125,7 +125,7 @@ Returns `{ message: "not implemented" }` for now. Wired in M7 to handle bounce a
 
 ## Acceptance Criteria
 
-- [ ] Postmark account created with `ceolx` Server and sender signature verified for `noreply@ceolx.ie` ⏳ pending domain access
+- [ ] Postmark account created with `ceolx` Server and sender signature verified for `noreply@ceolx.com` ⏳ pending domain access
 - [ ] SPF, DKIM, DMARC DNS records added and verified in Postmark dashboard ⏳ pending domain access
 - [x] `packages/email` workspace created and resolvable as `@CeolX/email` — PR #5
 - [x] `sendEmail()` implemented with transport factory, structured logging (no body/subject in logs) — PR #5
@@ -264,5 +264,5 @@ export interface SendEmailOptions {
 - **Singleton transport**: Postmark SDK creates an HTTP connection pool; instantiate once per Lambda execution context (not per request)
 - **Do NOT log email bodies or subjects**: they can contain PII (email addresses, reset tokens) — log only `{ tag, to, timestamp }`
 - **Mailpit always in dev**: `getTransport()` checks `NODE_ENV` first — `POSTMARK_API_TOKEN` is irrelevant locally
-- **Apple rule**: Venue activation email contains the Stripe subscription URL. This is sent from `noreply@ceolx.ie` (outside the app) — not shown inside the iOS app. This is intentional and compliant with Apple Rule 3.1.1.
+- **Apple rule**: Venue activation email contains the Stripe subscription URL. This is sent from `noreply@ceolx.com` (outside the app) — not shown inside the iOS app. This is intentional and compliant with Apple Rule 3.1.1.
 - **Webhook path**: route is `/api/webhooks/postmark` (no `/v1`) — matches the existing Hono routing convention in `apps/server`

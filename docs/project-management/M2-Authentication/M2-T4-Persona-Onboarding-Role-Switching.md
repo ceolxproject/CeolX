@@ -129,7 +129,7 @@ Return authenticated user with current role and active profile data.
 
 - Fields: Venue Name (required), Address (required), Bio (optional), Profile Image (optional)
 - On save: creates `venue_profiles` row with `is_active = false` and `subscription_status = inactive`
-- Triggers Postmark activation email with deep link to `ceolx.ie/subscribe`
+- Triggers Postmark activation email with deep link to `ceolx.com/subscribe`
 - In-app message: "Your profile is not yet visible to artists. Check your email to activate."
 
 ### Role Switching (Settings)

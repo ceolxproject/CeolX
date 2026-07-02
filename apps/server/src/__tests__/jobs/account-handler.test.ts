@@ -117,7 +117,7 @@ describe('handleAccountAnonymize — anonymisation path', () => {
     // First update is the user row
     const userSet = mockTxUpdateSet.mock.calls[0]?.[0] as Record<string, unknown>;
     expect(userSet.name).toBe('Deleted User');
-    expect(userSet.email).toBe(`${PAYLOAD.userId}@deleted.ceolx.ie`);
+    expect(userSet.email).toBe(`${PAYLOAD.userId}@deleted.ceolx.com`);
     expect(userSet.image).toBeNull();
     expect(userSet.consentAt).toBeNull();
     expect(userSet.marketingConsent).toBe(false);

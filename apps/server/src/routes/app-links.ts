@@ -4,16 +4,16 @@ import { env } from '@CeolX/env/server';
 
 /**
  * Serves the two static ownership files the mobile OSes fetch to verify that
- * this domain is allowed to open the CeolX app via an `https://ceolx.ie/...`
+ * this domain is allowed to open the CeolX app via an `https://ceolx.com/...`
  * link (rather than the browser):
  *
  *   GET /.well-known/apple-app-site-association   → iOS Universal Links
  *   GET /.well-known/assetlinks.json              → Android App Links
  *
- * `ceolx.ie` (the share-link + associated-domain host) is the admin Vite app on
+ * `ceolx.com` (the share-link + associated-domain host) is the admin Vite app on
  * a separate Vercel project; its vercel.json rewrites `/.well-known/*` here so
- * Apple/Google fetch these from ceolx.ie while the values stay env-driven in one
- * place. A rewrite (not a redirect) keeps the URL on ceolx.ie, which Apple
+ * Apple/Google fetch these from ceolx.com while the values stay env-driven in one
+ * place. A rewrite (not a redirect) keeps the URL on ceolx.com, which Apple
  * requires — it refuses an AASA served via a 3xx hop.
  *
  * Both files MUST be valid JSON, 200, no redirect. The matching app-side config

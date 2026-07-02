@@ -118,10 +118,10 @@ draft → active → archived
 
 1. User selects Venue/Business persona at sign-up
 2. `venue_profiles.subscription_status = inactive`. Profile not visible.
-3. **Postmark** sends activation email with Stripe subscription link (`ceolx.ie/subscribe`)
+3. **Postmark** sends activation email with Stripe subscription link (`ceolx.com/subscribe`)
 4. In-app shows: _"Your profile is not yet visible to artists. Check your email to activate."_ + **Resend Email** button
 5. **No external URL is shown inside the app** — this avoids App Store rejection
-6. Venue opens email → clicks link → `ceolx.ie/subscribe` (hosted in React admin app)
+6. Venue opens email → clicks link → `ceolx.com/subscribe` (hosted in React admin app)
 7. Logs in with CeolX credentials → completes Stripe checkout
 8. Stripe webhook → Hono backend → `subscription_status = active`
 9. App activates Venue persona (next refresh or WebSocket push)
@@ -172,22 +172,22 @@ Silent auto-expand:
 
 ## Tech Stack (Finalised)
 
-| Layer               | Technology                                 | Notes                                                                    |
-| ------------------- | ------------------------------------------ | ------------------------------------------------------------------------ |
-| Mobile App          | React Native + Expo (TypeScript)           | Single codebase for iOS + Android                                        |
-| Maps                | React Native Maps                          | Apple Maps on iOS, Google Maps on Android                                |
-| Backend API         | Hono (Node.js / TypeScript)                | Lightweight, minimal boilerplate, Lambda-compatible                      |
-| ORM                 | Drizzle                                    | SQL-like, TypeScript-first, explicit                                     |
-| Database            | PostgreSQL via Neon                        | Serverless, DB branching (dev/staging/prod)                              |
-| Auth                | BetterAuth                                 | Email/Password + Google OAuth + Apple Sign-In                            |
-| Push Notifications  | Firebase FCM                               | One token per device, persona-aware payloads                             |
-| Transactional Email | Postmark                                   | Verification, password reset, Venue activation, payment confirmation     |
-| Media Storage       | AWS S3 + CloudFront                        | Images, audio. CloudFront CDN for Irish users.                           |
-| Video Processing    | Mux                                        | Upload, transcode, HLS streaming, CDN, analytics                         |
-| Payments            | Stripe (web only)                          | Venue subscriptions via ceolx.ie/subscribe. No RevenueCat. No Apple IAP. |
-| Admin Dashboard     | React + Vite + TanStack Router + ShadCN/UI | Also hosts ceolx.ie/subscribe page                                       |
-| Monorepo            | Turborepo                                  | apps/mobile, apps/admin, apps/api, packages/shared                       |
-| Repository          | GitHub                                     | Branch per environment, matching Neon DB branches                        |
+| Layer               | Technology                                 | Notes                                                                     |
+| ------------------- | ------------------------------------------ | ------------------------------------------------------------------------- |
+| Mobile App          | React Native + Expo (TypeScript)           | Single codebase for iOS + Android                                         |
+| Maps                | React Native Maps                          | Apple Maps on iOS, Google Maps on Android                                 |
+| Backend API         | Hono (Node.js / TypeScript)                | Lightweight, minimal boilerplate, Lambda-compatible                       |
+| ORM                 | Drizzle                                    | SQL-like, TypeScript-first, explicit                                      |
+| Database            | PostgreSQL via Neon                        | Serverless, DB branching (dev/staging/prod)                               |
+| Auth                | BetterAuth                                 | Email/Password + Google OAuth + Apple Sign-In                             |
+| Push Notifications  | Firebase FCM                               | One token per device, persona-aware payloads                              |
+| Transactional Email | Postmark                                   | Verification, password reset, Venue activation, payment confirmation      |
+| Media Storage       | AWS S3 + CloudFront                        | Images, audio. CloudFront CDN for Irish users.                            |
+| Video Processing    | Mux                                        | Upload, transcode, HLS streaming, CDN, analytics                          |
+| Payments            | Stripe (web only)                          | Venue subscriptions via ceolx.com/subscribe. No RevenueCat. No Apple IAP. |
+| Admin Dashboard     | React + Vite + TanStack Router + ShadCN/UI | Also hosts ceolx.com/subscribe page                                       |
+| Monorepo            | Turborepo                                  | apps/mobile, apps/admin, apps/api, packages/shared                        |
+| Repository          | GitHub                                     | Branch per environment, matching Neon DB branches                         |
 
 ### Validation architecture
 
@@ -303,7 +303,7 @@ State machine: `Pending → Accepted | Rejected` → `Cancelled` (either party, 
 ```
 apps/
   mobile/     -- React Native + Expo
-  admin/      -- React + Vite + TanStack Router + ShadCN/UI (also hosts ceolx.ie/subscribe)
+  admin/      -- React + Vite + TanStack Router + ShadCN/UI (also hosts ceolx.com/subscribe)
   api/        -- Hono backend (deployed as AWS Lambda)
 packages/
   shared/     -- TypeScript types, utilities, shared constants

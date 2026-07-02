@@ -147,7 +147,7 @@ After this, `staging` will match your current schema. Future schema changes: che
 2. Copy all three.
 3. `QSTASH_BASE_URL` = the **public HTTPS URL** of your deployed server's QStash webhook endpoint. You can't know this until Vercel is live. Leave it blank for now; you'll set it in step 8 after the first Vercel deploy. It will be:
    ```
-   https://api-staging.ceolx.ie/api/webhooks/qstash
+   https://api-staging.ceolx.com/api/webhooks/qstash
    ```
    (or whatever Vercel URL you end up using).
 
@@ -209,13 +209,13 @@ Create `ceolx-admin` later, when `apps/admin` is being deployed.
 1. Sign up at https://postmarkapp.com (free sandbox is fine — 100 emails/month, no card needed).
 2. Dashboard → Servers → your default server (or create one named `ceolx-staging`).
 3. **API Tokens** tab → copy the **Server API Token** (not the account token). Save as `POSTMARK_API_TOKEN`.
-4. **Sender Signatures** tab → add `noreply@ceolx.ie` → click the verification link Postmark emails you. Until this is verified, all sends fail. If you don't control `ceolx.ie` DNS yet, verify a sender address you do control (e.g. `priya+ceolx-staging@…`) and temporarily set `POSTMARK_FROM_ADDRESS` to that instead.
+4. **Sender Signatures** tab → add `noreply@ceolx.com` → click the verification link Postmark emails you. Until this is verified, all sends fail. If you don't control `ceolx.com` DNS yet, verify a sender address you do control (e.g. `priya+ceolx-staging@…`) and temporarily set `POSTMARK_FROM_ADDRESS` to that instead.
 
 Env values:
 
 ```
 POSTMARK_API_TOKEN=<server token>
-POSTMARK_FROM_ADDRESS=noreply@ceolx.ie   # or your verified sender
+POSTMARK_FROM_ADDRESS=noreply@ceolx.com   # or your verified sender
 ```
 
 ### 6b. Google OAuth — Web client (for "Sign in with Google")
@@ -227,7 +227,7 @@ Only a **Web client** is needed for this cycle. Expo AuthSession on Android prox
 3. While still in "Testing" mode, add your QA team's email addresses under **Test users**. External apps in testing mode can only authorise listed test users.
 4. **APIs & Services → Credentials → Create credentials → OAuth client ID** → Application type = **Web application** → name = `CeolX Web (staging)`.
 5. **Authorised redirect URIs** — add these three:
-   - `https://api-staging.ceolx.ie/api/auth/callback/google` (BetterAuth callback)
+   - `https://api-staging.ceolx.com/api/auth/callback/google` (BetterAuth callback)
    - `https://auth.expo.io/@ceolxprojects-organization/ceolx` (Expo AuthSession proxy, dev builds)
    - `ceolx-staging://` (deep link back into the APK after auth)
 6. Save → copy **Client ID** and **Client secret**.
@@ -360,13 +360,13 @@ PORT=3001                       # harmless on Vercel, validator wants it
 DATABASE_URL=<neon staging pooled URL>
 
 BETTER_AUTH_SECRET=<32+ random bytes, generate: openssl rand -base64 48>
-BETTER_AUTH_URL=https://api-staging.ceolx.ie
+BETTER_AUTH_URL=https://api-staging.ceolx.com
 # Admin not deployed yet — list only the API's own origin (mobile sends no Origin header so this is effectively unused, but the validator requires a non-empty string).
-CORS_ALLOWED_ORIGINS=https://api-staging.ceolx.ie
+CORS_ALLOWED_ORIGINS=https://api-staging.ceolx.com
 
 # Postmark (from §6a)
 POSTMARK_API_TOKEN=<server token>
-POSTMARK_FROM_ADDRESS=noreply@ceolx.ie
+POSTMARK_FROM_ADDRESS=noreply@ceolx.com
 
 # Google OAuth Web client (from §6b)
 GOOGLE_OAUTH_CLIENT_ID=<web client id>.apps.googleusercontent.com
@@ -385,7 +385,7 @@ RATE_LIMIT_ENABLED=true
 QSTASH_TOKEN=<token>
 QSTASH_CURRENT_SIGNING_KEY=<key>
 QSTASH_NEXT_SIGNING_KEY=<key>
-QSTASH_BASE_URL=https://api-staging.ceolx.ie/api/webhooks/qstash
+QSTASH_BASE_URL=https://api-staging.ceolx.com/api/webhooks/qstash
 
 # Typesense
 TYPESENSE_HOST=abc123.a1.typesense.net
@@ -410,12 +410,12 @@ First deploy takes ~3 min. When done Vercel prints a URL like `https://ceolx-api
 
 ### 8d. Attach the custom domain
 
-In Vercel → `ceolx-api-staging` → **Settings → Domains** → add `api-staging.ceolx.ie`. Vercel shows the CNAME target (e.g. `cname.vercel-dns.com`). Add that CNAME record at your DNS provider. Wait ~5 min for DNS + Vercel's automatic Let's Encrypt cert.
+In Vercel → `ceolx-api-staging` → **Settings → Domains** → add `api-staging.ceolx.com`. Vercel shows the CNAME target (e.g. `cname.vercel-dns.com`). Add that CNAME record at your DNS provider. Wait ~5 min for DNS + Vercel's automatic Let's Encrypt cert.
 
 Smoke test:
 
 ```bash
-curl https://api-staging.ceolx.ie/health
+curl https://api-staging.ceolx.com/health
 # → {"status":"ok","timestamp":"...","version":"1.0.0"}
 ```
 
@@ -423,7 +423,7 @@ If this fails, check Vercel → Deployments → click latest → **Runtime Logs*
 
 ### 8e. Go back and fill `QSTASH_BASE_URL`
 
-Edit the env var in Vercel (you set it to `https://api-staging.ceolx.ie/api/webhooks/qstash` above — confirm it's correct) and trigger a redeploy: `vercel --prod` again, or click **Redeploy** in the dashboard.
+Edit the env var in Vercel (you set it to `https://api-staging.ceolx.com/api/webhooks/qstash` above — confirm it's correct) and trigger a redeploy: `vercel --prod` again, or click **Redeploy** in the dashboard.
 
 ---
 
@@ -434,15 +434,15 @@ Edit the env var in Vercel (you set it to `https://api-staging.ceolx.ie/api/webh
 - `vercel link` from `apps/admin`, root dir `apps/admin`
 - Build: `cd ../.. && pnpm turbo -F @ceolx/admin build`, output dir `dist`
 - Env: `VITE_SERVER_URL`, `VITE_STRIPE_PUBLISHABLE_KEY`, `VITE_SENTRY_DSN` + build-time Sentry token
-- Attach `admin-staging.ceolx.ie`, add it to the server's `CORS_ALLOWED_ORIGINS`, redeploy the API
+- Attach `admin-staging.ceolx.com`, add it to the server's `CORS_ALLOWED_ORIGINS`, redeploy the API
 
-Until then, the Stripe subscription flow (which lives at `ceolx.ie/subscribe` inside the admin SPA) is not testable end-to-end. QA should skip those flows or test them against a locally-run admin.
+Until then, the Stripe subscription flow (which lives at `ceolx.com/subscribe` inside the admin SPA) is not testable end-to-end. QA should skip those flows or test them against a locally-run admin.
 
 ---
 
 ## 10. Build the staging APK with EAS
 
-The `staging` profile already exists in `apps/native/eas.json` and points to `https://api-staging.ceolx.ie`. Now finish the Expo side:
+The `staging` profile already exists in `apps/native/eas.json` and points to `https://api-staging.ceolx.com`. Now finish the Expo side:
 
 ### 10a. Update `apps/native/eas.json` staging profile
 
@@ -453,7 +453,7 @@ Current state (lines 40–47):
   "distribution": "store",
   "env": {
     "APP_VARIANT": "staging",
-    "EXPO_PUBLIC_SERVER_URL": "https://api-staging.ceolx.ie",
+    "EXPO_PUBLIC_SERVER_URL": "https://api-staging.ceolx.com",
     "EXPO_PUBLIC_GOOGLE_MAPS_API_KEY": "TODO-ADD-KEY-HERE"
   }
 }
@@ -468,7 +468,7 @@ End state:
   "android": { "buildType": "apk" },
   "env": {
     "APP_VARIANT": "staging",
-    "EXPO_PUBLIC_SERVER_URL": "https://api-staging.ceolx.ie",
+    "EXPO_PUBLIC_SERVER_URL": "https://api-staging.ceolx.com",
     "EXPO_PUBLIC_GOOGLE_MAPS_API_KEY": "TODO-ADD-KEY-HERE",
     "EXPO_PUBLIC_SENTRY_DSN": "https://<key>@o<org>.ingest.sentry.io/<native project>"
   }
@@ -516,7 +516,7 @@ eas credentials
 
 Run these in order. Stop at the first failure.
 
-- [ ] `curl https://api-staging.ceolx.ie/health` → `{"status":"ok",…}`
+- [ ] `curl https://api-staging.ceolx.com/health` → `{"status":"ok",…}`
 - [ ] Install the APK on one Android device → sign up with email/password → **verification email arrives from Postmark** within ~30s → click link → logged in
 - [ ] Sign out → sign in again via **"Continue with Google"** (use an email you added as a test user in §6b step 3) → returns to the app authenticated
 - [ ] Map tab: **gray grid expected** (Maps deferred, §6c). Pins should still render on top (Typesense returns results)
@@ -567,7 +567,7 @@ Send this to QA in one message:
 >
 > - **Install:** <EAS APK URL from step 10c>
 > - **Uninstall any previous CeolX build first.** The staging app is a separate app (bundle `com.raftlabs.ceolx`, name "CeolX (Staging)"), so it can coexist with a production install if one exists later.
-> - **Backend:** `https://api-staging.ceolx.ie` (invisible to you — just works).
+> - **Backend:** `https://api-staging.ceolx.com` (invisible to you — just works).
 > - **Sign-up:** either **email + password** (verification link arrives via email within ~30s), or **Continue with Google** (only works for the email addresses I've whitelisted as test users — let me know the emails your team wants and I'll add them).
 > - **Map:** Android staging renders a **gray grid** instead of real map tiles. This is intentional — Google Maps billing isn't set up yet. Pins, clustering, search, location fallback all still work. Don't file this as a bug.
 > - **Report bugs with:** screenshot + steps + approx timestamp. For crashes, a **screen recording** helps more than a screenshot — staging stack traces are minified (see section 11.5), so reproduction steps matter.

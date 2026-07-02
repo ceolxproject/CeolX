@@ -61,7 +61,7 @@ Web-only purchase is an established, allowed pattern (Netflix, Spotify, most B2B
 
 ### Q3 — Smaller items needing a decision
 
-- **Domain:** confirm the subscribe page lives at `ceolx.com` (code currently references `ceolx.ie`).
+- **Domain:** confirm the subscribe page lives at `ceolx.com` (code currently references `ceolx.com`).
 - **Grace period:** when a renewal payment fails (`past_due`), do we hide the profile immediately or keep it visible during Stripe's retry window and only hide on final cancellation? (Proposed: keep visible during grace, hide on cancel.)
 - **Plan catalog:** final number of venue tiers + the artist tier, their prices, and copy — needed before the web page is finished.
 

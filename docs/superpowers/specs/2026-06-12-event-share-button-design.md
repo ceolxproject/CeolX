@@ -8,7 +8,7 @@
 ## Summary
 
 Add a native Share button to the event detail screen. Tapping it opens the OS
-share sheet with a `https://ceolx.ie/event/<id>` link. On a device with the app
+share sheet with a `https://ceolx.com/event/<id>` link. On a device with the app
 installed, iOS Universal Links / Android App Links route the tap back into the
 app and land on the event detail screen. On a device without the app (or a
 desktop browser / in-app webview), the link unfurls with the event's cover
@@ -41,11 +41,11 @@ wholesale; only three things differ from posts:
 ## Architecture
 
 ```
-Native app                  Hono server (api.ceolx.ie)         Admin (ceolx.ie / Vercel)
+Native app                  Hono server (api.ceolx.com)         Admin (ceolx.com / Vercel)
 ──────────                  ──────────────────────────         ─────────────────────────
 use-share-event.ts     →    GET /event/:id (event-share.ts) ←  vercel.json rewrite /event/*
-  Share sheet                 OG card + store buttons             → api.ceolx.ie/event/*
-  ceolx.ie/event/<id>
+  Share sheet                 OG card + store buttons             → api.ceolx.com/event/*
+  ceolx.com/event/<id>
                             /.well-known/* (app-links.ts)
 EventDetailHeader.tsx         now advertises /post/* AND /event/*
   share icon
@@ -62,7 +62,7 @@ OS verifies AASA (iOS) / assetlinks (Android) → opens the app at `/event/<id>`
 
 ### Flow — app not installed
 
-Vercel rewrites `ceolx.ie/event/<id>` → `api.ceolx.ie/event/<id>` (rewrite, not
+Vercel rewrites `ceolx.com/event/<id>` → `api.ceolx.com/event/<id>` (rewrite, not
 redirect — Apple requires the AASA host to stay stable; same rule already in
 place for `/post/*` and `/.well-known/*`). Hono renders the OG card with an
 "Open in the CeolX app" deep link plus store buttons. Deliberately **no**
@@ -77,7 +77,7 @@ app is absent (same rationale as post-share).
 **`hooks/use-share-event.ts`** _(new)_
 Clone of `use-share-post.ts`. Signature `(eventId: string, title: string, dateLabel: string)`.
 Builds `${SHARE_BASE_URL}/event/${eventId}` where
-`SHARE_BASE_URL = env.EXPO_PUBLIC_SHARE_BASE_URL ?? 'https://ceolx.ie'`. Opens
+`SHARE_BASE_URL = env.EXPO_PUBLIC_SHARE_BASE_URL ?? 'https://ceolx.com'`. Opens
 `Share.share({ url, message: \`Check out ${title} on CeolX\n${dateLabel}\n${url}\`, title: 'Check out this event on CeolX' })`.
 On throw → `Alert.alert('Unable to share', 'Please try again.')`.
 
@@ -152,7 +152,7 @@ existing `app.route('/', postShareRoute)`.
 ### Admin — `apps/admin`
 
 **`vercel.json`** _(edit)_
-Add `{ "source": "/event/:path*", "destination": "https://api.ceolx.ie/event/:path*" }`
+Add `{ "source": "/event/:path*", "destination": "https://api.ceolx.com/event/:path*" }`
 immediately after the existing `/post/:path*` rewrite and **before** the
 `/(.*) → /index.html` SPA catch-all (order matters — the catch-all would
 otherwise swallow it).
@@ -189,6 +189,6 @@ otherwise swallow it).
   fresh EAS build, not an `eas update`. The JS/server/Vercel pieces ship
   normally. Flag this in the implementation plan and in the EOD note.
 - **Three deploy targets move together.** Native (rebuild), server
-  (api.ceolx.ie), and admin (ceolx.ie Vercel) must all carry the change for the
+  (api.ceolx.com), and admin (ceolx.com Vercel) must all carry the change for the
   end-to-end flow to work; a partial deploy degrades gracefully (e.g. server
   live but app not rebuilt → web fallback works, in-app deep link does not).
