@@ -10,7 +10,7 @@ const VARIANT = process.env.APP_VARIANT ?? 'production';
 const IS_STAGING = VARIANT === 'staging';
 
 const PROD_BUNDLE_ID = 'com.ceolx.app';
-const STAGING_BUNDLE_ID = 'com.raftlabs.ceolx.staging';
+const STAGING_BUNDLE_ID = 'com.ceolx.app.staging';
 
 // REVERSED_CLIENT_ID from the iOS OAuth client (see GoogleService-Info.plist),
 // e.g. com.googleusercontent.apps.1234-abc. Registers the URL scheme the native

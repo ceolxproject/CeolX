@@ -49,7 +49,7 @@ export const env = createEnv({
     ANDROID_SHA256_CERT_FINGERPRINT: z.string().optional(),
     // Mobile bundle id / Android package this server's App Links files vouch
     // for. Prod is ie.ceolx.app (the default); the STAGING server sets this to
-    // com.raftlabs.ceolx.staging so its AASA/assetlinks match the staging app.
+    // com.ceolx.app.staging so its AASA/assetlinks match the staging app.
     MOBILE_BUNDLE_ID: z.string().optional(),
     // Canonical origin of shared-post links, used for og:url on the /post page.
     // Prod = https://ceolx.com; staging = the staging server's own Vercel URL.
