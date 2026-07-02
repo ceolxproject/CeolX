@@ -1,5 +1,5 @@
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 
 import type { EventCategory, FeedEvent } from '@CeolX/shared';
 import { MAP_DEBOUNCE_MS } from '@CeolX/shared';
@@ -70,9 +70,13 @@ export function useFeedEvents({ lat, lng, enabled = true }: UseFeedEventsOpts) {
     placeholderData: keepPreviousData,
   });
 
-  // Sync data into accumulated events when data arrives.
-  // Must be in useEffect — calling setState in the render body causes infinite re-renders.
-  useEffect(() => {
+  // Sync data into accumulated events when data arrives. Must be an effect —
+  // calling setState in the render body causes infinite re-renders — but a
+  // *layout* effect specifically, so this commits in the same frame as
+  // isLoading flipping to false. A plain useEffect fires after paint, leaving
+  // one painted frame where isLoading is false but accumulatedEvents hasn't
+  // caught up — flashing the empty state before events render. (Asana 1216227495516054)
+  useLayoutEffect(() => {
     if (!data || isFetching) return;
     const newEvents = data.events as FeedEvent[];
     // First page always reflects the freshest data (so an edited event's cover
