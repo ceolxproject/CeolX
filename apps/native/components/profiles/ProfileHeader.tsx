@@ -45,18 +45,24 @@ function CountBlock({
 }) {
   const content = (
     <>
-      <Text className="text-[17px] font-semibold text-white">{value}</Text>
-      <Text className="text-[13px] text-white">{label}</Text>
+      <Text maxFontSizeMultiplier={1.3} className="text-[17px] font-semibold text-white">
+        {value}
+      </Text>
+      {/* One line at full width so the label never breaks mid-word; cap font scaling so a
+          large OS font setting can't stretch the block wide enough to overflow the row */}
+      <Text numberOfLines={1} maxFontSizeMultiplier={1.3} className="text-[13px] text-white">
+        {label}
+      </Text>
     </>
   );
   if (onPress) {
     return (
-      <Pressable className="items-center w-[58px]" onPress={onPress}>
+      <Pressable className="items-center min-w-[58px]" onPress={onPress}>
         {content}
       </Pressable>
     );
   }
-  return <View className="items-center w-[58px]">{content}</View>;
+  return <View className="items-center min-w-[58px]">{content}</View>;
 }
 
 export function ProfileHeader({
