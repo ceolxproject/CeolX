@@ -7,6 +7,7 @@ import {
   MAP_DEBOUNCE_MS,
   MAP_EXPAND_RADIUS_KM,
   MAP_MAX_PINS_PER_FETCH,
+  MAP_VIEWPORT_PAD_FACTOR,
   getBoundingBox,
 } from '@CeolX/shared';
 
@@ -26,12 +27,18 @@ const IRELAND_BBOX: BoundingBox & { limit: number } = {
   limit: MAP_MAX_PINS_PER_FETCH,
 };
 
-export function regionToBoundingBox(region: Region): BoundingBox {
+export function regionToBoundingBox(region: Region, padFactor = 1): BoundingBox {
+  const latPad = (region.latitudeDelta * padFactor) / 2;
+  const lngPad = (region.longitudeDelta * padFactor) / 2;
+  // A far zoom-out could push a padded corner past ±90/±180; clamp so we never
+  // send an out-of-range geo query.
+  const clampLat = (v: number) => Math.max(-90, Math.min(90, v));
+  const clampLng = (v: number) => Math.max(-180, Math.min(180, v));
   return {
-    swLat: region.latitude - region.latitudeDelta / 2,
-    swLng: region.longitude - region.longitudeDelta / 2,
-    neLat: region.latitude + region.latitudeDelta / 2,
-    neLng: region.longitude + region.longitudeDelta / 2,
+    swLat: clampLat(region.latitude - latPad),
+    swLng: clampLng(region.longitude - lngPad),
+    neLat: clampLat(region.latitude + latPad),
+    neLng: clampLng(region.longitude + lngPad),
   };
 }
 
@@ -168,7 +175,10 @@ export function useMapEvents(opts?: UseMapEventsOpts) {
   const onRegionChangeComplete = useCallback((region: Region) => {
     if (timerRef.current) clearTimeout(timerRef.current);
     timerRef.current = setTimeout(() => {
-      setViewport({ ...regionToBoundingBox(region), limit: MAP_MAX_PINS_PER_FETCH });
+      setViewport({
+        ...regionToBoundingBox(region, MAP_VIEWPORT_PAD_FACTOR),
+        limit: MAP_MAX_PINS_PER_FETCH,
+      });
       // Reset expansion on manual pan
       setExpandedEvents(null);
       setExpandExhausted(false);
