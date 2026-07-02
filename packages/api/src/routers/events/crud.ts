@@ -47,9 +47,9 @@ function canonicalEmail(email: string): string {
   return email.trim().toLowerCase();
 }
 
-/** Build the public invite landing URL. PUBLIC_WEB_ORIGIN is the ceolx.ie web origin. */
+/** Build the public invite landing URL. PUBLIC_WEB_ORIGIN is the ceolx.com web origin. */
 function inviteUrl(token: string): string {
-  const origin = process.env.PUBLIC_WEB_ORIGIN ?? 'https://ceolx.ie';
+  const origin = process.env.PUBLIC_WEB_ORIGIN ?? 'https://ceolx.com';
   return `${origin}/invite/${token}`;
 }
 

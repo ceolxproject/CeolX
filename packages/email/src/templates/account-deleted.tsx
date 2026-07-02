@@ -21,7 +21,7 @@ export function AccountDeletedEmail({ userName }: AccountDeletedEmailProps) {
       </Text>
 
       <Text style={mutedText}>
-        If you didn&apos;t request this, contact us at support@ceolx.ie straight away.
+        If you didn&apos;t request this, contact us at admin@ceolx.com straight away.
       </Text>
     </EmailLayout>
   );

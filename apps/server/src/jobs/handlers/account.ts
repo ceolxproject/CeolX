@@ -18,7 +18,7 @@ async function sendDeletionConfirmation(
   userId: string,
   { email, name }: { email: string | null; name: string | null }
 ): Promise<void> {
-  if (!email || email.endsWith('@deleted.ceolx.ie')) return;
+  if (!email || email.endsWith('@deleted.ceolx.com')) return;
   try {
     await sendAccountDeletedEmail({ to: email, userName: name ?? '' });
   } catch (err) {
@@ -44,7 +44,7 @@ async function applyAnonymization(
       .update(user)
       .set({
         name: 'Deleted User',
-        email: `${userId}@deleted.ceolx.ie`,
+        email: `${userId}@deleted.ceolx.com`,
         emailVerified: false,
         image: null,
         currentRole: 'spectator',

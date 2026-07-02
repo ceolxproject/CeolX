@@ -25,7 +25,7 @@ const GOOGLE_IOS_URL_SCHEME = process.env.GOOGLE_IOS_URL_SCHEME;
 // domain off prod). MUST match SHARE_BASE_URL in hooks/use-share-post.ts so the
 // shared link's host is the one declared here. Stripped to a bare host because
 // associatedDomains / intentFilters take a host, not a URL.
-const SHARE_BASE_URL = process.env.EXPO_PUBLIC_SHARE_BASE_URL ?? 'https://ceolx.ie';
+const SHARE_BASE_URL = process.env.EXPO_PUBLIC_SHARE_BASE_URL ?? 'https://ceolx.com';
 const SHARE_HOST = SHARE_BASE_URL.replace(/^https?:\/\//, '').replace(/\/.*$/, '');
 
 /**
@@ -61,7 +61,7 @@ export default (_) => ({
     // of a raw APNs token. The plist is downloaded from the Firebase Console
     // and gitignored — see docs/project-management/M7-T1 human handoff checklist.
     googleServicesFile: process.env.GOOGLE_SERVICES_INFO_PLIST ?? './GoogleService-Info.plist',
-    // Universal Links target (SHARE_HOST — prod ceolx.ie, staging the server
+    // Universal Links target (SHARE_HOST — prod ceolx.com, staging the server
     // Vercel URL). The matching apple-app-site-association is served at
     // https://<host>/.well-known/apple-app-site-association by the Hono backend
     // (apps/server/src/routes/app-links.ts). appID = APPLE_OAUTH_TEAM_ID + the

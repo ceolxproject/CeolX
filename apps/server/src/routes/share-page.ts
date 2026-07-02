@@ -5,7 +5,7 @@ export const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f
 
 // Canonical origin for og:url + on-page links. Prod default; the staging server
 // sets PUBLIC_WEB_ORIGIN to its own Vercel URL (where it serves /post + /event).
-export const SHARE_ORIGIN = env.PUBLIC_WEB_ORIGIN ?? 'https://ceolx.ie';
+export const SHARE_ORIGIN = env.PUBLIC_WEB_ORIGIN ?? 'https://ceolx.com';
 
 // Until the app is published the numeric App Store id is unknown, so fall back
 // to an App Store search. Replace via IOS_APP_STORE_URL once live.
