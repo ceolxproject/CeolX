@@ -1,0 +1,173 @@
+name: Mobile OTA Update
+
+# Auto-fires on every push to `staging` and `main`. Publishes a JS-only
+# EAS Update to the matching channel (staging | production) so users on
+# the latest store binary receive bug fixes / content tweaks without
+# waiting for a store review cycle.
+#
+# Match semantics: `runtimeVersion: { policy: "fingerprint" }` in
+# apps/native/app.config.js. `@expo/fingerprint` hashes the prebuild
+# output; the hash is stamped into the binary at build time AND into
+# every OTA at publish time. Match => OTA delivers. Mismatch => the
+# binary rejects the OTA, which is correct — a native-affecting change
+# can't ship over the wire. The `Verify fingerprint matches latest
+# binary` step (eas fingerprint:compare) is the hard gate that fails the
+# workflow before publishing a bundle no binary can use.
+#
+# Env-aware publishes: SDK 55+ requires `--environment <name>` so the
+# EAS named-environment vars (EXPO_PUBLIC_*, APP_VARIANT, GOOGLE_IOS_URL_SCHEME)
+# are loaded into process.env before Metro bundles. Those EAS named
+# environments (preview, production) must be populated to mirror the
+# eas.json build-profile env — see docs/plans and `eas env:list`.
+#
+# CeolX footgun: app.config.js defaults APP_VARIANT to `production` when
+# unset (it does NOT throw like mentor's strict config). So every step
+# below also exports APP_VARIANT explicitly — a missing value would
+# silently bundle production config onto the staging channel.
+#
+# Binary builds remain manual (workflow_dispatch in mobile-staging.yml /
+# mobile-production.yml) because they autoIncrement and submit to
+# TestFlight / Play Console — too expensive to fire on every commit.
+
+on:
+  push:
+    branches: [staging, main]
+  workflow_dispatch:
+
+concurrency:
+  group: mobile-ota-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  publish:
+    name: Publish EAS Update
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Resolve channel from branch
+        id: channel
+        # Explicit allowlist — a wildcard else-branch would silently publish
+        # any workflow_dispatch run from a feature branch to the staging
+        # channel, pushing that bundle to every staging tester unknowingly.
+        #
+        # Four outputs per branch:
+        #   name            — EAS Update channel/branch ("staging" | "production")
+        #   eas_env         — EAS named environment to load via `--environment`
+        #                     ("preview" | "production"). REQUIRED for SDK 55+;
+        #                     without it the EXPO_PUBLIC_* / APP_VARIANT vars are
+        #                     NOT applied to the bundle.
+        #   app_variant     — APP_VARIANT for app.config.js ("staging" | "production").
+        #                     Exported directly as a guard against the silent
+        #                     default-to-production behaviour.
+        #   compare_profile — EAS build profile whose latest finished binary the
+        #                     fingerprint gate diffs against. One profile per tier
+        #                     (`staging` / `production`) builds both platforms, so
+        #                     a single compare covers iOS and Android.
+        run: |
+          case "${GITHUB_REF}" in
+            refs/heads/main)
+              echo "name=production"            >> "$GITHUB_OUTPUT"
+              echo "eas_env=production"         >> "$GITHUB_OUTPUT"
+              echo "app_variant=production"     >> "$GITHUB_OUTPUT"
+              echo "compare_profile=production" >> "$GITHUB_OUTPUT"
+              ;;
+            refs/heads/staging)
+              echo "name=staging"               >> "$GITHUB_OUTPUT"
+              echo "eas_env=preview"            >> "$GITHUB_OUTPUT"
+              echo "app_variant=staging"        >> "$GITHUB_OUTPUT"
+              echo "compare_profile=staging"    >> "$GITHUB_OUTPUT"
+              ;;
+            *)
+              echo "::error::Refusing to publish OTA from ${GITHUB_REF} — only main and staging are mapped to channels."
+              exit 1
+              ;;
+          esac
+      # Node before pnpm — pnpm/action-setup runs the pnpm binary during its
+      # own step, and .npmrc engine-strict + engines.node >=24.18.0 would
+      # hard-fail a lower minor. Matches db-migrate-staging.yml ordering.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.18.0
+          cache: pnpm
+      - uses: pnpm/action-setup@v4
+      # Full (unscoped) install — the native app needs its whole dep tree.
+      - run: pnpm install --frozen-lockfile
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+      - name: Verify fingerprint matches latest binary
+        # Hard gate before publishing. Resolves the most recent finished
+        # binary for the compare profile, then diffs its fingerprint against
+        # the current source tree's prebuild. If they differ, a native-
+        # affecting change has slipped in (a dep bumped natively, a `plugins:`
+        # edit, a manifest change). Publishing an OTA at the new hash would
+        # orphan every binary in the field — fail loudly instead.
+        #
+        # `eas fingerprint:compare` needs `--build-id` explicitly in
+        # non-interactive mode. `--environment` selects the env-slice of
+        # app.config.js so the local prebuild matches what EAS Build used
+        # server-side. (`jq` is preinstalled on ubuntu-latest.)
+        working-directory: apps/native
+        env:
+          APP_VARIANT: ${{ steps.channel.outputs.app_variant }}
+          EAS_ENV: ${{ steps.channel.outputs.eas_env }}
+          COMPARE_PROFILE: ${{ steps.channel.outputs.compare_profile }}
+        run: |
+          set -o pipefail
+          BUILD_ID=$(eas build:list \
+            --build-profile "$COMPARE_PROFILE" \
+            --status finished \
+            --limit 1 \
+            --json --non-interactive \
+            | jq -r '.[0].id // empty')
+          if [ -z "$BUILD_ID" ]; then
+            echo "::error::No finished ${COMPARE_PROFILE} binary on EAS. Run Mobile Staging Build (or Mobile Production Build) first — the fingerprint check needs a binary to compare against."
+            exit 1
+          fi
+          echo "::notice::comparing against binary ${BUILD_ID}"
+          eas fingerprint:compare --build-id "$BUILD_ID" --environment "$EAS_ENV" --non-interactive
+      - name: Explain fingerprint mismatch
+        if: failure()
+        env:
+          CHANNEL: ${{ steps.channel.outputs.name }}
+        run: |
+          {
+            echo "## ✗ Fingerprint diverged from the latest ${CHANNEL} binary"
+            echo ''
+            echo "A native-affecting change is in this commit set, so the"
+            echo "current source tree cannot run on the binary that's in the"
+            echo "field. Publishing an OTA would orphan every device on that"
+            echo "binary, so this workflow stops here."
+            echo ''
+            echo "**To unblock:**"
+            echo ''
+            if [ "${CHANNEL}" = "production" ]; then
+              echo "1. Trigger **Mobile Production Build** manually from the Actions tab."
+            else
+              echo "1. Trigger **Mobile Staging Build** manually from the Actions tab."
+            fi
+            echo "2. Wait for the build, install it on test devices."
+            echo "3. Re-run this workflow — the OTA will publish against the new fingerprint."
+            echo ''
+            echo "**Next time:** run \`pnpm mobile:release-check\` locally before"
+            echo "\`pnpm release\` to catch this before pushing."
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Publish OTA bundle
+        working-directory: apps/native
+        env:
+          CHANNEL: ${{ steps.channel.outputs.name }}
+          EAS_ENV: ${{ steps.channel.outputs.eas_env }}
+          APP_VARIANT: ${{ steps.channel.outputs.app_variant }}
+          # Commit message is untrusted input — pass through env to avoid
+          # shell injection. Fall back to SHA when unavailable (workflow_dispatch).
+          COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
+          COMMIT_SHA: ${{ github.sha }}
+        run: |
+          MESSAGE="${COMMIT_MESSAGE:-$COMMIT_SHA}"
+          eas update \
+            --branch "$CHANNEL" \
+            --environment "$EAS_ENV" \
+            --message "$MESSAGE" \
+            --non-interactive

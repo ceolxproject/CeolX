@@ -10,7 +10,7 @@ export const SHARE_ORIGIN = env.PUBLIC_WEB_ORIGIN ?? 'https://ceolx.com';
 // Until the app is published the numeric App Store id is unknown, so fall back
 // to an App Store search. Replace via IOS_APP_STORE_URL once live.
 const DEFAULT_APP_STORE = 'https://apps.apple.com/search?term=ceolx';
-const DEFAULT_PLAY_STORE = 'https://play.google.com/store/apps/details?id=ie.ceolx.app';
+const DEFAULT_PLAY_STORE = 'https://play.google.com/store/apps/details?id=com.ceolx.app';
 
 /** Resolves the store-button urls, honouring per-deploy env overrides. */
 export function storeUrls(): { iosStoreUrl: string; androidStoreUrl: string } {

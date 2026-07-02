@@ -75,7 +75,7 @@ describe('GET /post/:id', () => {
     expect(html).toContain('<meta name="twitter:card" content="summary_large_image">');
     // Manual "open in app" deep link + both store buttons.
     expect(html).toContain(`href="ceolx://post/${VALID_ID}"`);
-    expect(html).toContain('play.google.com/store/apps/details?id=ie.ceolx.app');
+    expect(html).toContain('play.google.com/store/apps/details?id=com.ceolx.app');
     expect(html).toContain('apps.apple.com');
   });
 

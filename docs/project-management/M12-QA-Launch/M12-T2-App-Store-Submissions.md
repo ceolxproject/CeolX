@@ -43,7 +43,7 @@ No new endpoints. No API changes required for app store submission.
 
 ### iOS App Configuration (app.config.ts / eas.json)
 
-- R3: **Bundle identifier**: `ie.ceolx.app` (must match Apple Developer provisioning profiles)
+- R3: **Bundle identifier**: `com.ceolx.app` (must match Apple Developer provisioning profiles)
 - R4: **App name**: "CeolX" (consistent across icon labels, App Store name, home screen)
 - R5: **Version number**: semantic versioning (e.g., 1.0.0)
 - R6: **Build number**: incremented for each build (e.g., 1, 2, 3 for production)
@@ -113,7 +113,7 @@ No new endpoints. No API changes required for app store submission.
 
 ### Android Google Play Store Submission
 
-- R33: **Application ID (package name)**: `ie.ceolx.app` (matches bundle ID for consistency)
+- R33: **Application ID (package name)**: `com.ceolx.app` (matches bundle ID for consistency)
 - R34: **App name**: "CeolX"
 - R35: **Short description**: max 80 characters
   - Example: "Discover live Irish music events and book performances"
@@ -239,7 +239,7 @@ export default {
     slug: 'ceolx',
     version: '1.0.0',
     ios: {
-      bundleIdentifier: 'ie.ceolx.app',
+      bundleIdentifier: 'com.ceolx.app',
       buildNumber: '1',
       privacyManifest: {
         NSPrivacyTracking: false,
@@ -247,7 +247,7 @@ export default {
       },
     },
     android: {
-      package: 'ie.ceolx.app',
+      package: 'com.ceolx.app',
       versionCode: 1,
     },
     plugins: ['expo-apple-authentication', 'expo-image-picker'],

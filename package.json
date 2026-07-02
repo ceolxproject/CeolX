@@ -11,6 +11,8 @@
     "build": "turbo build",
     "check-types": "turbo check-types",
     "dev:native": "turbo -F native dev",
+    "dev:native:offline": "turbo -F native dev:offline",
+    "mobile:release-check": "node scripts/mobile-release-check.mjs",
     "ios": "expo run:ios",
     "dev:web": "turbo -F web dev",
     "dev:server": "turbo -F server dev",

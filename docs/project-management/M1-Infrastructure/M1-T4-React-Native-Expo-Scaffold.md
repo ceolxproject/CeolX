@@ -322,14 +322,14 @@ const config: ExpoConfig = {
   assetBundlePatterns: ['**/*'],
   ios: {
     supportsTabletMode: false,
-    bundleIdentifier: 'ie.ceolx.app',
+    bundleIdentifier: 'com.ceolx.app',
   },
   android: {
     adaptiveIcon: {
       foregroundImage: './assets/adaptive-icon.png',
       backgroundColor: '#ffffff',
     },
-    package: 'ie.ceolx.app',
+    package: 'com.ceolx.app',
   },
   scheme: 'ceolx',
   plugins: [

@@ -1,0 +1,79 @@
+name: Mobile Staging Build
+
+# Manual mobile staging build. Two parallel jobs build the staging
+# binaries from the single `staging` profile (store distribution) and
+# auto-submit them:
+#   iOS     — profile `staging` -> TestFlight under the CeolX (Staging)
+#             App Store Connect record (eas.json `submit.staging.ios`).
+#   Android — profile `staging` (app-bundle) -> Play Console `internal`
+#             track using the service-account JSON uploaded to EAS managed
+#             credentials (eas.json `submit.staging.android`).
+#
+# One `staging` profile serves both platforms (mentor pattern): iOS ships to
+# TestFlight, Android to the Play internal track. Both share the `staging`
+# channel and the same fingerprint inputs.
+#
+# Binaries are run manually (not auto) because they autoIncrement and submit
+# to the stores — too expensive to fire on every commit. OTAs (mobile-ota.yml)
+# carry the day-to-day JS changes.
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: mobile-staging
+  cancel-in-progress: false
+
+jobs:
+  build-ios:
+    name: iOS (staging, auto-submit to TestFlight)
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      # app.config.js defaults APP_VARIANT to `production` when unset, so it
+      # MUST be set to `staging` for every staging step on the runner. EAS
+      # Build also picks it up server-side from eas.json staging.env; this
+      # value covers the eas-cli bootstrap on the GH Actions runner.
+      APP_VARIANT: staging
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: staging
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.18.0
+          cache: pnpm
+      - uses: pnpm/action-setup@v4
+      - run: pnpm install --frozen-lockfile
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+      - name: EAS build iOS (staging, auto-submit)
+        working-directory: apps/native
+        run: eas build --platform ios --profile staging --auto-submit --non-interactive --no-wait
+
+  build-android:
+    name: Android (staging app-bundle, auto-submit to internal track)
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      # See iOS job — same APP_VARIANT rationale.
+      APP_VARIANT: staging
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: staging
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.18.0
+          cache: pnpm
+      - uses: pnpm/action-setup@v4
+      - run: pnpm install --frozen-lockfile
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+      - name: EAS build Android (staging app-bundle, auto-submit)
+        working-directory: apps/native
+        run: eas build --platform android --profile staging --auto-submit --non-interactive --no-wait

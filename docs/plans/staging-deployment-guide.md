@@ -12,7 +12,7 @@
  ┌──────────────────────────┐        ┌────────────────────────────┐
  │  Android APK (Expo EAS)  │──────▶│  https://api-staging…       │
  │  APP_VARIANT=staging     │        │  Hono on Vercel (Node fn)   │
- │  bundleId com.raftlabs…  │        └──────┬──────────────┬──────┘
+ │  bundleId com.ceolx…  │        └──────┬──────────────┬──────┘
  └──────────────────────────┘               │              │
               │ download link               │              │
               ▼                              ▼              ▼
@@ -251,7 +251,7 @@ When billing is resolved, the full Maps setup takes ~10 min:
 
 1. Same GCP project → APIs & Services → Library → enable **Maps SDK for Android** + **Geocoding API**.
 2. Credentials → Create credentials → API key.
-3. Restriction: Android apps → add package `com.raftlabs.ceolx` + the SHA-1 from `eas credentials` (step 10d).
+3. Restriction: Android apps → add package `com.ceolx.app.staging` + the SHA-1 from `eas credentials` (step 10d).
 4. Set `EXPO_PUBLIC_GOOGLE_MAPS_API_KEY` in `apps/native/eas.json` → rebuild the APK.
 
 ---
@@ -566,7 +566,7 @@ Send this to QA in one message:
 > **CeolX staging build is ready for testing.**
 >
 > - **Install:** <EAS APK URL from step 10c>
-> - **Uninstall any previous CeolX build first.** The staging app is a separate app (bundle `com.raftlabs.ceolx`, name "CeolX (Staging)"), so it can coexist with a production install if one exists later.
+> - **Uninstall any previous CeolX build first.** The staging app is a separate app (bundle `com.ceolx.app.staging`, name "CeolX (Staging)"), so it can coexist with a production install if one exists later.
 > - **Backend:** `https://api-staging.ceolx.com` (invisible to you — just works).
 > - **Sign-up:** either **email + password** (verification link arrives via email within ~30s), or **Continue with Google** (only works for the email addresses I've whitelisted as test users — let me know the emails your team wants and I'll add them).
 > - **Map:** Android staging renders a **gray grid** instead of real map tiles. This is intentional — Google Maps billing isn't set up yet. Pins, clustering, search, location fallback all still work. Don't file this as a bug.

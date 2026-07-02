@@ -41,7 +41,7 @@ describe('GET /.well-known/apple-app-site-association', () => {
 
     const body = (await res.json()) as Aasa;
     const detail = body.applinks.details[0];
-    expect(detail?.appIDs).toEqual(['ABCDE12345.ie.ceolx.app']);
+    expect(detail?.appIDs).toEqual(['ABCDE12345.com.ceolx.app']);
     const paths = detail?.components.map((comp) => comp['/']);
     expect(paths).toEqual(['/post/*', '/event/*']);
   });
@@ -63,7 +63,7 @@ describe('GET /.well-known/assetlinks.json', () => {
     const body = (await res.json()) as AssetLinks;
     expect(Array.isArray(body)).toBe(true);
     expect(body[0]?.relation).toEqual(['delegate_permission/common.handle_all_urls']);
-    expect(body[0]?.target.package_name).toBe('ie.ceolx.app');
+    expect(body[0]?.target.package_name).toBe('com.ceolx.app');
     expect(body[0]?.target.sha256_cert_fingerprints).toHaveLength(1);
   });
 

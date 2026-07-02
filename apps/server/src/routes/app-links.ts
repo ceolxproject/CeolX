@@ -26,7 +26,7 @@ import { env } from '@CeolX/env/server';
 // Bundle id / Android package this deployment vouches for. Prod default;
 // the staging server sets MOBILE_BUNDLE_ID=com.ceolx.app.staging so its
 // files match the staging app build (different bundle + signing keystore).
-const BUNDLE_ID = env.MOBILE_BUNDLE_ID ?? 'ie.ceolx.app';
+const BUNDLE_ID = env.MOBILE_BUNDLE_ID ?? 'com.ceolx.app';
 
 // Public-by-design fallback so App Links work even if the env var is unset on a
 // given deploy. Override per-environment via ANDROID_SHA256_CERT_FINGERPRINT.

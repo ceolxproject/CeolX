@@ -62,7 +62,7 @@ describe('GET /event/:id', () => {
     expect(html).toContain('https://cdn.ceolx.com/events/cover.jpg');
     expect(html).toContain('<meta name="twitter:card" content="summary_large_image">');
     expect(html).toContain(`href="ceolx://event/${VALID_ID}"`);
-    expect(html).toContain('play.google.com/store/apps/details?id=ie.ceolx.app');
+    expect(html).toContain('play.google.com/store/apps/details?id=com.ceolx.app');
     expect(html).toContain('apps.apple.com');
   });
 

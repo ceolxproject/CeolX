@@ -6,11 +6,57 @@
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const pkg = require('./package.json');
 
-const VARIANT = process.env.APP_VARIANT ?? 'production';
-const IS_STAGING = VARIANT === 'staging';
+const rawVariant = process.env.APP_VARIANT;
+const isCI =
+  process.env.CI === 'true' ||
+  process.env.EAS_BUILD === 'true' ||
+  process.env.GITHUB_ACTIONS === 'true';
 
-const PROD_BUNDLE_ID = 'com.ceolx.app';
-const STAGING_BUNDLE_ID = 'com.ceolx.app.staging';
+// In CI a missing APP_VARIANT must fail loudly — otherwise the bundle is built
+// with production config (bundle id, server URL, Google client) by accident.
+// Set it via the EAS build-profile env (eas.json) or export it in the workflow
+// step. Locally (not CI) it still defaults to production for convenience.
+if (!rawVariant && isCI) {
+  throw new Error(
+    'APP_VARIANT must be set when evaluating app.config.js in CI (expected "development", "staging" or "production").'
+  );
+}
+
+// Locally defaults to `development` (mentor parity — the dev client uses the
+// dev identity). CI always sets APP_VARIANT explicitly via eas.json / workflow.
+const VARIANT = rawVariant ?? 'development';
+
+// Per-variant identity: display name, bundle/package id, and Firebase config
+// files. Production uses bare filenames; other variants are suffixed. Missing
+// files fail prebuild by design, so a stale APP_VARIANT can't silently fall
+// through to another environment's Firebase config.
+const VARIANT_CONFIG = {
+  development: {
+    name: 'CeolX (Dev)',
+    bundleId: 'com.ceolx.app.dev',
+    androidGoogleServices: './google-services.development.json',
+    iosGoogleServices: './GoogleService-Info.development.plist',
+  },
+  staging: {
+    name: 'CeolX (Staging)',
+    bundleId: 'com.ceolx.app.staging',
+    androidGoogleServices: './google-services.staging.json',
+    iosGoogleServices: './GoogleService-Info.staging.plist',
+  },
+  production: {
+    name: 'CeolX',
+    bundleId: 'com.ceolx.app',
+    androidGoogleServices: './google-services.json',
+    iosGoogleServices: './GoogleService-Info.plist',
+  },
+};
+
+const variantConfig = VARIANT_CONFIG[VARIANT];
+if (!variantConfig) {
+  throw new Error(
+    `Unknown APP_VARIANT "${VARIANT}" (expected "development", "staging" or "production").`
+  );
+}
 
 // REVERSED_CLIENT_ID from the iOS OAuth client (see GoogleService-Info.plist),
 // e.g. com.googleusercontent.apps.1234-abc. Registers the URL scheme the native
@@ -33,7 +79,7 @@ const SHARE_HOST = SHARE_BASE_URL.replace(/^https?:\/\//, '').replace(/\/.*$/, '
  * @returns {import('expo/config').ExpoConfig}
  */
 export default (_) => ({
-  name: IS_STAGING ? 'CeolX (Staging)' : 'CeolX',
+  name: variantConfig.name,
   slug: 'ceolx',
   owner: 'raftlabs_expo',
   version: pkg.version,
@@ -54,13 +100,13 @@ export default (_) => ({
   },
   ios: {
     supportsTablet: false,
-    bundleIdentifier: IS_STAGING ? STAGING_BUNDLE_ID : PROD_BUNDLE_ID,
+    bundleIdentifier: variantConfig.bundleId,
     usesAppleSignIn: true,
     // Firebase iOS SDK (loaded by @react-native-firebase/app) is what makes
     // expo-notifications.getDevicePushTokenAsync() return an FCM token instead
     // of a raw APNs token. The plist is downloaded from the Firebase Console
     // and gitignored — see docs/project-management/M7-T1 human handoff checklist.
-    googleServicesFile: process.env.GOOGLE_SERVICES_INFO_PLIST ?? './GoogleService-Info.plist',
+    googleServicesFile: process.env.GOOGLE_SERVICES_INFO_PLIST ?? variantConfig.iosGoogleServices,
     // Universal Links target (SHARE_HOST — prod ceolx.com, staging the server
     // Vercel URL). The matching apple-app-site-association is served at
     // https://<host>/.well-known/apple-app-site-association by the Hono backend
@@ -91,10 +137,8 @@ export default (_) => ({
       backgroundColor: '#662FFE',
       monochromeImage: './assets/images/android-icon-monochrome.png',
     },
-    package: IS_STAGING ? STAGING_BUNDLE_ID : PROD_BUNDLE_ID,
-    googleServicesFile:
-      process.env.GOOGLE_SERVICES_JSON ??
-      (IS_STAGING ? './google-services.staging.json' : './google-services.json'),
+    package: variantConfig.bundleId,
+    googleServicesFile: process.env.GOOGLE_SERVICES_JSON ?? variantConfig.androidGoogleServices,
     config: {
       googleMaps: {
         apiKey: process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY ?? '',
