@@ -29,8 +29,8 @@
       "autoIncrement": true,
       "env": {
         "APP_VARIANT": "staging",
-        "EXPO_PUBLIC_SERVER_URL": "https://ceolx-server-staging.vercel.app",
-        "EXPO_PUBLIC_SHARE_BASE_URL": "https://ceolx-server-staging.vercel.app",
+        "EXPO_PUBLIC_SERVER_URL": "https://api-staging.ceolx.com",
+        "EXPO_PUBLIC_SHARE_BASE_URL": "https://api-staging.ceolx.com",
         "EXPO_PUBLIC_SENTRY_DSN": "https://9e5bd61ee5ce285201b7f8d571e27b83@o4511115981750272.ingest.de.sentry.io/4511116008620112",
         "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "1057693721951-4hdov3sbaaoih79qcjn0j2atnpg4itg1.apps.googleusercontent.com",
         "GOOGLE_IOS_URL_SCHEME": "com.googleusercontent.apps.1057693721951-h15tf8t01ftn174qhjpm3qfl7sir0ok9"
@@ -56,8 +56,8 @@
       },
       "env": {
         "APP_VARIANT": "production",
-        "EXPO_PUBLIC_SERVER_URL": "https://ceol-x-server.vercel.app",
-        "EXPO_PUBLIC_SHARE_BASE_URL": "https://ceol-x-server.vercel.app",
+        "EXPO_PUBLIC_SERVER_URL": "https://api.ceolx.com",
+        "EXPO_PUBLIC_SHARE_BASE_URL": "https://api.ceolx.com",
         "EXPO_PUBLIC_SENTRY_DSN": "https://9e5bd61ee5ce285201b7f8d571e27b83@o4511115981750272.ingest.de.sentry.io/4511116008620112",
         "EXPO_PUBLIC_CLOUDFRONT_DOMAIN": "d19rrotlpwegt5.cloudfront.net",
         "EXPO_PUBLIC_GOOGLE_MAPS_API_KEY": "AIzaSyDybj0oQr6XdrcqvsbbDZf_E595ORG18tw",
