@@ -96,11 +96,15 @@ function ProfileHeader({
       {/* Avatar + followers/following row */}
       <View className="flex-row items-center justify-center gap-6 mb-3">
         <Pressable
-          className="items-center w-[58px]"
+          className="items-center min-w-[58px]"
           onPress={() => router.push('/(app)/(tabs)/profile/followers')}
         >
-          <Text className="text-[17px] font-semibold text-white">{followerCount}</Text>
-          <Text className="text-[13px] text-white">Followers</Text>
+          <Text maxFontSizeMultiplier={1.3} className="text-[17px] font-semibold text-white">
+            {followerCount}
+          </Text>
+          <Text numberOfLines={1} maxFontSizeMultiplier={1.3} className="text-[13px] text-white">
+            Followers
+          </Text>
         </Pressable>
 
         <Image
@@ -109,11 +113,15 @@ function ProfileHeader({
         />
 
         <Pressable
-          className="items-center w-[58px]"
+          className="items-center min-w-[58px]"
           onPress={() => router.push('/(app)/(tabs)/profile/following')}
         >
-          <Text className="text-[17px] font-semibold text-white">{followingCount}</Text>
-          <Text className="text-[13px] text-white">Following</Text>
+          <Text maxFontSizeMultiplier={1.3} className="text-[17px] font-semibold text-white">
+            {followingCount}
+          </Text>
+          <Text numberOfLines={1} maxFontSizeMultiplier={1.3} className="text-[13px] text-white">
+            Following
+          </Text>
         </Pressable>
       </View>
 
