@@ -22,6 +22,14 @@
           }
         },
         {
+          "client_id": "1057693721951-aphirflpv7kr0emuruvu7jn7degpbjld.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.ceolx.app.staging",
+            "certificate_hash": "fb0c9e287d0e81d0475f34601b2f89179935da4e"
+          }
+        },
+        {
           "client_id": "1057693721951-4hdov3sbaaoih79qcjn0j2atnpg4itg1.apps.googleusercontent.com",
           "client_type": 3
         }
