@@ -4,6 +4,10 @@ import type { IrishCounty } from './enums';
 export const MAP_MAX_PINS_PER_FETCH = 50;
 export const MAP_DEBOUNCE_MS = 400;
 
+// Fetch this many times the visible viewport so panning preloads surrounding
+// events instead of fetching them on arrival.
+export const MAP_VIEWPORT_PAD_FACTOR = 2;
+
 // Silent radius expansion for empty map states
 export const MAP_EXPAND_RADIUS_KM = [5, 25, 100] as const;
 

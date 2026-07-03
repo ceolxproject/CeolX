@@ -15,6 +15,7 @@ import {
 } from '@/components/profiles';
 import { SettingsBottomSheet } from '@/components/SettingsBottomSheet';
 import { useAuth } from '@/contexts/auth-context';
+import { useGuestGate } from '@/hooks/use-guest-gate';
 import { useMe } from '@/hooks/use-me';
 import { useProfileFollowHandler } from '@/hooks/use-profile-follow-handler';
 import { useShareInterest } from '@/hooks/use-share-interest';
@@ -71,6 +72,7 @@ export default function VenueProfileScreen() {
   const [activeTab, setActiveTab] = useState<ProfileTab>('events');
   const settingsRef = useRef<BottomSheetModal>(null);
   const { logout } = useAuth();
+  const { guard } = useGuestGate();
   const { data: me } = useMe();
   const { isFollowing, onFollowPress } = useProfileFollowHandler(profile);
   const { shareInterest } = useShareInterest();
@@ -128,18 +130,18 @@ export default function VenueProfileScreen() {
           onEditPress={() => router.push('/(app)/(tabs)/profile/edit')}
           onSettingsPress={profile.isOwner ? () => settingsRef.current?.present() : undefined}
           onFollowPress={!profile.isOwner ? onFollowPress : undefined}
-          onFollowersPress={() =>
+          onFollowersPress={guard(() =>
             router.push({
               pathname: '/(app)/(tabs)/profile/followers',
               params: { userId: profile.userId, name: profile.displayName },
             })
-          }
-          onFollowingPress={() =>
+          )}
+          onFollowingPress={guard(() =>
             router.push({
               pathname: '/(app)/(tabs)/profile/following',
               params: { userId: profile.userId, name: profile.displayName },
             })
-          }
+          )}
           secondaryCta={
             !profile.isOwner && me?.currentRole === 'artist'
               ? {

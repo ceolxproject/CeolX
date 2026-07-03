@@ -63,6 +63,25 @@ describe('regionToBoundingBox', () => {
     expect(box.swLng).toBeCloseTo(-10.1921);
     expect(box.neLng).toBeCloseTo(-5.1921);
   });
+
+  it('pads the box by the given factor around the centre', () => {
+    const region = { latitude: 53.27, longitude: -9.05, latitudeDelta: 1.0, longitudeDelta: 1.5 };
+    const box = regionToBoundingBox(region, 2);
+    // padFactor 2 → half-span = delta (not delta/2), so the box spans centre ± delta
+    expect(box.swLat).toBeCloseTo(52.27);
+    expect(box.neLat).toBeCloseTo(54.27);
+    expect(box.swLng).toBeCloseTo(-10.55);
+    expect(box.neLng).toBeCloseTo(-7.55);
+  });
+
+  it('clamps padded corners to valid lat/lng ranges', () => {
+    const region = { latitude: 84, longitude: 179, latitudeDelta: 20, longitudeDelta: 20 };
+    const box = regionToBoundingBox(region, 2);
+    expect(box.neLat).toBe(90);
+    expect(box.neLng).toBe(180);
+    expect(box.swLat).toBeCloseTo(64);
+    expect(box.swLng).toBeCloseTo(159);
+  });
 });
 
 // ---------------------------------------------------------------------------

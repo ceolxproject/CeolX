@@ -409,6 +409,8 @@ export default function DiscoverScreen() {
             posts={feedPosts.posts}
             isLoading={feedPosts.isLoading}
             isFetchingNextPage={feedPosts.isFetchingNextPage}
+            isError={feedPosts.isError}
+            onRetry={feedPosts.refresh}
             hasNextPage={feedPosts.hasNextPage}
             currentUserId={me?.id ?? null}
             onLoadMore={feedPosts.loadMore}

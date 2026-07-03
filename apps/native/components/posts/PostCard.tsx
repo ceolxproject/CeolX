@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
+import * as WebBrowser from 'expo-web-browser';
 import { Image, Platform, Pressable, Text, View } from 'react-native';
 import Animated, {
   useAnimatedStyle,
@@ -20,6 +21,7 @@ import { useDeletePost } from '@/hooks/use-delete-post';
 import { useProfileFollowHandler } from '@/hooks/use-profile-follow-handler';
 import { useSharePost } from '@/hooks/use-share-post';
 import { useTogglePostLike } from '@/hooks/use-toggle-post-like';
+import { splitCaptionLinks } from '@/utils/linkify';
 import { MOCK_PROFILE_IMAGE } from '@/utils/mock-images';
 
 export type PostCardPost = {
@@ -238,9 +240,25 @@ export function PostCard({
 
   // The author name is shown in the header row (feed) or the profile header
   // (profile tabs), so it's never repeated here.
+  // A URL past the preview cutoff can render cut mid-link; the detail view shows it whole.
   const captionBlock = (
     <Text className={`text-sm leading-5 text-white font-urbanist ${hasMedia ? '' : 'mb-2'}`}>
-      {caption}
+      {splitCaptionLinks(caption).map((segment, index) =>
+        segment.type === 'url' ? (
+          <Text
+            key={index}
+            className="text-blue-10 underline"
+            accessibilityRole="link"
+            onPress={() => {
+              void WebBrowser.openBrowserAsync(segment.href).catch(() => {});
+            }}
+          >
+            {segment.value}
+          </Text>
+        ) : (
+          segment.value
+        )
+      )}
       {showReadMore && <Text className="font-medium text-blue-10">… more</Text>}
     </Text>
   );

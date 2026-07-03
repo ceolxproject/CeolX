@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 
 import { appToast } from '@/components/AppToast';
 import { useFollow } from '@/hooks/use-follow';
+import { useGuestGate } from '@/hooks/use-guest-gate';
 
 type FollowableProfile = { userId: string; isFollowing: boolean } | null | undefined;
 
@@ -16,6 +17,7 @@ type FollowableProfile = { userId: string; isFollowing: boolean } | null | undef
  */
 export function useProfileFollowHandler(profile: FollowableProfile) {
   const [optimistic, setOptimistic] = useState<boolean | null>(null);
+  const { isAuthenticated, promptSignIn } = useGuestGate();
   const mutation = useFollow();
 
   const isFollowing = optimistic ?? profile?.isFollowing ?? false;
@@ -30,6 +32,14 @@ export function useProfileFollowHandler(profile: FollowableProfile) {
 
   const onFollowPress = () => {
     if (!profile) return;
+    // Follow is a signed-in action (follows.follow is a protected procedure). A
+    // guest browsing via "Skip sign-in" has no session, so firing the mutation
+    // just 401s and surfaces a "Could not follow" error. Nudge them to sign-in
+    // instead — matches the GuestProfile CTA ("Log in… to follow artists").
+    if (!isAuthenticated) {
+      promptSignIn('Sign in to follow');
+      return;
+    }
     const prev = isFollowing;
     setOptimistic(!prev);
     mutation.mutate(

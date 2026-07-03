@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState } from 'react';
 import type { ViewToken } from 'react-native';
-import { ActivityIndicator, FlatList, RefreshControl, Text, View } from 'react-native';
+import { ActivityIndicator, FlatList, Pressable, RefreshControl, Text, View } from 'react-native';
 
 import { PostCard, type PostCardPost } from './PostCard';
 
@@ -8,6 +8,8 @@ type Props = {
   posts: PostCardPost[];
   isLoading: boolean;
   isFetchingNextPage: boolean;
+  isError?: boolean;
+  onRetry?: () => void;
   hasNextPage: boolean;
   currentUserId: string | null;
   onLoadMore: () => void;
@@ -30,6 +32,8 @@ export function FeedPostsList({
   posts,
   isLoading,
   isFetchingNextPage,
+  isError,
+  onRetry,
   hasNextPage,
   currentUserId,
   onLoadMore,
@@ -70,6 +74,19 @@ export function FeedPostsList({
     return (
       <View className="py-12 items-center">
         <ActivityIndicator color="#C8FF2F" />
+      </View>
+    );
+  }
+
+  if (isError) {
+    return (
+      <View className="flex-1 items-center justify-center px-8">
+        <Text className="text-white/60 text-center text-sm font-urbanist">
+          Something went wrong loading posts.
+        </Text>
+        <Pressable onPress={onRetry} className="mt-4 bg-[#C8FF2F] rounded-full px-6 py-2">
+          <Text className="text-black font-semibold text-sm font-urbanist">Retry</Text>
+        </Pressable>
       </View>
     );
   }
