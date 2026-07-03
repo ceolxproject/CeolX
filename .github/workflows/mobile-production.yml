@@ -1,0 +1,80 @@
+name: Mobile Production Build
+
+# Manual mobile production build. Two parallel jobs build the production
+# binaries and auto-submit them:
+#   iOS     — profile `production` (store distribution) -> App Store Connect /
+#             TestFlight under the CeolX production record
+#             (ascAppId in eas.json `submit.production.ios`). The public
+#             "Submit for Review" remains a manual ASC action.
+#   Android — profile `production` (app-bundle) -> Play Console `internal`
+#             track / draft (eas.json `submit.production.android`). Promote
+#             to the `production` track at public go-live.
+#
+# Run manually (workflow_dispatch) only. A production binary must exist on
+# EAS before the production OTA (mobile-ota.yml on `main`) can pass its
+# fingerprint gate — so this workflow must be run at least once before the
+# first push to `main` publishes an OTA.
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: mobile-production
+  cancel-in-progress: false
+
+jobs:
+  build-ios:
+    name: iOS (production, auto-submit to App Store Connect)
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      # Hardcoded to `production` — also the app.config.js default, but set
+      # explicitly so the runner's eas-cli bootstrap is unambiguous. EAS Build
+      # picks it up server-side from eas.json production.env.
+      APP_VARIANT: production
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      # pnpm before Node: `cache: pnpm` makes setup-node shell out to pnpm, so
+      # the binary must be on PATH first. See mobile-ota.yml for the full note.
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.18.0
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+      - name: EAS build iOS (production, auto-submit)
+        working-directory: apps/native
+        run: eas build --platform ios --profile production --auto-submit --non-interactive --no-wait
+
+  build-android:
+    name: Android (production app-bundle, auto-submit to internal track)
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      # See iOS job — same APP_VARIANT rationale.
+      APP_VARIANT: production
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      # pnpm before Node: `cache: pnpm` makes setup-node shell out to pnpm, so
+      # the binary must be on PATH first. See mobile-ota.yml for the full note.
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.18.0
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+      - name: EAS build Android (production app-bundle, auto-submit)
+        working-directory: apps/native
+        run: eas build --platform android --profile production --auto-submit --non-interactive --no-wait
