@@ -36,11 +36,13 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: main
+      # pnpm before Node: `cache: pnpm` makes setup-node shell out to pnpm, so
+      # the binary must be on PATH first. See mobile-ota.yml for the full note.
+      - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 24.18.0
           cache: pnpm
-      - uses: pnpm/action-setup@v4
       - run: pnpm install --frozen-lockfile
       - uses: expo/expo-github-action@v8
         with:
@@ -61,11 +63,13 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: main
+      # pnpm before Node: `cache: pnpm` makes setup-node shell out to pnpm, so
+      # the binary must be on PATH first. See mobile-ota.yml for the full note.
+      - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 24.18.0
           cache: pnpm
-      - uses: pnpm/action-setup@v4
       - run: pnpm install --frozen-lockfile
       - uses: expo/expo-github-action@v8
         with:

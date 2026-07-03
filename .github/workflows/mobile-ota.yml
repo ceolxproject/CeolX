@@ -83,14 +83,18 @@ jobs:
               exit 1
               ;;
           esac
-      # Node before pnpm — pnpm/action-setup runs the pnpm binary during its
-      # own step, and .npmrc engine-strict + engines.node >=24.18.0 would
-      # hard-fail a lower minor. Matches db-migrate-staging.yml ordering.
+      # pnpm before Node — `cache: pnpm` makes setup-node run `pnpm store path`
+      # during its own step to locate the cache dir, so the pnpm binary must
+      # already be on PATH. pnpm/action-setup only downloads the standalone
+      # binary (no engine check — that fires on `pnpm install`, after Node is
+      # pinned below), so installing it first is safe. This is pnpm's own docs
+      # ordering. (db-migrate-staging.yml has no `cache: pnpm`, so its order
+      # is irrelevant — do NOT copy it here.)
+      - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 24.18.0
           cache: pnpm
-      - uses: pnpm/action-setup@v4
       # Full (unscoped) install — the native app needs its whole dep tree.
       - run: pnpm install --frozen-lockfile
       - uses: expo/expo-github-action@v8
