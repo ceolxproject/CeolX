@@ -1,5 +1,24 @@
 # Changelog
 
+<a name="1.0.9"></a>
+
+## 1.0.9 (2026-07-03)
+
+### Changed
+
+- 🔧 chore(native): set google oauth web client id and ios url scheme for development build [dc3e89e]
+- 🔧 chore(stack): ignore root scripts/\*.mjs in eslint (fix lint-staged parse error) [ca67798]
+- 🔧 chore(stack): migrate to ceolx.com domains + com.ceolx.app.staging registration (#167) [f86b26b]
+- 🔧 chore(server): update encrypted development env [2e03441]
+- 🔧 chore(stack): update encrypted staging env for com.ceolx.app.staging oauth [72cc0a6]
+- 🔧 chore(stack): re-register staging firebase + oauth under com.ceolx.app.staging [8147588]
+- ♻️ refactor(stack): migrate share, email, and subscription urls to ceolx.com [7a16519]
+- 🔧 chore(stack): point docs, tests, and comments to ceolx.com domain [0638305]
+
+### Miscellaneous
+
+- 👷 ci(native): add mobile release pipelines + com.ceolx.\* identifiers (#166) [451d4ea]
+
 <a name="1.0.8"></a>
 
 ## 1.0.8 (2026-06-30)
