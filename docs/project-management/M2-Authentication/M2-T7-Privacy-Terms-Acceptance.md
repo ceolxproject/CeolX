@@ -264,7 +264,7 @@ const ConsentCheckboxes = () => (
       <View style={[styles.checkbox, privacyAccepted && styles.checkboxChecked]} />
       <Text style={styles.checkboxLabel}>
         I agree to the{' '}
-        <Text style={styles.link} onPress={() => navigation.navigate('PolicyWebView', { url: 'https://ceolx.ie/privacy' })}>
+        <Text style={styles.link} onPress={() => navigation.navigate('PolicyWebView', { url: 'https://ceolx.com/privacy' })}>
           Privacy Policy
         </Text>
       </Text>
@@ -277,7 +277,7 @@ const ConsentCheckboxes = () => (
       <View style={[styles.checkbox, termsAccepted && styles.checkboxChecked]} />
       <Text style={styles.checkboxLabel}>
         I agree to the{' '}
-        <Text style={styles.link} onPress={() => navigation.navigate('PolicyWebView', { url: 'https://ceolx.ie/terms' })}>
+        <Text style={styles.link} onPress={() => navigation.navigate('PolicyWebView', { url: 'https://ceolx.com/terms' })}>
           Terms of Service
         </Text>
       </Text>

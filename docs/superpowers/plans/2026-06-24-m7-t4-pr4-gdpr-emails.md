@@ -294,7 +294,7 @@ export function AccountDeletedEmail({ userName }: AccountDeletedEmailProps) {
       </Text>
 
       <Text style={mutedText}>
-        If you didn&apos;t request this, contact us at support@ceolx.ie straight away.
+        If you didn&apos;t request this, contact us at admin@ceolx.com straight away.
       </Text>
     </EmailLayout>
   );
@@ -403,7 +403,7 @@ git commit -m "feat(email): add account-deleted gdpr confirmation template"
 **Interfaces:**
 
 - Produces: `buildInactivityWarningEmail(): { subject: string; body: string; ctaUrl: string }` (exported from `@CeolX/shared`).
-- Produces: `CEOLX_WEB_URL: string` constant (`'https://ceolx.ie'`).
+- Produces: `CEOLX_WEB_URL: string` constant (`'https://ceolx.com'`).
 
 - [ ] **Step 1: Write the failing test**
 
@@ -441,7 +441,7 @@ In `packages/shared/src/constants.ts`, add directly below the `VENUE_SUBSCRIPTIO
 
 ```ts
 /** Public CeolX marketing/landing site — used as the CTA for re-engagement emails. */
-export const CEOLX_WEB_URL = 'https://ceolx.ie';
+export const CEOLX_WEB_URL = 'https://ceolx.com';
 ```
 
 - [ ] **Step 4: Create the copy builder**
@@ -666,7 +666,7 @@ async function sendDeletionConfirmation(
   userId: string,
   { email, name }: { email: string | null; name: string | null }
 ): Promise<void> {
-  if (!email || email.endsWith('@deleted.ceolx.ie')) return;
+  if (!email || email.endsWith('@deleted.ceolx.com')) return;
   try {
     await sendAccountDeletedEmail({ to: email, userName: name ?? '' });
   } catch (err) {

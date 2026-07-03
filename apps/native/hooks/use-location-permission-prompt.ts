@@ -58,22 +58,24 @@ let shownThisSession = false;
  * - 'show'     → permission not granted and not yet shown this session
  * - 'done'     → granted, or already shown this session → skip to map
  */
-export function useLocationPermissionPrompt(): Result {
+export function useLocationPermissionPrompt(userId: string | undefined): Result {
   const [promptState, setPromptState] = useState<LocationPromptState>('checking');
 
   useEffect(() => {
     async function check() {
       try {
-        const [{ status, canAskAgain }, base, servicesEnabled, setupComplete] = await Promise.all([
+        const [{ status, canAskAgain }, base, servicesEnabled] = await Promise.all([
           Location.getForegroundPermissionsAsync(),
           getBaseLocation(),
           Location.hasServicesEnabledAsync(),
-          getLocationSetupComplete(),
         ]);
         // The standalone onboarding location step is now the primary path. Once a
-        // user has been through it, never show the lazy map prompt. The rest of the
-        // logic stays as a defensive fallback (e.g. guest sessions, missing flag,
-        // permission revoked later).
+        // signed-in user has been through it, never show the lazy map prompt.
+        // Completion is per-user keyed, so a guest (no userId) is treated as
+        // not-complete and falls through to the resolvePromptState fallback —
+        // that's the intended path for guests (they're never gated by the
+        // standalone step) and for a missing flag / permission revoked later.
+        const setupComplete = userId ? await getLocationSetupComplete(userId) : false;
         if (setupComplete) {
           setPromptState('done');
           return;
@@ -88,7 +90,7 @@ export function useLocationPermissionPrompt(): Result {
     }
 
     void check();
-  }, []);
+  }, [userId]);
 
   const markSeen = useCallback(() => {
     shownThisSession = true;

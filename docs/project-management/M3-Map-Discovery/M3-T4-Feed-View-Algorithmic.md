@@ -584,7 +584,7 @@ const styles = StyleSheet.create({
 
 ```
 # apps/native/.env
-REACT_APP_API_BASE_URL=https://api.ceolx.ie
+REACT_APP_API_BASE_URL=https://api.ceolx.com
 
 # apps/server/.env.local
 DATABASE_URL=postgresql://user:password@ep-xxxxx.neon.tech/ceolx_db

@@ -14,14 +14,14 @@ import {
 /**
  * Web fallback for a shared post link, `GET /post/:id`.
  *
- * The native Share sheet hands out `https://ceolx.ie/post/<id>`
+ * The native Share sheet hands out `https://ceolx.com/post/<id>`
  * (apps/native/hooks/use-share-post.ts). When the app is installed the OS opens
  * it directly via Universal Links / App Links (apps/server/src/routes/app-links.ts)
  * and this page is never seen. This route loads when the app is NOT installed —
  * or the link is opened in a desktop browser / in-app webview — and emits
  * per-post Open Graph tags plus an "Open in app" + store-button landing page.
  *
- * `ceolx.ie` is the admin Vite app; its vercel.json rewrites `/post/*` here so
+ * `ceolx.com` is the admin Vite app; its vercel.json rewrites `/post/*` here so
  * the page is server-rendered (the SPA can't emit per-post meta tags).
  */
 

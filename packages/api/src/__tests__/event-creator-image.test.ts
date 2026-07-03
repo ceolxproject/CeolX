@@ -10,17 +10,17 @@ import { resolveProfileImageUrl } from '../routers/events/helpers';
 describe('resolveProfileImageUrl', () => {
   it('prefers the profile image over the auth user.image', () => {
     expect(
-      resolveProfileImageUrl({ profileImageUrl: 'https://cdn.ceolx.ie/profiles/a.jpg' }, null)
-    ).toBe('https://cdn.ceolx.ie/profiles/a.jpg');
+      resolveProfileImageUrl({ profileImageUrl: 'https://cdn.ceolx.com/profiles/a.jpg' }, null)
+    ).toBe('https://cdn.ceolx.com/profiles/a.jpg');
   });
 
   it('uses the profile image even when a user.image exists (the bug)', () => {
     expect(
       resolveProfileImageUrl(
-        { profileImageUrl: 'https://cdn.ceolx.ie/profiles/a.jpg' },
+        { profileImageUrl: 'https://cdn.ceolx.com/profiles/a.jpg' },
         'https://lh3.googleusercontent.com/social.jpg'
       )
-    ).toBe('https://cdn.ceolx.ie/profiles/a.jpg');
+    ).toBe('https://cdn.ceolx.com/profiles/a.jpg');
   });
 
   it('falls back to user.image when the profile has no uploaded picture', () => {

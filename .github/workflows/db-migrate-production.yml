@@ -1,0 +1,77 @@
+name: Migrate Neon (production)
+
+# Applies committed Drizzle migrations to the Neon *production* database.
+#
+# Flow: run `pnpm db:generate` locally -> commit the generated SQL under
+# packages/db/src/migrations -> merge to `main`. This workflow then runs
+# `drizzle-kit migrate`, which applies any pending migration files in order
+# and records them in the `__drizzle_migrations` table (idempotent).
+#
+# It deliberately does NOT use `drizzle-kit push` (live schema diff), which is
+# non-deterministic and can drop data on a shared DB.
+#
+# Unlike the staging workflow, this one is gated behind the `production`
+# GitHub Environment: a required reviewer must approve the run before any SQL
+# touches real user data. Configure the environment (Settings -> Environments
+# -> production) with required reviewers before relying on this gate.
+
+on:
+  # Auto: apply migrations when a push to `main` adds/changes migration SQL.
+  # The job still waits for `production` environment approval before running.
+  push:
+    branches: [main]
+    paths:
+      - 'packages/db/src/migrations/**'
+  # Manual: "Run workflow" button in the Actions tab (ignores the path filter).
+  # Requires this workflow to exist on the default branch to show the button.
+  workflow_dispatch:
+
+# Never let two migration runs race on the migrations table.
+concurrency:
+  group: db-migrate-production
+  cancel-in-progress: false
+
+jobs:
+  migrate:
+    name: drizzle-kit migrate
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # Approval gate: pauses the run until a required reviewer approves it in the
+    # `production` environment, and scopes PRODUCTION_DATABASE_URL to this env.
+    environment: production
+    # Production-only guard: the push trigger is already pinned to `main`, but
+    # workflow_dispatch can target any ref. Refuse to run unless the ref is
+    # `main`, so a manual run can never apply another branch's migrations.
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        # Defense in depth: always check out main's tree, so the migrations
+        # applied can't diverge from the gated ref even if the guard changes.
+        with:
+          ref: refs/heads/main
+
+      # Node must be set up BEFORE pnpm: pnpm/action-setup runs the pnpm binary
+      # during its own step. Pin the exact version from .nvmrc so the runner can't
+      # resolve a 24.x below the repo floor — `.npmrc` sets engine-strict=true and
+      # package.json pins engines.node to >=24.18.0, so a lower minor would hard-fail
+      # the engine gate before any work runs.
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.18.0
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      # Scoped install: only the @CeolX/db package and its workspace deps.
+      # Avoids pulling the heavy native/expo dependency tree.
+      - name: Install deps
+        run: pnpm install --frozen-lockfile --filter @CeolX/db...
+
+      # Bypass turbo on purpose: turbo.json marks db:migrate as persistent,
+      # which would hang in CI. Call drizzle-kit directly instead.
+      - name: Run migrations
+        env:
+          DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
+        run: pnpm --filter @CeolX/db exec drizzle-kit migrate

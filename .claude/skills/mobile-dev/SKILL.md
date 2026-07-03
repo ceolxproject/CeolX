@@ -29,7 +29,7 @@ Do NOT attempt to start Metro, prebuild, install, or open the app.
 Before any device interaction, agent-device needs an active session. If there's no session yet (first command of the conversation), run:
 
 ```
-agent-device open ie.ceolx.app --platform ios --device "iPhone 17 Pro"
+agent-device open com.ceolx.app --platform ios --device "iPhone 17 Pro"
 ```
 
 This does not restart the app — it just binds agent-device to the already-running app process. You only need to do this once per conversation. After that, all agent-device commands work without re-opening.

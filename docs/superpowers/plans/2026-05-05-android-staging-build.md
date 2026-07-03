@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Ship an installable Android staging build of CeolX to QA via a single `expo.dev/install/<id>` URL, pointing at a live Vercel-hosted staging backend at `api-staging.ceolx.ie`, with EAS Update OTA on the `staging` channel and CI auto-builds on push to `development`.
+**Goal:** Ship an installable Android staging build of CeolX to QA via a single `expo.dev/install/<id>` URL, pointing at a live Vercel-hosted staging backend at `api-staging.ceolx.com`, with EAS Update OTA on the `staging` channel and CI auto-builds on push to `development`.
 
 **Architecture:** Backend Hono app refactored into a reusable `app` export consumed by both the local Node bootstrap and a new `apps/server/api/index.ts` Vercel handler. Native app gains a function-form `app.config.ts` that switches `package` / `bundleIdentifier` / `name` on `APP_VARIANT`, plus a new `staging` EAS profile using internal distribution + APK + EAS Update channel `staging`. CI is a single EAS Workflow file triggering on `development` pushes that runs both an APK build and an OTA publish.
 
@@ -59,9 +59,9 @@ In the new project: ⚙ Settings → Service accounts → Generate new private k
 
 Sign in at https://vercel.com → confirm Hobby plan. Note the team slug or personal username — needed for `vercel link` in Task 5.
 
-- [~] **Step 1.4: ~~Confirm DNS access for `ceolx.ie`~~ — DEFERRED**
+- [~] **Step 1.4: ~~Confirm DNS access for `ceolx.com`~~ — DEFERRED**
 
-Domain access for `ceolx.ie` not yet available. **Substitution during deferral:** the staging app will point at the auto-generated Vercel URL (`https://ceolx-api-staging-<hash>.vercel.app`) instead of `https://api-staging.ceolx.ie`. Task 7 (custom domain) is skipped entirely. When domain access lands later: complete this step, run Task 7, update `EXPO_PUBLIC_API_BASE_URL` + `BETTER_AUTH_URL` in EAS/Vercel, rebuild the APK, redistribute to QA.
+Domain access for `ceolx.com` not yet available. **Substitution during deferral:** the staging app will point at the auto-generated Vercel URL (`https://ceolx-api-staging-<hash>.vercel.app`) instead of `https://api-staging.ceolx.com`. Task 7 (custom domain) is skipped entirely. When domain access lands later: complete this step, run Task 7, update `EXPO_PUBLIC_API_BASE_URL` + `BETTER_AUTH_URL` in EAS/Vercel, rebuild the APK, redistribute to QA.
 
 - [~] **Step 1.5: ~~Confirm Stripe test mode + price ID~~ — DEFERRED**
 
@@ -69,12 +69,12 @@ Stripe subscription flows (Artist + Venue) are out of scope for this QA cycle. S
 
 - [~] **Step 1.6: ~~Confirm Postmark sender domain~~ — using `magicbox.raftlabs.dev` for staging**
 
-`ceolx.ie` is not yet available as a verified Postmark sender. Substitution: use `noreply@magicbox.raftlabs.dev` (or whatever signature is verified on that domain). **Action items:**
+`ceolx.com` is not yet available as a verified Postmark sender. Substitution: use `noreply@magicbox.raftlabs.dev` (or whatever signature is verified on that domain). **Action items:**
 
 - Confirm `magicbox.raftlabs.dev` has a verified Postmark sender signature
 - Capture the corresponding `POSTMARK_API_TOKEN` (likely a different stream than CeolX prod)
-- Use `POSTMARK_FROM_ADDRESS=noreply@magicbox.raftlabs.dev` (not `noreply@ceolx.ie`) in Task 6's env push
-- When `ceolx.ie` Postmark gets verified later, swap the env var and redeploy Vercel — no APK rebuild needed (Postmark vars are server-side only)
+- Use `POSTMARK_FROM_ADDRESS=noreply@magicbox.raftlabs.dev` (not `noreply@ceolx.com`) in Task 6's env push
+- When `ceolx.com` Postmark gets verified later, swap the env var and redeploy Vercel — no APK rebuild needed (Postmark vars are server-side only)
 
 No commit for Task 1 (no code changes). Proceed to Task 2.
 
@@ -477,7 +477,7 @@ Variables to add (deferred-aware list):
 - ~~`STRIPE_VENUE_PRICE_ID`~~ — deferred (Step 1.5)
 - `SENTRY_DSN_API`
 
-Note: `PORT` is omitted (Vercel sets it). When the `ceolx.ie` domain becomes available later, swap `BETTER_AUTH_URL` to `https://api-staging.ceolx.ie` and rebuild the APK (because `EXPO_PUBLIC_API_BASE_URL` in EAS env is build-time-baked).
+Note: `PORT` is omitted (Vercel sets it). When the `ceolx.com` domain becomes available later, swap `BETTER_AUTH_URL` to `https://api-staging.ceolx.com` and rebuild the APK (because `EXPO_PUBLIC_API_BASE_URL` in EAS env is build-time-baked).
 
 - [ ] **Step 6.4: Redeploy to pick up env vars**
 
@@ -491,13 +491,13 @@ vercel --prod
 DEPLOY_URL="https://ceolx-api-staging-<your-deploy>.vercel.app"
 curl -s -X POST "$DEPLOY_URL/api/auth/sign-up/email" \
   -H "Content-Type: application/json" \
-  -d '{"email":"qa-smoke@ceolx.ie","password":"SmokeTest123!","name":"Smoke Test"}' | jq .
+  -d '{"email":"qa-smoke@ceolx.com","password":"SmokeTest123!","name":"Smoke Test"}' | jq .
 ```
 
 Expected: 200 with a session response. Verify a row landed in the Neon staging branch:
 
 ```bash
-psql "$DATABASE_URL" -c "select id, email, created_at from \"user\" where email='qa-smoke@ceolx.ie';"
+psql "$DATABASE_URL" -c "select id, email, created_at from \"user\" where email='qa-smoke@ceolx.com';"
 ```
 
 Expected: one row. If 500 → tail Vercel logs (`vercel logs --follow`) and fix the offending env var.
@@ -506,9 +506,9 @@ No commit (env config lives outside the repo).
 
 ---
 
-## Task 7 — Custom domain `api-staging.ceolx.ie` [HUMAN] — DEFERRED
+## Task 7 — Custom domain `api-staging.ceolx.com` [HUMAN] — DEFERRED
 
-> **Skipped for this QA cycle.** Domain access for `ceolx.ie` is not yet available (Step 1.4 deferred). The staging app uses the auto-generated `https://ceolx-api-staging-<hash>.vercel.app` URL instead.
+> **Skipped for this QA cycle.** Domain access for `ceolx.com` is not yet available (Step 1.4 deferred). The staging app uses the auto-generated `https://ceolx-api-staging-<hash>.vercel.app` URL instead.
 >
 > **When the domain becomes available**, run all four sub-steps below in order, then update `EXPO_PUBLIC_API_BASE_URL` in EAS env (Task 15) and rebuild + redistribute the APK because that var is build-time-baked.
 
@@ -516,14 +516,14 @@ No commit (env config lives outside the repo).
 
 ```bash
 cd apps/server
-vercel domains add api-staging.ceolx.ie
+vercel domains add api-staging.ceolx.com
 ```
 
 Vercel prints the required DNS record (typically a CNAME → `cname.vercel-dns.com`).
 
 - [~] **Step 7.2: ~~Add the CNAME at the DNS provider~~ (deferred)**
 
-In Cloudflare (or registrar) DNS for `ceolx.ie`:
+In Cloudflare (or registrar) DNS for `ceolx.com`:
 
 - Type: `CNAME`
 - Name: `api-staging`
@@ -534,11 +534,11 @@ In Cloudflare (or registrar) DNS for `ceolx.ie`:
 - [~] **Step 7.3: ~~Wait for SSL issuance + verify~~ (deferred)**
 
 ```bash
-until curl -sf https://api-staging.ceolx.ie/health > /dev/null; do
+until curl -sf https://api-staging.ceolx.com/health > /dev/null; do
   echo "waiting..."
   sleep 10
 done
-curl -s https://api-staging.ceolx.ie/health | jq .
+curl -s https://api-staging.ceolx.com/health | jq .
 ```
 
 Expected: `{ "status": "ok", ... }`. Cloudflare DNS propagates in ~minutes; legacy registrars can take longer.
@@ -550,11 +550,11 @@ When the domain lands, update both `BETTER_AUTH_URL` (Vercel env) and `EXPO_PUBL
 ```bash
 vercel env rm BETTER_AUTH_URL production
 vercel env add BETTER_AUTH_URL production
-# enter https://api-staging.ceolx.ie
+# enter https://api-staging.ceolx.com
 vercel --prod
 
 cd apps/native
-pnpm exec eas env:update --environment preview --name EXPO_PUBLIC_API_BASE_URL --value https://api-staging.ceolx.ie
+pnpm exec eas env:update --environment preview --name EXPO_PUBLIC_API_BASE_URL --value https://api-staging.ceolx.com
 pnpm exec eas build -p android --profile staging
 ```
 
@@ -572,7 +572,7 @@ No commit.
 
 https://dashboard.stripe.com → toggle Test mode (top right) → Developers → Webhooks → Add endpoint.
 
-- Endpoint URL: `https://api-staging.ceolx.ie/api/webhooks/stripe` (or the Vercel deploy URL during domain deferral)
+- Endpoint URL: `https://api-staging.ceolx.com/api/webhooks/stripe` (or the Vercel deploy URL during domain deferral)
 - Events: subscribe to whatever the production Stripe webhook subscribes to. At minimum: `checkout.session.completed`, `customer.subscription.created`, `customer.subscription.updated`, `customer.subscription.deleted`, `invoice.payment_succeeded`, `invoice.payment_failed`.
 - Add endpoint.
 
@@ -638,7 +638,7 @@ export default (_: ConfigContext): ExpoConfig => ({
     bundleIdentifier: IS_STAGING ? STAGING_BUNDLE_ID : PROD_BUNDLE_ID,
     usesAppleSignIn: true,
     googleServicesFile: process.env.GOOGLE_SERVICES_INFO_PLIST ?? './GoogleService-Info.plist',
-    associatedDomains: ['applinks:ceolx.ie'],
+    associatedDomains: ['applinks:ceolx.com'],
     infoPlist: {
       NSLocationWhenInUseUsageDescription:
         'CeolX uses your location to show nearby Irish music events',
@@ -675,7 +675,7 @@ export default (_: ConfigContext): ExpoConfig => ({
       {
         action: 'VIEW',
         autoVerify: true,
-        data: [{ scheme: 'https', host: 'ceolx.ie', pathPrefix: '/post' }],
+        data: [{ scheme: 'https', host: 'ceolx.com', pathPrefix: '/post' }],
         category: ['BROWSABLE', 'DEFAULT'],
       },
     ],
@@ -1014,7 +1014,7 @@ EOF
 
 - [ ] **Step 15.1: Push string env vars**
 
-> **Domain deferred (Step 1.4):** Use the Vercel deploy URL captured in Step 5.4 for `EXPO_PUBLIC_API_BASE_URL` (e.g. `https://ceolx-api-staging-<hash>.vercel.app`). When the `ceolx.ie` domain becomes available, run `eas env:update --name EXPO_PUBLIC_API_BASE_URL --value https://api-staging.ceolx.ie` and rebuild the APK — `EXPO_PUBLIC_*` vars are baked at build time.
+> **Domain deferred (Step 1.4):** Use the Vercel deploy URL captured in Step 5.4 for `EXPO_PUBLIC_API_BASE_URL` (e.g. `https://ceolx-api-staging-<hash>.vercel.app`). When the `ceolx.com` domain becomes available, run `eas env:update --name EXPO_PUBLIC_API_BASE_URL --value https://api-staging.ceolx.com` and rebuild the APK — `EXPO_PUBLIC_*` vars are baked at build time.
 
 ```bash
 cd apps/native
@@ -1294,7 +1294,7 @@ No commit.
 
 ## What you're testing
 
-The **CeolX (Staging)** app — a separate build from the production CeolX app, pointing at a staging backend (`api-staging.ceolx.ie`) and a staging database. **Use a fresh email address for staging accounts** — staging data is regularly wiped and not synced with production.
+The **CeolX (Staging)** app — a separate build from the production CeolX app, pointing at a staging backend (`api-staging.ceolx.com`) and a staging database. **Use a fresh email address for staging accounts** — staging data is regularly wiped and not synced with production.
 
 ## Prerequisites
 
@@ -1366,14 +1366,14 @@ gh pr create --base development --title "feat: android staging build for qa" --b
 
 Ships an installable Android staging build of CeolX to QA via a single `expo.dev/install/<id>` URL, with a Vercel-hosted staging backend and EAS Update OTA on the `staging` channel.
 
-- Backend: `apps/server` refactored to expose a reusable Hono `app` builder; new `apps/server/api/index.ts` Vercel adapter; deployed to `api-staging.ceolx.ie`.
+- Backend: `apps/server` refactored to expose a reusable Hono `app` builder; new `apps/server/api/index.ts` Vercel adapter; deployed to `api-staging.ceolx.com`.
 - Native: `app.config.ts` is now a function reading `APP_VARIANT`, switching `package` / `bundleIdentifier` / display name between `ie.ceolx.app.staging` and `ie.ceolx.app`. New `staging` EAS profile (internal distribution, APK, channel `staging`).
 - CI: `.eas/workflows/staging-android.yml` builds + publishes OTA on every push to `development`.
 - Docs: spec at `docs/superpowers/specs/2026-05-05-android-staging-build-design.md`; QA runbook at `docs/qa-staging-install.md`.
 
 ## Test plan
 
-- [ ] `curl <vercel-deploy-url>/health` returns 200 (custom domain `api-staging.ceolx.ie` deferred until DNS access lands)
+- [ ] `curl <vercel-deploy-url>/health` returns 200 (custom domain `api-staging.ceolx.com` deferred until DNS access lands)
 - [ ] `pnpm exec tsx apps/native/scripts/verify-app-config.ts` passes (both variants)
 - [ ] `eas build -p android --profile staging` succeeds
 - [ ] Install link works on a physical Android device; sign-up + map + FCM all functional
@@ -1382,9 +1382,9 @@ Ships an installable Android staging build of CeolX to QA via a single `expo.dev
 
 **Out of scope for this PR (deferred):**
 
-- Custom domain `api-staging.ceolx.ie` (Step 1.4, Task 7) — pending DNS access
+- Custom domain `api-staging.ceolx.com` (Step 1.4, Task 7) — pending DNS access
 - Stripe subscription flows (Step 1.5, Task 8) — out of scope for this QA cycle
-- Postmark sender domain `ceolx.ie` (Step 1.6) — using `magicbox.raftlabs.dev` substitute
+- Postmark sender domain `ceolx.com` (Step 1.6) — using `magicbox.raftlabs.dev` substitute
 
 When the deferred items land, follow the in-place "when …" notes in Tasks 1, 6, 7, and 15 to switch over.
 
@@ -1432,12 +1432,12 @@ The `Staging Android` workflow should fire within ~30 seconds and produce a fres
 
 **Active deferrals (must revisit):**
 
-| Deferred                                   | Substitute used now                                                         | Switch-over trigger                                                                                                                   |
-| ------------------------------------------ | --------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| Step 1.4 / Task 7 — `api-staging.ceolx.ie` | Vercel auto-generated `*.vercel.app` URL                                    | DNS access for `ceolx.ie` available → run Task 7, update `BETTER_AUTH_URL` + `EXPO_PUBLIC_API_BASE_URL`, rebuild APK                  |
-| Step 1.5 / Task 8 — Stripe webhook         | Stripe env vars omitted; webhook route loads but unused                     | Subscription flows enter scope → run Task 8                                                                                           |
-| Step 1.6 — Postmark sender `ceolx.ie`      | `noreply@magicbox.raftlabs.dev` + magicbox stream token                     | `ceolx.ie` Postmark sender verified → swap `POSTMARK_FROM_ADDRESS` + `POSTMARK_API_TOKEN` on Vercel, redeploy (no APK rebuild needed) |
-| Firebase env-var name correction           | `FIREBASE_SERVICE_ACCOUNT_KEY` (single JSON string) + `FIREBASE_PROJECT_ID` | N/A — permanent fix to plan                                                                                                           |
+| Deferred                                    | Substitute used now                                                         | Switch-over trigger                                                                                                                    |
+| ------------------------------------------- | --------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| Step 1.4 / Task 7 — `api-staging.ceolx.com` | Vercel auto-generated `*.vercel.app` URL                                    | DNS access for `ceolx.com` available → run Task 7, update `BETTER_AUTH_URL` + `EXPO_PUBLIC_API_BASE_URL`, rebuild APK                  |
+| Step 1.5 / Task 8 — Stripe webhook          | Stripe env vars omitted; webhook route loads but unused                     | Subscription flows enter scope → run Task 8                                                                                            |
+| Step 1.6 — Postmark sender `ceolx.com`      | `noreply@magicbox.raftlabs.dev` + magicbox stream token                     | `ceolx.com` Postmark sender verified → swap `POSTMARK_FROM_ADDRESS` + `POSTMARK_API_TOKEN` on Vercel, redeploy (no APK rebuild needed) |
+| Firebase env-var name correction            | `FIREBASE_SERVICE_ACCOUNT_KEY` (single JSON string) + `FIREBASE_PROJECT_ID` | N/A — permanent fix to plan                                                                                                            |
 
 ---
 

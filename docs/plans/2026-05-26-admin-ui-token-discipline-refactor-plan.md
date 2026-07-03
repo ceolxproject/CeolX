@@ -132,7 +132,7 @@ Plan offered Option A (keep white-on-dark, just tokenise) or B (switch to ShadCN
 - Heading: inline-style `<h1>` → `text-4xl font-bold leading-tight text-center` (Tailwind classes, no inline styles). Centered.
 - Error banner: `bg-red-500/15 border-red-500/30 text-red-300` → `bg-destructive/15 border-destructive/30 text-destructive`.
 - Inputs: `bg-white text-black placeholder:text-gray-500 ring-[var(--ceolx-blue)]` → `bg-surface-white text-surface-dark placeholder:text-muted-foreground focus-visible:ring-ring`.
-- Placeholders changed `admin@ceolx.ie` / `••••••••` → `Enter Email` / `Enter Password`.
+- Placeholders changed `admin@ceolx.com` / `••••••••` → `Enter Email` / `Enter Password`.
 - Password input wrapped in `relative` with an `Eye / EyeOff` toggle button (`lucide-react`) at `right-3 top-1/2 -translate-y-1/2`.
 - Submit button: `bg-[var(--ceolx-blue)] rounded-full` → `bg-primary text-primary-foreground rounded-md`. Removed the inline `fontFamily: Urbanist` — body font already governs.
 

@@ -220,7 +220,7 @@ import { expoClient } from '@better-auth/expo/client';
 import * as SecureStore from 'expo-secure-store';
 
 export const authClient = createAuthClient({
-  baseURL: process.env.EXPO_PUBLIC_API_URL, // e.g. https://api.ceolx.ie
+  baseURL: process.env.EXPO_PUBLIC_API_URL, // e.g. https://api.ceolx.com
   plugins: [
     expoClient({
       scheme: 'ceolx',

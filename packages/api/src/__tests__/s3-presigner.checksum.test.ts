@@ -14,7 +14,7 @@ vi.mock('@CeolX/env/server', () => ({
   env: {
     AWS_REGION: 'eu-west-1',
     S3_BUCKET_NAME: 'ceolx-media-test',
-    CLOUDFRONT_DOMAIN: 'cdn.test.ceolx.ie',
+    CLOUDFRONT_DOMAIN: 'cdn.test.ceolx.com',
   },
 }));
 

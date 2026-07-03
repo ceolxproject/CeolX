@@ -102,7 +102,7 @@ All procedures are stub-only at this stage. Business logic is wired in subsequen
 
 ### CORS
 
-- Origins: `https://app.ceolx.ie`, `https://admin.ceolx.ie`, `http://localhost:3000`, `http://localhost:8081` (Expo)
+- Origins: `https://app.ceolx.com`, `https://admin.ceolx.com`, `http://localhost:3000`, `http://localhost:8081` (Expo)
 - Configured via `env.CORS_ALLOWED_ORIGINS` (pipe-delimited)
 - Credentials allowed
 

@@ -220,8 +220,8 @@ type=profile_image  (required)
 
 - R14: subscription_status enum: 'inactive' | 'active' | 'cancelled'
 - R15: Venue created via persona switch → subscription_status = 'inactive'
-- R16: Postmark sends activation email with unclickable link text "ceolx.ie/subscribe" (no in-app URL; Apple Rule 3.1.1)
-- R17: Email link is a standard web URL — user leaves the app, logs into Stripe via web browser on ceolx.ie/subscribe page
+- R16: Postmark sends activation email with unclickable link text "ceolx.com/subscribe" (no in-app URL; Apple Rule 3.1.1)
+- R17: Email link is a standard web URL — user leaves the app, logs into Stripe via web browser on ceolx.com/subscribe page
 - R18: Stripe webhook (POST /api/v1/webhooks/stripe) confirms payment → updates subscription_status = 'active' in database
 - R19: Resend Email button (POST /api/v1/venues/me/resend-activation) sends another activation email
 - R20: Venue can switch away from Venue persona (is_active = false) but subscription remains active and billing continues
@@ -264,8 +264,8 @@ type=profile_image  (required)
 ### Subscription Gating
 
 - [x] New Venue created with subscription_status = 'inactive'
-- [x] Postmark email sent with activation link (plain text "ceolx.ie/subscribe", not clickable button) _(deferred to M8-T1)_
-- [x] Clicking email link opens web browser to ceolx.ie/subscribe page _(deferred to M8-T1)_
+- [x] Postmark email sent with activation link (plain text "ceolx.com/subscribe", not clickable button) _(deferred to M8-T1)_
+- [x] Clicking email link opens web browser to ceolx.com/subscribe page _(deferred to M8-T1)_
 - [x] After Stripe payment confirmed, webhook updates subscription*status = 'active' in database *(deferred to M8-T1)\_
 - [x] Profile becomes visible publicly after subscription activation _(deferred to M8-T1)_
 - [x] Resend Email button triggers another activation email _(placeholder until M8-T1)_
@@ -429,7 +429,7 @@ venueRouter.post('/me/resend-activation', async (c) => {
     template: 'venue-activation',
     data: {
       venue_name: profile.name,
-      activation_link: 'https://ceolx.ie/subscribe',
+      activation_link: 'https://ceolx.com/subscribe',
     },
   });
 
@@ -552,7 +552,7 @@ export function EditVenueProfileScreen() {
 
 - **Subscription gating on every fetch**: Never cache subscription_status. Always check on GET /venues/:id because Stripe webhooks update status asynchronously.
 - **Address as free-text**: Don't validate address format in V1. Store as-is and let Venue enter whatever they want.
-- **Email link in Postmark**: The activation email should NOT have a clickable link button (Apple Rule 3.1.1). Use plain text "ceolx.ie/subscribe" so the Venue manually types it or copies it.
+- **Email link in Postmark**: The activation email should NOT have a clickable link button (Apple Rule 3.1.1). Use plain text "ceolx.com/subscribe" so the Venue manually types it or copies it.
 - **Inactive profiles return 404**: Even if is_active = false, the profile data stays in DB. Only return 404 publicly, not in internal queries.
 - **Concurrent edits**: Last-write-wins is acceptable for V1 scale.
 - **Profile owner still sees inactive profile**: When fetching own profile, always return full data including subscription_status and activation message, even if inactive.

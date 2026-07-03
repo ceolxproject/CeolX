@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Add a Share button to the event detail screen that produces a `https://ceolx.ie/event/<id>` link which deep-links into the app when installed and unfurls (cover + title + date + venue) with store buttons when not.
+**Goal:** Add a Share button to the event detail screen that produces a `https://ceolx.com/event/<id>` link which deep-links into the app when installed and unfurls (cover + title + date + venue) with store buttons when not.
 
 **Architecture:** Structural clone of the existing post-share system across three deploy targets — native app (share hook + header icon + thin deep-link redirect + Android intent filter), Hono server (`GET /event/:id` OG page + widened App Links ownership files), and admin Vercel (`/event/*` rewrite). A shared HTML-shell helper is extracted so the post and event web pages do not duplicate ~60 lines of markup.
 
@@ -54,7 +54,7 @@ export const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f
 
 // Canonical origin for og:url + on-page links. Prod default; the staging server
 // sets PUBLIC_WEB_ORIGIN to its own Vercel URL (where it serves /post + /event).
-export const SHARE_ORIGIN = env.PUBLIC_WEB_ORIGIN ?? 'https://ceolx.ie';
+export const SHARE_ORIGIN = env.PUBLIC_WEB_ORIGIN ?? 'https://ceolx.com';
 
 // Until the app is published the numeric App Store id is unknown, so fall back
 // to an App Store search. Replace via IOS_APP_STORE_URL once live.
@@ -204,14 +204,14 @@ import {
 /**
  * Web fallback for a shared post link, `GET /post/:id`.
  *
- * The native Share sheet hands out `https://ceolx.ie/post/<id>`
+ * The native Share sheet hands out `https://ceolx.com/post/<id>`
  * (apps/native/hooks/use-share-post.ts). When the app is installed the OS opens
  * it directly via Universal Links / App Links (apps/server/src/routes/app-links.ts)
  * and this page is never seen. This route loads when the app is NOT installed —
  * or the link is opened in a desktop browser / in-app webview — and emits
  * per-post Open Graph tags plus an "Open in app" + store-button landing page.
  *
- * `ceolx.ie` is the admin Vite app; its vercel.json rewrites `/post/*` here so
+ * `ceolx.com` is the admin Vite app; its vercel.json rewrites `/post/*` here so
  * the page is server-rendered (the SPA can't emit per-post meta tags).
  */
 
@@ -348,7 +348,7 @@ function activeEvent(overrides: Record<string, unknown> = {}) {
     id: VALID_ID,
     title: 'Trad Session at The Cobblestone',
     description: 'A lively night of Irish music',
-    coverImage: 'https://cdn.ceolx.ie/events/cover.jpg',
+    coverImage: 'https://cdn.ceolx.com/events/cover.jpg',
     dateStart: new Date('2026-07-15T20:00:00.000Z'),
     venueAddress: '77 King St N, Dublin',
     status: 'active',
@@ -374,8 +374,10 @@ describe('GET /event/:id', () => {
     expect(html).toContain('<meta property="og:title" content="Trad Session at The Cobblestone">');
     // Description = formatted date · venue name.
     expect(html).toContain('The Cobblestone');
-    expect(html).toContain(`<meta property="og:url" content="https://ceolx.ie/event/${VALID_ID}">`);
-    expect(html).toContain('https://cdn.ceolx.ie/events/cover.jpg');
+    expect(html).toContain(
+      `<meta property="og:url" content="https://ceolx.com/event/${VALID_ID}">`
+    );
+    expect(html).toContain('https://cdn.ceolx.com/events/cover.jpg');
     expect(html).toContain('<meta name="twitter:card" content="summary_large_image">');
     expect(html).toContain(`href="ceolx://event/${VALID_ID}"`);
     expect(html).toContain('play.google.com/store/apps/details?id=ie.ceolx.app');
@@ -452,7 +454,7 @@ import {
  * Web fallback for a shared event link, `GET /event/:id`.
  *
  * Mirrors post-share (apps/server/src/routes/post-share.ts). The native Share
- * sheet hands out `https://ceolx.ie/event/<id>`
+ * sheet hands out `https://ceolx.com/event/<id>`
  * (apps/native/hooks/use-share-event.ts). App installed → the OS deep-links via
  * Universal / App Links and this page is never seen. App absent / desktop /
  * in-app webview → this page unfurls the event (cover + title + date + venue)
@@ -644,9 +646,9 @@ In `apps/admin/vercel.json`, add the `/event/:path*` rewrite immediately after t
 
 ```json
   "rewrites": [
-    { "source": "/.well-known/:path*", "destination": "https://api.ceolx.ie/.well-known/:path*" },
-    { "source": "/post/:path*", "destination": "https://api.ceolx.ie/post/:path*" },
-    { "source": "/event/:path*", "destination": "https://api.ceolx.ie/event/:path*" },
+    { "source": "/.well-known/:path*", "destination": "https://api.ceolx.com/.well-known/:path*" },
+    { "source": "/post/:path*", "destination": "https://api.ceolx.com/post/:path*" },
+    { "source": "/event/:path*", "destination": "https://api.ceolx.com/event/:path*" },
     { "source": "/(.*)", "destination": "/index.html" }
   ],
 ```
@@ -686,16 +688,16 @@ import { env } from '@CeolX/env/native';
 // Prod marketing domain by default; staging overrides via env to point at the
 // staging server's Vercel URL. Must stay in sync with the associatedDomains /
 // intentFilters host in app.config.js and the server's /event route.
-const SHARE_BASE_URL = env.EXPO_PUBLIC_SHARE_BASE_URL ?? 'https://ceolx.ie';
+const SHARE_BASE_URL = env.EXPO_PUBLIC_SHARE_BASE_URL ?? 'https://ceolx.com';
 
 /**
  * Opens the native Share sheet for an event.
  *
- * The URL points to ceolx.ie — on devices with the app installed, iOS
+ * The URL points to ceolx.com — on devices with the app installed, iOS
  * Universal Links / Android App Links route the tap back into the app at
  * `/event/<id>` (apps/native/app/(app)/event/[eventId].tsx), which redirects to
  * the discover event detail screen. On devices without the app,
- * ceolx.ie/event/<id> rewrites to the server's event-share page
+ * ceolx.com/event/<id> rewrites to the server's event-share page
  * (apps/server/src/routes/event-share.ts), which unfurls the event and offers
  * App Store / Play Store buttons.
  */
@@ -877,7 +879,7 @@ import { Redirect, useLocalSearchParams } from 'expo-router';
 import type { Href } from 'expo-router';
 
 /**
- * Deep-link landing for shared event links (`ceolx.ie/event/<id>` /
+ * Deep-link landing for shared event links (`ceolx.com/event/<id>` /
  * `ceolx://event/<id>`). Events live inside the tab stack, so this thin
  * top-level route immediately forwards to the canonical discover event detail
  * screen — reusing EventDetailScreen with no UI duplication. Mirrors how
@@ -1038,7 +1040,7 @@ Expected: PASS (no new violations; no `StyleSheet.create`, classNames only).
 
 - [ ] **Step 5: Manual smoke (documented, run by Priya)**
 
-- App installed (after a fresh dev/EAS build): tap Share on an event → share sheet shows `ceolx.ie/event/<id>` → opening that link on the device lands on the event detail screen.
+- App installed (after a fresh dev/EAS build): tap Share on an event → share sheet shows `ceolx.com/event/<id>` → opening that link on the device lands on the event detail screen.
 - App absent / desktop: open `https://<staging-host>/event/<active-id>` → OG card with cover + title + "date · venue" + store buttons. Open `/event/<removed-id>` and `/event/not-a-uuid` → not-found card, HTTP 404.
 
 ---

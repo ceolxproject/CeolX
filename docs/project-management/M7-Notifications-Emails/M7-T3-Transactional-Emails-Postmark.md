@@ -26,14 +26,14 @@ Centralise and produce all transactional email templates via Postmark. Transacti
 
 ## Email Templates Required
 
-| Template                    | Trigger                                           | Recipient        | Content                                                          |
-| --------------------------- | ------------------------------------------------- | ---------------- | ---------------------------------------------------------------- |
-| **Email Verification**      | User signs up                                     | User email       | Verify email link (expires 24h)                                  |
-| **Password Reset**          | User clicks "Forgot Password"                     | User email       | Reset link (expires 15m), security notice                        |
-| **Venue Activation**        | User selects Venue persona                        | Venue user email | `ceolx.ie/subscribe` link + instructions                         |
-| **Payment Confirmation**    | Stripe webhook `invoice.payment_succeeded`        | Venue user email | Invoice summary, manage link to `ceolx.ie/account`, plan details |
-| **Event Approved Fallback** | Event moderation approved (push failure fallback) | Artist email     | Event title, link to event, congratulations copy                 |
-| **Event Rejected Fallback** | Event moderation rejected (push failure fallback) | Artist email     | Event title, rejection reason, edit/resubmit instructions        |
+| Template                    | Trigger                                           | Recipient        | Content                                                           |
+| --------------------------- | ------------------------------------------------- | ---------------- | ----------------------------------------------------------------- |
+| **Email Verification**      | User signs up                                     | User email       | Verify email link (expires 24h)                                   |
+| **Password Reset**          | User clicks "Forgot Password"                     | User email       | Reset link (expires 15m), security notice                         |
+| **Venue Activation**        | User selects Venue persona                        | Venue user email | `ceolx.com/subscribe` link + instructions                         |
+| **Payment Confirmation**    | Stripe webhook `invoice.payment_succeeded`        | Venue user email | Invoice summary, manage link to `ceolx.com/account`, plan details |
+| **Event Approved Fallback** | Event moderation approved (push failure fallback) | Artist email     | Event title, link to event, congratulations copy                  |
+| **Event Rejected Fallback** | Event moderation rejected (push failure fallback) | Artist email     | Event title, rejection reason, edit/resubmit instructions         |
 
 ---
 
@@ -63,7 +63,7 @@ No new endpoints. Postmark dispatch is invoked internally by existing endpoints 
 
 - R2.1: Subject: _"Verify your CeolX email"_
 - R2.2: Body includes: personalized greeting (first name if available), verification link with unique token
-- R2.3: Link format: `ceolx.ie/verify-email?token={{VerificationToken}}`
+- R2.3: Link format: `ceolx.com/verify-email?token={{VerificationToken}}`
 - R2.4: Token expires 24 hours from generation; link invalid after expiry
 - R2.5: CTA button: "Verify Email" (primary color)
 - R2.6: Footer: Support email link, unsubscribe not required (transactional)
@@ -72,7 +72,7 @@ No new endpoints. Postmark dispatch is invoked internally by existing endpoints 
 
 - R3.1: Subject: _"Reset your CeolX password"_
 - R3.2: Body includes: security notice (_"If you didn't request this, ignore this email"_), reset link with token
-- R3.3: Link format: `ceolx.ie/reset-password?token={{ResetToken}}`
+- R3.3: Link format: `ceolx.com/reset-password?token={{ResetToken}}`
 - R3.4: Token expires 15 minutes from generation (short window for security)
 - R3.5: CTA button: "Reset Password" (primary color)
 - R3.6: Fallback: plaintext token for manual entry if link doesn't work
@@ -82,9 +82,9 @@ No new endpoints. Postmark dispatch is invoked internally by existing endpoints 
 
 - R4.1: Subject: _"Activate your CeolX Venue profile"_
 - R4.2: Body includes: personalized greeting, instructions to complete subscription
-- R4.3: **CRITICAL**: Link to `ceolx.ie/subscribe` **ONLY in email body**, never shown in mobile app
+- R4.3: **CRITICAL**: Link to `ceolx.com/subscribe` **ONLY in email body**, never shown in mobile app
 - R4.4: Text: _"Click below to set up your subscription and make your profile visible to artists"_
-- R4.5: CTA button: "Activate Profile" (primary color) → `ceolx.ie/subscribe`
+- R4.5: CTA button: "Activate Profile" (primary color) → `ceolx.com/subscribe`
 - R4.6: Expected timeline: "Your profile will be live within 5 minutes of completing payment"
 - R4.7: Footer: Support email, FAQ link (if available)
 
@@ -93,7 +93,7 @@ No new endpoints. Postmark dispatch is invoked internally by existing endpoints 
 - R5.1: Subject: _"Payment received: CeolX subscription renewal"_
 - R5.2: Body includes: personalized greeting, invoice summary (amount, plan name, billing cycle)
 - R5.3: Invoice details: amount (€/currency), plan name, next billing date
-- R5.4: Link to `ceolx.ie/account` for subscription management (text/button: "Manage Subscription")
+- R5.4: Link to `ceolx.com/account` for subscription management (text/button: "Manage Subscription")
 - R5.5: Tax/VAT info if applicable
 - R5.6: Stripe invoice link (downloadable PDF) embedded or linked
 - R5.7: Footer: Support email, billing FAQ
@@ -102,7 +102,7 @@ No new endpoints. Postmark dispatch is invoked internally by existing endpoints 
 
 - R6.1: Subject: _"Your event '[Event Title]' was approved!"_
 - R6.2: Body: congratulations copy, event title, date/time (if available), CTA link to event
-- R6.3: Link format: `ceolx.ie/events/{{EventId}}` (deep link, opens in app if installed)
+- R6.3: Link format: `ceolx.com/events/{{EventId}}` (deep link, opens in app if installed)
 - R6.4: Encouragement to start promoting/sharing
 - R6.5: Footer: Support email
 
@@ -110,7 +110,7 @@ No new endpoints. Postmark dispatch is invoked internally by existing endpoints 
 
 - R7.1: Subject: _"Your event '[Event Title]' needs revision"_
 - R7.2: Body: friendly rejection copy, reason for rejection (e.g., _"Event date is in the past"_), instructions to edit and resubmit
-- R7.3: Link to edit event: `ceolx.ie/events/{{EventId}}/edit`
+- R7.3: Link to edit event: `ceolx.com/events/{{EventId}}/edit`
 - R7.4: Encourage resubmission with any questions
 - R7.5: Footer: Support email, moderation FAQ (if available)
 
@@ -131,8 +131,8 @@ No new endpoints. Postmark dispatch is invoked internally by existing endpoints 
 - [ ] All 6 email templates created in Postmark dashboard
 - [ ] Email Verification email sent on sign-up; link renders and validates in app
 - [ ] Password Reset email sent on forgot-password request; link resets password correctly
-- [ ] Venue Activation email sent on Venue persona selection; contains `ceolx.ie/subscribe` link only
-- [ ] Payment Confirmation email sent after Stripe webhook; includes invoice details and `ceolx.ie/account` link
+- [ ] Venue Activation email sent on Venue persona selection; contains `ceolx.com/subscribe` link only
+- [ ] Payment Confirmation email sent after Stripe webhook; includes invoice details and `ceolx.com/account` link
 - [ ] Event Approved fallback email sent if push notification fails
 - [ ] Event Rejected fallback email sent with rejection reason visible
 - [ ] All emails render correctly on iOS Mail, Gmail, Outlook (tested in Postmark preview)
@@ -235,7 +235,7 @@ export async function signUp(email: string, password: string) {
     templateAlias: 'email-verification',
     templateModel: {
       firstName: email.split('@')[0],
-      VerificationLink: `https://ceolx.ie/verify-email?token=${verificationToken}`,
+      VerificationLink: `https://ceolx.com/verify-email?token=${verificationToken}`,
     },
   });
 
@@ -266,7 +266,7 @@ export async function createVenueProfile(userId: string, profileData: any) {
     templateAlias: 'venue-activation',
     templateModel: {
       venueName: profileData.name,
-      ActivationLink: 'https://ceolx.ie/subscribe',
+      ActivationLink: 'https://ceolx.com/subscribe',
     },
   });
 
@@ -302,7 +302,7 @@ export async function handleInvoicePaid(invoice: Stripe.Invoice) {
       Amount: `€${amount}`,
       PlanName: planName,
       NextBillingDate: new Date(invoice.period_end * 1000).toISOString().split('T')[0],
-      ManageLink: 'https://ceolx.ie/account',
+      ManageLink: 'https://ceolx.com/account',
       InvoiceLink: invoice.hosted_invoice_url,
     },
   });
@@ -334,7 +334,7 @@ POSTMARK_EVENT_REJECTED_TEMPLATE_ID=12350
 - Issue: Email forwarded to user's phone as SMS; long URL gets truncated
 - Fix: Keep token short (8-12 chars); provide fallback plaintext token for manual entry
 
-**Gotcha 3: `ceolx.ie/subscribe` shown inside mobile app by accident**
+**Gotcha 3: `ceolx.com/subscribe` shown inside mobile app by accident**
 
 - Issue: Venue reads activation email, taps link inside app WebView instead of browser
 - Fix: Email client opens links in browser by default; explicitly no in-app link to payment URLs per Apple Rule 3.1.1

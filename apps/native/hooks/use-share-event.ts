@@ -8,16 +8,16 @@ import { appToast } from '@/components/AppToast';
 // Prod marketing domain by default; staging overrides via env to point at the
 // staging server's Vercel URL. Must stay in sync with the associatedDomains /
 // intentFilters host in app.config.js and the server's /event route.
-const SHARE_BASE_URL = env.EXPO_PUBLIC_SHARE_BASE_URL ?? 'https://ceolx.ie';
+const SHARE_BASE_URL = env.EXPO_PUBLIC_SHARE_BASE_URL ?? 'https://ceolx.com';
 
 /**
  * Opens the native Share sheet for an event.
  *
- * The URL points to ceolx.ie — on devices with the app installed, iOS
+ * The URL points to ceolx.com — on devices with the app installed, iOS
  * Universal Links / Android App Links route the tap back into the app at
  * `/event/<id>` (apps/native/app/(app)/event/[eventId].tsx), which redirects to
  * the discover event detail screen. On devices without the app,
- * ceolx.ie/event/<id> rewrites to the server's event-share page
+ * ceolx.com/event/<id> rewrites to the server's event-share page
  * (apps/server/src/routes/event-share.ts), which unfurls the event and offers
  * App Store / Play Store buttons.
  */

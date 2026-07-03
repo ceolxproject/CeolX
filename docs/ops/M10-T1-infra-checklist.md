@@ -38,10 +38,10 @@ Create one bucket per environment (e.g. `ceolx-media-staging`, `ceolx-media-prod
   - TTL: `max-age=2592000` (30 days)
   - Compression: gzip + brotli enabled
 - Viewer protocol policy: redirect HTTP → HTTPS.
-- Alternate domain (CNAME): `cdn.ceolx.ie` (with an ACM cert in `us-east-1` covering it).
+- Alternate domain (CNAME): `cdn.ceolx.com` (with an ACM cert in `us-east-1` covering it).
 - Geo-restriction: none.
 
-After creating: hit `https://cdn.ceolx.ie/healthcheck.txt` (after uploading a placeholder via `aws s3 cp`) and confirm 200.
+After creating: hit `https://cdn.ceolx.com/healthcheck.txt` (after uploading a placeholder via `aws s3 cp`) and confirm 200.
 
 ## 3. AWS IAM credentials for the api server
 
@@ -67,7 +67,7 @@ Note: presigned URL minting itself does not require `s3:GetObject` or list permi
 1. Sign up at https://mux.com → Dashboard → Settings → Access Tokens.
 2. Create a new access token with the `Mux Video` permissions (read + write). Copy `MUX_TOKEN_ID` and `MUX_TOKEN_SECRET`.
 3. Settings → Webhooks → Create webhook:
-   - URL: `https://<api-server>/api/webhooks/mux` (e.g. `https://api.ceolx.ie/api/webhooks/mux`)
+   - URL: `https://<api-server>/api/webhooks/mux` (e.g. `https://api.ceolx.com/api/webhooks/mux`)
    - Events: select at minimum `video.asset.ready` and `video.asset.errored`. The handler safely ignores other events but Mux only fires what you subscribe to.
    - Copy the webhook signing secret → `MUX_WEBHOOK_SECRET`.
 
@@ -81,27 +81,27 @@ Set the following on your api host (Vercel / EC2 / wherever apps/server runs):
 | `AWS_ACCESS_KEY_ID`     | from step 3                          |
 | `AWS_SECRET_ACCESS_KEY` | from step 3                          |
 | `S3_BUCKET_NAME`        | `ceolx-media-prod` (or matching env) |
-| `CLOUDFRONT_DOMAIN`     | `cdn.ceolx.ie`                       |
+| `CLOUDFRONT_DOMAIN`     | `cdn.ceolx.com`                      |
 | `MUX_TOKEN_ID`          | from step 4                          |
 | `MUX_TOKEN_SECRET`      | from step 4                          |
 | `MUX_WEBHOOK_SECRET`    | from step 4                          |
 
 And on the mobile client (apps/native/.env):
 
-| Variable                        | Value          |
-| ------------------------------- | -------------- |
-| `EXPO_PUBLIC_CLOUDFRONT_DOMAIN` | `cdn.ceolx.ie` |
+| Variable                        | Value           |
+| ------------------------------- | --------------- |
+| `EXPO_PUBLIC_CLOUDFRONT_DOMAIN` | `cdn.ceolx.com` |
 
 The CloudFront domain on the client is needed so use-media-delete can derive S3 keys from stored URLs.
 
 ## 6. Smoke tests after deploy
 
-1. **Image upload**: pick a profile image during artist onboarding → confirm the row in `artist_profiles` has `profile_image_url` pointing at `cdn.ceolx.ie/profiles/<userId>/...` and the URL renders in the app.
+1. **Image upload**: pick a profile image during artist onboarding → confirm the row in `artist_profiles` has `profile_image_url` pointing at `cdn.ceolx.com/profiles/<userId>/...` and the URL renders in the app.
 2. **S3 deletion**: delete a post that has an image → confirm the S3 object is gone (`aws s3 ls s3://ceolx-media-prod/posts/<userId>/`).
 3. **Video upload**: create a post with a short MP4 → confirm the post shows "Processing…" briefly, then "Ready" once Mux fires the webhook (typically 30s–2min).
 4. **Mux webhook**: tail the api server logs while uploading. You should see no warnings from `[Mux] webhook verification failed` — only the 200 ack on the webhook POST.
 5. **Mux delete**: delete the video post → confirm the asset is removed from Mux dashboard.
-6. **Bucket privacy**: `curl https://ceolx-media-prod.s3.eu-west-1.amazonaws.com/<any-key>` should return 403. Only `https://cdn.ceolx.ie/<key>` should return 200.
+6. **Bucket privacy**: `curl https://ceolx-media-prod.s3.eu-west-1.amazonaws.com/<any-key>` should return 403. Only `https://cdn.ceolx.com/<key>` should return 200.
 
 ## 7. Failure modes worth knowing
 

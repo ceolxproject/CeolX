@@ -29,6 +29,11 @@ export default tseslint.config(
       'apps/native/plugins/**',
       'apps/native/scripts/*.cjs',
       'apps/native/scripts/*.mjs',
+      // Standalone root release/tooling scripts — run directly with node, not
+      // part of any package's tsconfig, so the type-aware projectService can't
+      // resolve them (only .ts here, e.g. seed-typesense.ts, stays linted).
+      'scripts/*.cjs',
+      'scripts/*.mjs',
     ],
   },
 

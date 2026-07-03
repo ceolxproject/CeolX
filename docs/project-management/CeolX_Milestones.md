@@ -122,7 +122,7 @@
 
 | Sub-task         | Details                                                                                                            |
 | ---------------- | ------------------------------------------------------------------------------------------------------------------ |
-| Postmark account | Create server for CeolX, verify `noreply@ceolx.ie` sender signature (SPF, DKIM, DMARC)                             |
+| Postmark account | Create server for CeolX, verify `noreply@ceolx.com` sender signature (SPF, DKIM, DMARC)                            |
 | Email package    | `packages/email` (`@CeolX/email`) — transport factory, `sendEmail()`, TypeScript types                             |
 | Transport        | `NODE_ENV=development` → Mailpit SMTP always; staging/prod → Postmark `ServerClient` (`MessageStream: "outbound"`) |
 | Email tags       | Define: `email-verification`, `password-reset`, `venue-activation`, `payment-confirmation`                         |
@@ -663,13 +663,13 @@
 
 **What**: All system emails sent via Postmark.
 
-| Email                | Trigger                                                       |
-| -------------------- | ------------------------------------------------------------- |
-| Email Verification   | Sign-up with email/password                                   |
-| Password Reset       | Forgot password request                                       |
-| Venue Activation     | User selects Venue persona — contains ceolx.ie/subscribe link |
-| Payment Confirmation | Stripe webhook confirms payment                               |
-| Data Export Link     | User requests GDPR data export (M11)                          |
+| Email                | Trigger                                                        |
+| -------------------- | -------------------------------------------------------------- |
+| Email Verification   | Sign-up with email/password                                    |
+| Password Reset       | Forgot password request                                        |
+| Venue Activation     | User selects Venue persona — contains ceolx.com/subscribe link |
+| Payment Confirmation | Stripe webhook confirms payment                                |
+| Data Export Link     | User requests GDPR data export (M11)                           |
 
 Additional: "Resend Email" endpoint for Venue activation — rate-limited to max 3 per hour.
 
@@ -681,7 +681,7 @@ Additional: "Resend Email" endpoint for Venue activation — rate-limited to max
 
 ---
 
-### M8-T1 · ceolx.ie/subscribe Page (React + Stripe)
+### M8-T1 · ceolx.com/subscribe Page (React + Stripe)
 
 **What**: The web-based subscription checkout page — entirely outside the mobile app (Apple App Store compliance).
 
@@ -726,7 +726,7 @@ Additional: "Resend Email" endpoint for Venue activation — rate-limited to max
 
 ---
 
-### M8-T4 · ceolx.ie/account — Venue Subscription Management Portal
+### M8-T4 · ceolx.com/account — Venue Subscription Management Portal
 
 **What**: Self-service web portal for Venues to manage their subscription, view invoices, update payment method, and cancel. Sent via email only — never linked from inside the app.
 
@@ -889,18 +889,18 @@ Additional: "Resend Email" endpoint for Venue activation — rate-limited to max
 
 **What**: Android submission + production infrastructure go-live.
 
-| Sub-task               | Details                                                 |
-| ---------------------- | ------------------------------------------------------- |
-| Android keystore       | Configure via EAS                                       |
-| EAS production build   | Build `.aab` for Google Play                            |
-| Play Console           | Metadata, screenshots, content rating                   |
-| Submit                 | Submit for Google Play Review                           |
-| Hono API deploy        | AWS Lambda — production stage                           |
-| Prod env vars          | Neon prod DB, Stripe live keys, Postmark, FCM, Mux, S3  |
-| Admin dashboard deploy | Vercel (or AWS Amplify); custom domain `admin.ceolx.ie` |
-| Stripe webhook         | Register production webhook URL in Stripe dashboard     |
-| Smoke test             | Full end-to-end test on production environment          |
-| Monitoring             | Basic uptime monitoring (UptimeRobot free tier)         |
+| Sub-task               | Details                                                  |
+| ---------------------- | -------------------------------------------------------- |
+| Android keystore       | Configure via EAS                                        |
+| EAS production build   | Build `.aab` for Google Play                             |
+| Play Console           | Metadata, screenshots, content rating                    |
+| Submit                 | Submit for Google Play Review                            |
+| Hono API deploy        | AWS Lambda — production stage                            |
+| Prod env vars          | Neon prod DB, Stripe live keys, Postmark, FCM, Mux, S3   |
+| Admin dashboard deploy | Vercel (or AWS Amplify); custom domain `admin.ceolx.com` |
+| Stripe webhook         | Register production webhook URL in Stripe dashboard      |
+| Smoke test             | Full end-to-end test on production environment           |
+| Monitoring             | Basic uptime monitoring (UptimeRobot free tier)          |
 
 ---
 

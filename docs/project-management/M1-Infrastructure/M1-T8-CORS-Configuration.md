@@ -66,8 +66,8 @@ app.use(
 | Environment | Allowed Origins                                                                                                                  |
 | ----------- | -------------------------------------------------------------------------------------------------------------------------------- |
 | Development | `http://localhost:3000`, `http://localhost:3001`, `http://localhost:8081` (Expo dev client), `http://localhost:19006` (Expo web) |
-| Staging     | `https://admin.staging.ceolx.ie`, `https://app.staging.ceolx.ie`                                                                 |
-| Production  | `https://admin.ceolx.ie`, `https://app.ceolx.ie`                                                                                 |
+| Staging     | `https://admin.staging.ceolx.com`, `https://app.staging.ceolx.com`                                                               |
+| Production  | `https://admin.ceolx.com`, `https://app.ceolx.com`                                                                               |
 
 - Origins stored in `CORS_ALLOWED_ORIGINS` environment variable — pipe-separated: `origin1|origin2`
 - Development origins always included when `NODE_ENV=development`
@@ -96,12 +96,12 @@ app.use(
 # apps/server/.env.example — production-style values only
 # Dev origins (localhost:3000, :3001, :8081, :19006) are auto-injected when NODE_ENV=development
 # Only set this for staging/prod:
-CORS_ALLOWED_ORIGINS=https://admin.ceolx.ie|https://app.ceolx.ie
+CORS_ALLOWED_ORIGINS=https://admin.ceolx.com|https://app.ceolx.com
 ```
 
 **Local dev**: leave `CORS_ALLOWED_ORIGINS` empty (or omit it) in `.env.development`. The `buildAllowedOrigins()` function will inject all dev origins automatically because `NODE_ENV=development`.
 
-**Staging**: set `CORS_ALLOWED_ORIGINS=https://admin.staging.ceolx.ie|https://app.staging.ceolx.ie` in `.env.staging`.
+**Staging**: set `CORS_ALLOWED_ORIGINS=https://admin.staging.ceolx.com|https://app.staging.ceolx.com` in `.env.staging`.
 
 Development origins are injected automatically when `NODE_ENV=development` — no need to add them to `.env`.
 
@@ -195,14 +195,14 @@ app.use(
 
 ```bash
 # Test preflight from allowed origin
-curl -X OPTIONS https://api.ceolx.ie/api/v1/events \
-  -H "Origin: https://app.ceolx.ie" \
+curl -X OPTIONS https://api.ceolx.com/api/v1/events \
+  -H "Origin: https://app.ceolx.com" \
   -H "Access-Control-Request-Method: POST" \
   -H "Access-Control-Request-Headers: Content-Type" \
   -v
 
 # Expected headers in response:
-# Access-Control-Allow-Origin: https://app.ceolx.ie
+# Access-Control-Allow-Origin: https://app.ceolx.com
 # Access-Control-Allow-Credentials: true
 # Access-Control-Allow-Methods: GET, POST, PATCH, DELETE, OPTIONS
 # Access-Control-Max-Age: 86400

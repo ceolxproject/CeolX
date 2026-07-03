@@ -135,7 +135,7 @@ No new endpoints. All existing endpoints require integration tests covering happ
   - [ ] Analytics tab shows subscription status and gig applications
 
   **Super Admin Flow:**
-  - [ ] Navigate to admin dashboard (ceolx.ie/admin/login)
+  - [ ] Navigate to admin dashboard (ceolx.com/admin/login)
   - [ ] Log in with seeded admin credentials
   - [ ] Dashboard shows KPI cards with correct counts
   - [ ] Pending Moderation badge shows event count
@@ -283,7 +283,7 @@ describe('POST /api/v1/auth/login', () => {
       new Request('http://localhost:3000/api/v1/auth/login', {
         method: 'POST',
         body: JSON.stringify({
-          email: 'user@ceolx.ie',
+          email: 'user@ceolx.com',
           password: 'validPassword123!',
         }),
         headers: { 'Content-Type': 'application/json' },
@@ -293,7 +293,7 @@ describe('POST /api/v1/auth/login', () => {
     expect(res.status).toBe(200);
     const data = await res.json();
     expect(data.session).toBeDefined();
-    expect(data.session.email).toBe('user@ceolx.ie');
+    expect(data.session.email).toBe('user@ceolx.com');
   });
 
   it('should reject invalid password', async () => {
@@ -301,7 +301,7 @@ describe('POST /api/v1/auth/login', () => {
       new Request('http://localhost:3000/api/v1/auth/login', {
         method: 'POST',
         body: JSON.stringify({
-          email: 'user@ceolx.ie',
+          email: 'user@ceolx.com',
           password: 'wrongPassword',
         }),
         headers: { 'Content-Type': 'application/json' },
@@ -337,7 +337,7 @@ export const options = {
 export default function () {
   // Test map viewport query
   const queryRes = http.get(
-    'https://api.staging.ceolx.ie/api/v1/events?bounds=53.1,53.5,-7.8,-7.2',
+    'https://api.staging.ceolx.com/api/v1/events?bounds=53.1,53.5,-7.8,-7.2',
     { headers: { Authorization: 'Bearer test_token' } }
   );
 

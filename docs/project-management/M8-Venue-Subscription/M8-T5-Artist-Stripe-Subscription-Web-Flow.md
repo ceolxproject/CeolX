@@ -1,4 +1,4 @@
-# M8-T5 · Artist Stripe Subscription Web Flow (ceolx.ie/subscribe)
+# M8-T5 · Artist Stripe Subscription Web Flow (ceolx.com/subscribe)
 
 | Field          | Value                                                                                                              |
 | -------------- | ------------------------------------------------------------------------------------------------------------------ |
@@ -13,7 +13,7 @@
 
 ## Description
 
-Build the Artist subscription flow at `ceolx.ie/subscribe`. Artists subscribe via web-based Stripe Checkout (Apple Rule 3.1.1 prohibits in-app payments). The flow: Artist registers → Postmark activation email sent with `ceolx.ie/subscribe` link → Artist logs in → redirected to Stripe Checkout → on success, Stripe webhook activates the Artist profile → app detects activation.
+Build the Artist subscription flow at `ceolx.com/subscribe`. Artists subscribe via web-based Stripe Checkout (Apple Rule 3.1.1 prohibits in-app payments). The flow: Artist registers → Postmark activation email sent with `ceolx.com/subscribe` link → Artist logs in → redirected to Stripe Checkout → on success, Stripe webhook activates the Artist profile → app detects activation.
 
 Artist profile is not visible to Venues or on the platform until subscription is active.
 
@@ -90,8 +90,8 @@ Extend the existing webhook handler (M8-T1) to handle Artist checkout completion
   - Mode: `subscription`
   - Customer email: user's email
   - Line items: `[{ price: STRIPE_ARTIST_PRICE_ID, quantity: 1 }]`
-  - Success URL: `https://ceolx.ie/subscribe?success=true`
-  - Cancel URL: `https://ceolx.ie/subscribe?cancelled=true`
+  - Success URL: `https://ceolx.com/subscribe?success=true`
+  - Cancel URL: `https://ceolx.com/subscribe?cancelled=true`
   - Metadata: `{ artistProfileId, userId, profileType: 'artist' }`
 - R2.5: Return checkout URL; frontend redirects to Stripe-hosted checkout
 
@@ -208,7 +208,7 @@ async function activateArtistProfile(session: Stripe.Checkout.Session) {
     templateAlias: 'artist-subscription-activated',
     templateModel: {
       artistName: artist.name,
-      ManageLink: 'https://ceolx.ie/account',
+      ManageLink: 'https://ceolx.com/account',
     },
   }).catch((err) => console.error('Artist activation email failed:', err));
 

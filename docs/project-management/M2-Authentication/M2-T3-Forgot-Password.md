@@ -624,7 +624,7 @@ export default ResetPasswordScreen;
 // apps/native/src/navigation/linking.ts
 
 export const linking = {
-  prefixes: ['ceolx://', 'https://ceolx.ie'],
+  prefixes: ['ceolx://', 'https://ceolx.com'],
   config: {
     screens: {
       ResetPassword: 'reset-password?token=:token',

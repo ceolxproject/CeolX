@@ -868,8 +868,8 @@ describe('bookings.byId', () => {
 // win, falling back to user.image only for social-login accounts without one.
 
 describe('bookings — profile image precedence', () => {
-  const VENUE_UPLOADED = 'https://cdn.ceolx.ie/venue-upload.jpg';
-  const ARTIST_UPLOADED = 'https://cdn.ceolx.ie/artist-upload.jpg';
+  const VENUE_UPLOADED = 'https://cdn.ceolx.com/venue-upload.jpg';
+  const ARTIST_UPLOADED = 'https://cdn.ceolx.com/artist-upload.jpg';
 
   it('byId surfaces the venue profileImageUrl when user.image is null', async () => {
     const booking = {
@@ -1339,7 +1339,7 @@ describe('bookings.inviteExternal', () => {
     expect(call?.to).toBe('john@example.com');
     expect(call?.inviterName).toBe('The Temple Bar');
     expect(call?.eventTitle).toBe('Friday Night Trad Session');
-    expect(call?.inviteUrl).toMatch(/^https:\/\/ceolx\.ie\/invite\/.+/);
+    expect(call?.inviteUrl).toMatch(/^https:\/\/ceolx\.com\/invite\/.+/);
   });
 
   it('still succeeds if the invite email fails to send (R8.5)', async () => {

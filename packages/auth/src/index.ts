@@ -158,7 +158,7 @@ export const auth = betterAuth({
           return {
             apple: async () => ({
               clientId,
-              appBundleIdentifier: env.APPLE_APP_BUNDLE_IDENTIFIER ?? 'ie.ceolx.app',
+              appBundleIdentifier: env.APPLE_APP_BUNDLE_IDENTIFIER ?? 'com.ceolx.app',
               // Same gate as Google: an unknown Apple identity is not auto-signed
               // up. The idToken sign-in path returns OAUTH_LINK_ERROR instead of
               // creating a spectator row (Asana 1215188822147991).

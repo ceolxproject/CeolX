@@ -416,7 +416,7 @@ export const EventDetailScreen: React.FC = () => {
     try {
       await Share.share({
         message: `Check out this event: ${event.title}`,
-        url: `https://ceolx.ie/events/${event.id}`,
+        url: `https://ceolx.com/events/${event.id}`,
         title: event.title,
       });
     } catch (error) {

@@ -298,7 +298,7 @@ The plan should show `Index Scan using events_lat_lng_gist_idx` — not `Seq Sca
 DATABASE_URL=postgresql://user:password@ep-xxxxx.neon.tech/ceolx_db
 
 # apps/native/.env
-REACT_APP_API_BASE_URL=https://api.ceolx.ie
+REACT_APP_API_BASE_URL=https://api.ceolx.com
 ```
 
 ---

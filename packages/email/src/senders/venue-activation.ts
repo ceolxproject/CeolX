@@ -13,7 +13,7 @@ interface VenueActivationParams {
  * `subscription_status = inactive` until the Stripe webhook activates it.
  *
  * The email is the only in-product surface that carries the
- * `ceolx.ie/subscribe` URL — per M7-T3 R4.3, that link never appears in the
+ * `ceolx.com/subscribe` URL — per M7-T3 R4.3, that link never appears in the
  * mobile app UI (Apple Rule 3.1.1 compliance).
  */
 export async function sendVenueActivationEmail({

@@ -18,14 +18,14 @@ describe('VenueActivationEmail', () => {
   const props = {
     userName: 'Aoife',
     venueName: 'The Hut',
-    activationUrl: 'https://ceolx.ie/subscribe?token=abc',
+    activationUrl: 'https://ceolx.com/subscribe?token=abc',
   };
 
   it('renders personalised greeting, venue name, and activation URL', async () => {
     const html = await render(React.createElement(VenueActivationEmail, props));
     expect(html).toContain('Aoife');
     expect(html).toContain('The Hut');
-    expect(html).toContain('https://ceolx.ie/subscribe?token=abc');
+    expect(html).toContain('https://ceolx.com/subscribe?token=abc');
   });
 
   it('references the 5-minute activation window (R4.6)', async () => {
@@ -52,7 +52,7 @@ describe('PaymentConfirmationEmail', () => {
     amount: '€20.00',
     planName: 'CeolX Venue',
     nextBillingDate: '2026-05-22',
-    manageUrl: 'https://ceolx.ie/account',
+    manageUrl: 'https://ceolx.com/account',
     invoiceUrl: 'https://pay.stripe.com/invoice/abc',
   };
 
@@ -61,7 +61,7 @@ describe('PaymentConfirmationEmail', () => {
     expect(html).toContain('€20.00');
     expect(html).toContain('CeolX Venue');
     expect(html).toContain('2026-05-22');
-    expect(html).toContain('https://ceolx.ie/account');
+    expect(html).toContain('https://ceolx.com/account');
   });
 
   it('renders the Stripe invoice link when provided', async () => {
@@ -214,14 +214,14 @@ describe('CollaboratorInviteEmail', () => {
     inviterName: 'The Temple Bar',
     eventTitle: 'Trad Night',
     eventDate: '1 May',
-    inviteUrl: 'https://ceolx.ie/invite/tok-abc',
+    inviteUrl: 'https://ceolx.com/invite/tok-abc',
   };
 
   it('names the inviter, the event, and the join link', async () => {
     const html = await render(React.createElement(CollaboratorInviteEmail, props));
     expect(html).toContain('The Temple Bar');
     expect(html).toContain('Trad Night');
-    expect(html).toContain('https://ceolx.ie/invite/tok-abc');
+    expect(html).toContain('https://ceolx.com/invite/tok-abc');
   });
 
   it('mentions the 14-day expiry (R: link TTL)', async () => {

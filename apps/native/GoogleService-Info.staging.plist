@@ -3,11 +3,11 @@
 <plist version="1.0">
 <dict>
 	<key>CLIENT_ID</key>
-	<string>1057693721951-08nqa00s0ood9pimkpbb5p7njtmm4qal.apps.googleusercontent.com</string>
+	<string>1057693721951-h15tf8t01ftn174qhjpm3qfl7sir0ok9.apps.googleusercontent.com</string>
 	<key>REVERSED_CLIENT_ID</key>
-	<string>com.googleusercontent.apps.1057693721951-08nqa00s0ood9pimkpbb5p7njtmm4qal</string>
+	<string>com.googleusercontent.apps.1057693721951-h15tf8t01ftn174qhjpm3qfl7sir0ok9</string>
 	<key>ANDROID_CLIENT_ID</key>
-	<string>1057693721951-krr0sh25maractb6bbqh2kl5bc3hqpsg.apps.googleusercontent.com</string>
+	<string>1057693721951-4loa00v0gp5hlo364au8jcvq1ggoovb4.apps.googleusercontent.com</string>
 	<key>API_KEY</key>
 	<string>AIzaSyDm0X2bOxOjtTU8h1lH78UVjF-vdq5H1f4</string>
 	<key>GCM_SENDER_ID</key>
@@ -15,7 +15,7 @@
 	<key>PLIST_VERSION</key>
 	<string>1</string>
 	<key>BUNDLE_ID</key>
-	<string>com.raftlabs.ceolx.staging</string>
+	<string>com.ceolx.app.staging</string>
 	<key>PROJECT_ID</key>
 	<string>ceolx-staging</string>
 	<key>STORAGE_BUCKET</key>
@@ -31,6 +31,6 @@
 	<key>IS_SIGNIN_ENABLED</key>
 	<true></true>
 	<key>GOOGLE_APP_ID</key>
-	<string>1:1057693721951:ios:8f78232dc6d3bc964a02ea</string>
+	<string>1:1057693721951:ios:8691b5ea70e9f8ff4a02ea</string>
 </dict>
 </plist>

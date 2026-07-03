@@ -2,7 +2,7 @@ import { Redirect, useLocalSearchParams } from 'expo-router';
 import type { Href } from 'expo-router';
 
 /**
- * Deep-link landing for shared event links (`ceolx.ie/event/<id>` /
+ * Deep-link landing for shared event links (`ceolx.com/event/<id>` /
  * `ceolx://event/<id>`). Events live inside the tab stack, so this thin
  * top-level route immediately forwards to the canonical discover event detail
  * screen — reusing EventDetailScreen with no UI duplication. Mirrors how

@@ -2,7 +2,7 @@
 
 ## What you're testing
 
-The **CeolX (Staging)** app — a separate build from the production CeolX app, pointing at a staging backend (`api-staging.ceolx.ie`) and a staging database. **Use a fresh email address for staging accounts** — staging data is regularly wiped and not synced with production.
+The **CeolX (Staging)** app — a separate build from the production CeolX app, pointing at a staging backend (`api-staging.ceolx.com`) and a staging database. **Use a fresh email address for staging accounts** — staging data is regularly wiped and not synced with production.
 
 ## Prerequisites
 

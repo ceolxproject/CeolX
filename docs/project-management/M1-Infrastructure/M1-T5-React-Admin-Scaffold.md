@@ -11,7 +11,7 @@
 
 ## Description
 
-Bootstrap the admin web app which serves two purposes: the Super Admin dashboard (internal tools for event moderation and user management) and the public Venue subscription page (`ceolx.ie/subscribe`). No business logic yet — just route structure, layout components, and placeholder pages. The subscription page is critical because Venues access it from their Postmark activation email; the dashboard is critical for content moderation before events go live.
+Bootstrap the admin web app which serves two purposes: the Super Admin dashboard (internal tools for event moderation and user management) and the public Venue subscription page (`ceolx.com/subscribe`). No business logic yet — just route structure, layout components, and placeholder pages. The subscription page is critical because Venues access it from their Postmark activation email; the dashboard is critical for content moderation before events go live.
 
 Built as a React SPA with Vite and TanStack Router. No SSR needed for an internal admin dashboard.
 
@@ -436,7 +436,7 @@ function LoginPage() {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="admin@ceolx.ie"
+              placeholder="admin@ceolx.com"
               required
             />
           </div>

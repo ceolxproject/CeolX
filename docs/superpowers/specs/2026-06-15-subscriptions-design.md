@@ -35,7 +35,7 @@ One-way data flow, three decoupled systems sharing only a database column:
 | Publish gating           | **Block publish, allow drafts** (events: draft allowed, `active` blocked; posts: creation blocked — no draft state)                                                    |
 | Web /subscribe auth      | **No login — signed link** (email link carries `role` + `profileId` + HMAC `sig`)                                                                                      |
 | App status refresh       | **Refetch on focus** (React Query refetch on app/screen focus + pull-to-refresh; no sockets)                                                                           |
-| Domain                   | **ceolx.com** (per instruction; code/CLAUDE.md currently say `ceolx.ie` — see §11)                                                                                     |
+| Domain                   | **ceolx.com** (per instruction; code/CLAUDE.md currently say `ceolx.com` — see §11)                                                                                    |
 
 ## 4. Data model changes
 
@@ -182,7 +182,7 @@ Webhook handler is **idempotent** (Stripe retries): upserts keyed by `stripe_sub
 
 ## 11. Open questions / flags
 
-1. **Domain:** spec uses `ceolx.com`; code + CLAUDE.md + deep-link memory use `ceolx.ie` for the admin SPA. Confirm which domain actually serves `apps/admin` in staging/prod, and align the activation/portal URLs + universal-link config accordingly.
+1. **Domain:** spec uses `ceolx.com`; code + CLAUDE.md + deep-link memory use `ceolx.com` for the admin SPA. Confirm which domain actually serves `apps/admin` in staging/prod, and align the activation/portal URLs + universal-link config accordingly.
 2. **`past_due` behavior:** on `invoice.payment_failed`, do we hide the profile immediately, or keep it visible during Stripe's retry/grace window and only hide on final `deleted`? Default assumption: **keep visible during `past_due`, hide on `cancelled`** — confirm.
 3. **Artist `is_active` backfill** for existing dev/staging artist rows (§4.2).
 4. **Plan catalog:** number of venue tiers (Lite/Pro?) and the single artist tier, their Stripe Price IDs / Payment Link URLs, and copy — needed before the `/subscribe` page is final (Open Item #2, client post-launch).

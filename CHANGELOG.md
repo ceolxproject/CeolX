@@ -1,5 +1,40 @@
 # Changelog
 
+<a name="1.0.9"></a>
+
+## 1.0.9 (2026-07-03)
+
+### Changed
+
+- 🔧 chore(native): set google oauth web client id and ios url scheme for development build [dc3e89e]
+- 🔧 chore(stack): ignore root scripts/\*.mjs in eslint (fix lint-staged parse error) [ca67798]
+- 🔧 chore(stack): migrate to ceolx.com domains + com.ceolx.app.staging registration (#167) [f86b26b]
+- 🔧 chore(server): update encrypted development env [2e03441]
+- 🔧 chore(stack): update encrypted staging env for com.ceolx.app.staging oauth [72cc0a6]
+- 🔧 chore(stack): re-register staging firebase + oauth under com.ceolx.app.staging [8147588]
+- ♻️ refactor(stack): migrate share, email, and subscription urls to ceolx.com [7a16519]
+- 🔧 chore(stack): point docs, tests, and comments to ceolx.com domain [0638305]
+
+### Miscellaneous
+
+- 👷 ci(native): add mobile release pipelines + com.ceolx.\* identifiers (#166) [451d4ea]
+
+<a name="1.0.8"></a>
+
+## 1.0.8 (2026-06-30)
+
+### Added
+
+- ✨ feat(api): notify event creator when admin restores a removed event [[0998cff](https://github.com/Raft-Labs/CeolX/commit/0998cffde61cbafa72223f44ee4c53311b642376)]
+
+### Changed
+
+- ♻️ refactor(native): remove dead pin-selection path from map markers [[e86fa3a](https://github.com/Raft-Labs/CeolX/commit/e86fa3a4a1b3e1201d0e5a3a662c91cae18cfe5c)]
+
+### Fixed
+
+- 🐛 fix(native): open event detail directly on map pin tap [[5ef8623](https://github.com/Raft-Labs/CeolX/commit/5ef8623d6ddb5e63300dd3c1664ba52b6d146a7e)]
+
 <a name="1.0.7"></a>
 
 ## 1.0.7 (2026-06-30)

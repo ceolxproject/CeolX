@@ -4,16 +4,16 @@ import { env } from '@CeolX/env/server';
 
 /**
  * Serves the two static ownership files the mobile OSes fetch to verify that
- * this domain is allowed to open the CeolX app via an `https://ceolx.ie/...`
+ * this domain is allowed to open the CeolX app via an `https://ceolx.com/...`
  * link (rather than the browser):
  *
  *   GET /.well-known/apple-app-site-association   → iOS Universal Links
  *   GET /.well-known/assetlinks.json              → Android App Links
  *
- * `ceolx.ie` (the share-link + associated-domain host) is the admin Vite app on
+ * `ceolx.com` (the share-link + associated-domain host) is the admin Vite app on
  * a separate Vercel project; its vercel.json rewrites `/.well-known/*` here so
- * Apple/Google fetch these from ceolx.ie while the values stay env-driven in one
- * place. A rewrite (not a redirect) keeps the URL on ceolx.ie, which Apple
+ * Apple/Google fetch these from ceolx.com while the values stay env-driven in one
+ * place. A rewrite (not a redirect) keeps the URL on ceolx.com, which Apple
  * requires — it refuses an AASA served via a 3xx hop.
  *
  * Both files MUST be valid JSON, 200, no redirect. The matching app-side config
@@ -24,9 +24,9 @@ import { env } from '@CeolX/env/server';
  */
 
 // Bundle id / Android package this deployment vouches for. Prod default;
-// the staging server sets MOBILE_BUNDLE_ID=com.raftlabs.ceolx.staging so its
+// the staging server sets MOBILE_BUNDLE_ID=com.ceolx.app.staging so its
 // files match the staging app build (different bundle + signing keystore).
-const BUNDLE_ID = env.MOBILE_BUNDLE_ID ?? 'ie.ceolx.app';
+const BUNDLE_ID = env.MOBILE_BUNDLE_ID ?? 'com.ceolx.app';
 
 // Public-by-design fallback so App Links work even if the env var is unset on a
 // given deploy. Override per-environment via ANDROID_SHA256_CERT_FINGERPRINT.

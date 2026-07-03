@@ -1149,8 +1149,8 @@ export const bookingsRouter = router({
         });
         // Read process.env directly (not @CeolX/env) so importing this router
         // never triggers t3-env validation in consumers/tests. Mirrors
-        // jobs/client.ts. PUBLIC_WEB_ORIGIN is the ceolx.ie web origin.
-        const origin = process.env.PUBLIC_WEB_ORIGIN ?? 'https://ceolx.ie';
+        // jobs/client.ts. PUBLIC_WEB_ORIGIN is the ceolx.com web origin.
+        const origin = process.env.PUBLIC_WEB_ORIGIN ?? 'https://ceolx.com';
         await sendCollaboratorInviteEmail({
           to: email,
           inviterName: venue?.venueName ?? 'A CeolX venue',

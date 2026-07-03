@@ -48,7 +48,7 @@ describe('publishJob', () => {
   beforeEach(() => {
     vi.stubEnv('QSTASH_TOKEN', 'test-token');
     vi.stubEnv('QSTASH_BASE_URL', 'https://qstash-eu-central-1.upstash.io');
-    vi.stubEnv('BETTER_AUTH_URL', 'https://api.ceolx.ie');
+    vi.stubEnv('BETTER_AUTH_URL', 'https://api.ceolx.com');
   });
 
   afterEach(() => {
@@ -66,7 +66,7 @@ describe('publishJob', () => {
 
     expect(mockPublishJSON).toHaveBeenCalledOnce();
     expect(mockPublishJSON).toHaveBeenCalledWith(
-      expect.objectContaining({ url: 'https://api.ceolx.ie/api/webhooks/qstash' })
+      expect.objectContaining({ url: 'https://api.ceolx.com/api/webhooks/qstash' })
     );
   });
 
@@ -99,7 +99,7 @@ describe('publishCron', () => {
   beforeEach(() => {
     vi.stubEnv('QSTASH_TOKEN', 'test-token');
     vi.stubEnv('QSTASH_BASE_URL', 'https://qstash-eu-central-1.upstash.io');
-    vi.stubEnv('BETTER_AUTH_URL', 'https://api.ceolx.ie');
+    vi.stubEnv('BETTER_AUTH_URL', 'https://api.ceolx.com');
   });
 
   afterEach(() => {
@@ -112,7 +112,7 @@ describe('publishCron', () => {
     await publishCron('notification.batch', '*/5 * * * *');
     expect(mockSchedulesCreate).toHaveBeenCalledWith(
       expect.objectContaining({
-        destination: 'https://api.ceolx.ie/api/webhooks/qstash',
+        destination: 'https://api.ceolx.com/api/webhooks/qstash',
         cron: '*/5 * * * *',
       })
     );
