@@ -38,6 +38,7 @@ import {
   MAP_SEARCH_BAR_GAP,
   MAP_SEARCH_BAR_HEIGHT,
 } from '@/constants/map-layout';
+import { useAuth } from '@/contexts/auth-context';
 import { useLocationOverride } from '@/contexts/location-override-context';
 import { useTabBarVisibility } from '@/contexts/tab-bar-visibility-context';
 import { resolveMapInitialRegion, useGpsRegion } from '@/hooks/use-gps-region';
@@ -84,7 +85,9 @@ export default function MapScreen() {
   // The recenter button sits tighter to the tab bar than the centered overlays —
   // a small gap above the bar so it reads as anchored to the bottom-right corner.
   const recenterButtonBottom = insets.bottom + 12;
-  const { promptState, markSeen } = useLocationPermissionPrompt();
+  const { user } = useAuth();
+  // Per-user keyed — guests pass `undefined` and fall through to the lazy prompt.
+  const { promptState, markSeen } = useLocationPermissionPrompt(user?.id);
   // Shared with the Feed tab — a manual place pick on either screen syncs here.
   const { override, overrideKind, setOverride, clearOverride } = useLocationOverride();
   const venueFallback = useVenueFallback();
