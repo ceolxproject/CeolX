@@ -1,6 +1,8 @@
 import '@/global.css';
 
-import { Inter_500Medium, Inter_600SemiBold } from '@expo-google-fonts/inter';
+import { Anton_400Regular } from '@expo-google-fonts/anton';
+import { Inter_400Regular, Inter_500Medium, Inter_600SemiBold } from '@expo-google-fonts/inter';
+import { JetBrainsMono_700Bold } from '@expo-google-fonts/jetbrains-mono';
 import {
   Urbanist_400Regular,
   Urbanist_500Medium,
@@ -72,8 +74,11 @@ function RootStack() {
 
 function Layout() {
   const [fontsLoaded, fontError] = useFonts({
+    Anton_400Regular,
+    Inter_400Regular,
     Inter_500Medium,
     Inter_600SemiBold,
+    JetBrainsMono_700Bold,
     Urbanist_400Regular,
     Urbanist_500Medium,
     Urbanist_600SemiBold,
