@@ -1,42 +1,30 @@
-import { Defs, LinearGradient, Stop, Svg, Text as SvgText } from 'react-native-svg';
+import { Image } from 'react-native';
+
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const logoSource = require('@/assets/images/ceolx-logo.png') as number;
+
+// Logo asset is 16:9.
+const ASPECT_RATIO = 16 / 9;
 
 interface CeolxLogoProps {
-  fontSize?: number;
-  letterSpacing?: number;
+  /**
+   * Nominal logo size in px. Render height = size × 1.5 (the legacy wordmark
+   * ratio), so call sites keep the scale they had when this was a text wordmark.
+   */
+  size?: number;
 }
 
-/**
- * CEOLX wordmark with the purple-to-white vertical gradient from the design.
- * The SVG width is sized to the text so it can be dropped in wherever a
- * plain <Text>CEOLX</Text> was used before.
- */
-export function CeolxLogo({ fontSize = 22, letterSpacing = 3 }: CeolxLogoProps) {
-  // Hug the "CEOLX" glyphs tightly. The old 5.6 multiplier left ~20px of empty
-  // space on each side of the centre-anchored text, which read as the logo being
-  // indented past the screen's px-5 edge wherever it sits left-aligned (headers).
-  const width = fontSize * 3.5 + letterSpacing * 5;
-  const height = fontSize * 1.5;
-
+/** CeolX icon + wordmark logo. Replaces the old purple→white gradient text. */
+export function CeolxLogo({ size = 22 }: CeolxLogoProps) {
+  // Floor keeps the logo legible in compact headers, where the small sizes
+  // (18–22) would otherwise render an icon + wordmark too small to read.
+  const height = Math.max(size * 1.5, 44);
   return (
-    <Svg width={width} height={height}>
-      <Defs>
-        <LinearGradient id="ceolxGrad" x1="0" y1="0" x2="0" y2="1">
-          <Stop offset="0%" stopColor="#6155F5" />
-          <Stop offset="100%" stopColor="#FFFFFF" />
-        </LinearGradient>
-      </Defs>
-      <SvgText
-        x={width / 2}
-        y={height * 0.82}
-        textAnchor="middle"
-        fontSize={fontSize}
-        fontFamily="Urbanist_900Black"
-        fontWeight="900"
-        fill="url(#ceolxGrad)"
-        letterSpacing={letterSpacing}
-      >
-        CEOLX
-      </SvgText>
-    </Svg>
+    <Image
+      source={logoSource}
+      style={{ height, width: height * ASPECT_RATIO }}
+      resizeMode="contain"
+      accessibilityLabel="CeolX"
+    />
   );
 }

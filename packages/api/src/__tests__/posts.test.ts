@@ -514,10 +514,33 @@ describe('posts.byUser', () => {
 });
 
 describe('posts.feed', () => {
-  it('requires authentication', async () => {
-    await expect(anonCaller().feed({ limit: 20, offset: 0 })).rejects.toMatchObject({
-      code: 'UNAUTHORIZED',
-    });
+  it('is public — a guest (no session) reads the feed with likedByMe=false', async () => {
+    // Guests ("Skip sign-in") have no session. The feed must stay readable for
+    // them (posts are public), skipping the per-viewer liked lookup and
+    // defaulting likedByMe / isFollowedByMe to false. (Asana 1216227543475896)
+    mockSelectChain
+      .mockResolvedValueOnce([
+        {
+          id: 'post-1',
+          createdBy: 'user-2',
+          caption: 'a public post',
+          mediaType: 'text',
+          mediaUrl: null,
+          likeCount: 3,
+          deletedAt: null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      ]) // paginated posts
+      .mockResolvedValueOnce([{ count: 1 }]) // count
+      .mockResolvedValueOnce([{ id: 'user-2', name: 'Stranger', image: null }]) // users
+      .mockResolvedValueOnce([]) // artists
+      .mockResolvedValueOnce([]); // venues — followedRows + likedRows are skipped for a guest
+
+    const result = await anonCaller().feed({ limit: 20, offset: 0 });
+    expect(result.posts).toHaveLength(1);
+    expect(result.posts[0]?.likedByMe).toBe(false);
+    expect(result.posts[0]?.author.isFollowedByMe).toBe(false);
   });
 
   it('returns all non-deleted posts globally', async () => {

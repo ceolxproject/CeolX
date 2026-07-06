@@ -16,24 +16,28 @@ export default function GetStartedScreen() {
 
   return (
     <ImageBackground source={concertBg} style={{ flex: 1 }} resizeMode="cover">
-      {/* Dark overlay matching Figma gradient (transparent top → 71% black bottom) */}
       <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.55)' }}>
         <SafeAreaView style={{ flex: 1 }}>
           <View className="flex-1 px-6">
-            {/* Logo — upper area */}
             <View className="pt-4 mb-[76px]">
-              <CeolxLogo />
+              <CeolxLogo size={40} />
             </View>
 
-            {/* Text block */}
-            <View className="gap-9 pr-5">
-              {/* Heading — Urbanist Bold 36/40 */}
-              <Text className="text-[36px] font-bold text-white leading-10 font-sans">
-                Discover the sound, Share the Culture.
+            <View className="gap-9">
+              {/* Heading — Anton condensed display, multi-color, matching ceolx.com hero */}
+              <Text
+                style={{ fontFamily: 'Anton_400Regular' }}
+                className="text-[44px] uppercase leading-[46px] text-white text-center"
+              >
+                Discover the <Text className="text-green-10">sound</Text>. Share the{' '}
+                <Text className="text-blue-10">culture</Text>.
               </Text>
 
-              {/* Body — Urbanist Regular 16/20 */}
-              <Text className="text-base font-normal text-white leading-5 font-sans">
+              {/* Body — Inter regular, matching site's muted subtitle */}
+              <Text
+                style={{ fontFamily: 'Inter_400Regular' }}
+                className="text-base font-normal text-white/70 leading-5 text-center"
+              >
                 Experience, perform, and host. Your connection to the live music starts here.
               </Text>
             </View>
@@ -41,12 +45,15 @@ export default function GetStartedScreen() {
             {/* Spacer pushes button to bottom */}
             <View className="flex-1" />
 
-            {/* CTA — Urbanist Bold 17/20 */}
+            {/* CTA — green primary pill, matching site's "Download the app" button */}
             <Pressable
               onPress={handleGetStarted}
-              className="bg-blue-10 rounded-full py-4 px-8 items-center justify-center mb-6"
+              className="bg-green-10 rounded-full py-4 px-8 items-center justify-center mb-6"
             >
-              <Text className="text-white text-[17px] font-bold leading-5 font-sans">
+              <Text
+                style={{ fontFamily: 'JetBrainsMono_700Bold' }}
+                className="text-surface-dark text-[17px] uppercase leading-5 tracking-widest"
+              >
                 GET STARTED
               </Text>
             </Pressable>

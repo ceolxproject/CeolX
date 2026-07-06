@@ -114,7 +114,7 @@ export function Sidebar() {
           mobileOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
-        <div className="relative flex flex-col px-7 pt-6 pb-4">
+        <div className="relative flex flex-col px-7 pt-4 pb-4">
           <button
             onClick={() => setMobileOpen(false)}
             aria-label="Close navigation"
@@ -122,7 +122,7 @@ export function Sidebar() {
           >
             <X size={20} />
           </button>
-          <CeolxLogo fontSize={26} />
+          <CeolxLogo size={64} className="self-center" />
           <p className="text-[10px] font-medium uppercase tracking-[0.15em] text-sidebar-foreground/70 mt-3">
             Admin Dashboard
           </p>
@@ -133,8 +133,8 @@ export function Sidebar() {
 
       {/* Desktop sidebar */}
       <aside className="hidden md:flex flex-col w-60 h-screen bg-sidebar text-sidebar-foreground border-r border-sidebar-border shrink-0">
-        <div className="flex flex-col px-7 pt-8 pb-6">
-          <CeolxLogo fontSize={28} />
+        <div className="flex flex-col px-7 pt-5 pb-6">
+          <CeolxLogo size={72} className="self-center" />
           <p className="text-[10px] font-medium uppercase tracking-[0.15em] text-sidebar-foreground/70 mt-3">
             Admin Dashboard
           </p>

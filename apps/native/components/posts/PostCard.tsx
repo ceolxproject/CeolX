@@ -18,9 +18,9 @@ import { PostImage } from './PostImage';
 import { PostVideo } from './PostVideo';
 
 import { useDeletePost } from '@/hooks/use-delete-post';
+import { useLikeHandler } from '@/hooks/use-like-handler';
 import { useProfileFollowHandler } from '@/hooks/use-profile-follow-handler';
 import { useSharePost } from '@/hooks/use-share-post';
-import { useTogglePostLike } from '@/hooks/use-toggle-post-like';
 import { splitCaptionLinks } from '@/utils/linkify';
 import { MOCK_PROFILE_IMAGE } from '@/utils/mock-images';
 
@@ -179,13 +179,9 @@ export function PostCard({
   const liked = post.likedByMe;
   const likeCount = post.likeCount ?? 0;
 
-  const toggleLike = useTogglePostLike();
+  const { onLikePress, isPending: likePending } = useLikeHandler(post.id);
   const deletePost = useDeletePost();
   const sharePost = useSharePost();
-
-  const onLikePress = () => {
-    toggleLike.mutate({ postId: post.id });
-  };
 
   const onSharePress = () => {
     void sharePost(post.id, post.caption);
@@ -268,7 +264,7 @@ export function PostCard({
       {/* Like count sits directly beneath the heart so it stays tied to the action
           that drives it (the share icon top-aligns alongside, no count of its own). */}
       <View className="items-center">
-        <LikeButton liked={liked} pending={toggleLike.isPending} onPress={onLikePress} />
+        <LikeButton liked={liked} pending={likePending} onPress={onLikePress} />
         {likeCount > 0 && (
           <Text
             className="mt-0.5 text-xs text-white/60 font-urbanist"

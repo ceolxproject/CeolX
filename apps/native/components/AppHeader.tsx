@@ -227,7 +227,7 @@ export function AppHeader(props: AppHeaderProps) {
   if (leadingNode) {
     leadingEl = leadingNode;
   } else if (leading === 'logo') {
-    leadingEl = <CeolxLogo fontSize={logoFontSize} letterSpacing={2} />;
+    leadingEl = <CeolxLogo size={logoFontSize} />;
   } else if (leading === 'back') {
     leadingEl = (
       <Pressable
