@@ -68,7 +68,7 @@ function LoginPage() {
   return (
     <div className="min-h-screen w-full flex flex-col bg-surface-dark text-white">
       <header className="flex items-center justify-between px-6 py-5">
-        <CeolxLogo fontSize={22} />
+        <CeolxLogo size={64} />
         <span className="text-xs tracking-widest uppercase text-white/50">Admin</span>
       </header>
 

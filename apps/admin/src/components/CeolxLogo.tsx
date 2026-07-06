@@ -1,35 +1,21 @@
+import logoSource from '@/assets/images/ceolx-logo.png';
+
 interface CeolxLogoProps {
-  fontSize?: number;
-  letterSpacing?: number;
+  size?: number;
   className?: string;
 }
 
-/**
- * CEOLX wordmark with the brand purple-to-white vertical gradient. Web
- * counterpart of apps/native/components/CeolxLogo.tsx — uses HTML + CSS
- * background-clip instead of SVG <text> so the wordmark stays crisp at any
- * size and survives missing-font fallbacks.
- */
-export function CeolxLogo({ fontSize = 28, letterSpacing = 3, className }: CeolxLogoProps) {
+// Logo asset is 16:9.
+const ASPECT_RATIO = 16 / 9;
+
+/** CeolX icon + wordmark logo. Web counterpart of apps/native/components/CeolxLogo.tsx. */
+export function CeolxLogo({ size = 22, className }: CeolxLogoProps) {
   return (
-    <span
-      role="img"
-      aria-label="CeolX"
+    <img
+      src={logoSource}
+      alt="CeolX"
       className={className}
-      style={{
-        display: 'inline-block',
-        fontFamily: "'Urbanist', system-ui, sans-serif",
-        fontWeight: 900,
-        fontSize,
-        lineHeight: 1,
-        letterSpacing: `${letterSpacing}px`,
-        backgroundImage: 'linear-gradient(to bottom, #6155F5 0%, #FFFFFF 100%)',
-        WebkitBackgroundClip: 'text',
-        backgroundClip: 'text',
-        color: 'transparent',
-      }}
-    >
-      CEOLX
-    </span>
+      style={{ height: size, width: size * ASPECT_RATIO }}
+    />
   );
 }
