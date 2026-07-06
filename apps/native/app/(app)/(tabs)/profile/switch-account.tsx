@@ -18,7 +18,7 @@ const ROLES = [
   },
   {
     key: 'venue',
-    label: 'Venue / Business / Festival',
+    label: 'Business/Festival',
     description: 'List gigs and recruit artists (subscription required)',
   },
 ] as const;

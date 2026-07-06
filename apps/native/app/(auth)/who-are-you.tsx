@@ -38,7 +38,7 @@ const PERSONAS: Persona[] = [
   {
     role: 'venue',
     icon: <VenueIcon />,
-    title: 'Venue / Business / Festival',
+    title: 'Business/Festival',
     description: 'Host events, connect with musicians, track analytics.',
   },
 ];
