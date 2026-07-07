@@ -4,9 +4,11 @@ import {
   AUDIO_MIME_TYPES,
   IMAGE_MIME_TYPES,
   MAX_BYTES_BY_TYPE,
+  MAX_VIDEO_BYTES,
   UPLOAD_TYPES,
   createMuxUploadSchema,
   deleteMuxAssetSchema,
+  mediaTooLargeMessage,
   muxUploadStatusSchema,
   presignDeleteSchema,
   presignUploadSchema,
@@ -27,6 +29,26 @@ describe('MAX_BYTES_BY_TYPE', () => {
     expect(MAX_BYTES_BY_TYPE.post_image).toBe(10 * 1024 * 1024);
     expect(MAX_BYTES_BY_TYPE.event_cover).toBe(10 * 1024 * 1024);
     expect(MAX_BYTES_BY_TYPE.post_audio).toBe(50 * 1024 * 1024);
+  });
+});
+
+describe('MAX_VIDEO_BYTES', () => {
+  it('caps post videos at 100MB (matches the picker copy)', () => {
+    expect(MAX_VIDEO_BYTES).toBe(100 * 1024 * 1024);
+  });
+});
+
+describe('mediaTooLargeMessage', () => {
+  it('produces a friendly, actionable message for video', () => {
+    expect(mediaTooLargeMessage('video', MAX_VIDEO_BYTES)).toBe(
+      'This video is too large. Please choose a video under 100MB.'
+    );
+  });
+
+  it('produces a friendly, actionable message for image', () => {
+    expect(mediaTooLargeMessage('image', MAX_BYTES_BY_TYPE.post_image)).toBe(
+      'This image is too large. Please choose an image under 10MB.'
+    );
   });
 });
 

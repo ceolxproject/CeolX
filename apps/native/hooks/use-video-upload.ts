@@ -1,5 +1,8 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import * as FileSystem from 'expo-file-system/legacy';
 import { useCallback, useState } from 'react';
+
+import { MAX_VIDEO_BYTES, mediaTooLargeMessage } from '@CeolX/shared/validators';
 
 import { trpc } from '@/utils/trpc';
 import { toProgressFraction } from '@/utils/upload-progress';
@@ -9,9 +12,24 @@ type VideoAsset = {
   fileSize?: number | null;
 };
 
-const MUX_VIDEO_MAX_BYTES = 500 * 1024 * 1024;
 const POLL_INTERVAL_MS = 2000;
 const POLL_TIMEOUT_MS = 5 * 60 * 1000;
+
+/**
+ * Upload-time size guard, extracted as a pure function so it's unit-testable
+ * and shared with the pick-time guard in MediaPickerField. Throws the same
+ * friendly copy the picker shows — the cap lives in @CeolX/shared so the UI
+ * text, this guard, and the picker never drift apart (the drift is exactly
+ * what surfaced a cryptic "Network request failed" — Asana 1216260009179370).
+ * A missing fileSize (the picker occasionally omits it) skips the check; the
+ * streaming upload below no longer buffers the file into memory, so an
+ * unmeasured oversized video can't OOM the JS thread either way.
+ */
+export function assertVideoWithinLimit(fileSize?: number | null): void {
+  if (fileSize && fileSize > MAX_VIDEO_BYTES) {
+    throw new Error(mediaTooLargeMessage('video', MAX_VIDEO_BYTES));
+  }
+}
 
 export type MuxUploadResult = {
   uploadId: string;
@@ -21,24 +39,40 @@ export type MuxUploadResult = {
 };
 
 /**
- * POST a video file to a Mux Direct Upload endpoint with progress reporting.
- * Mux accepts a single multipart-or-binary PUT against the upload URL —
- * the SDK explicitly documents PUT with the file body.
+ * PUT a video file to a Mux Direct Upload endpoint with progress reporting.
+ *
+ * Streams the file straight from disk via expo-file-system's upload task
+ * (BINARY_CONTENT) rather than `fetch(uri).blob()` + XHR. The old blob path
+ * loaded the entire video into JS memory, which reliably failed on Android
+ * for large files with a bare "Network request failed" — the root cause of
+ * the post-with-video publish failures (Asana 1216260009179370). Mux accepts
+ * a single binary PUT against the upload URL.
  */
-function putToMux(url: string, blob: Blob, onProgress?: (fraction: number) => void): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const xhr = new XMLHttpRequest();
-    xhr.open('PUT', url);
-    xhr.upload.onprogress = (e) => {
-      if (e.lengthComputable && onProgress) onProgress(toProgressFraction(e.loaded, e.total));
-    };
-    xhr.onload = () =>
-      xhr.status >= 200 && xhr.status < 300
-        ? resolve()
-        : reject(new Error(`Mux upload failed (${xhr.status})`));
-    xhr.onerror = () => reject(new Error('Network error during Mux upload'));
-    xhr.send(blob);
-  });
+async function putToMux(
+  url: string,
+  fileUri: string,
+  onProgress?: (fraction: number) => void
+): Promise<void> {
+  const task = FileSystem.createUploadTask(
+    url,
+    fileUri,
+    {
+      httpMethod: 'PUT',
+      uploadType: FileSystem.FileSystemUploadType.BINARY_CONTENT,
+    },
+    (data) => {
+      if (onProgress && data.totalBytesExpectedToSend > 0) {
+        onProgress(toProgressFraction(data.totalBytesSent, data.totalBytesExpectedToSend));
+      }
+    }
+  );
+
+  const result = await task.uploadAsync();
+  // uploadAsync resolves undefined only if the task was cancelled; treat that
+  // and any non-2xx the same way the XHR path did — as a failed upload.
+  if (!result || result.status < 200 || result.status >= 300) {
+    throw new Error(`Mux upload failed (${result?.status ?? 'no response'})`);
+  }
 }
 
 /**
@@ -101,17 +135,13 @@ export function useVideoUpload() {
 
   const uploadVideo = useCallback(
     async (asset: VideoAsset): Promise<MuxUploadResult> => {
-      if (asset.fileSize && asset.fileSize > MUX_VIDEO_MAX_BYTES) {
-        throw new Error(`Video exceeds the ${MUX_VIDEO_MAX_BYTES / 1024 / 1024}MB limit`);
-      }
+      assertVideoWithinLimit(asset.fileSize);
       setIsUploading(true);
       setProgress(0);
       try {
         const { uploadUrl, uploadId } = await createUpload.mutateAsync({});
 
-        const response = await fetch(asset.uri);
-        const blob = await response.blob();
-        await putToMux(uploadUrl, blob, setProgress);
+        await putToMux(uploadUrl, asset.uri, setProgress);
 
         const result = await pollMuxStatus({
           uploadId,
