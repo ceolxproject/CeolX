@@ -1,18 +1,12 @@
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { UserRole } from '@CeolX/shared/enums';
-
 import { AppHeader } from '@/components/AppHeader';
 import { SavedEventsContent } from '@/components/saved-events/SavedEventsContent';
-import { authClient } from '@/lib/auth-client';
 
 export default function BookingsTabScreen() {
-  const { data: session } = authClient.useSession();
-  const currentRole = session?.user?.currentRole ?? 'spectator';
-
-  // Spectators call this tab "Bookings"; artist/venue call it "My Events".
-  // Both now show the user's saved/bookmarked events.
-  const title = currentRole === UserRole.SPECTATOR ? 'Bookings' : 'My Events';
+  // This tab shows the user's saved/bookmarked events for every role, so it is
+  // labelled "My Events" across the board (Asana 1216289752400014).
+  const title = 'My Events';
 
   return (
     <SafeAreaView
