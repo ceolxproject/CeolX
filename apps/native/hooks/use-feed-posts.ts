@@ -14,6 +14,7 @@ type HydratedPost = {
   caption: string;
   mediaType: string;
   mediaUrl: string | null;
+  eventId: string | null;
   likeCount: number | null;
   createdAt: string | Date;
   author: {

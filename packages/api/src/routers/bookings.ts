@@ -39,6 +39,7 @@ import {
   venueProcedure,
 } from '../index';
 import { syncEventToTypesense } from '../services/event-sync';
+import { syncPromoPost } from '../services/promo-post';
 
 import { resolveProfileImageUrl } from './events/helpers';
 
@@ -548,6 +549,14 @@ export const bookingsRouter = router({
         .update(events)
         .set({ status: EventStatus.ACTIVE, updatedAt: new Date() })
         .where(eq(events.id, booking.eventId));
+
+      // The event just went live → reveal its promo post (best-effort).
+      await syncPromoPost(db, booking.eventId, { hidden: false }).catch((err: unknown) => {
+        console.warn(
+          `[bookings.update] failed to reveal promo post for event ${booking.eventId}:`,
+          err
+        );
+      });
 
       await syncEventToTypesense({ ...booking.event, status: EventStatus.ACTIVE }).catch(
         (err: unknown) => {

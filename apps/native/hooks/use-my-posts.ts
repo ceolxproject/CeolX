@@ -13,6 +13,10 @@ type HydratedPost = {
   caption: string;
   mediaType: string;
   mediaUrl: string | null;
+  eventId: string | null;
+  // True when this is a promo whose event has already ended. The server only
+  // sets it for the profile owner's own view, so the "Ended" badge is owner-only.
+  eventEnded: boolean;
   likeCount: number | null;
   createdAt: string | Date;
   author: {

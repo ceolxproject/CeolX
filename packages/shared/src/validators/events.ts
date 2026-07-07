@@ -56,7 +56,12 @@ const eventBaseShape = {
 } as const;
 
 export const createEventSchema = z
-  .object(eventBaseShape)
+  .object({
+    ...eventBaseShape,
+    // Opt-in (default on): also publish a promo post to the social feed. Create-only
+    // — deliberately not in eventBaseShape so it never leaks into updateEventSchema.
+    shareToFeed: z.boolean().default(true),
+  })
   // Map and feed are coordinate-driven (Typesense geopoint), so every event
   // needs a real pin. Either the client supplies valid lat/lng directly, or it
   // picks a registered venue (venueId) whose stored coordinates the server

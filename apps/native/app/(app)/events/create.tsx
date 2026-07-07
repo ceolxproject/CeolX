@@ -135,6 +135,8 @@ export default function CreateEventScreen() {
             onAdTitleChange={form.setAdTitle}
             adDescription={form.adDescription}
             onAdDescriptionChange={form.setAdDescription}
+            shareToFeed={form.shareToFeed}
+            onShareToFeedChange={form.setShareToFeed}
             errors={form.errors}
             onSubmit={form.handleSubmit}
             onBack={form.goBack}
