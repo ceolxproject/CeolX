@@ -1113,6 +1113,18 @@ describe('bookings.resend', () => {
     await expectTRPCError(caller.bookings.resend({ id: BOOKING_ID }), 'BAD_REQUEST');
   });
 
+  it('throws BAD_REQUEST when resending an invite for a past event', async () => {
+    // Resending is pointless once the event has happened — the recipient can no
+    // longer accept it. (Asana 1216289483780968)
+    const caller = createCaller(authedContext('venue', VENUE_USER_ID));
+    mockBookingsFindFirst.mockResolvedValueOnce({
+      ...mockBooking,
+      event: { ...mockEvent, dateStart: new Date('2026-03-01T20:00:00Z') },
+    });
+    await expectTRPCError(caller.bookings.resend({ id: BOOKING_ID }), 'BAD_REQUEST');
+    expect(mockDispatchNotification).not.toHaveBeenCalled();
+  });
+
   it('forbids the recipient (non-sender) from resending', async () => {
     const caller = createCaller(authedContext('artist', ARTIST_USER_ID));
     mockBookingsFindFirst.mockResolvedValueOnce(mockBooking);
@@ -1243,6 +1255,25 @@ describe('bookings.requestToPerform', () => {
     mockEventsFindFirst.mockResolvedValueOnce(null);
 
     await expectTRPCError(caller.bookings.requestToPerform({ eventId: EVENT_ID }), 'NOT_FOUND');
+  });
+
+  it('throws BAD_REQUEST when requesting to perform at a past event', async () => {
+    // The event already happened — an artist can't apply to perform at it.
+    // Venue + dedup are mocked as valid so the ONLY thing that can stop the
+    // request is the past-event guard (otherwise it would proceed to insert).
+    // (Asana 1216289483780968)
+    const caller = createCaller(authedContext('artist', ARTIST_USER_ID));
+    mockArtistsFindFirst.mockResolvedValueOnce(mockArtistProfile);
+    mockEventsFindFirst.mockResolvedValueOnce({
+      ...mockEvent,
+      dateStart: new Date('2026-03-01T20:00:00Z'),
+    });
+    mockVenuesFindFirst.mockResolvedValueOnce(mockVenueProfile);
+    mockBookingsFindFirst.mockResolvedValueOnce(null); // no dedup match
+    mockCollabsFindFirst.mockResolvedValueOnce(null); // not already a collaborator
+
+    await expectTRPCError(caller.bookings.requestToPerform({ eventId: EVENT_ID }), 'BAD_REQUEST');
+    expect(mockInsertReturning).not.toHaveBeenCalled();
   });
 
   it('throws BAD_REQUEST when event has no resolvable venue', async () => {

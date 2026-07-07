@@ -300,6 +300,16 @@ export const bookingsRouter = router({
         });
       }
 
+      // 2c. Block applying to perform at an event that has already happened. Past
+      // events keep status='active', so the guard above doesn't catch them.
+      // (Asana 1216289483780968)
+      if (isEventPast(event.dateStart.toISOString())) {
+        throw new TRPCError({
+          code: 'BAD_REQUEST',
+          message: 'This event has already taken place',
+        });
+      }
+
       // 3. Resolve venue — prefer event.venueId, fallback to creator's venue profile
       let venueProfile = event.venueId
         ? await db.query.venueProfiles.findFirst({
@@ -672,6 +682,16 @@ export const bookingsRouter = router({
         throw new TRPCError({
           code: 'BAD_REQUEST',
           message: 'Only a pending request can be resent',
+        });
+      }
+
+      // Resending is pointless once the event has happened — the recipient can no
+      // longer accept it (bookings.update blocks a past-event accept). Past events
+      // keep status='active', so bail explicitly on the date. (Asana 1216289483780968)
+      if (booking.event && isEventPast(booking.event.dateStart.toISOString())) {
+        throw new TRPCError({
+          code: 'BAD_REQUEST',
+          message: 'This event has already taken place',
         });
       }
 
