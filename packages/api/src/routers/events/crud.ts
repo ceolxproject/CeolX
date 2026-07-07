@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 
 import { TRPCError } from '@trpc/server';
-import { and, countDistinct, desc, eq, gt, inArray, isNull, ne, or, sql } from 'drizzle-orm';
+import { and, countDistinct, desc, eq, gt, gte, inArray, isNull, ne, or, sql } from 'drizzle-orm';
 import { unionAll } from 'drizzle-orm/pg-core';
 import { z } from 'zod';
 
@@ -391,12 +391,18 @@ export const byId = publicProcedure
           })
         : Promise.resolve(null),
 
-      // related events from same collection (up to 5)
+      // related events from same collection (up to 5) — upcoming only.
+      // A past event stays status='active' (only creator-delete flips it to
+      // archived), so a status filter alone leaks elapsed events into the
+      // "Explore the collection" preview. Mirror collections.byId's
+      // isUpcomingEvent (dateStart >= now) so this preview and the "see all"
+      // list show the same events. (Asana 1216297161493463)
       event.collectionId
         ? db.query.events.findMany({
             where: and(
               eq(events.collectionId, event.collectionId),
               eq(events.status, EventStatus.ACTIVE),
+              gte(events.dateStart, sql`now()`),
               ne(events.id, input.id)
             ),
             columns: {
