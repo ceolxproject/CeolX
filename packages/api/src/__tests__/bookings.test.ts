@@ -1,5 +1,5 @@
 import { TRPCError } from '@trpc/server';
-import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { afterEach, describe, expect, it, vi, beforeEach } from 'vitest';
 
 import { sendCollaboratorInviteEmail } from '@CeolX/email';
 import { NotificationTrigger } from '@CeolX/shared';
@@ -290,6 +290,13 @@ const mockA2ABooking = {
 };
 
 beforeEach(() => {
+  // Pin the clock (Date only — leave setTimeout real so awaited promises don't
+  // hang) to just before mockEvent.dateStart (2026-05-01) so the default fixture
+  // event is deterministically *upcoming*. Without this the fixture reads as a
+  // past event on the real wall-clock, which would trip the new "can't accept a
+  // past event" guard and flap every existing accept test. (Asana 1216289752400014)
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(new Date('2026-04-20T00:00:00Z'));
   mockVenuesFindFirst.mockReset();
   mockArtistsFindFirst.mockReset();
   mockBookingsFindFirst.mockReset();
@@ -309,6 +316,10 @@ beforeEach(() => {
     .mockReset()
     .mockImplementation((cb: (tx: unknown) => Promise<unknown>) => cb(mockDb));
   mockDispatchNotification.mockReset().mockResolvedValue(undefined);
+});
+
+afterEach(() => {
+  vi.useRealTimers();
 });
 
 // ─── bookings.create ─────────────────────────────────────────────────────────
@@ -443,6 +454,35 @@ describe('bookings.update', () => {
 
     const result = await caller.bookings.update({ id: BOOKING_ID, status: 'accepted' });
     expect(result.status).toBe('accepted');
+  });
+
+  it('throws BAD_REQUEST when accepting an invitation for a past event', async () => {
+    // Event date is before the pinned "now" (2026-04-20) → already happened.
+    // Past events keep status='active', so the deleted/removed guard misses them;
+    // this is the dedicated past-event backstop. (Asana 1216289752400014)
+    const caller = createCaller(authedContext('artist', ARTIST_USER_ID));
+    mockBookingsFindFirst.mockResolvedValueOnce({
+      ...mockBooking,
+      event: { ...mockEvent, dateStart: new Date('2026-03-01T20:00:00Z') },
+    });
+
+    await expectTRPCError(
+      caller.bookings.update({ id: BOOKING_ID, status: 'accepted' }),
+      'BAD_REQUEST'
+    );
+    expect(mockUpdateReturning).not.toHaveBeenCalled();
+  });
+
+  it('still allows rejecting a past-event invitation so stale rows can be cleared', async () => {
+    const caller = createCaller(authedContext('artist', ARTIST_USER_ID));
+    mockBookingsFindFirst.mockResolvedValueOnce({
+      ...mockBooking,
+      event: { ...mockEvent, dateStart: new Date('2026-03-01T20:00:00Z') },
+    });
+    mockUpdateReturning.mockResolvedValueOnce([{ ...mockBooking, status: 'rejected' }]);
+
+    const result = await caller.bookings.update({ id: BOOKING_ID, status: 'rejected' });
+    expect(result.status).toBe('rejected');
   });
 
   it('allows artist to reject and removes collaborator', async () => {

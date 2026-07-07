@@ -15,6 +15,7 @@ import {
   type BookingStatus as BookingStatusType,
   EventStatus,
   formatNotificationDate,
+  isEventPast,
   isEventUnavailableForCollaboration,
   NotificationTrigger,
   RESEND_COOLDOWN_MS,
@@ -513,6 +514,24 @@ export const bookingsRouter = router({
       throw new TRPCError({
         code: 'FORBIDDEN',
         message: 'Only the sender can withdraw a pending booking',
+      });
+    }
+
+    // 3c. Block *accepting* an invitation for an event that has already taken
+    // place. Past events keep status='active' (only creator-deletion and admin
+    // removal set archived/removed), so the unavailable guard at 2b never fires
+    // for them — without this an artist/venue could confirm a booking for a gig
+    // that already happened (Asana 1216289752400014). Reject/withdraw/cancel stay
+    // allowed so a stale pending row can still be cleared. The UI disables Accept
+    // for past events too; this is the server-side backstop.
+    if (
+      newStatus === BookingStatus.ACCEPTED &&
+      booking.event &&
+      isEventPast(booking.event.dateStart.toISOString())
+    ) {
+      throw new TRPCError({
+        code: 'BAD_REQUEST',
+        message: 'This event has already taken place',
       });
     }
 

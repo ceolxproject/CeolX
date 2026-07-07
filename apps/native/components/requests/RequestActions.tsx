@@ -2,6 +2,7 @@ import { cn } from 'heroui-native';
 import { ActivityIndicator, Alert, Pressable, Text, View } from 'react-native';
 
 import {
+  isEventPast,
   isEventUnavailableForCollaboration,
   RESEND_COOLDOWN_MS,
   type BookingSummary,
@@ -136,43 +137,61 @@ export function RequestActions({
     );
   }
 
-  // Recipient → can ACCEPT or REJECT.
+  // Recipient → can ACCEPT or REJECT. A past event can no longer be accepted —
+  // it already happened, so disable ACCEPT and explain why. REJECT stays enabled
+  // so the recipient can still clear the stale invite. The server rejects an
+  // accept on a past event too; this just avoids a guaranteed-to-fail tap.
+  // (Asana 1216289752400014)
+  const isPastEvent = isEventPast(booking.eventDateStart);
+  const acceptDisabled = isBusy || isPastEvent;
+
   return (
-    <View className="flex-row gap-3 mt-3">
-      <Pressable
-        onPress={onAccept}
-        disabled={isBusy}
-        className={cn(
-          'flex-1 items-center py-2.5 rounded-full bg-[#662FFF] active:opacity-70',
-          isBusy && 'opacity-50'
-        )}
-        accessibilityRole="button"
-        accessibilityState={{ disabled: isBusy, busy: pendingAction === 'accept' }}
-        accessibilityLabel="Accept request"
-      >
-        {pendingAction === 'accept' ? (
-          <ActivityIndicator size="small" color="#FFFFFF" />
-        ) : (
-          <Text className="text-sm font-bold text-white font-urbanist tracking-wider">ACCEPT</Text>
-        )}
-      </Pressable>
-      <Pressable
-        onPress={onReject}
-        disabled={isBusy}
-        className={cn(
-          'flex-1 items-center py-2.5 rounded-full border border-[#8D8D8D] active:opacity-70',
-          isBusy && 'opacity-50'
-        )}
-        accessibilityRole="button"
-        accessibilityState={{ disabled: isBusy, busy: pendingAction === 'reject' }}
-        accessibilityLabel="Reject request"
-      >
-        {pendingAction === 'reject' ? (
-          <ActivityIndicator size="small" color="#FFFFFF" />
-        ) : (
-          <Text className="text-sm font-bold text-white font-urbanist tracking-wider">REJECT</Text>
-        )}
-      </Pressable>
+    <View className="mt-3">
+      <View className="flex-row gap-3">
+        <Pressable
+          onPress={onAccept}
+          disabled={acceptDisabled}
+          className={cn(
+            'flex-1 items-center py-2.5 rounded-full bg-[#662FFF] active:opacity-70',
+            acceptDisabled && 'opacity-50'
+          )}
+          accessibilityRole="button"
+          accessibilityState={{ disabled: acceptDisabled, busy: pendingAction === 'accept' }}
+          accessibilityLabel="Accept request"
+        >
+          {pendingAction === 'accept' ? (
+            <ActivityIndicator size="small" color="#FFFFFF" />
+          ) : (
+            <Text className="text-sm font-bold text-white font-urbanist tracking-wider">
+              ACCEPT
+            </Text>
+          )}
+        </Pressable>
+        <Pressable
+          onPress={onReject}
+          disabled={isBusy}
+          className={cn(
+            'flex-1 items-center py-2.5 rounded-full border border-[#8D8D8D] active:opacity-70',
+            isBusy && 'opacity-50'
+          )}
+          accessibilityRole="button"
+          accessibilityState={{ disabled: isBusy, busy: pendingAction === 'reject' }}
+          accessibilityLabel="Reject request"
+        >
+          {pendingAction === 'reject' ? (
+            <ActivityIndicator size="small" color="#FFFFFF" />
+          ) : (
+            <Text className="text-sm font-bold text-white font-urbanist tracking-wider">
+              REJECT
+            </Text>
+          )}
+        </Pressable>
+      </View>
+      {isPastEvent && (
+        <Text className="text-xs text-white/50 font-urbanist mt-2 text-center">
+          This event has already taken place — it can no longer be accepted.
+        </Text>
+      )}
     </View>
   );
 }
