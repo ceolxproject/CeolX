@@ -183,6 +183,13 @@
       "when": 1782740425797,
       "tag": "20260629134025_fast_shotgun",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1783330548013,
+      "tag": "20260706093548_violet_imperial_guard",
+      "breakpoints": true
     }
   ]
 }

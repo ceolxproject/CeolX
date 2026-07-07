@@ -3,7 +3,7 @@ import { useMemo, useRef, useState } from 'react';
 import { FlatList, Linking, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { distanceBetween } from '@CeolX/shared';
+import { distanceBetween, isEventPast } from '@CeolX/shared';
 import { EventStatus, UserRole } from '@CeolX/shared/enums';
 
 import { CollectionEventCard } from './CollectionEventCard';
@@ -344,6 +344,7 @@ export function EventDetailView({
           isCollaborator={isCollaborator}
           isRequesting={isRequesting}
           hasExistingRequest={event.viewerHasPendingRequest}
+          isPastEvent={isEventPast(event.dateStart)}
           onRequestToPerform={handleRequestToPerform}
         />
       )}

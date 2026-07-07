@@ -15,6 +15,7 @@ import {
   type BookingStatus as BookingStatusType,
   EventStatus,
   formatNotificationDate,
+  isEventPast,
   isEventUnavailableForCollaboration,
   NotificationTrigger,
   RESEND_COOLDOWN_MS,
@@ -39,6 +40,7 @@ import {
   venueProcedure,
 } from '../index';
 import { syncEventToTypesense } from '../services/event-sync';
+import { syncPromoPost } from '../services/promo-post';
 
 import { resolveProfileImageUrl } from './events/helpers';
 
@@ -298,6 +300,16 @@ export const bookingsRouter = router({
         });
       }
 
+      // 2c. Block applying to perform at an event that has already happened. Past
+      // events keep status='active', so the guard above doesn't catch them.
+      // (Asana 1216289483780968)
+      if (isEventPast(event.dateStart.toISOString())) {
+        throw new TRPCError({
+          code: 'BAD_REQUEST',
+          message: 'This event has already taken place',
+        });
+      }
+
       // 3. Resolve venue — prefer event.venueId, fallback to creator's venue profile
       let venueProfile = event.venueId
         ? await db.query.venueProfiles.findFirst({
@@ -515,6 +527,24 @@ export const bookingsRouter = router({
       });
     }
 
+    // 3c. Block *accepting* an invitation for an event that has already taken
+    // place. Past events keep status='active' (only creator-deletion and admin
+    // removal set archived/removed), so the unavailable guard at 2b never fires
+    // for them — without this an artist/venue could confirm a booking for a gig
+    // that already happened (Asana 1216289752400014). Reject/withdraw/cancel stay
+    // allowed so a stale pending row can still be cleared. The UI disables Accept
+    // for past events too; this is the server-side backstop.
+    if (
+      newStatus === BookingStatus.ACCEPTED &&
+      booking.event &&
+      isEventPast(booking.event.dateStart.toISOString())
+    ) {
+      throw new TRPCError({
+        code: 'BAD_REQUEST',
+        message: 'This event has already taken place',
+      });
+    }
+
     // 4. Update status (track who cancelled if cancelling)
     const [updated] = await db
       .update(bookings)
@@ -548,6 +578,14 @@ export const bookingsRouter = router({
         .update(events)
         .set({ status: EventStatus.ACTIVE, updatedAt: new Date() })
         .where(eq(events.id, booking.eventId));
+
+      // The event just went live → reveal its promo post (best-effort).
+      await syncPromoPost(db, booking.eventId, { hidden: false }).catch((err: unknown) => {
+        console.warn(
+          `[bookings.update] failed to reveal promo post for event ${booking.eventId}:`,
+          err
+        );
+      });
 
       await syncEventToTypesense({ ...booking.event, status: EventStatus.ACTIVE }).catch(
         (err: unknown) => {
@@ -644,6 +682,16 @@ export const bookingsRouter = router({
         throw new TRPCError({
           code: 'BAD_REQUEST',
           message: 'Only a pending request can be resent',
+        });
+      }
+
+      // Resending is pointless once the event has happened — the recipient can no
+      // longer accept it (bookings.update blocks a past-event accept). Past events
+      // keep status='active', so bail explicitly on the date. (Asana 1216289483780968)
+      if (booking.event && isEventPast(booking.event.dateStart.toISOString())) {
+        throw new TRPCError({
+          code: 'BAD_REQUEST',
+          message: 'This event has already taken place',
         });
       }
 

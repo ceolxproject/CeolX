@@ -102,6 +102,7 @@ export type NotificationType =
   | 'event_deleted'
   | 'event_hosted_at_venue'
   | 'event_removed'
+  | 'event_restored'
   | 'event_resubmitted'
   | 'saved_event_removed'
   | 'welcome';

@@ -3,6 +3,7 @@ import { index, integer, pgTable, text, timestamp, uniqueIndex, uuid } from 'dri
 
 import { user } from './auth';
 import { mediaTypeEnum } from './enums';
+import { events } from './events';
 
 // ---------------------------------------------------------------------------
 // posts — soft-deleted, never hard deleted.
@@ -17,6 +18,11 @@ export const posts = pgTable(
       .notNull()
       .references(() => user.id, { onDelete: 'cascade' }),
     caption: text('caption').notNull(),
+    // Set when this post promotes an event (auto-created on event creation).
+    // Tapping such a post deep-links to the event instead of post detail.
+    // set null (not cascade): events are never hard-deleted, and posts must never
+    // be hard-deleted either — the removed/archived/expired coupling is app-level.
+    eventId: uuid('event_id').references(() => events.id, { onDelete: 'set null' }),
     mediaType: mediaTypeEnum('media_type').notNull(),
     mediaUrl: text('media_url'), // null for text-only posts; S3/CloudFront URL or Mux HLS URL otherwise
     // Mux fields — populated only for video posts (M10-T1).
@@ -35,6 +41,9 @@ export const posts = pgTable(
   },
   (t) => [
     index('posts_created_by_idx').on(t.createdBy),
+    // Lookup a post by its event — toggling promo-post visibility on status change,
+    // and joined for the read-time expiry filter.
+    index('posts_event_id_idx').on(t.eventId),
     // Webhook lookup: UPDATE posts ... WHERE mux_upload_id = $1
     index('posts_mux_upload_id_idx').on(t.muxUploadId),
     // Delete-asset ownership lookup: SELECT 1 WHERE mux_asset_id = $1 AND created_by = $2
