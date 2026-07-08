@@ -129,35 +129,31 @@ export default function DiscoverScreen() {
   const [refreshing, setRefreshing] = useState(false);
 
   const insets = useSafeAreaInsets();
-  // Two-part header: a sliding part (location + search) that hides on scroll,
-  // and a pinned tab strip that stays. Both ride one progress value (0 shown,
-  // 1 collapsed) but by different distances — the sliding part clears the whole
-  // screen (its height + the status-bar inset), the tab strip only moves up to
-  // sit directly under the status bar.
-  const [collapsibleHeight, setCollapsibleHeight] = useState(0);
-  const [pinnedHeight, setPinnedHeight] = useState(0);
+  // Collapsing header. The whole top block (logo, location, search, tabs, filter
+  // chips) is one absolutely-positioned unit that slides fully off the top on
+  // scroll-down and returns on scroll-up — reading gets the entire screen. One
+  // progress value (0 shown, 1 collapsed) drives it. onLayout feeds back the
+  // header height (the feed's top padding) and the search bar's bottom (where the
+  // autocomplete card anchors).
+  const [headerHeight, setHeaderHeight] = useState(0);
   const [searchBottomY, setSearchBottomY] = useState(0);
   const lastScrollY = useSharedValue(0);
   const collapseProgress = useSharedValue(0);
   const collapseTargetSV = useSharedValue(0);
-  const collapsibleHeightSV = useSharedValue(0);
+  const headerHeightSV = useSharedValue(0);
   const insetTop = insets.top;
 
-  // The feed sits behind both header parts, padded down to clear them at rest.
-  const contentPaddingTop = collapsibleHeight + pinnedHeight + 16;
+  // The feed sits behind the header, padded down to clear it at rest.
+  const contentPaddingTop = headerHeight + 16;
 
-  const onCollapsibleLayout = useCallback(
+  const onHeaderLayout = useCallback(
     (e: LayoutChangeEvent) => {
       const h = e.nativeEvent.layout.height;
-      setCollapsibleHeight(h);
-      collapsibleHeightSV.value = h;
+      setHeaderHeight(h);
+      headerHeightSV.value = h;
     },
-    [collapsibleHeightSV]
+    [headerHeightSV]
   );
-
-  const onPinnedLayout = useCallback((e: LayoutChangeEvent) => {
-    setPinnedHeight(e.nativeEvent.layout.height);
-  }, []);
 
   const onSearchLayout = useCallback((e: LayoutChangeEvent) => {
     setSearchBottomY(e.nativeEvent.layout.y + e.nativeEvent.layout.height);
@@ -169,7 +165,7 @@ export default function DiscoverScreen() {
       const target = nextCollapseProgress(
         y,
         lastScrollY.value,
-        collapsibleHeightSV.value,
+        headerHeightSV.value,
         collapseTargetSV.value
       );
       // Only kick off a new animation when the target actually flips, so a long
@@ -182,18 +178,10 @@ export default function DiscoverScreen() {
     },
   });
 
-  // Sliding part: fully off the top of the screen when collapsed.
-  const collapsibleAnimatedStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: -(collapsibleHeightSV.value + insetTop) * collapseProgress.value }],
-  }));
-
-  // Pinned tab strip: anchored at top:0 and pushed down by the sliding part's
-  // height when shown, sitting at the top when collapsed. Driving the offset by
-  // transform off the shared value (not a stateful `top`) keeps switching tabs —
-  // which changes the sliding part's height — from triggering a layout reflow
-  // mid-reveal, which is what made the come-down stutter.
-  const pinnedAnimatedStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: collapsibleHeightSV.value * (1 - collapseProgress.value) }],
+  // Hide the whole header off the top of the screen — its own height plus the
+  // status-bar inset, so nothing peeks into the status-bar strip when collapsed.
+  const headerAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: -(headerHeightSV.value + insetTop) * collapseProgress.value }],
   }));
 
   const handleRefresh = useCallback(async () => {
@@ -319,11 +307,12 @@ export default function DiscoverScreen() {
       edges={['top']}
     >
       <View className="flex-1 relative" style={{ backgroundColor: '#080808' }}>
-        {/* Collapsing header, part 1 — location + search. Slides fully off the
-            top on scroll-down (its own height + the status-bar inset) and back
-            on scroll-up. Absolute; the feed scrolls under it. */}
+        {/* Collapsing header — logo, location, search, tabs and filter chips as
+            one unit. Slides fully off the top on scroll-down (its own height +
+            the status-bar inset) and returns on scroll-up. Absolute; the feed
+            scrolls under it and is padded down by its measured height. */}
         <Animated.View
-          onLayout={onCollapsibleLayout}
+          onLayout={onHeaderLayout}
           style={[
             {
               position: 'absolute',
@@ -333,8 +322,9 @@ export default function DiscoverScreen() {
               zIndex: 30,
               backgroundColor: '#080808',
             },
-            collapsibleAnimatedStyle,
+            headerAnimatedStyle,
           ]}
+          className="pb-3"
         >
           <FeedHeader
             locationText={locationText}
@@ -371,28 +361,9 @@ export default function DiscoverScreen() {
               />
             </View>
           </View>
-        </Animated.View>
 
-        {/* Collapsing header, part 2 — pinned tab strip (+ active filters). Sits
-            below the sliding part at rest and rides up to just under the status
-            bar as that part hides, staying visible and tappable. */}
-        <Animated.View
-          onLayout={onPinnedLayout}
-          style={[
-            {
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              right: 0,
-              zIndex: 20,
-              backgroundColor: '#080808',
-            },
-            pinnedAnimatedStyle,
-          ]}
-          className="pt-4 pb-3"
-        >
           {/* Segment toggle */}
-          <View className="px-5">
+          <View className="px-5 mt-4">
             <SegmentToggle
               segments={SEGMENTS}
               activeIndex={activeSegment}
