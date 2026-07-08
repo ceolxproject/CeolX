@@ -20,7 +20,7 @@ describe('subjectFor', () => {
       subjectFor('venue-activation', {
         userName: 'A',
         venueName: 'The Hut',
-        activationUrl: 'https://ceolx.ie/subscribe',
+        activationUrl: 'https://ceolx.com/subscribe',
       })
     ).toBe('Activate your CeolX Venue subscription');
   });
@@ -32,7 +32,7 @@ describe('subjectFor', () => {
         amount: '€20.00',
         planName: 'CeolX Venue',
         nextBillingDate: '2026-05-22',
-        manageUrl: 'https://ceolx.ie/account',
+        manageUrl: 'https://ceolx.com/account',
         invoiceUrl: 'https://stripe.com/i/1',
       })
     ).toBe('CeolX subscription — payment received');
@@ -82,7 +82,7 @@ describe('subjectFor', () => {
       subjectFor('collaborator-invite', {
         inviterName: 'The Temple Bar',
         eventTitle: 'Trad Night',
-        inviteUrl: 'https://ceolx.ie/invite/tok-abc',
+        inviteUrl: 'https://ceolx.com/invite/tok-abc',
       })
     ).toBe('The Temple Bar added you to "Trad Night" on CeolX');
   });

@@ -22,7 +22,7 @@ describe('verifyQStashSignature middleware', () => {
   beforeEach(() => {
     vi.stubEnv('QSTASH_CURRENT_SIGNING_KEY', 'current-key');
     vi.stubEnv('QSTASH_NEXT_SIGNING_KEY', 'next-key');
-    vi.stubEnv('BETTER_AUTH_URL', 'https://api.ceolx.ie');
+    vi.stubEnv('BETTER_AUTH_URL', 'https://api.ceolx.com');
     mockVerify.mockResolvedValue(true); // safe default
   });
 

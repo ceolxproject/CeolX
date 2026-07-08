@@ -133,7 +133,7 @@ Needs from Client / Stakeholders This Week
 ┌─────┬───────────────────────┬────────────────────────────────────────────────────────────────────────────────┬───────────────────────────┐
 │ # │ What's needed │ Why / Blocks │ Owner │
 ├─────┼───────────────────────┼────────────────────────────────────────────────────────────────────────────────┼───────────────────────────┤
-│ 1 │ ceolx.ie domain │ Postmark sender verification needs noreply@ceolx.ie. Can't send emails until │ Client │
+│ 1 │ ceolx.com domain │ Postmark sender verification needs noreply@ceolx.com. Can't send emails until │ Client │
 │ │ confirmation │ SPF/DKIM are set up on this domain. │ │
 ├─────┼───────────────────────┼────────────────────────────────────────────────────────────────────────────────┼───────────────────────────┤
 │ 2 │ AWS account access │ M1-T3 Lambda config + M1-T7 DynamoDB rate limiter need AWS credentials. Needs │ Client / Aravind │

@@ -1,5 +1,13 @@
 import { cn } from 'heroui-native';
-import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Pressable,
+  ScrollView,
+  Switch,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 
 import { AD_DESCRIPTION_MAX, AD_TITLE_MAX } from '@CeolX/shared/validators';
 
@@ -16,6 +24,8 @@ type Props = {
   onAdTitleChange: (v: string) => void;
   adDescription: string;
   onAdDescriptionChange: (v: string) => void;
+  shareToFeed: boolean;
+  onShareToFeedChange: (v: boolean) => void;
   errors: Record<string, string>;
   onSubmit: () => void;
   onBack: () => void;
@@ -33,6 +43,8 @@ export function TicketAdsStep({
   onAdTitleChange,
   adDescription,
   onAdDescriptionChange,
+  shareToFeed,
+  onShareToFeedChange,
   errors,
   onSubmit,
   onBack,
@@ -173,6 +185,26 @@ export function TicketAdsStep({
             <CharacterLimitNote count={adDescription.length} max={AD_DESCRIPTION_MAX} />
           </View>
         </>
+      )}
+
+      {/* ── Share to feed (create only) ── */}
+      {!isEditing && (
+        <View className="flex-row items-center justify-between gap-3">
+          <View className="flex-1">
+            <Text className="text-sm font-medium text-white">Share to feed</Text>
+            <Text className="text-xs text-neutral-500">
+              Also post this to your feed so followers see it. It stays in sync and drops off once
+              the event has passed.
+            </Text>
+          </View>
+          <Switch
+            value={shareToFeed}
+            onValueChange={onShareToFeedChange}
+            accessibilityLabel="Share to feed"
+            trackColor={{ true: '#6C63FF', false: '#3a3a3a' }}
+            thumbColor="#ffffff"
+          />
+        </View>
       )}
 
       {/* ── Gig Opportunity & Collaborators deferred to M5/M6 ── */}

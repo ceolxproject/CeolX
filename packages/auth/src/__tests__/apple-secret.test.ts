@@ -13,7 +13,7 @@ describe('generateAppleClientSecret', () => {
 
   it('returns a three-part JWT string', async () => {
     const secret = await generateAppleClientSecret({
-      clientId: 'ie.ceolx.app.si',
+      clientId: 'com.ceolx.app',
       teamId: 'TESTTEAM1',
       keyId: 'TESTKEYID',
       privateKey: privateKeyPem,
@@ -24,7 +24,7 @@ describe('generateAppleClientSecret', () => {
 
   it('sets alg ES256 and kid from keyId in protected header', async () => {
     const secret = await generateAppleClientSecret({
-      clientId: 'ie.ceolx.app.si',
+      clientId: 'com.ceolx.app',
       teamId: 'TESTTEAM1',
       keyId: 'TESTKEYID',
       privateKey: privateKeyPem,
@@ -36,7 +36,7 @@ describe('generateAppleClientSecret', () => {
 
   it('sets iss to teamId', async () => {
     const secret = await generateAppleClientSecret({
-      clientId: 'ie.ceolx.app.si',
+      clientId: 'com.ceolx.app',
       teamId: 'TESTTEAM1',
       keyId: 'TESTKEYID',
       privateKey: privateKeyPem,
@@ -46,17 +46,17 @@ describe('generateAppleClientSecret', () => {
 
   it('sets sub to clientId', async () => {
     const secret = await generateAppleClientSecret({
-      clientId: 'ie.ceolx.app.si',
+      clientId: 'com.ceolx.app',
       teamId: 'TESTTEAM1',
       keyId: 'TESTKEYID',
       privateKey: privateKeyPem,
     });
-    expect(decodeJwt(secret).sub).toBe('ie.ceolx.app.si');
+    expect(decodeJwt(secret).sub).toBe('com.ceolx.app');
   });
 
   it('sets aud to https://appleid.apple.com', async () => {
     const secret = await generateAppleClientSecret({
-      clientId: 'ie.ceolx.app.si',
+      clientId: 'com.ceolx.app',
       teamId: 'TESTTEAM1',
       keyId: 'TESTKEYID',
       privateKey: privateKeyPem,
@@ -67,7 +67,7 @@ describe('generateAppleClientSecret', () => {
   it('sets exp within 180 days from now', async () => {
     const now = Math.floor(Date.now() / 1000);
     const secret = await generateAppleClientSecret({
-      clientId: 'ie.ceolx.app.si',
+      clientId: 'com.ceolx.app',
       teamId: 'TESTTEAM1',
       keyId: 'TESTKEYID',
       privateKey: privateKeyPem,

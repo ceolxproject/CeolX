@@ -16,7 +16,7 @@ function AccountPage() {
         <h2 className="text-lg font-semibold text-foreground">Profile</h2>
         <div>
           <label className="block text-sm font-medium text-foreground mb-1">Email</label>
-          <Input type="email" value="admin@ceolx.ie" disabled />
+          <Input type="email" value="admin@ceolx.com" disabled />
         </div>
       </div>
     </div>

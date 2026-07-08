@@ -1,4 +1,4 @@
-# M8-T1 · Stripe Checkout Web Flow (ceolx.ie/subscribe)
+# M8-T1 · Stripe Checkout Web Flow (ceolx.com/subscribe)
 
 | Field          | Value                                                                                                                    |
 | -------------- | ------------------------------------------------------------------------------------------------------------------------ |
@@ -13,7 +13,7 @@
 
 ## Description
 
-Build the Venue subscription flow at `ceolx.ie/subscribe`. Unlike in-app purchases (prohibited by Apple Rule 3.1.1), Venues subscribe via web-based Stripe Checkout. The flow: user selects Venue persona → Postmark activation email sent with `ceolx.ie/subscribe` link → Venue logs in with CeolX credentials on the page → redirected to Stripe Checkout → on success, Stripe webhook activates the Venue profile → app detects activation and removes the pending state.
+Build the Venue subscription flow at `ceolx.com/subscribe`. Unlike in-app purchases (prohibited by Apple Rule 3.1.1), Venues subscribe via web-based Stripe Checkout. The flow: user selects Venue persona → Postmark activation email sent with `ceolx.com/subscribe` link → Venue logs in with CeolX credentials on the page → redirected to Stripe Checkout → on success, Stripe webhook activates the Venue profile → app detects activation and removes the pending state.
 
 ---
 
@@ -81,7 +81,7 @@ Handle Stripe webhook events (e.g., `checkout.session.completed`).
 - R1.1: `/subscribe` page in `apps/admin` is **public** — no initial authentication required to view the page
 - R1.2: Page title/branding: CeolX logo, heading _"Activate Your Venue Profile"_
 - R1.3: Logged-out users see login form on `/subscribe`; logged-in Venue users skip to checkout button
-- R1.4: No external URL (`ceolx.ie/subscribe` link itself) shown or mentioned inside the mobile app — link sent only via email
+- R1.4: No external URL (`ceolx.com/subscribe` link itself) shown or mentioned inside the mobile app — link sent only via email
 
 ### Login Flow
 
@@ -100,8 +100,8 @@ Handle Stripe webhook events (e.g., `checkout.session.completed`).
   - Mode: `subscription`
   - Customer email: user's email (Stripe pre-fills)
   - Line items: `[{ price: STRIPE_PRICE_ID, quantity: 1 }]`
-  - Success URL: `https://ceolx.ie/subscribe?success=true`
-  - Cancel URL: `https://ceolx.ie/subscribe?cancelled=true`
+  - Success URL: `https://ceolx.com/subscribe?success=true`
+  - Cancel URL: `https://ceolx.com/subscribe?cancelled=true`
   - Metadata: `{ venueProfileId, userId }`
 - R3.5: Return checkout session URL; frontend redirects to Stripe-hosted checkout
 
@@ -428,7 +428,7 @@ router.post('/webhooks/stripe', async (c) => {
           ).name,
           Amount: '€29.99',
           PlanName: 'CeolX Pro',
-          ManageLink: 'https://ceolx.ie/account',
+          ManageLink: 'https://ceolx.com/account',
         },
       });
 

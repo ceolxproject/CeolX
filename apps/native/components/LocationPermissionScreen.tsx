@@ -77,7 +77,7 @@ export function LocationPermissionScreen({ onDone, insets, headerSlot }: Props) 
 
         {/* CEOLX logo */}
         <View className="mb-12">
-          <CeolxLogo fontSize={18} letterSpacing={2} />
+          <CeolxLogo size={18} />
         </View>
 
         {/* Heading — Urbanist Bold 28px / 32px lh */}

@@ -34,7 +34,7 @@ function authedContext(role: UserRole = 'admin'): Context {
       user: {
         id: 'admin-user-1',
         name: 'Admin',
-        email: 'admin@ceolx.ie',
+        email: 'admin@ceolx.com',
         emailVerified: true,
         image: null,
         createdAt: new Date(),

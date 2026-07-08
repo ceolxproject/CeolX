@@ -1,5 +1,80 @@
 # Changelog
 
+<a name="1.0.11"></a>
+
+## 1.0.11 (2026-07-07)
+
+### Added
+
+- ✨ feat: auto post on event creation (#176) [e265a30]
+- ✨ feat(native): add about screen with app version and ota update check [b29f2ec]
+
+### Fixed
+
+- 🐛 fix(native): stream media uploads and cap videos at 100mb with clear error [8a8e541]
+
+<a name="1.0.10"></a>
+
+## 1.0.10 (2026-07-06)
+
+### Added
+
+- ✨ feat(admin): replace gradient wordmark with client logo [f7cb27e]
+- ✨ feat(native): replace gradient wordmark with client logo [cc9d77b]
+- ✨ feat(native): render caption urls as tappable links [93a5c2b]
+- ✨ feat(native): detect tappable urls in post captions [e6d0387]
+
+### Changed
+
+- 💄 style(native): shorten venue persona label to business/festival [f968b72]
+- 💄 style(native): add festival to venue persona label [fedb518]
+- 💄 style(native): match onboarding hero styling to marketing site [b407a1e]
+- 🔧 chore(native): add play app signing sha to staging google-services [51537df]
+- 🔧 chore(native): add autolinker for caption url detection [932e10c]
+- ⚡ perf(native): pad map fetch viewport to preload surrounding events [eb971e5]
+- 🔧 chore(native): set google oauth web client id and ios url scheme for development build [e141a77]
+- 🔧 chore(stack): ignore root scripts/\*.mjs in eslint (fix lint-staged parse error) [ca67798]
+- 🔧 chore(stack): migrate to ceolx.com domains + com.ceolx.app.staging registration (#167) [f86b26b]
+- 🔧 chore(server): update encrypted development env [2e03441]
+- 🔧 chore(stack): update encrypted staging env for com.ceolx.app.staging oauth [72cc0a6]
+- 🔧 chore(stack): re-register staging firebase + oauth under com.ceolx.app.staging [8147588]
+- ♻️ refactor(stack): migrate share, email, and subscription urls to ceolx.com [7a16519]
+- 🔧 chore(stack): point docs, tests, and comments to ceolx.com domain [0638305]
+
+### Fixed
+
+- 🐛 fix(native): stop collection sheet keyboard flicker on android [189dd94]
+- 🐛 fix(api): make discover posts feed public and gate guest likes [1cec2ea]
+- 🐛 fix(native): gate guest event save behind sign-in prompt [83bd0f1]
+- 🐛 fix(native): key location-setup completion flag per user [25259f5]
+- 🐛 fix(native): stop empty state from flashing on discover tab load [1777277]
+- 🐛 fix(native): stop follower/following labels wrapping on own-profile header [065c350]
+- 🐛 fix(native): stop follower/following labels breaking mid-word on scaled fonts [e620de7]
+- 🐛 fix(native): gate guest follow actions behind sign-in [d276749]
+
+### Miscellaneous
+
+- Merge remote-tracking branch &#x27;raftlabs/development&#x27; into development [d4566b7]
+- 🎡 ci(db): add neon production migration workflow [677a70d]
+- 🎡 ci(native): install pnpm before setup-node so cache resolves in mobile workflows [739db76]
+- 👷 ci(native): add mobile release pipelines + com.ceolx.\* identifiers (#166) [451d4ea]
+
+<a name="1.0.8"></a>
+
+## 1.0.8 (2026-06-30)
+
+### Added
+
+- ✨ feat(api): notify event creator when admin restores a removed event [[0998cff](https://github.com/Raft-Labs/CeolX/commit/0998cffde61cbafa72223f44ee4c53311b642376)]
+
+### Changed
+
+- ♻️ refactor(native): remove dead pin-selection path from map markers [[e86fa3a](https://github.com/Raft-Labs/CeolX/commit/e86fa3a4a1b3e1201d0e5a3a662c91cae18cfe5c)]
+
+### Fixed
+
+- 🐛 fix(native): open event detail directly on map pin tap [[5ef8623](https://github.com/Raft-Labs/CeolX/commit/5ef8623d6ddb5e63300dd3c1664ba52b6d146a7e)]
+
 <a name="1.0.7"></a>
 
 ## 1.0.7 (2026-06-30)

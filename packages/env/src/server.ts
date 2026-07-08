@@ -10,7 +10,7 @@ export const env = createEnv({
     CORS_ALLOWED_ORIGINS: z.string().min(1),
     NODE_ENV: z.enum(['development', 'production', 'staging']).catch('development'),
     POSTMARK_API_TOKEN: z.string().optional(),
-    POSTMARK_FROM_ADDRESS: z.string().default('noreply@ceolx.ie'),
+    POSTMARK_FROM_ADDRESS: z.string().default('noreply@ceolx.com'),
     SMTP_HOST: z.string().default('localhost'),
     SMTP_PORT: z.coerce.number().default(1025),
     UPSTASH_REDIS_REST_URL: z.string().url().optional(),
@@ -43,16 +43,16 @@ export const env = createEnv({
     APPLE_APP_BUNDLE_IDENTIFIER: z.string().optional(),
     // Android release-keystore SHA-256 cert fingerprint (colon-separated upper
     // hex) published in /.well-known/assetlinks.json so the OS verifies App
-    // Links for ceolx.ie/post/* into the app. Source: `eas credentials` →
+    // Links for ceolx.com/post/* into the app. Source: `eas credentials` →
     // Android → production keystore → SHA-256. Public by design (it is served
     // to the world); the route falls back to the known prod value when unset.
     ANDROID_SHA256_CERT_FINGERPRINT: z.string().optional(),
     // Mobile bundle id / Android package this server's App Links files vouch
-    // for. Prod is ie.ceolx.app (the default); the STAGING server sets this to
-    // com.raftlabs.ceolx.staging so its AASA/assetlinks match the staging app.
+    // for. Prod is com.ceolx.app (the default); the STAGING server sets this to
+    // com.ceolx.app.staging so its AASA/assetlinks match the staging app.
     MOBILE_BUNDLE_ID: z.string().optional(),
     // Canonical origin of shared-post links, used for og:url on the /post page.
-    // Prod = https://ceolx.ie; staging = the staging server's own Vercel URL.
+    // Prod = https://ceolx.com; staging = the staging server's own Vercel URL.
     PUBLIC_WEB_ORIGIN: z.string().url().optional(),
     // Store URLs used by the shared-post web fallback page (/post/:id) when the
     // app is not installed. Optional — the route derives sensible defaults

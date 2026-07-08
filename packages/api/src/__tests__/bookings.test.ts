@@ -1,5 +1,5 @@
 import { TRPCError } from '@trpc/server';
-import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { afterEach, describe, expect, it, vi, beforeEach } from 'vitest';
 
 import { sendCollaboratorInviteEmail } from '@CeolX/email';
 import { NotificationTrigger } from '@CeolX/shared';
@@ -290,6 +290,13 @@ const mockA2ABooking = {
 };
 
 beforeEach(() => {
+  // Pin the clock (Date only — leave setTimeout real so awaited promises don't
+  // hang) to just before mockEvent.dateStart (2026-05-01) so the default fixture
+  // event is deterministically *upcoming*. Without this the fixture reads as a
+  // past event on the real wall-clock, which would trip the new "can't accept a
+  // past event" guard and flap every existing accept test. (Asana 1216289752400014)
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(new Date('2026-04-20T00:00:00Z'));
   mockVenuesFindFirst.mockReset();
   mockArtistsFindFirst.mockReset();
   mockBookingsFindFirst.mockReset();
@@ -309,6 +316,10 @@ beforeEach(() => {
     .mockReset()
     .mockImplementation((cb: (tx: unknown) => Promise<unknown>) => cb(mockDb));
   mockDispatchNotification.mockReset().mockResolvedValue(undefined);
+});
+
+afterEach(() => {
+  vi.useRealTimers();
 });
 
 // ─── bookings.create ─────────────────────────────────────────────────────────
@@ -443,6 +454,35 @@ describe('bookings.update', () => {
 
     const result = await caller.bookings.update({ id: BOOKING_ID, status: 'accepted' });
     expect(result.status).toBe('accepted');
+  });
+
+  it('throws BAD_REQUEST when accepting an invitation for a past event', async () => {
+    // Event date is before the pinned "now" (2026-04-20) → already happened.
+    // Past events keep status='active', so the deleted/removed guard misses them;
+    // this is the dedicated past-event backstop. (Asana 1216289752400014)
+    const caller = createCaller(authedContext('artist', ARTIST_USER_ID));
+    mockBookingsFindFirst.mockResolvedValueOnce({
+      ...mockBooking,
+      event: { ...mockEvent, dateStart: new Date('2026-03-01T20:00:00Z') },
+    });
+
+    await expectTRPCError(
+      caller.bookings.update({ id: BOOKING_ID, status: 'accepted' }),
+      'BAD_REQUEST'
+    );
+    expect(mockUpdateReturning).not.toHaveBeenCalled();
+  });
+
+  it('still allows rejecting a past-event invitation so stale rows can be cleared', async () => {
+    const caller = createCaller(authedContext('artist', ARTIST_USER_ID));
+    mockBookingsFindFirst.mockResolvedValueOnce({
+      ...mockBooking,
+      event: { ...mockEvent, dateStart: new Date('2026-03-01T20:00:00Z') },
+    });
+    mockUpdateReturning.mockResolvedValueOnce([{ ...mockBooking, status: 'rejected' }]);
+
+    const result = await caller.bookings.update({ id: BOOKING_ID, status: 'rejected' });
+    expect(result.status).toBe('rejected');
   });
 
   it('allows artist to reject and removes collaborator', async () => {
@@ -868,8 +908,8 @@ describe('bookings.byId', () => {
 // win, falling back to user.image only for social-login accounts without one.
 
 describe('bookings — profile image precedence', () => {
-  const VENUE_UPLOADED = 'https://cdn.ceolx.ie/venue-upload.jpg';
-  const ARTIST_UPLOADED = 'https://cdn.ceolx.ie/artist-upload.jpg';
+  const VENUE_UPLOADED = 'https://cdn.ceolx.com/venue-upload.jpg';
+  const ARTIST_UPLOADED = 'https://cdn.ceolx.com/artist-upload.jpg';
 
   it('byId surfaces the venue profileImageUrl when user.image is null', async () => {
     const booking = {
@@ -1073,6 +1113,18 @@ describe('bookings.resend', () => {
     await expectTRPCError(caller.bookings.resend({ id: BOOKING_ID }), 'BAD_REQUEST');
   });
 
+  it('throws BAD_REQUEST when resending an invite for a past event', async () => {
+    // Resending is pointless once the event has happened — the recipient can no
+    // longer accept it. (Asana 1216289483780968)
+    const caller = createCaller(authedContext('venue', VENUE_USER_ID));
+    mockBookingsFindFirst.mockResolvedValueOnce({
+      ...mockBooking,
+      event: { ...mockEvent, dateStart: new Date('2026-03-01T20:00:00Z') },
+    });
+    await expectTRPCError(caller.bookings.resend({ id: BOOKING_ID }), 'BAD_REQUEST');
+    expect(mockDispatchNotification).not.toHaveBeenCalled();
+  });
+
   it('forbids the recipient (non-sender) from resending', async () => {
     const caller = createCaller(authedContext('artist', ARTIST_USER_ID));
     mockBookingsFindFirst.mockResolvedValueOnce(mockBooking);
@@ -1203,6 +1255,25 @@ describe('bookings.requestToPerform', () => {
     mockEventsFindFirst.mockResolvedValueOnce(null);
 
     await expectTRPCError(caller.bookings.requestToPerform({ eventId: EVENT_ID }), 'NOT_FOUND');
+  });
+
+  it('throws BAD_REQUEST when requesting to perform at a past event', async () => {
+    // The event already happened — an artist can't apply to perform at it.
+    // Venue + dedup are mocked as valid so the ONLY thing that can stop the
+    // request is the past-event guard (otherwise it would proceed to insert).
+    // (Asana 1216289483780968)
+    const caller = createCaller(authedContext('artist', ARTIST_USER_ID));
+    mockArtistsFindFirst.mockResolvedValueOnce(mockArtistProfile);
+    mockEventsFindFirst.mockResolvedValueOnce({
+      ...mockEvent,
+      dateStart: new Date('2026-03-01T20:00:00Z'),
+    });
+    mockVenuesFindFirst.mockResolvedValueOnce(mockVenueProfile);
+    mockBookingsFindFirst.mockResolvedValueOnce(null); // no dedup match
+    mockCollabsFindFirst.mockResolvedValueOnce(null); // not already a collaborator
+
+    await expectTRPCError(caller.bookings.requestToPerform({ eventId: EVENT_ID }), 'BAD_REQUEST');
+    expect(mockInsertReturning).not.toHaveBeenCalled();
   });
 
   it('throws BAD_REQUEST when event has no resolvable venue', async () => {
@@ -1339,7 +1410,7 @@ describe('bookings.inviteExternal', () => {
     expect(call?.to).toBe('john@example.com');
     expect(call?.inviterName).toBe('The Temple Bar');
     expect(call?.eventTitle).toBe('Friday Night Trad Session');
-    expect(call?.inviteUrl).toMatch(/^https:\/\/ceolx\.ie\/invite\/.+/);
+    expect(call?.inviteUrl).toMatch(/^https:\/\/ceolx\.com\/invite\/.+/);
   });
 
   it('still succeeds if the invite email fails to send (R8.5)', async () => {

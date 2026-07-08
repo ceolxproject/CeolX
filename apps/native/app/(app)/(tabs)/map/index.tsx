@@ -1,7 +1,7 @@
 import * as Sentry from '@sentry/react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Animated, Keyboard, Modal, Platform, Text, View } from 'react-native';
+import { ActivityIndicator, Keyboard, Modal, Platform, Text, View } from 'react-native';
 // Plain react-native-maps MapView (no clustering wrapper). Clustering is driven
 // in JS by `useMapClusters`/supercluster, which keeps single-marker keys stable
 // so they don't remount every region change — the churn that broke the old
@@ -16,7 +16,6 @@ import { EVENT_CATEGORIES, IRISH_COUNTIES, filterValidMapEvents } from '@CeolX/s
 
 import { AppHeader } from '@/components/AppHeader';
 import { appToast } from '@/components/AppToast';
-import { EventPreviewCard } from '@/components/EventPreviewCard';
 import { FeedLocationSheet } from '@/components/FeedLocationSheet';
 import { FilterSheet } from '@/components/FilterSheet';
 import type { FilterSection } from '@/components/FilterSheet';
@@ -39,6 +38,7 @@ import {
   MAP_SEARCH_BAR_GAP,
   MAP_SEARCH_BAR_HEIGHT,
 } from '@/constants/map-layout';
+import { useAuth } from '@/contexts/auth-context';
 import { useLocationOverride } from '@/contexts/location-override-context';
 import { useTabBarVisibility } from '@/contexts/tab-bar-visibility-context';
 import { resolveMapInitialRegion, useGpsRegion } from '@/hooks/use-gps-region';
@@ -51,7 +51,6 @@ import {
   zoomToRegion,
 } from '@/hooks/use-map-clusters';
 import { useMapEvents } from '@/hooks/use-map-events';
-import { usePanelAnimation } from '@/hooks/use-panel-animation';
 import { usePlaceSearch } from '@/hooks/use-place-search';
 import { useVenueFallback } from '@/hooks/use-venue-fallback';
 import { getDeviceLocation } from '@/utils/device-location';
@@ -86,7 +85,9 @@ export default function MapScreen() {
   // The recenter button sits tighter to the tab bar than the centered overlays —
   // a small gap above the bar so it reads as anchored to the bottom-right corner.
   const recenterButtonBottom = insets.bottom + 12;
-  const { promptState, markSeen } = useLocationPermissionPrompt();
+  const { user } = useAuth();
+  // Per-user keyed — guests pass `undefined` and fall through to the lazy prompt.
+  const { promptState, markSeen } = useLocationPermissionPrompt(user?.id);
   // Shared with the Feed tab — a manual place pick on either screen syncs here.
   const { override, overrideKind, setOverride, clearOverride } = useLocationOverride();
   const venueFallback = useVenueFallback();
@@ -143,13 +144,6 @@ export default function MapScreen() {
     setFilters,
     activeFilterCount,
   } = mapEventsResult;
-  const {
-    selectedItem: selectedEvent,
-    panelAnim,
-    markerJustPressedRef,
-    selectItem,
-    dismissPanel,
-  } = usePanelAnimation<MapEvent>();
   const [filterSheetVisible, setFilterSheetVisible] = useState(false);
   const [bannerDismissed, setBannerDismissed] = useState(false);
   const [emptyCardDismissed, setEmptyCardDismissed] = useState(false);
@@ -159,22 +153,21 @@ export default function MapScreen() {
   // Events sharing (near-)identical coords that a cluster can't zoom apart.
   const [overlapEvents, setOverlapEvents] = useState<MapEvent[] | null>(null);
 
-  // While a preview owns the bottom of the screen (single card or same-location
-  // sheet), hide the tab bar + FAB so the overlay sits flush against the bottom.
-  // Re-assert on focus and always restore on blur so it can't get stuck hidden
-  // on another tab.
+  // While the same-location sheet owns the bottom of the screen, hide the tab
+  // bar + FAB so the overlay sits flush against the bottom. Re-assert on focus
+  // and always restore on blur so it can't get stuck hidden on another tab.
   const { setHidden: setTabBarHidden } = useTabBarVisibility();
-  const isPreviewOpen = Boolean(selectedEvent || overlapEvents);
+  const isOverlapSheetOpen = Boolean(overlapEvents);
   const emptyStateVisible = !isLoading && expandExhausted && !emptyCardDismissed;
   const errorToastVisible = !isLoading && isError && !expandExhausted;
-  // A centered bottom card/toast/preview shares the recenter button's row — hide
+  // A centered bottom card/toast/sheet shares the recenter button's row — hide
   // the button while one is shown so they never overlap.
-  const bottomOverlayBusy = isPreviewOpen || emptyStateVisible || errorToastVisible;
+  const bottomOverlayBusy = isOverlapSheetOpen || emptyStateVisible || errorToastVisible;
   useFocusEffect(
     useCallback(() => {
-      setTabBarHidden(isPreviewOpen);
+      setTabBarHidden(isOverlapSheetOpen);
       return () => setTabBarHidden(false);
-    }, [isPreviewOpen, setTabBarHidden])
+    }, [isOverlapSheetOpen, setTabBarHidden])
   );
 
   const { clusters, supercluster } = useMapClusters(events, region ?? effectiveInitialRegion);
@@ -196,6 +189,14 @@ export default function MapScreen() {
     [supercluster]
   );
 
+  // Tapping a single pin opens the event detail directly — no preview card
+  // (Asana 1215961153969025). The overlapping-events sheet stays for stacked
+  // pins a cluster can't separate.
+  const openEvent = useCallback(
+    (event: MapEvent) => router.push(`/(app)/(tabs)/map/event/${event.id}`),
+    [router]
+  );
+
   const renderMarker = useCallback(
     (feature: MapClusterPoint) => {
       const [lng, lat] = feature.geometry.coordinates;
@@ -210,16 +211,9 @@ export default function MapScreen() {
         return <MapClusterMarker key={`cluster-${clusterId}`} cluster={cluster} />;
       }
       const event = feature.properties.event;
-      return (
-        <MapEventMarker
-          key={event.id}
-          event={event}
-          isSelected={selectedEvent?.id === event.id}
-          onSelect={selectItem}
-        />
-      );
+      return <MapEventMarker key={event.id} event={event} onSelect={openEvent} />;
     },
-    [handleClusterPress, selectedEvent?.id, selectItem]
+    [handleClusterPress, openEvent]
   );
 
   const showBanner = !bannerDismissed && (locationSource === 'ip' || locationSource === 'default');
@@ -336,11 +330,10 @@ export default function MapScreen() {
 
   const handleRegionChangeComplete = useCallback(
     (nextRegion: Region) => {
-      if (!markerJustPressedRef.current) dismissPanel();
       setRegion(nextRegion);
       onRegionChangeComplete(nextRegion);
     },
-    [onRegionChangeComplete, dismissPanel, markerJustPressedRef]
+    [onRegionChangeComplete]
   );
 
   const handleMapPress = useCallback(() => {
@@ -348,8 +341,7 @@ export default function MapScreen() {
     // until something explicitly dismisses it. A tap on the map should close it.
     Keyboard.dismiss();
     dismissDropdown();
-    if (!markerJustPressedRef.current) dismissPanel();
-  }, [dismissDropdown, dismissPanel, markerJustPressedRef]);
+  }, [dismissDropdown]);
 
   // Custom circular recenter control (replaces Google's square native button).
   // getDeviceLocation prompts for permission if needed and returns null on denial.
@@ -475,17 +467,6 @@ export default function MapScreen() {
             Could not load events. Check your connection and try again.
           </Text>
         </View>
-      )}
-
-      {selectedEvent && !isDropdownVisible && (
-        <Animated.View
-          // The tab bar is hidden while this card is open, so it sits just above
-          // the safe-area bottom instead of clearing the (now absent) bar.
-          className="absolute left-4 right-4"
-          style={{ bottom: insets.bottom + 16, transform: [{ translateY: panelAnim }] }}
-        >
-          <EventPreviewCard event={selectedEvent} onDismiss={dismissPanel} />
-        </Animated.View>
       )}
 
       {overlapEvents && (

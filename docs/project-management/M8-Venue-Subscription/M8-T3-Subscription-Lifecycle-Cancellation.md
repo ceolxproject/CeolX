@@ -48,7 +48,7 @@ Extend the Stripe webhook handler to manage the full subscription lifecycle beyo
   - Update `venue_subscriptions.status = 'active'`
   - Update `venue_profiles.subscription_status = 'active'`
   - Ensure `venue_profiles.is_active = true` (profile visible)
-  - Send Postmark payment confirmation email to Venue user (invoice summary, manage link to `ceolx.ie/account`)
+  - Send Postmark payment confirmation email to Venue user (invoice summary, manage link to `ceolx.com/account`)
   - Send FCM notification: "Payment Received ✓" (M7-T1)
 - R1.2: Extract invoice details for email: amount (EUR), plan name, next billing date
 - R1.3: Idempotent: if `subscription_status` already `'active'`, no error; email/notification sent once per invoice
@@ -60,9 +60,9 @@ Extend the Stripe webhook handler to manage the full subscription lifecycle beyo
   - Update `venue_subscriptions.status = 'past_due'`
   - Update `venue_profiles.subscription_status = 'past_due'`
   - Set `venue_profiles.is_active = false` (profile hidden from map/search)
-  - Send Postmark failure email: _"Payment failed. Your subscription is paused."_ + retry instructions + link to `ceolx.ie/account` to update payment method
+  - Send Postmark failure email: _"Payment failed. Your subscription is paused."_ + retry instructions + link to `ceolx.com/account` to update payment method
   - Log error in backend (do not send FCM notification — avoid alarm; email is sufficient)
-- R2.2: Venue can update payment method via Stripe Customer Portal at `ceolx.ie/account`
+- R2.2: Venue can update payment method via Stripe Customer Portal at `ceolx.com/account`
 - R2.3: On next renewal, payment retried automatically by Stripe (up to 3 days of retries); `invoice.payment_succeeded` fires on success
 - R2.4: Idempotent: if already `'past_due'`, no duplicate emails
 
@@ -105,7 +105,7 @@ Extend the Stripe webhook handler to manage the full subscription lifecycle beyo
 - [ ] All webhooks idempotent: processing same event twice doesn't create duplicates or re-send emails
 - [ ] Stripe signature validation rejects tampered payloads (returns 400)
 - [ ] Email/FCM failures don't fail webhook processing (logged separately)
-- [ ] Payment failure email includes `ceolx.ie/account` link to update payment method
+- [ ] Payment failure email includes `ceolx.com/account` link to update payment method
 
 ---
 
@@ -212,7 +212,7 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
       venueName: venue.name,
       Amount: '€29.99',
       PlanName: 'CeolX Pro',
-      ManageLink: 'https://ceolx.ie/account',
+      ManageLink: 'https://ceolx.com/account',
     },
   }).catch((error) => console.error('Email send failed:', error));
 
@@ -281,7 +281,7 @@ async function handleInvoicePaymentSucceeded(invoice: Stripe.Invoice) {
       Amount: `€${amount}`,
       PlanName: planName,
       NextBillingDate: new Date(invoice.period_end * 1000).toISOString().split('T')[0],
-      ManageLink: 'https://ceolx.ie/account',
+      ManageLink: 'https://ceolx.com/account',
       InvoiceLink: invoice.hosted_invoice_url,
     },
   }).catch((error) => console.error('Email send failed:', error));
@@ -343,7 +343,7 @@ async function handleInvoicePaymentFailed(invoice: Stripe.Invoice) {
     templateAlias: 'payment-failed',
     templateModel: {
       venueName: venue.name,
-      ManageLink: 'https://ceolx.ie/account',
+      ManageLink: 'https://ceolx.com/account',
     },
   }).catch((error) => console.error('Email send failed:', error));
 
@@ -392,7 +392,7 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
     templateAlias: 'subscription-cancelled',
     templateModel: {
       venueName: venue.name,
-      ReactivateLink: 'https://ceolx.ie/subscribe',
+      ReactivateLink: 'https://ceolx.com/subscribe',
     },
   }).catch((error) => console.error('Email send failed:', error));
 
@@ -407,13 +407,13 @@ export default router;
 #### Payment Failed Template
 
 - Subject: _"Payment Failed: Update Your Payment Method"_
-- Body: _"Hi [VenueName], Your recent payment failed due to an issue with your payment method. Your subscription is temporarily paused. [Button: Update Payment Method] → ceolx.ie/account"_
+- Body: _"Hi [VenueName], Your recent payment failed due to an issue with your payment method. Your subscription is temporarily paused. [Button: Update Payment Method] → ceolx.com/account"_
 - Instructions: "Stripe will retry your payment for up to 3 days. Update your card details above to ensure payment succeeds."
 
 #### Subscription Cancelled Template
 
 - Subject: _"Your CeolX Subscription Has Been Cancelled"_
-- Body: _"Hi [VenueName], Your subscription has been cancelled. Your profile is no longer visible to artists. [Button: Reactivate] → ceolx.ie/subscribe"_
+- Body: _"Hi [VenueName], Your subscription has been cancelled. Your profile is no longer visible to artists. [Button: Reactivate] → ceolx.com/subscribe"_
 - Instructions: "If you'd like to reactivate, click the button above. All your past events and bookings are preserved."
 
 ---

@@ -17,10 +17,10 @@ Submit the CeolX mobile app to Apple App Store (iOS) and Google Play Store (Andr
 
 ## Affected Apps / Packages
 
-| App / Package | Role                                                                                      |
-| ------------- | ----------------------------------------------------------------------------------------- |
-| `apps/mobile` | Production builds, app configuration, permissions, metadata                               |
-| `apps/admin`  | Privacy Policy and Terms of Service pages (ceolx.ie/privacy, ceolx.ie/terms) must be live |
+| App / Package | Role                                                                                        |
+| ------------- | ------------------------------------------------------------------------------------------- |
+| `apps/mobile` | Production builds, app configuration, permissions, metadata                                 |
+| `apps/admin`  | Privacy Policy and Terms of Service pages (ceolx.com/privacy, ceolx.com/terms) must be live |
 
 ---
 
@@ -43,7 +43,7 @@ No new endpoints. No API changes required for app store submission.
 
 ### iOS App Configuration (app.config.ts / eas.json)
 
-- R3: **Bundle identifier**: `ie.ceolx.app` (must match Apple Developer provisioning profiles)
+- R3: **Bundle identifier**: `com.ceolx.app` (must match Apple Developer provisioning profiles)
 - R4: **App name**: "CeolX" (consistent across icon labels, App Store name, home screen)
 - R5: **Version number**: semantic versioning (e.g., 1.0.0)
 - R6: **Build number**: incremented for each build (e.g., 1, 2, 3 for production)
@@ -65,11 +65,11 @@ No new endpoints. No API changes required for app store submission.
   - Example: "Explore live Irish music events near you. Connect with musicians and venues, discover sessions, and book performances. Available across Ireland."
 - R15: **Keywords**: max 100 characters, comma-separated
   - Example: "Irish music, live events, trad, céilí, sessions, booking, musicians"
-- R16: **Support URL**: `https://ceolx.ie/support` (must be live and working)
-- R17: **Privacy Policy URL**: `https://ceolx.ie/privacy` (must be live, detailed, and compliant with GDPR)
-- R18: **Terms of Service URL**: `https://ceolx.ie/terms` (must be live; referenced from privacy policy)
+- R16: **Support URL**: `https://ceolx.com/support` (must be live and working)
+- R17: **Privacy Policy URL**: `https://ceolx.com/privacy` (must be live, detailed, and compliant with GDPR)
+- R18: **Terms of Service URL**: `https://ceolx.com/terms` (must be live; referenced from privacy policy)
 - R19: **Copyright**: "© 2026 Chongie Entertainment Services" (or client's legal entity)
-- R20: **Contact email**: support contact for App Store reviews (e.g., support@ceolx.ie)
+- R20: **Contact email**: support contact for App Store reviews (e.g., admin@ceolx.com)
 
 ### iOS Privacy Nutrition Label (App Privacy)
 
@@ -85,11 +85,11 @@ No new endpoints. No API changes required for app store submission.
 ### iOS App Store Compliance Checklist
 
 - R23: **Apple Sign-In**: Implement required by Apple (Rule 4.8). Verify working on TestFlight build before submission
-- R24: **Third-party payment processing**: FORBIDDEN for digital goods (Rule 3.1.1). CeolX uses Stripe for Venue subscriptions VIA WEB ONLY (ceolx.ie/subscribe). Ensure:
+- R24: **Third-party payment processing**: FORBIDDEN for digital goods (Rule 3.1.1). CeolX uses Stripe for Venue subscriptions VIA WEB ONLY (ceolx.com/subscribe). Ensure:
   - No in-app Stripe payment UI
   - Email contains external link only; no custom URL scheme to bypass app review
   - Stripe payment page opens in web browser via `Linking.openURL()`, not in-app WebView
-  - Terms of Service clearly state: "Subscriptions are managed on our website at ceolx.ie/subscribe"
+  - Terms of Service clearly state: "Subscriptions are managed on our website at ceolx.com/subscribe"
 - R25: **Jailbreak detection**: Not required for this app; user location is not a security-critical feature
 - R26: **Cryptocurrency/NFT**: Not applicable
 - R27: **Gambling**: Not applicable
@@ -113,7 +113,7 @@ No new endpoints. No API changes required for app store submission.
 
 ### Android Google Play Store Submission
 
-- R33: **Application ID (package name)**: `ie.ceolx.app` (matches bundle ID for consistency)
+- R33: **Application ID (package name)**: `com.ceolx.app` (matches bundle ID for consistency)
 - R34: **App name**: "CeolX"
 - R35: **Short description**: max 80 characters
   - Example: "Discover live Irish music events and book performances"
@@ -148,7 +148,7 @@ No new endpoints. No API changes required for app store submission.
 
 ### Privacy Policy & Terms of Service (Legal Requirement)
 
-- R44: **Privacy Policy** hosted at `https://ceolx.ie/privacy`
+- R44: **Privacy Policy** hosted at `https://ceolx.com/privacy`
   - Required sections (GDPR + App Store + Google Play):
     - Data collected (location, email, name, profile images, videos)
     - How data is used (event discovery, user communication, analytics)
@@ -158,7 +158,7 @@ No new endpoints. No API changes required for app store submission.
     - Cookies (if applicable; mobile app has no cookies, but explain if web portal does)
     - Contact info for privacy inquiries
   - **Client responsibility**: Draft with legal counsel; flag as a blocker dependency early
-- R45: **Terms of Service** hosted at `https://ceolx.ie/terms`
+- R45: **Terms of Service** hosted at `https://ceolx.com/terms`
   - Required sections:
     - Acceptable use (no hate speech, no spam, no misinformation)
     - User-generated content licensing (users grant CeolX license to display their events/posts)
@@ -194,9 +194,9 @@ No new endpoints. No API changes required for app store submission.
 - [ ] iOS submission passes automated pre-review checks (no immediate rejections)
 - [ ] Android Google Play Console submission completed with metadata and screenshots
 - [ ] Android data safety form completed and submitted
-- [ ] Privacy Policy live at ceolx.ie/privacy and accessible from app
-- [ ] Terms of Service live at ceolx.ie/terms and accessible from app
-- [ ] Stripe web subscription page (ceolx.ie/subscribe) live and accessible (Apple will verify)
+- [ ] Privacy Policy live at ceolx.com/privacy and accessible from app
+- [ ] Terms of Service live at ceolx.com/terms and accessible from app
+- [ ] Stripe web subscription page (ceolx.com/subscribe) live and accessible (Apple will verify)
 - [ ] iOS review result: approved or awaiting feedback
 - [ ] Android review result: approved or awaiting feedback
 
@@ -239,7 +239,7 @@ export default {
     slug: 'ceolx',
     version: '1.0.0',
     ios: {
-      bundleIdentifier: 'ie.ceolx.app',
+      bundleIdentifier: 'com.ceolx.app',
       buildNumber: '1',
       privacyManifest: {
         NSPrivacyTracking: false,
@@ -247,7 +247,7 @@ export default {
       },
     },
     android: {
-      package: 'ie.ceolx.app',
+      package: 'com.ceolx.app',
       versionCode: 1,
     },
     plugins: ['expo-apple-authentication', 'expo-image-picker'],
@@ -266,7 +266,7 @@ export default {
 import { Linking } from 'react-native';
 
 const openStripeSubscription = async () => {
-  const url = 'https://ceolx.ie/subscribe';
+  const url = 'https://ceolx.com/subscribe';
   try {
     const supported = await Linking.canOpenURL(url);
     if (supported) {
@@ -284,7 +284,7 @@ const openStripeSubscription = async () => {
 
 ## Common Gotchas
 
-- **Apple Rule 3.1.1 (Payment Processing)**: Apple does NOT allow in-app third-party payment processors (Stripe, PayPal, etc.) for digital goods. CeolX bypasses this by using web-only Stripe (ceolx.ie/subscribe opened in web browser). Ensure the in-app email with the subscription link does NOT include a custom URL scheme (e.g., don't use `ceolx://subscribe`) — App Store reviewers will block it. Email links to https://ceolx.ie/subscribe are allowed.
+- **Apple Rule 3.1.1 (Payment Processing)**: Apple does NOT allow in-app third-party payment processors (Stripe, PayPal, etc.) for digital goods. CeolX bypasses this by using web-only Stripe (ceolx.com/subscribe opened in web browser). Ensure the in-app email with the subscription link does NOT include a custom URL scheme (e.g., don't use `ceolx://subscribe`) — App Store reviewers will block it. Email links to https://ceolx.com/subscribe are allowed.
 
 - **Privacy Label accuracy**: If you declare collecting location data but don't request location permission in the app, Apple will reject. Be brutally honest in the Privacy Nutrition Label.
 
@@ -296,6 +296,6 @@ const openStripeSubscription = async () => {
 
 - **Icon edge case**: Make sure the 1024x1024 icon has no rounded corners or safe zones removed — App Store auto-crops and rounds. Test with the official App Store icon preview tool.
 
-- **Support URL must respond**: Apple reviewers attempt to access the Support URL. Ensure ceolx.ie/support is live and returns a meaningful page (not 404).
+- **Support URL must respond**: Apple reviewers attempt to access the Support URL. Ensure ceolx.com/support is live and returns a meaningful page (not 404).
 
 - **Staging vs Production credentials**: Ensure EAS builds use production API keys (Stripe live keys, Firebase production project, Mux production API). Do NOT use test keys in the production build.

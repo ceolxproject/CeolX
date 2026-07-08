@@ -1,5 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
 
+vi.mock('expo-file-system/legacy', () => ({
+  createUploadTask: vi.fn(),
+  FileSystemUploadType: { BINARY_CONTENT: 0, MULTIPART: 1 },
+}));
+
 vi.mock('@/utils/trpc', () => ({
   trpc: { uploads: { createMuxUpload: { mutationOptions: () => ({}) } } },
 }));
@@ -15,9 +20,28 @@ vi.mock('react', () => ({
 }));
 
 import type { MuxUploadResult } from '../use-video-upload';
-import { pollMuxStatus } from '../use-video-upload';
+import { assertVideoWithinLimit, pollMuxStatus } from '../use-video-upload';
 
 const sleepMock = vi.fn(() => Promise.resolve());
+
+const MB = 1024 * 1024;
+
+describe('assertVideoWithinLimit', () => {
+  it('throws a friendly, actionable message when the video exceeds 100MB', () => {
+    expect(() => assertVideoWithinLimit(111 * MB)).toThrow(
+      'This video is too large. Please choose a video under 100MB.'
+    );
+  });
+
+  it('allows a video at exactly the 100MB cap', () => {
+    expect(() => assertVideoWithinLimit(100 * MB)).not.toThrow();
+  });
+
+  it('skips the guard when the picker did not report a file size', () => {
+    expect(() => assertVideoWithinLimit(null)).not.toThrow();
+    expect(() => assertVideoWithinLimit(undefined)).not.toThrow();
+  });
+});
 
 describe('pollMuxStatus', () => {
   it('returns immediately when the first poll reports ready', async () => {

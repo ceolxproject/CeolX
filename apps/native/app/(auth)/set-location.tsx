@@ -8,6 +8,7 @@ import { IRELAND_INITIAL_REGION } from '@CeolX/shared';
 import { appToast } from '@/components/AppToast';
 import { FeedLocationSheet } from '@/components/FeedLocationSheet';
 import { LocationPermissionScreen } from '@/components/LocationPermissionScreen';
+import { useAuth } from '@/contexts/auth-context';
 import { setBaseLocation } from '@/utils/base-location';
 import type { FeedLocation } from '@/utils/feed-location';
 import { setLocationSetupComplete } from '@/utils/location-setup';
@@ -25,21 +26,29 @@ import { setLocationSetupComplete } from '@/utils/location-setup';
 export default function SetLocationScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { user } = useAuth();
   const [manualVisible, setManualVisible] = useState(false);
 
-  // Persist the completion flag and move on. The flag write can throw (keychain
-  // locked / storage error); if it does, surface a toast and STAY on the step —
-  // otherwise navigation is skipped silently and the gate loops the user right
-  // back here on next launch (the flag never got set).
+  // Persist the completion flag (keyed to THIS account) and move on. The flag
+  // write can throw (keychain locked / storage error); if it does, surface a
+  // toast and STAY on the step — otherwise navigation is skipped silently and
+  // the gate loops the user right back here on next launch (the flag never got
+  // set). Completion is per-user, so the id is required to write it.
   const completeAndContinue = useCallback(async () => {
+    if (!user?.id) {
+      // Reaching this screen requires an authenticated session, so this is a
+      // defensive guard rather than an expected state.
+      appToast.error('Could not finish setup', 'Please try again.');
+      return;
+    }
     try {
-      await setLocationSetupComplete();
+      await setLocationSetupComplete(user.id);
     } catch {
       appToast.error('Could not finish setup', 'Please try again.');
       return;
     }
     router.replace('/(app)/(tabs)/map');
-  }, [router]);
+  }, [router, user?.id]);
 
   // Detect path (incl. permission denial — priming always calls onDone) OR the
   // user opted to pick manually. Manual opens the picker; everything else

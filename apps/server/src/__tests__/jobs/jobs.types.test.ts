@@ -216,7 +216,7 @@ describe('jobPayloadSchemas', () => {
       expect(() =>
         jobPayloadSchemas['data-export.notify'].parse({
           userId: '550e8400-e29b-41d4-a716-446655440000',
-          downloadUrl: 'https://cdn.ceolx.ie/exports/file.json',
+          downloadUrl: 'https://cdn.ceolx.com/exports/file.json',
           expiresAt: '2026-04-30T00:00:00.000Z',
         })
       ).not.toThrow();

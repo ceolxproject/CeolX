@@ -23,6 +23,9 @@ interface StickyBottomBarProps {
   isCollaborator?: boolean;
   isRequesting?: boolean;
   hasExistingRequest?: boolean;
+  /** Event date has passed — hide "Request to Perform" (the server rejects a
+   *  performance request for a past event). */
+  isPastEvent?: boolean;
   onRequestToPerform: () => void;
   className?: string;
 }
@@ -37,14 +40,17 @@ export function StickyBottomBar({
   isCollaborator,
   isRequesting,
   hasExistingRequest,
+  isPastEvent,
   onRequestToPerform,
   className,
 }: StickyBottomBarProps) {
   const trackClick = useTrackTicketClick();
   const insets = useSafeAreaInsets();
 
+  // A past event can't take new performance requests (the server rejects them),
+  // so hide the CTA once the event has happened. (Asana 1216289483780968)
   const showRequestToPerform =
-    isArtist && isVenueEvent && !isOwner && !isCollaborator && !hasExistingRequest;
+    isArtist && isVenueEvent && !isOwner && !isCollaborator && !hasExistingRequest && !isPastEvent;
   const showRequestSent =
     isArtist && isVenueEvent && !isOwner && !isCollaborator && !!hasExistingRequest;
 

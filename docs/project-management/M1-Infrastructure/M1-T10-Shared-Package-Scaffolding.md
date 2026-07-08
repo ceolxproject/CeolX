@@ -346,7 +346,7 @@ export const INACTIVE_ACCOUNT_FLAG_MONTHS = 24;
 export const ACCOUNT_ANONYMIZE_DELAY_DAYS = 30;
 
 // Venue subscription
-export const VENUE_SUBSCRIPTION_URL = 'https://ceolx.ie/subscribe';
+export const VENUE_SUBSCRIPTION_URL = 'https://ceolx.com/subscribe';
 
 // FCM
 export const FCM_NOTIFICATION_CLICK_ACTION = 'FLUTTER_NOTIFICATION_CLICK';

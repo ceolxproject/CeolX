@@ -19,8 +19,10 @@ export default function AppLayout() {
   // listeners (M7-T1). The hook is a no-op until the user is authenticated.
   useFcmRegistration();
 
-  // Gates the standalone "Set your location" onboarding step (read once on mount).
-  const locationGate = useLocationSetupGate();
+  // Gates the standalone "Set your location" onboarding step. Keyed to the
+  // signed-in user so each account runs the step once (the flag is per-user —
+  // see utils/location-setup). Holds in `checking` until a user id is known.
+  const locationGate = useLocationSetupGate(user?.id);
 
   const {
     data: meData,
@@ -94,6 +96,7 @@ export default function AppLayout() {
         <Stack.Screen name="venue/[venueId]" />
         <Stack.Screen name="notifications" />
         <Stack.Screen name="change-password" />
+        <Stack.Screen name="about" />
       </Stack>
     </LocationOverrideProvider>
   );

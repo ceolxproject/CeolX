@@ -1,5 +1,5 @@
 import { memo, useCallback, useEffect, useRef, useState } from 'react';
-import { Text, View, type LayoutChangeEvent } from 'react-native';
+import { View } from 'react-native';
 import { Marker } from 'react-native-maps';
 
 import { CATEGORY_LABELS } from '@CeolX/shared';
@@ -21,7 +21,6 @@ export type MapEvent = {
 
 type MapEventMarkerProps = {
   event: MapEvent;
-  isSelected: boolean;
   onSelect: (event: MapEvent) => void;
 };
 
@@ -31,21 +30,15 @@ type MapEventMarkerProps = {
  * Memoized so unrelated MapScreen state changes (filter sheet, search text,
  * banner) don't re-render every pin. Owns its own `tracksViewChanges` so the
  * native marker only re-rasterizes when there's actual visual work to capture
- * — the cover image painting, or a selection transition — and stays frozen
- * (cheap) the rest of the time.
+ * — the cover image painting — and stays frozen (cheap) the rest of the time.
  */
-function MapEventMarkerComponent({ event, isSelected, onSelect }: MapEventMarkerProps) {
+function MapEventMarkerComponent({ event, onSelect }: MapEventMarkerProps) {
   // `true` = the native map re-snapshots this marker's custom view every frame
   // (correct but expensive). `false` = frozen single snapshot (cheap). We want
   // it true only while something visual is still settling, then false.
   const [tracksViewChanges, setTracksViewChanges] = useState(true);
 
-  // Skip the first `onLayout` (initial mount) — initial settling is driven by
-  // the mount fallback / image onLoad instead; layout-driven freezes are only
-  // for later size changes (e.g. the selection transition).
-  const isFirstRender = useRef(true);
-
-  // One shared timer across all freeze triggers (mount, image load, selection)
+  // One shared timer across all freeze triggers (mount, image load)
   // so re-arming cancels the previous pending freeze instead of leaking timers.
   const freezeTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
@@ -74,25 +67,6 @@ function MapEventMarkerComponent({ event, isSelected, onSelect }: MapEventMarker
   // the composited view, then freeze.
   const handleImageLoad = useCallback(() => scheduleFreeze(250), [scheduleFreeze]);
 
-  // Selection grows the pin circle (44→56) and adds a glow ring. react-native-maps
-  // derives the native touch frame from the frozen bitmap's size, so freezing
-  // before the grown layout is measured leaves the hit region sized to the old
-  // 44px circle — taps near the enlarged edge then fall outside it. Drive the
-  // re-freeze off the container's actual `onLayout` (fires once the grown circle
-  // is laid out) instead of racing a fixed timer, so the snapshot — and thus the
-  // touch frame — matches the selected circle. The title is an absolute overlay
-  // (below) deliberately excluded from this layout box, so it doesn't factor in.
-  const handleLayout = useCallback(
-    (_event: LayoutChangeEvent) => {
-      if (isFirstRender.current) {
-        isFirstRender.current = false;
-        return;
-      }
-      scheduleFreeze(250);
-    },
-    [scheduleFreeze]
-  );
-
   return (
     <Marker
       coordinate={{ latitude: event.lat, longitude: event.lng }}
@@ -103,28 +77,14 @@ function MapEventMarkerComponent({ event, isSelected, onSelect }: MapEventMarker
       // Android. Mirrors MapClusterMarker, which is tappable on both platforms.
       onPress={() => onSelect(event)}
     >
-      <View className="items-center" onLayout={handleLayout}>
+      <View className="items-center">
         <MapEventPin
           type="single"
           coverImageUrl={event.coverImageUrl}
           category={CATEGORY_LABELS[event.category] ?? event.category}
           categoryKey={event.category}
-          isSelected={isSelected}
           onImageLoad={handleImageLoad}
         />
-        {isSelected ? (
-          // Absolute overlay below the pin: like the badge, it must not grow the
-          // marker's layout box, or it would push the circle out of the iOS hit
-          // frame and make the (now-larger) selected pin untappable.
-          <View
-            style={{ position: 'absolute', top: '100%', marginTop: 4 }}
-            className="bg-[rgba(255,255,255,0.92)] px-2 py-[3px] rounded-[10px] max-w-[140px]"
-          >
-            <Text className="text-[11px] text-[#080808] font-semibold" numberOfLines={1}>
-              {event.title}
-            </Text>
-          </View>
-        ) : null}
       </View>
     </Marker>
   );

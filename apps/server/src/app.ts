@@ -70,7 +70,7 @@ export function buildApp() {
   app.route('/', appRedirectRoute);
 
   // App Links / Universal Links ownership files + the shared-post and
-  // shared-event web fallbacks. ceolx.ie (admin) rewrites /.well-known/*,
+  // shared-event web fallbacks. ceolx.com (admin) rewrites /.well-known/*,
   // /post/*, and /event/* here. No auth, no rate limit — these are public and
   // hit by OS verifiers + social crawlers.
   app.route('/', appLinksRoute);

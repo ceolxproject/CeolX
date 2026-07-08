@@ -79,7 +79,7 @@ describe('adminUsersListInputSchema', () => {
 describe('signUpSchema', () => {
   const valid = {
     name: 'Priya Yadav',
-    email: 'priya@ceolx.ie',
+    email: 'priya@ceolx.com',
     password: 'SecurePass1!',
     confirmPassword: 'SecurePass1!',
   };
@@ -125,10 +125,10 @@ describe('signUpSchema', () => {
   });
 
   it('normalises email to lowercase', () => {
-    const result = signUpSchema.safeParse({ ...valid, email: 'PRIYA@CEOLX.IE' });
+    const result = signUpSchema.safeParse({ ...valid, email: 'PRIYA@CEOLX.COM' });
     expect(result.success).toBe(true);
     if (result.success) {
-      expect(result.data.email).toBe('priya@ceolx.ie');
+      expect(result.data.email).toBe('priya@ceolx.com');
     }
   });
 
@@ -139,17 +139,17 @@ describe('signUpSchema', () => {
 
 describe('signInSchema', () => {
   it('accepts valid credentials', () => {
-    expect(signInSchema.safeParse({ email: 'test@ceolx.ie', password: 'any' }).success).toBe(true);
+    expect(signInSchema.safeParse({ email: 'test@ceolx.com', password: 'any' }).success).toBe(true);
   });
 
   it('rejects empty password', () => {
-    expect(signInSchema.safeParse({ email: 'test@ceolx.ie', password: '' }).success).toBe(false);
+    expect(signInSchema.safeParse({ email: 'test@ceolx.com', password: '' }).success).toBe(false);
   });
 });
 
 describe('forgotPasswordSchema', () => {
   it('accepts valid email', () => {
-    expect(forgotPasswordSchema.safeParse({ email: 'test@ceolx.ie' }).success).toBe(true);
+    expect(forgotPasswordSchema.safeParse({ email: 'test@ceolx.com' }).success).toBe(true);
   });
 
   it('rejects non-email', () => {
@@ -793,11 +793,11 @@ describe('Onboarding schema equivalence (server contract)', () => {
   it('artist — profileImageUrl is retained when provided', () => {
     const result = createArtistOnboardingSchema.safeParse({
       stageName: 'Seán',
-      profileImageUrl: 'https://cdn.ceolx.ie/x.jpg',
+      profileImageUrl: 'https://cdn.ceolx.com/x.jpg',
     });
     expect(result.success).toBe(true);
     if (result.success) {
-      expect(result.data.profileImageUrl).toBe('https://cdn.ceolx.ie/x.jpg');
+      expect(result.data.profileImageUrl).toBe('https://cdn.ceolx.com/x.jpg');
     }
   });
 
@@ -864,10 +864,10 @@ describe('Onboarding schema equivalence (server contract)', () => {
       address: 'Dublin',
       lat: 53.3498,
       lng: -6.2603,
-      profileImageUrl: 'https://cdn.ceolx.ie/x.jpg',
+      profileImageUrl: 'https://cdn.ceolx.com/x.jpg',
     });
     expect(result.success).toBe(true);
-    if (result.success) expect(result.data.profileImageUrl).toBe('https://cdn.ceolx.ie/x.jpg');
+    if (result.success) expect(result.data.profileImageUrl).toBe('https://cdn.ceolx.com/x.jpg');
   });
 });
 

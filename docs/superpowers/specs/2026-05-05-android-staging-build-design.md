@@ -22,15 +22,15 @@ These are dashboard / console actions that have to happen outside the codebase b
 
 1. **Create Firebase project `ceolx-staging`** in the Firebase Console. Provision a Service Account → download the private key JSON → split into `FIREBASE_PRIVATE_KEY` and `FIREBASE_CLIENT_EMAIL` for the server `.env.staging`. (Without this, FCM registration on the server side fails and Phase 1 step 4 has no project to register the Android app inside.)
 2. **Vercel account on Hobby tier** with permission to create a new project under the team (or personal) account that owns the deployment.
-3. **DNS access to `ceolx.ie`** to add the `api-staging` CNAME pointing at Vercel.
+3. **DNS access to `ceolx.com`** to add the `api-staging` CNAME pointing at Vercel.
 4. **EAS organisation membership** — confirm the account running `eas build` is a member of `ceolxprojects-organization` with build permissions (project ID `91f9219e-c91c-47f2-b55a-5ee1db979b66`).
 5. **Stripe test mode** enabled on the CeolX Stripe account, with a `price_test_…` price ID for the staging Venue subscription.
-6. **Postmark sender domain `ceolx.ie` verified** for the staging stream (or share the prod stream if the domain check is already passing).
+6. **Postmark sender domain `ceolx.com` verified** for the staging stream (or share the prod stream if the domain check is already passing).
 
 ## Success criteria
 
 1. A QA tester opens `https://expo.dev/install/<id>` on an Android device and the staging app installs in a single tap.
-2. The staging app boots, signs in via email/password and Google OAuth, calls `https://api-staging.ceolx.ie`, and persists data to the Neon staging branch.
+2. The staging app boots, signs in via email/password and Google OAuth, calls `https://api-staging.ceolx.com`, and persists data to the Neon staging branch.
 3. The staging app is installed under package `ie.ceolx.app.staging` and coexists with a production install (`ie.ceolx.app`) on the same device.
 4. After Phase 4: pushing a JS-only commit to `development` automatically publishes an EAS Update to the `staging` channel within ~5 minutes; QA receives the fix on next app launch with no reinstall.
 5. Stripe (test mode), Postmark, FCM, and Mux all function end-to-end in the staging environment.
@@ -50,7 +50,7 @@ These are dashboard / console actions that have to happen outside the codebase b
 
 ### Phase 0 — Staging backend on Vercel (BLOCKER; do first)
 
-`api-staging.ceolx.ie` currently does not resolve (`curl` returns HTTP 000). Without a live backend, the QA app cannot authenticate or load data. This phase is a hard prerequisite for Phase 1.
+`api-staging.ceolx.com` currently does not resolve (`curl` returns HTTP 000). Without a live backend, the QA app cannot authenticate or load data. This phase is a hard prerequisite for Phase 1.
 
 Steps:
 
@@ -61,11 +61,11 @@ Steps:
    ```
 3. `vercel link` the `apps/server` directory → new Vercel project `ceolx-api-staging` under the team account.
 4. Mirror every variable in `apps/server/.env.staging` to Vercel via `vercel env add` for **both** Preview and Production environments on this Vercel project (the project itself represents staging; its "Production" deployment is what the staging app calls).
-5. Configure custom domain `api-staging.ceolx.ie` → CNAME → Vercel. Wait for SSL certificate issuance (~minutes via Vercel managed certs).
+5. Configure custom domain `api-staging.ceolx.com` → CNAME → Vercel. Wait for SSL certificate issuance (~minutes via Vercel managed certs).
 6. Deploy: `vercel --prod`. Verify `GET /api/health` returns `200`.
-7. Register Stripe test-mode webhook → `https://api-staging.ceolx.ie/webhooks/stripe`. Capture `whsec_…` and update `STRIPE_WEBHOOK_SECRET` on Vercel.
+7. Register Stripe test-mode webhook → `https://api-staging.ceolx.com/webhooks/stripe`. Capture `whsec_…` and update `STRIPE_WEBHOOK_SECRET` on Vercel.
 
-**Exit criteria**: `curl https://api-staging.ceolx.ie/health` returns the same JSON shape that `apps/server/src/index.ts` returns when run locally on port 3001; a smoke-test sign-up via tRPC client against the staging URL succeeds and the row appears in the Neon staging branch.
+**Exit criteria**: `curl https://api-staging.ceolx.com/health` returns the same JSON shape that `apps/server/src/index.ts` returns when run locally on port 3001; a smoke-test sign-up via tRPC client against the staging URL succeeds and the row appears in the Neon staging branch.
 
 ### Phase 1 — Native staging plumbing
 
@@ -110,7 +110,7 @@ Steps:
    eas env:create --environment preview --name <NAME> --value <VALUE>
    ```
    Variables:
-   - `EXPO_PUBLIC_API_BASE_URL=https://api-staging.ceolx.ie`
+   - `EXPO_PUBLIC_API_BASE_URL=https://api-staging.ceolx.com`
    - `EXPO_PUBLIC_GOOGLE_MAPS_API_KEY=<staging-android-maps-key>`
    - `EXPO_PUBLIC_SENTRY_DSN=<staging-sentry-dsn>`
    - `APP_VARIANT=staging`
@@ -198,8 +198,8 @@ Create `docs/qa-staging-install.md` covering:
    - **Cold-start latency** — first request after idle: Vercel Node cold start (~500 ms) + Neon serverless connection wake (~500 ms–1 s) + Hono/tRPC handler. Worst case ~2 s, well inside the budget.
    - **`firebase-admin` initialisation** — the Admin SDK reads the service-account credentials on cold start. If we recreate the app on every invocation it adds ~300 ms; ensure `getApps().length` is checked before `initializeApp()` in `apps/server/src/lib/firebase.ts` (or wherever the Admin SDK is initialised).
    - **Long-running tRPC procedures** — anything that loops over external API calls (e.g., a future bulk-import endpoint) will silently 504 at 10 s. None of the V1 procedures listed in the routers should fall into this bucket (S3 uploads use presigned URLs, Mux uses async webhooks, Postmark sends are single requests). If the smoke test in Phase 0 surfaces a slow procedure, the fix is either to refactor it into a QStash background job or upgrade Vercel to Pro.
-3. **Postmark sender domain** — `noreply@ceolx.ie` requires DKIM/SPF on `ceolx.ie`. Likely already configured for prod; confirm staging emails aren't blocked by Postmark's signature verification gate.
-4. **DNS propagation for `api-staging.ceolx.ie`** — Cloudflare-managed DNS propagates in ~minutes; legacy registrar DNS can take hours. Plan accordingly.
+3. **Postmark sender domain** — `noreply@ceolx.com` requires DKIM/SPF on `ceolx.com`. Likely already configured for prod; confirm staging emails aren't blocked by Postmark's signature verification gate.
+4. **DNS propagation for `api-staging.ceolx.com`** — Cloudflare-managed DNS propagates in ~minutes; legacy registrar DNS can take hours. Plan accordingly.
 
 ## Time estimate
 

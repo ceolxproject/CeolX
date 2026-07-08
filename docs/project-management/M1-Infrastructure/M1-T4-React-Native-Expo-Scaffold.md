@@ -89,8 +89,8 @@ None — this is a mobile app scaffold task. API integration wired up in M2+ mil
 - EAS Build configured with three profiles: `development`, `preview`, `production`
 - `EXPO_PUBLIC_API_BASE_URL` environment variable set per profile (read at build time)
   - Development: `http://localhost:3001` (local testing)
-  - Preview: `https://api-staging.ceolx.ie` (staging environment)
-  - Production: `https://api.ceolx.ie` (production)
+  - Preview: `https://api-staging.ceolx.com` (staging environment)
+  - Production: `https://api.ceolx.com` (production)
 - Deep link scheme registered as `ceolx://` in `app.config.ts`
 
 ### Placeholder Screens
@@ -287,13 +287,13 @@ export const useAuth = () => {
     "preview": {
       "distribution": "internal",
       "env": {
-        "EXPO_PUBLIC_API_BASE_URL": "https://api-staging.ceolx.ie"
+        "EXPO_PUBLIC_API_BASE_URL": "https://api-staging.ceolx.com"
       }
     },
     "production": {
       "distribution": "store",
       "env": {
-        "EXPO_PUBLIC_API_BASE_URL": "https://api.ceolx.ie"
+        "EXPO_PUBLIC_API_BASE_URL": "https://api.ceolx.com"
       }
     }
   }
@@ -322,14 +322,14 @@ const config: ExpoConfig = {
   assetBundlePatterns: ['**/*'],
   ios: {
     supportsTabletMode: false,
-    bundleIdentifier: 'ie.ceolx.app',
+    bundleIdentifier: 'com.ceolx.app',
   },
   android: {
     adaptiveIcon: {
       foregroundImage: './assets/adaptive-icon.png',
       backgroundColor: '#ffffff',
     },
-    package: 'ie.ceolx.app',
+    package: 'com.ceolx.app',
   },
   scheme: 'ceolx',
   plugins: [

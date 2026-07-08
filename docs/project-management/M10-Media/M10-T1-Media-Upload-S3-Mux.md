@@ -46,7 +46,7 @@ Generate a presigned S3 URL for image upload. Client calls this, receives a temp
 ```json
 {
   "uploadUrl": "https://s3.eu-west-1.amazonaws.com/ceolx-media?X-Amz-Algorithm=AWS4-HMAC-SHA256&...",
-  "publicUrl": "https://cdn.ceolx.ie/events/2026/03/event_123.jpg",
+  "publicUrl": "https://cdn.ceolx.com/events/2026/03/event_123.jpg",
   "key": "events/2026/03/event_123.jpg",
   "expiresIn": 300
 }
@@ -139,12 +139,12 @@ Mux calls this endpoint when video transcoding is complete and the asset is read
   - Lifecycle policy: delete objects older than 90 days (cleanup for failed uploads)
   - Versioning disabled
   - Server-side encryption (AWS-managed or KMS)
-- R5: CloudFront distribution (`cdn.ceolx.ie`) configured with S3 origin using Origin Access Control (OAC), not OAI
+- R5: CloudFront distribution (`cdn.ceolx.com`) configured with S3 origin using Origin Access Control (OAC), not OAI
   - Allowed methods: GET, HEAD
   - Caching: 30 days for images (Cache-Control: max-age=2592000)
   - Geo-restriction: none (allow all countries)
 - R6: CloudFront CDN is the only public-facing distribution; raw S3 URLs never exposed to clients
-- R7: Image URLs stored in the database point to CloudFront (e.g., `https://cdn.ceolx.ie/events/2026/03/event_123.jpg`)
+- R7: Image URLs stored in the database point to CloudFront (e.g., `https://cdn.ceolx.com/events/2026/03/event_123.jpg`)
 - R8: Upload progress shown to user during the PUT request (percentage completion)
 - R9: Failed uploads (network error, timeout) show a retry button; user can reattempt without getting a new presigned URL (same URL valid for 5 min)
 
@@ -182,7 +182,7 @@ Mux calls this endpoint when video transcoding is complete and the asset is read
 ## Acceptance Criteria
 
 - [ ] Presigned S3 URL endpoint returns a valid, working URL; client can PUT image directly to S3
-- [ ] CloudFront CDN serves uploaded images at `https://cdn.ceolx.ie/...`; verified with curl
+- [ ] CloudFront CDN serves uploaded images at `https://cdn.ceolx.com/...`; verified with curl
 - [ ] All uploaded images accessible via CDN URL within seconds (no 403 errors due to OAC misconfiguration)
 - [ ] Event cover, profile image, and post image uploads work end-to-end on iOS and Android
 - [ ] Video upload to Mux Direct Upload endpoint works; file reaches Mux servers
@@ -267,7 +267,7 @@ app.post('/api/v1/upload/presigned', authMiddleware, async (c) => {
       { expiresIn: 300 } // 5 minutes
     );
 
-    const publicUrl = `https://cdn.ceolx.ie/${key}`;
+    const publicUrl = `https://cdn.ceolx.com/${key}`;
 
     return c.json({
       uploadUrl,

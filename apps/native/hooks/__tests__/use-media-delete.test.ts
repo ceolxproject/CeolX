@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('@CeolX/env/native', () => ({
-  env: { EXPO_PUBLIC_CLOUDFRONT_DOMAIN: 'cdn.test.ceolx.ie' },
+  env: { EXPO_PUBLIC_CLOUDFRONT_DOMAIN: 'cdn.test.ceolx.com' },
 }));
 
 vi.mock('@/utils/trpc', () => ({
@@ -25,7 +25,7 @@ import { keyFromCdnUrl } from '../use-media-delete';
 
 describe('keyFromCdnUrl', () => {
   it('strips the configured CloudFront origin', () => {
-    expect(keyFromCdnUrl('https://cdn.test.ceolx.ie/posts/u/x.jpg')).toBe('posts/u/x.jpg');
+    expect(keyFromCdnUrl('https://cdn.test.ceolx.com/posts/u/x.jpg')).toBe('posts/u/x.jpg');
   });
 
   it('returns null for null/undefined/empty input', () => {
@@ -39,6 +39,6 @@ describe('keyFromCdnUrl', () => {
   });
 
   it('returns null when the URL is just the origin with a trailing slash', () => {
-    expect(keyFromCdnUrl('https://cdn.test.ceolx.ie/')).toBeNull();
+    expect(keyFromCdnUrl('https://cdn.test.ceolx.com/')).toBeNull();
   });
 });

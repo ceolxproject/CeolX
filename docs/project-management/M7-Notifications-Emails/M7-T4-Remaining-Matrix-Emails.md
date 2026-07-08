@@ -24,7 +24,7 @@ This is a **scope/planning gap, not a regression**. The transport itself is heal
 Before building new templates, confirm the transport + sender are actually valid on staging and prod. No new template helps if these are wrong, and they're the likely reason even the 6 _built_ emails may not be arriving:
 
 - `POSTMARK_API_TOKEN` set on **both** staging (preview) and prod Vercel envs. If unset and `APP_ENV`/`NODE_ENV` is not exactly `"production"`, `getTransport()` (`packages/email/src/client.ts:45`) silently routes to `localhost:1025` SMTP → mail vanishes with no error.
-- `POSTMARK_FROM_ADDRESS` set on staging + prod, **and that exact sender signature/domain is verified (DKIM + SPF/Return-Path) in Postmark**. The sender is `admin@ceolx.com` (sending/legal domain; terms+privacy also live on `ceolx.com`). The app _infrastructure_ domain is `ceolx.ie` (api/app/admin subdomains, deep links, `support@ceolx.ie`, `ceolx.ie/subscribe`) — both domains are intentionally in play. **Latent footgun:** the two code fallbacks disagree — `packages/email/src/constants.ts:1` defaults to `admin@ceolx.com`, but `packages/env/src/server.ts:13` and `apps/server/.env.example:55` default to `noreply@ceolx.ie`. `SENDER_EMAIL` reads `process.env.POSTMARK_FROM_ADDRESS` directly, so the env var wins at runtime; the `.com` fallback only applies if it's unset. Set the var explicitly to the verified address and align the two defaults to avoid a silent wrong-From if it's ever missing.
+- `POSTMARK_FROM_ADDRESS` set on staging + prod, **and that exact sender signature/domain is verified (DKIM + SPF/Return-Path) in Postmark**. The sender is `admin@ceolx.com` (sending/legal domain; terms+privacy also live on `ceolx.com`). The app _infrastructure_ domain is `ceolx.com` (api/app/admin subdomains, deep links, `admin@ceolx.com`, `ceolx.com/subscribe`) — both domains are intentionally in play. **Latent footgun:** the two code fallbacks disagree — `packages/email/src/constants.ts:1` defaults to `admin@ceolx.com`, but `packages/env/src/server.ts:13` and `apps/server/.env.example:55` default to `noreply@ceolx.com`. `SENDER_EMAIL` reads `process.env.POSTMARK_FROM_ADDRESS` directly, so the env var wins at runtime; the `.com` fallback only applies if it's unset. Set the var explicitly to the verified address and align the two defaults to avoid a silent wrong-From if it's ever missing.
 - Postmark account out of "pending approval" sandbox (new accounts can only send to the account's own domain until approved).
 - Confirm the bounce/spam webhook (`/api/webhooks/postmark`) is wired in the Postmark dashboard so suppressed addresses are visible.
 
@@ -58,7 +58,7 @@ Adding a template touches these files (grounded in the current codebase):
 
 **Category B — email-only lifecycle.** Rows with Push/In-App = "—", Email = ✅. Must **not** go through `dispatchNotification` (it unconditionally writes an inbox row). Need a direct sender call at the event source (Stripe webhook handler, GDPR/inactivity job, etc.).
 
-**Category C — outside-platform invite (A-14).** A mini-feature: template + invite token + `ceolx.ie/invite/:token` claim landing + wiring into `bookings.inviteExternal`. The recipient has no account.
+**Category C — outside-platform invite (A-14).** A mini-feature: template + invite token + `ceolx.com/invite/:token` claim landing + wiring into `bookings.inviteExternal`. The recipient has no account.
 
 ---
 
@@ -83,14 +83,14 @@ Adding a template touches these files (grounded in the current codebase):
 
 ### PR 2 — Outside-platform collaborator invite (A-14, Category C) — **second**
 
-**Row:** A-14 — venue invites a non-platform artist by name+email. Matrix: route `ceolx.ie/invite/:token`, 14-day expiry, subject _"{{inviterName}} added you to "{{eventTitle}}" on CeolX"_.
+**Row:** A-14 — venue invites a non-platform artist by name+email. Matrix: route `ceolx.com/invite/:token`, 14-day expiry, subject _"{{inviterName}} added you to "{{eventTitle}}" on CeolX"_.
 
 **Current state:** `bookings.inviteExternal` (`packages/api/src/routers/bookings.ts:1081`) only inserts an `eventCollaborators` row (`invitedName`/`invitedEmail`). No email, no token, no claim flow.
 
 **Open design questions (needs brainstorming before build):**
 
 - Token storage: new column on `eventCollaborators` (e.g. `inviteToken`, `inviteExpiresAt`) vs a dedicated invites table
-- `ceolx.ie/invite/:token` landing — HTTPS bridge into the app (like `verify-email`/`reset-password` in `apps/server/src/routes/`) → prefilled signup that claims the collaborator row on account creation
+- `ceolx.com/invite/:token` landing — HTTPS bridge into the app (like `verify-email`/`reset-password` in `apps/server/src/routes/`) → prefilled signup that claims the collaborator row on account creation
 - What happens on expiry / re-invite / dedup (a dedup-by-email guard already exists)
 
 **Work:** new `invite` template + sender; token column + 14-day expiry; `/invite/:token` route (model on `deep-link-bridge.ts`); claim-on-signup linking `eventCollaborators.artistProfileId`; wire `publishJob('email.send', …)` into `inviteExternal`.
@@ -144,5 +144,5 @@ existing `password-reset` template (admin shares the same BetterAuth instance).
 
 1. **Is the full 38-email set actually committed V1?** The matrix is "Draft rev 2 — pending PM audit." Some rows (e.g. booking-rejected emails) may be deliberately push/in-app-only to avoid email fatigue. Confirm the list before building.
 2. **Generic vs bespoke template** for Category A (PR 1) — recommend generic.
-3. **From-address** — sender is `admin@ceolx.com` (sending domain), app infra is `ceolx.ie`; both are intentional. Align the two conflicting code defaults (`admin@ceolx.com` vs `noreply@ceolx.ie`) and verify the configured sender in Postmark (P0 precondition).
+3. **From-address** — sender is `admin@ceolx.com` (sending domain), app infra is `ceolx.com`; both are intentional. Align the two conflicting code defaults (`admin@ceolx.com` vs `noreply@ceolx.com`) and verify the configured sender in Postmark (P0 precondition).
 4. **A-14 claim-flow design** — needs its own brainstorm.

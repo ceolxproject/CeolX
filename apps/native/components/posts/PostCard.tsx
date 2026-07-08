@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { router } from 'expo-router';
+import { router, useSegments, type Href } from 'expo-router';
+import * as WebBrowser from 'expo-web-browser';
 import { Image, Platform, Pressable, Text, View } from 'react-native';
 import Animated, {
   useAnimatedStyle,
@@ -17,9 +18,10 @@ import { PostImage } from './PostImage';
 import { PostVideo } from './PostVideo';
 
 import { useDeletePost } from '@/hooks/use-delete-post';
+import { useLikeHandler } from '@/hooks/use-like-handler';
 import { useProfileFollowHandler } from '@/hooks/use-profile-follow-handler';
 import { useSharePost } from '@/hooks/use-share-post';
-import { useTogglePostLike } from '@/hooks/use-toggle-post-like';
+import { splitCaptionLinks } from '@/utils/linkify';
 import { MOCK_PROFILE_IMAGE } from '@/utils/mock-images';
 
 export type PostCardPost = {
@@ -29,6 +31,11 @@ export type PostCardPost = {
   caption: string;
   mediaType: string;
   mediaUrl: string | null;
+  /** Set when this post promotes an event — drives tap-to-event + hides owner edit/delete. */
+  eventId?: string | null;
+  // Owner-only: set when this promo's event has already ended, driving the
+  // "Ended" badge on the creator's own profile. Absent on feed/other surfaces.
+  eventEnded?: boolean;
   // Mux video fields — populated only for mediaType === 'video'. Drive the
   // processing / error / ready states in <PostVideo>.
   muxStatus?: string | null;
@@ -177,13 +184,10 @@ export function PostCard({
   const liked = post.likedByMe;
   const likeCount = post.likeCount ?? 0;
 
-  const toggleLike = useTogglePostLike();
+  const { onLikePress, isPending: likePending } = useLikeHandler(post.id);
   const deletePost = useDeletePost();
   const sharePost = useSharePost();
-
-  const onLikePress = () => {
-    toggleLike.mutate({ postId: post.id });
-  };
+  const segments = useSegments();
 
   const onSharePress = () => {
     void sharePost(post.id, post.caption);
@@ -198,6 +202,18 @@ export function PostCard({
   };
 
   const openDetail = () => {
+    // A promo post is a live view of its event — tapping opens the event, not a
+    // post-detail screen. Route within the current tab's stack so back / tab
+    // context is preserved (segments: ['(app)','(tabs)','<tab>', …]); fall back
+    // to the top-level deep-link shim when not inside a tab (e.g. post detail).
+    if (post.eventId) {
+      const target =
+        segments[1] === '(tabs)' && segments[2]
+          ? (`/(app)/(tabs)/${segments[2]}/event/${post.eventId}` as Href)
+          : (`/(app)/event/${post.eventId}` as Href);
+      router.push(target);
+      return;
+    }
     router.push({ pathname: '/(app)/post/[postId]', params: { postId: post.id } });
   };
 
@@ -238,9 +254,25 @@ export function PostCard({
 
   // The author name is shown in the header row (feed) or the profile header
   // (profile tabs), so it's never repeated here.
+  // A URL past the preview cutoff can render cut mid-link; the detail view shows it whole.
   const captionBlock = (
     <Text className={`text-sm leading-5 text-white font-urbanist ${hasMedia ? '' : 'mb-2'}`}>
-      {caption}
+      {splitCaptionLinks(caption).map((segment, index) =>
+        segment.type === 'url' ? (
+          <Text
+            key={index}
+            className="text-blue-10 underline"
+            accessibilityRole="link"
+            onPress={() => {
+              void WebBrowser.openBrowserAsync(segment.href).catch(() => {});
+            }}
+          >
+            {segment.value}
+          </Text>
+        ) : (
+          segment.value
+        )
+      )}
       {showReadMore && <Text className="font-medium text-blue-10">… more</Text>}
     </Text>
   );
@@ -250,7 +282,7 @@ export function PostCard({
       {/* Like count sits directly beneath the heart so it stays tied to the action
           that drives it (the share icon top-aligns alongside, no count of its own). */}
       <View className="items-center">
-        <LikeButton liked={liked} pending={toggleLike.isPending} onPress={onLikePress} />
+        <LikeButton liked={liked} pending={likePending} onPress={onLikePress} />
         {likeCount > 0 && (
           <Text
             className="mt-0.5 text-xs text-white/60 font-urbanist"
@@ -314,7 +346,10 @@ export function PostCard({
             <View className="flex-1 flex-row items-center gap-3">{authorIdentity}</View>
           )}
           {isOwner ? (
-            <PostActionMenu onEdit={onEdit} onDelete={onDelete} />
+            // Promo posts are managed via their event — no direct edit/delete.
+            post.eventId ? null : (
+              <PostActionMenu onEdit={onEdit} onDelete={onDelete} />
+            )
           ) : (
             canViewProfile && (
               <FollowButton
@@ -353,6 +388,15 @@ export function PostCard({
           {captionBlock}
           {actionsRow}
         </>
+      )}
+
+      {/* Owner-only "Ended" marker (top-right). Gated on isOwner AND the
+          server-only eventEnded flag, so it never renders for a visitor viewing
+          this profile — a non-owner never even receives an ended promo row. */}
+      {isOwner && post.eventId && post.eventEnded && (
+        <View className="absolute right-3 top-3 rounded-lg bg-[#F59E0B] px-2 py-1">
+          <Text className="text-[10px] font-bold text-black font-urbanist">Ended</Text>
+        </View>
       )}
     </Pressable>
   );

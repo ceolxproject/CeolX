@@ -51,7 +51,7 @@ describe('sendVenueActivationEmail', () => {
     await sendVenueActivationEmail({
       to: 'v@example.com',
       venueName: 'The Hut',
-      activationUrl: 'https://ceolx.ie/subscribe',
+      activationUrl: 'https://ceolx.com/subscribe',
       userName: 'Sean',
     });
     expect(sendEmail).toHaveBeenCalledWith({
@@ -60,7 +60,7 @@ describe('sendVenueActivationEmail', () => {
       data: {
         userName: 'Sean',
         venueName: 'The Hut',
-        activationUrl: 'https://ceolx.ie/subscribe',
+        activationUrl: 'https://ceolx.com/subscribe',
       },
     });
   });
@@ -73,7 +73,7 @@ describe('sendPaymentConfirmationEmail', () => {
       amount: '€20.00',
       planName: 'CeolX Venue',
       nextBillingDate: '2026-05-22',
-      manageUrl: 'https://ceolx.ie/account',
+      manageUrl: 'https://ceolx.com/account',
     });
     const call = vi.mocked(sendEmail).mock.calls[0]?.[0];
     expect(call?.template).toBe('payment-confirmation');
@@ -86,7 +86,7 @@ describe('sendPaymentConfirmationEmail', () => {
       amount: '€20.00',
       planName: 'CeolX Venue',
       nextBillingDate: '2026-05-22',
-      manageUrl: 'https://ceolx.ie/account',
+      manageUrl: 'https://ceolx.com/account',
       invoiceUrl: 'https://pay.stripe.com/invoice/abc',
     });
     const call = vi.mocked(sendEmail).mock.calls[0]?.[0];
@@ -199,7 +199,7 @@ describe('sendCollaboratorInviteEmail', () => {
       inviterName: 'The Temple Bar',
       eventTitle: 'Trad Night',
       eventDate: '1 May',
-      inviteUrl: 'https://ceolx.ie/invite/tok-abc',
+      inviteUrl: 'https://ceolx.com/invite/tok-abc',
     });
     expect(sendEmail).toHaveBeenCalledWith({
       to: 'artist@example.com',
@@ -208,7 +208,7 @@ describe('sendCollaboratorInviteEmail', () => {
         inviterName: 'The Temple Bar',
         eventTitle: 'Trad Night',
         eventDate: '1 May',
-        inviteUrl: 'https://ceolx.ie/invite/tok-abc',
+        inviteUrl: 'https://ceolx.com/invite/tok-abc',
       },
     });
   });
@@ -218,7 +218,7 @@ describe('sendCollaboratorInviteEmail', () => {
       to: 'artist@example.com',
       inviterName: 'The Temple Bar',
       eventTitle: 'Trad Night',
-      inviteUrl: 'https://ceolx.ie/invite/tok-abc',
+      inviteUrl: 'https://ceolx.com/invite/tok-abc',
     });
     expect(vi.mocked(sendEmail).mock.calls[0]?.[0].data).not.toHaveProperty('eventDate');
   });

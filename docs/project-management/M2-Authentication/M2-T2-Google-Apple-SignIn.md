@@ -110,8 +110,8 @@ Initiate Apple Sign-In flow (iOS only).
 
 - Google Cloud Console project created with OAuth 2.0 credentials
 - Separate client IDs for iOS, Android, and Web
-- iOS client ID configured in `app.config.ts` with bundle identifier `ie.ceolx.app`
-- Android client ID configured with package name `ie.ceolx.app`
+- iOS client ID configured in `app.config.ts` with bundle identifier `com.ceolx.app`
+- Android client ID configured with package name `com.ceolx.app`
 - OAuth scopes: `openid profile email` (minimal scope)
 - Redirect URI: `ceolx://oauth-callback` (deep link scheme)
 - BetterAuth Google provider configured with all three client IDs
@@ -119,7 +119,7 @@ Initiate Apple Sign-In flow (iOS only).
 ### Apple Sign-In Configuration
 
 - Apple Developer Account with Team ID
-- Service ID created (format: `ie.ceolx.app`)
+- Service ID created (format: `com.ceolx.app`)
 - Sign-In with Apple capability enabled for the app
 - Private Email Relay enabled (users can hide real email)
 - Key pair generated and stored securely (Certificate Management in Apple Developer)
@@ -172,8 +172,8 @@ Initiate Apple Sign-In flow (iOS only).
 ### Google OAuth Setup (Google Cloud Console)
 
 1. Create OAuth 2.0 Client IDs:
-   - **iOS**: Bundle ID `ie.ceolx.app`
-   - **Android**: Package name `ie.ceolx.app`, signing certificate SHA-1 fingerprint
+   - **iOS**: Bundle ID `com.ceolx.app`
+   - **Android**: Package name `com.ceolx.app`, signing certificate SHA-1 fingerprint
    - **Web**: Redirect URI `ceolx://oauth-callback`
 
 2. Scopes: `openid profile email`
@@ -187,14 +187,14 @@ Initiate Apple Sign-In flow (iOS only).
 
 ### Apple Sign-In Setup (Apple Developer)
 
-1. Register Service ID: `ie.ceolx.app`
+1. Register Service ID: `com.ceolx.app`
 2. Enable "Sign In with Apple" capability
 3. Configure as a Web Authentication Configuration with redirect URI `ceolx://oauth-callback`
 4. Create a private key and download it (keep secure)
 5. Store securely:
    ```bash
    APPLE_TEAM_ID=...
-   APPLE_SERVICE_ID=ie.ceolx.app
+   APPLE_SERVICE_ID=com.ceolx.app
    APPLE_KEY_ID=...
    APPLE_PRIVATE_KEY=...  # PEM format, base64 encoded
    ```

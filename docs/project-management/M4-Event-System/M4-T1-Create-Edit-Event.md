@@ -395,7 +395,7 @@ app.post('/events', zValidator('json', EventCreateSchema), async (c) => {
             creatorName: user.name,
             eventTitle: data.title,
             eventDate: data.date_start,
-            signUpLink: 'https://ceolx.ie/sign-up',
+            signUpLink: 'https://ceolx.com/sign-up',
           },
         }).catch((err) => console.error(`Invite email failed for ${collab.email}:`, err));
       }

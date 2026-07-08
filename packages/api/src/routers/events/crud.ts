@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 
 import { TRPCError } from '@trpc/server';
-import { and, countDistinct, desc, eq, gt, inArray, isNull, ne, or, sql } from 'drizzle-orm';
+import { and, countDistinct, desc, eq, gt, gte, inArray, isNull, ne, or, sql } from 'drizzle-orm';
 import { unionAll } from 'drizzle-orm/pg-core';
 import { z } from 'zod';
 
@@ -9,6 +9,7 @@ import { db } from '@CeolX/db';
 import { user } from '@CeolX/db/schema/auth';
 import { bookings } from '@CeolX/db/schema/bookings';
 import { collections, eventCollaborators, events, savedEvents } from '@CeolX/db/schema/events';
+import { posts } from '@CeolX/db/schema/social';
 import { artistProfiles, venueProfiles } from '@CeolX/db/schema/users';
 import { sendCollaboratorInviteEmail } from '@CeolX/email';
 import {
@@ -28,6 +29,7 @@ import {
 import type { DispatchNotificationInput } from '../../context';
 import { creatorProcedure, protectedProcedure, publicProcedure } from '../../index';
 import { syncEventToTypesense, removeEventFromTypesense } from '../../services/event-sync';
+import { syncPromoPost } from '../../services/promo-post';
 
 import { resolveEventCoordinates, resolveProfileImageUrl } from './helpers';
 import { recordEventView } from './view-tracking';
@@ -47,9 +49,9 @@ function canonicalEmail(email: string): string {
   return email.trim().toLowerCase();
 }
 
-/** Build the public invite landing URL. PUBLIC_WEB_ORIGIN is the ceolx.ie web origin. */
+/** Build the public invite landing URL. PUBLIC_WEB_ORIGIN is the ceolx.com web origin. */
 function inviteUrl(token: string): string {
-  const origin = process.env.PUBLIC_WEB_ORIGIN ?? 'https://ceolx.ie';
+  const origin = process.env.PUBLIC_WEB_ORIGIN ?? 'https://ceolx.com';
   return `${origin}/invite/${token}`;
 }
 
@@ -389,12 +391,18 @@ export const byId = publicProcedure
           })
         : Promise.resolve(null),
 
-      // related events from same collection (up to 5)
+      // related events from same collection (up to 5) — upcoming only.
+      // A past event stays status='active' (only creator-delete flips it to
+      // archived), so a status filter alone leaks elapsed events into the
+      // "Explore the collection" preview. Mirror collections.byId's
+      // isUpcomingEvent (dateStart >= now) so this preview and the "see all"
+      // list show the same events. (Asana 1216297161493463)
       event.collectionId
         ? db.query.events.findMany({
             where: and(
               eq(events.collectionId, event.collectionId),
               eq(events.status, EventStatus.ACTIVE),
+              gte(events.dateStart, sql`now()`),
               ne(events.id, input.id)
             ),
             columns: {
@@ -586,7 +594,7 @@ export const byId = publicProcedure
   });
 
 export const create = creatorProcedure.input(createEventSchema).mutation(async ({ input, ctx }) => {
-  const { platformInvites, unregisteredCollaborators, ...eventData } = input;
+  const { platformInvites, unregisteredCollaborators, shareToFeed, ...eventData } = input;
 
   const isVenue = ctx.session.user.currentRole === UserRole.VENUE;
 
@@ -822,6 +830,21 @@ export const create = creatorProcedure.input(createEventSchema).mutation(async (
       }
     }
 
+    // Promo post — a live representation of the event in the social feed, created
+    // only when the creator opted in (shareToFeed). Held-for-approval events start
+    // hidden and are revealed on venue acceptance; visibility otherwise tracks the
+    // event via the deleted_at toggles (status) + the read-time expiry filter.
+    if (shareToFeed) {
+      await tx.insert(posts).values({
+        eventId: inserted.id,
+        createdBy: ctx.userId,
+        caption: inserted.title,
+        mediaType: inserted.coverImage ? 'image' : 'text',
+        mediaUrl: inserted.coverImage ?? null,
+        deletedAt: heldForVenueApproval ? new Date() : null,
+      });
+    }
+
     return inserted;
   });
 
@@ -956,6 +979,14 @@ export const update = protectedProcedure
 
       const result = rows[0];
       if (!result) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Update failed' });
+
+      // Keep the linked promo post in sync — content mirrors the event, and
+      // visibility follows its live state (hidden unless active). No-op when the
+      // event has no promo post (created with "Share to feed" off).
+      await syncPromoPost(tx, result.id, {
+        hidden: result.status !== EventStatus.ACTIVE,
+        content: { title: result.title, coverImage: result.coverImage },
+      });
 
       if (isResubmit) {
         // Matrix A-16 / V-15 — confirm resubmission to the creator. Queued
@@ -1354,6 +1385,11 @@ export const archive = protectedProcedure
       .returning();
 
     await removeEventFromTypesense(input.id).catch(() => {});
+
+    // Hide the event's promo post from the social feed now that it's archived.
+    await syncPromoPost(db, input.id, { hidden: true }).catch((err: unknown) => {
+      console.warn(`[events.archive] failed to hide promo post for event ${input.id}:`, err);
+    });
 
     // Tell the linked counterparty their event was deleted. The other side of
     // any still-live booking (a venue's invited/confirmed artist, or the venue

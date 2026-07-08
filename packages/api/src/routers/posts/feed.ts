@@ -1,12 +1,25 @@
-import { and, desc, eq, ilike, inArray, isNull, or, type SQL, sql } from 'drizzle-orm';
+import {
+  and,
+  desc,
+  eq,
+  getTableColumns,
+  ilike,
+  inArray,
+  isNull,
+  or,
+  type SQL,
+  sql,
+} from 'drizzle-orm';
 
 import { db } from '@CeolX/db';
 import { user } from '@CeolX/db/schema/auth';
+import { events } from '@CeolX/db/schema/events';
 import { postLikes, posts } from '@CeolX/db/schema/social';
 import { artistProfiles, venueProfiles } from '@CeolX/db/schema/users';
 import { postFeedQuerySchema } from '@CeolX/shared/validators';
 
-import { protectedProcedure } from '../../index';
+import { publicProcedure } from '../../index';
+import { promoVisible } from '../../services/promo-post';
 
 import { hydrateAuthors } from './hydrate';
 
@@ -46,18 +59,24 @@ async function buildSearchFilter(query: string | undefined): Promise<SQL | undef
     : captionMatch;
 }
 
-export const feed = protectedProcedure.input(postFeedQuerySchema).query(async ({ input, ctx }) => {
+export const feed = publicProcedure.input(postFeedQuerySchema).query(async ({ input, ctx }) => {
   const { limit, offset, query } = input;
-  const viewerId = ctx.userId;
+  // Posts are public: guests ("Skip sign-in") browse the feed with no session.
+  // A null viewer skips the per-viewer follow/like lookups and leaves
+  // isFollowedByMe / likedByMe false. (Asana 1216227543475896)
+  const viewerId = ctx.session?.user?.id ?? null;
 
   const searchFilter = await buildSearchFilter(query);
-  // `and` drops the undefined arg, so no-query falls back to deleted-only.
-  const where = and(isNull(posts.deletedAt), searchFilter);
+  // Hide promo posts whose event isn't live/upcoming — read-time backstop to the
+  // deleted_at toggle, plus expiry, via the events join. Non-promo posts are
+  // unaffected. `and` drops undefined, so no-query still filters correctly.
+  const where = and(isNull(posts.deletedAt), promoVisible(), searchFilter);
 
   const [rows, countRow] = await Promise.all([
     db
-      .select()
+      .select(getTableColumns(posts))
       .from(posts)
+      .leftJoin(events, eq(events.id, posts.eventId))
       .where(where)
       .orderBy(desc(posts.createdAt))
       .limit(limit + 1)
@@ -65,6 +84,7 @@ export const feed = protectedProcedure.input(postFeedQuerySchema).query(async ({
     db
       .select({ count: sql<number>`count(*)::int` })
       .from(posts)
+      .leftJoin(events, eq(events.id, posts.eventId))
       .where(where),
   ]);
 
@@ -77,7 +97,7 @@ export const feed = protectedProcedure.input(postFeedQuerySchema).query(async ({
       page.map((p) => p.createdBy),
       viewerId
     ),
-    page.length > 0
+    viewerId && page.length > 0
       ? db
           .select({ postId: postLikes.postId })
           .from(postLikes)

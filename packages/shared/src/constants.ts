@@ -4,6 +4,10 @@ import type { IrishCounty } from './enums';
 export const MAP_MAX_PINS_PER_FETCH = 50;
 export const MAP_DEBOUNCE_MS = 400;
 
+// Fetch this many times the visible viewport so panning preloads surrounding
+// events instead of fetching them on arrival.
+export const MAP_VIEWPORT_PAD_FACTOR = 2;
+
 // Silent radius expansion for empty map states
 export const MAP_EXPAND_RADIUS_KM = [5, 25, 100] as const;
 
@@ -86,10 +90,10 @@ export const INACTIVE_ACCOUNT_FLAG_MONTHS = 24;
 export const ACCOUNT_ANONYMIZE_DELAY_DAYS = 30;
 
 // Venue subscription
-export const VENUE_SUBSCRIPTION_URL = 'https://ceolx.ie/subscribe';
+export const VENUE_SUBSCRIPTION_URL = 'https://ceolx.com/subscribe';
 
 /** Public CeolX marketing/landing site — used as the CTA for re-engagement emails. */
-export const CEOLX_WEB_URL = 'https://ceolx.ie';
+export const CEOLX_WEB_URL = 'https://ceolx.com';
 
 // FCM
 export const FCM_NOTIFICATION_CLICK_ACTION = 'FLUTTER_NOTIFICATION_CLICK';

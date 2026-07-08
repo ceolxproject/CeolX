@@ -1,4 +1,4 @@
-# M8-T4 · Subscription Management Portal (ceolx.ie/account)
+# M8-T4 · Subscription Management Portal (ceolx.com/account)
 
 | Field          | Value                                                                                                                  |
 | -------------- | ---------------------------------------------------------------------------------------------------------------------- |
@@ -11,7 +11,7 @@
 
 ## Description
 
-Build the Venue subscription management page at `ceolx.ie/account`. Authenticated Venues can view their subscription status, billing history, update payment method, and cancel their subscription. The page redirects to Stripe Customer Portal (Stripe's hosted interface) for all management operations. Cancellation via the portal triggers a Stripe webhook → app detects cancellation → profile hidden in app.
+Build the Venue subscription management page at `ceolx.com/account`. Authenticated Venues can view their subscription status, billing history, update payment method, and cancel their subscription. The page redirects to Stripe Customer Portal (Stripe's hosted interface) for all management operations. Cancellation via the portal triggers a Stripe webhook → app detects cancellation → profile hidden in app.
 
 ---
 
@@ -59,7 +59,7 @@ Create a Stripe Customer Portal session for authenticated Venue user.
 - R1.1: `/account` page requires authenticated user with active Venue persona
 - R1.2: Unauthenticated users redirected to login page
 - R1.3: Non-Venue users (Spectator/Artist) see message: _"Please switch to Venue account type to manage your subscription."_
-- R1.4: No external URL shown inside mobile app — link to `ceolx.ie/account` sent only via Postmark payment confirmation email (M7-T3)
+- R1.4: No external URL shown inside mobile app — link to `ceolx.com/account` sent only via Postmark payment confirmation email (M7-T3)
 
 ### Subscription Status Display
 
@@ -82,7 +82,7 @@ Create a Stripe Customer Portal session for authenticated Venue user.
   - Billing history (past invoices with download links)
   - Payment method management (add/update card)
   - Subscription cancellation button
-- R3.6: Return URL in portal session: `https://ceolx.ie` (returns to home, not `/account`)
+- R3.6: Return URL in portal session: `https://ceolx.com` (returns to home, not `/account`)
 
 ### Cancellation Flow
 
@@ -93,7 +93,7 @@ Create a Stripe Customer Portal session for authenticated Venue user.
 
 ### Reactivation Path
 
-- R5.1: If Venue cancels, `/account` page shows: _"Your subscription is cancelled. [Button: Reactivate] → ceolx.ie/subscribe"_
+- R5.1: If Venue cancels, `/account` page shows: _"Your subscription is cancelled. [Button: Reactivate] → ceolx.com/subscribe"_
 - R5.2: Re-subscribing follows same flow as M8-T1 (Stripe Checkout → webhook → activation)
 - R5.3: No data is deleted on cancellation — past events and bookings preserved
 
@@ -130,7 +130,7 @@ Create a Stripe Customer Portal session for authenticated Venue user.
 - [ ] Reactivation link points to `/subscribe`
 - [ ] Error states show helpful messages + support contact
 - [ ] No subscription URL shown or linked inside mobile app
-- [ ] Return URL from portal is `https://ceolx.ie` (not `/account`)
+- [ ] Return URL from portal is `https://ceolx.com` (not `/account`)
 
 ---
 
@@ -310,7 +310,7 @@ export default function AccountPage() {
 
       {/* Support Footer */}
       <div style={{ marginTop: '2rem', borderTop: '1px solid #eee', paddingTop: '1rem' }}>
-        <p>Need help? Contact support@ceolx.ie</p>
+        <p>Need help? Contact admin@ceolx.com</p>
       </div>
     </div>
   );
@@ -353,7 +353,7 @@ router.post('/stripe/portal-session', async (c) => {
     // Create Customer Portal session
     const session = await stripe.billingPortal.sessions.create({
       customer: venue.stripeCustomerId,
-      return_url: 'https://ceolx.ie',
+      return_url: 'https://ceolx.com',
     });
 
     return c.json({ portalUrl: session.url });
@@ -411,7 +411,7 @@ Before launch, configure Stripe Customer Portal in Stripe Dashboard:
 **Gotcha 5: Return URL from portal shows home page instead of `/account`**
 
 - Issue: User expects to return to subscription page; instead redirected to home
-- Fix: Set `return_url` to `https://ceolx.ie` (not `/account`); it's a portal exit point, not a return
+- Fix: Set `return_url` to `https://ceolx.com` (not `/account`); it's a portal exit point, not a return
 
 **Gotcha 6: Payment method update doesn't immediately fix past_due**
 
@@ -425,7 +425,7 @@ Before launch, configure Stripe Customer Portal in Stripe Dashboard:
 Postmark payment confirmation email should include:
 
 ```html
-<p><a href="https://ceolx.ie/account">Manage Your Subscription</a> anytime in the portal above.</p>
+<p><a href="https://ceolx.com/account">Manage Your Subscription</a> anytime in the portal above.</p>
 ```
 
 This is the only place the `/account` link appears — never shown inside the mobile app.

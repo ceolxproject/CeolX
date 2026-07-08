@@ -7,7 +7,7 @@ const { envState, mockGetSignedUrl } = vi.hoisted(() => {
   const envState: Record<string, string | undefined> = {
     AWS_REGION: 'eu-west-1',
     S3_BUCKET_NAME: 'ceolx-media-test',
-    CLOUDFRONT_DOMAIN: 'cdn.test.ceolx.ie',
+    CLOUDFRONT_DOMAIN: 'cdn.test.ceolx.com',
   };
   const mockGetSignedUrl = vi.fn();
   return { envState, mockGetSignedUrl };
@@ -33,7 +33,7 @@ beforeEach(() => {
   Object.assign(envState, {
     AWS_REGION: 'eu-west-1',
     S3_BUCKET_NAME: 'ceolx-media-test',
-    CLOUDFRONT_DOMAIN: 'cdn.test.ceolx.ie',
+    CLOUDFRONT_DOMAIN: 'cdn.test.ceolx.com',
   });
   mockGetSignedUrl.mockReset();
   mockGetSignedUrl.mockResolvedValue('https://signed.example/url');
@@ -49,7 +49,7 @@ describe('presignUpload', () => {
     });
     expect(result.uploadUrl).toBe('https://signed.example/url');
     expect(result.cdnUrl).toMatch(
-      /^https:\/\/cdn\.test\.ceolx\.ie\/profiles\/user_abc123\/.+\.jpg$/
+      /^https:\/\/cdn\.test\.ceolx\.com\/profiles\/user_abc123\/.+\.jpg$/
     );
     expect(result.key).toMatch(/^profiles\/user_abc123\/.+\.jpg$/);
     expect(result.expiresIn).toBeGreaterThan(0);
@@ -127,25 +127,25 @@ describe('presignDelete', () => {
 describe('keyFromCdnUrl', () => {
   it('strips the CloudFront origin', async () => {
     const { keyFromCdnUrl } = await import('../services/s3-presigner.js');
-    expect(keyFromCdnUrl('https://cdn.test.ceolx.ie/posts/u/x.jpg', 'cdn.test.ceolx.ie')).toBe(
+    expect(keyFromCdnUrl('https://cdn.test.ceolx.com/posts/u/x.jpg', 'cdn.test.ceolx.com')).toBe(
       'posts/u/x.jpg'
     );
   });
 
   it('returns null for a different domain', async () => {
     const { keyFromCdnUrl } = await import('../services/s3-presigner.js');
-    expect(keyFromCdnUrl('https://other.example/posts/u/x.jpg', 'cdn.test.ceolx.ie')).toBeNull();
+    expect(keyFromCdnUrl('https://other.example/posts/u/x.jpg', 'cdn.test.ceolx.com')).toBeNull();
   });
 
   it('returns null for non-https schemes', async () => {
     const { keyFromCdnUrl } = await import('../services/s3-presigner.js');
-    expect(keyFromCdnUrl('ftp://cdn.test.ceolx.ie/x.jpg', 'cdn.test.ceolx.ie')).toBeNull();
+    expect(keyFromCdnUrl('ftp://cdn.test.ceolx.com/x.jpg', 'cdn.test.ceolx.com')).toBeNull();
   });
 
   it('returns null for null/undefined input', async () => {
     const { keyFromCdnUrl } = await import('../services/s3-presigner.js');
-    expect(keyFromCdnUrl(null, 'cdn.test.ceolx.ie')).toBeNull();
-    expect(keyFromCdnUrl(undefined, 'cdn.test.ceolx.ie')).toBeNull();
-    expect(keyFromCdnUrl('', 'cdn.test.ceolx.ie')).toBeNull();
+    expect(keyFromCdnUrl(null, 'cdn.test.ceolx.com')).toBeNull();
+    expect(keyFromCdnUrl(undefined, 'cdn.test.ceolx.com')).toBeNull();
+    expect(keyFromCdnUrl('', 'cdn.test.ceolx.com')).toBeNull();
   });
 });

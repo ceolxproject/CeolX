@@ -12,7 +12,7 @@ import {
 
 /**
  * Public landing for an outside-platform collaborator invite (matrix A-14),
- * `GET /invite/:token`. The invite email links here; `ceolx.ie` rewrites it to
+ * `GET /invite/:token`. The invite email links here; `ceolx.com` rewrites it to
  * the server. The invitee has no app yet, so the page unfurls the event +
  * inviting venue and offers store buttons + a sign-up deep link. They claim
  * their pending spot by signing up with the SAME email the invite was sent to

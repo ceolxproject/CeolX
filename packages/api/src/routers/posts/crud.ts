@@ -1,8 +1,10 @@
 import { TRPCError } from '@trpc/server';
-import { and, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
+import { and, desc, eq, getTableColumns, inArray, isNull, sql } from 'drizzle-orm';
 
 import { db } from '@CeolX/db';
+import { events } from '@CeolX/db/schema/events';
 import { posts, postLikes } from '@CeolX/db/schema/social';
+import { EventStatus } from '@CeolX/shared';
 import {
   createPostSchema,
   deletePostSchema,
@@ -13,6 +15,7 @@ import {
 
 import { creatorProcedure, protectedProcedure, publicProcedure } from '../../index';
 import { retrieveUploadStatus } from '../../services/mux';
+import { isPromoEventExpired, promoVisible } from '../../services/promo-post';
 
 import { hydrateAuthors } from './hydrate';
 
@@ -116,6 +119,14 @@ export const update = protectedProcedure
     if (existing.createdBy !== ctx.userId) {
       throw new TRPCError({ code: 'FORBIDDEN', message: 'You can only edit your own posts' });
     }
+    // Promo posts (event-linked) are managed through their event — a direct edit
+    // would be overwritten by the next event-edit content mirror anyway.
+    if (existing.eventId) {
+      throw new TRPCError({
+        code: 'FORBIDDEN',
+        message: 'This post promotes an event and is managed through the event.',
+      });
+    }
 
     const set: Record<string, unknown> = { updatedAt: new Date() };
     if (input.caption !== undefined) set.caption = input.caption;
@@ -151,6 +162,15 @@ export const remove = protectedProcedure
     if (existing.createdBy !== ctx.userId) {
       throw new TRPCError({ code: 'FORBIDDEN', message: 'You can only delete your own posts' });
     }
+    // Promo posts are managed through their event (deleting the event hides the
+    // promo). Blocking direct removal keeps `deleted_at` meaning only "event not
+    // live" — otherwise a later status sync (syncPromoPost) would resurrect it.
+    if (existing.eventId) {
+      throw new TRPCError({
+        code: 'FORBIDDEN',
+        message: 'This post promotes an event and is managed through the event.',
+      });
+    }
 
     await db
       .update(posts)
@@ -172,6 +192,22 @@ export const byId = publicProcedure.input(postByIdSchema).query(async ({ input, 
   const post = await db.query.posts.findFirst({ where: eq(posts.id, input.id) });
   if (!post || post.deletedAt) {
     throw new TRPCError({ code: 'NOT_FOUND', message: 'Post not found' });
+  }
+  // Promo posts are hidden once their linked event has passed (read-time expiry).
+  if (post.eventId) {
+    const linkedEvent = await db.query.events.findFirst({
+      where: eq(events.id, post.eventId),
+      columns: { status: true, dateStart: true, dateEnd: true },
+    });
+    // Hidden if the event isn't live (read-time backstop to the deleted_at
+    // toggle) or has already passed.
+    if (
+      !linkedEvent ||
+      linkedEvent.status !== EventStatus.ACTIVE ||
+      isPromoEventExpired(linkedEvent)
+    ) {
+      throw new TRPCError({ code: 'NOT_FOUND', message: 'Post not found' });
+    }
   }
 
   const viewerId = ctx.session?.user?.id ?? null;
@@ -201,19 +237,31 @@ export const byId = publicProcedure.input(postByIdSchema).query(async ({ input, 
 export const byUser = publicProcedure.input(userPostsQuerySchema).query(async ({ input, ctx }) => {
   const { userId, limit, offset } = input;
   const viewerId = ctx.session?.user?.id ?? null;
+  // A creator sees promos for events that have already ended as a track record
+  // on their OWN profile; every other viewer only sees live/upcoming promos.
+  const isOwner = viewerId !== null && viewerId === userId;
 
+  const where = and(eq(posts.createdBy, userId), isNull(posts.deletedAt), promoVisible(isOwner));
   const [rows, countRow] = await Promise.all([
     db
-      .select()
+      .select({
+        ...getTableColumns(posts),
+        // Marks a promo whose linked event has already ended — drives the
+        // "Ended" badge. Only the owner ever receives ended promos (see above);
+        // false for non-promo posts (no joined event row).
+        eventEnded: sql<boolean>`(${events.id} is not null and coalesce(${events.dateEnd}, ${events.dateStart}) < now())`,
+      })
       .from(posts)
-      .where(and(eq(posts.createdBy, userId), isNull(posts.deletedAt)))
+      .leftJoin(events, eq(events.id, posts.eventId))
+      .where(where)
       .orderBy(desc(posts.createdAt))
       .limit(limit + 1)
       .offset(offset),
     db
       .select({ count: sql<number>`count(*)::int` })
       .from(posts)
-      .where(and(eq(posts.createdBy, userId), isNull(posts.deletedAt))),
+      .leftJoin(events, eq(events.id, posts.eventId))
+      .where(where),
   ]);
 
   const totalCount = countRow[0]?.count ?? 0;

@@ -6,11 +6,83 @@
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const pkg = require('./package.json');
 
-const VARIANT = process.env.APP_VARIANT ?? 'production';
-const IS_STAGING = VARIANT === 'staging';
+const rawVariant = process.env.APP_VARIANT;
+const isCI =
+  process.env.CI === 'true' ||
+  process.env.EAS_BUILD === 'true' ||
+  process.env.GITHUB_ACTIONS === 'true';
 
-const PROD_BUNDLE_ID = 'com.ceolx.app';
-const STAGING_BUNDLE_ID = 'com.raftlabs.ceolx.staging';
+// In CI a missing APP_VARIANT must fail loudly — otherwise the bundle is built
+// with production config (bundle id, server URL, Google client) by accident.
+// Set it via the EAS build-profile env (eas.json) or export it in the workflow
+// step. Locally (not CI) it still defaults to production for convenience.
+if (!rawVariant && isCI) {
+  throw new Error(
+    'APP_VARIANT must be set when evaluating app.config.js in CI (expected "development", "staging" or "production").'
+  );
+}
+
+// Locally defaults to `development` (mentor parity — the dev client uses the
+// dev identity). CI always sets APP_VARIANT explicitly via eas.json / workflow.
+const VARIANT = rawVariant ?? 'development';
+
+// Per-variant identity: display name, bundle/package id, Firebase config files,
+// and the Expo org + EAS project the build belongs to. Production uses bare
+// filenames; other variants are suffixed. Missing files fail prebuild by design,
+// so a stale APP_VARIANT can't silently fall through to another environment's
+// Firebase config.
+//
+// Expo ownership is split per variant: dev + staging live on the RaftLabs org
+// (shared project 222e34aa, different OTA channels); production lives on the
+// client's `ceol_x` org as a SEPARATE project with its own credentials, OTA
+// lineage, and store listings. `owner` + `projectId` + `updates.url` must all
+// point at the same org/project, so they're resolved together from here.
+const RAFTLABS_PROJECT_ID = '222e34aa-8637-46cc-8cc1-666ccec22b71';
+// TODO: fill in after `APP_VARIANT=production eas init` mints the ceol_x project.
+// Any member with Developer role (or higher) on ceol_x can run this — Owner/Admin
+// is only needed for the org's billing/paid plan, not for creating the project.
+const CEOLX_PROJECT_ID = 'fba52ffe-7650-4df7-beee-8f0ec518885f';
+
+const VARIANT_CONFIG = {
+  development: {
+    name: 'CeolX (Dev)',
+    bundleId: 'com.ceolx.app.dev',
+    androidGoogleServices: './google-services.development.json',
+    iosGoogleServices: './GoogleService-Info.development.plist',
+    owner: 'raftlabs_expo',
+    projectId: RAFTLABS_PROJECT_ID,
+  },
+  staging: {
+    name: 'CeolX (Staging)',
+    bundleId: 'com.ceolx.app.staging',
+    androidGoogleServices: './google-services.staging.json',
+    iosGoogleServices: './GoogleService-Info.staging.plist',
+    owner: 'raftlabs_expo',
+    projectId: RAFTLABS_PROJECT_ID,
+  },
+  production: {
+    name: 'CeolX',
+    bundleId: 'com.ceolx.app',
+    androidGoogleServices: './google-services.json',
+    iosGoogleServices: './GoogleService-Info.plist',
+    owner: 'ceol_x',
+    projectId: CEOLX_PROJECT_ID,
+  },
+};
+
+const variantConfig = VARIANT_CONFIG[VARIANT];
+if (!variantConfig) {
+  throw new Error(
+    `Unknown APP_VARIANT "${VARIANT}" (expected "development", "staging" or "production").`
+  );
+}
+
+// While CEOLX_PROJECT_ID is still the `<new-ceol_x-id>` placeholder, treat the
+// variant as unlinked: omit extra.eas.projectId and disable updates. This lets
+// `APP_VARIANT=production eas init` create + link a fresh project instead of
+// choking on the placeholder ("Invalid UUID appId"). Once the real UUID is
+// pasted in, both fields activate automatically.
+const hasProjectId = !variantConfig.projectId.startsWith('<');
 
 // REVERSED_CLIENT_ID from the iOS OAuth client (see GoogleService-Info.plist),
 // e.g. com.googleusercontent.apps.1234-abc. Registers the URL scheme the native
@@ -25,7 +97,7 @@ const GOOGLE_IOS_URL_SCHEME = process.env.GOOGLE_IOS_URL_SCHEME;
 // domain off prod). MUST match SHARE_BASE_URL in hooks/use-share-post.ts so the
 // shared link's host is the one declared here. Stripped to a bare host because
 // associatedDomains / intentFilters take a host, not a URL.
-const SHARE_BASE_URL = process.env.EXPO_PUBLIC_SHARE_BASE_URL ?? 'https://ceolx.ie';
+const SHARE_BASE_URL = process.env.EXPO_PUBLIC_SHARE_BASE_URL ?? 'https://ceolx.com';
 const SHARE_HOST = SHARE_BASE_URL.replace(/^https?:\/\//, '').replace(/\/.*$/, '');
 
 /**
@@ -33,9 +105,12 @@ const SHARE_HOST = SHARE_BASE_URL.replace(/^https?:\/\//, '').replace(/\/.*$/, '
  * @returns {import('expo/config').ExpoConfig}
  */
 export default (_) => ({
-  name: IS_STAGING ? 'CeolX (Staging)' : 'CeolX',
+  name: variantConfig.name,
   slug: 'ceolx',
-  owner: 'raftlabs_expo',
+  // Per-variant Expo org (dev/staging → raftlabs_expo, production → ceol_x).
+  // slug is scoped per-org, so raftlabs_expo/ceolx and ceol_x/ceolx are distinct
+  // projects that can share the same slug.
+  owner: variantConfig.owner,
   version: pkg.version,
   orientation: 'portrait',
   icon: './assets/images/icon.png',
@@ -48,20 +123,22 @@ export default (_) => ({
   },
   assetBundlePatterns: ['**/*'],
   runtimeVersion: { policy: 'fingerprint' },
+  // OTA endpoint is resolved by EAS project id, so it must match the variant's
+  // org/project (raftlabs project for dev/staging, ceol_x project for prod).
   updates: {
-    url: 'https://u.expo.dev/222e34aa-8637-46cc-8cc1-666ccec22b71',
-    enabled: true,
+    url: hasProjectId ? `https://u.expo.dev/${variantConfig.projectId}` : undefined,
+    enabled: hasProjectId,
   },
   ios: {
     supportsTablet: false,
-    bundleIdentifier: IS_STAGING ? STAGING_BUNDLE_ID : PROD_BUNDLE_ID,
+    bundleIdentifier: variantConfig.bundleId,
     usesAppleSignIn: true,
     // Firebase iOS SDK (loaded by @react-native-firebase/app) is what makes
     // expo-notifications.getDevicePushTokenAsync() return an FCM token instead
     // of a raw APNs token. The plist is downloaded from the Firebase Console
     // and gitignored — see docs/project-management/M7-T1 human handoff checklist.
-    googleServicesFile: process.env.GOOGLE_SERVICES_INFO_PLIST ?? './GoogleService-Info.plist',
-    // Universal Links target (SHARE_HOST — prod ceolx.ie, staging the server
+    googleServicesFile: process.env.GOOGLE_SERVICES_INFO_PLIST ?? variantConfig.iosGoogleServices,
+    // Universal Links target (SHARE_HOST — prod ceolx.com, staging the server
     // Vercel URL). The matching apple-app-site-association is served at
     // https://<host>/.well-known/apple-app-site-association by the Hono backend
     // (apps/server/src/routes/app-links.ts). appID = APPLE_OAUTH_TEAM_ID + the
@@ -91,10 +168,8 @@ export default (_) => ({
       backgroundColor: '#662FFE',
       monochromeImage: './assets/images/android-icon-monochrome.png',
     },
-    package: IS_STAGING ? STAGING_BUNDLE_ID : PROD_BUNDLE_ID,
-    googleServicesFile:
-      process.env.GOOGLE_SERVICES_JSON ??
-      (IS_STAGING ? './google-services.staging.json' : './google-services.json'),
+    package: variantConfig.bundleId,
+    googleServicesFile: process.env.GOOGLE_SERVICES_JSON ?? variantConfig.androidGoogleServices,
     config: {
       googleMaps: {
         apiKey: process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY ?? '',
@@ -189,9 +264,7 @@ export default (_) => ({
     reactCompiler: true,
   },
   extra: {
-    eas: {
-      projectId: '222e34aa-8637-46cc-8cc1-666ccec22b71',
-    },
+    eas: hasProjectId ? { projectId: variantConfig.projectId } : {},
     appVariant: VARIANT,
   },
 });

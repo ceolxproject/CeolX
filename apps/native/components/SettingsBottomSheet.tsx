@@ -5,6 +5,7 @@ import {
   BottomSheetModal,
   BottomSheetView,
 } from '@gorhom/bottom-sheet';
+import { useRouter } from 'expo-router';
 import { forwardRef, useCallback } from 'react';
 import { Pressable, Text, View } from 'react-native';
 
@@ -17,11 +18,18 @@ interface SettingsBottomSheetProps {
 
 export const SettingsBottomSheet = forwardRef<BottomSheetModal, SettingsBottomSheetProps>(
   ({ onChangePassword, onSignOut }, ref) => {
+    const router = useRouter();
+
     const handleClose = useCallback(() => {
       if (ref && 'current' in ref) {
         ref.current?.dismiss();
       }
     }, [ref]);
+
+    const handleAbout = useCallback(() => {
+      handleClose();
+      router.push('/about');
+    }, [handleClose, router]);
 
     const renderBackdrop = useCallback(
       (props: BottomSheetBackdropProps) => (
@@ -75,6 +83,23 @@ export const SettingsBottomSheet = forwardRef<BottomSheetModal, SettingsBottomSh
                 <Ionicons name="log-out-outline" size={16} color="#080808" />
               </View>
               <Text className="text-base text-white font-urbanist">Sign Out</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={16} color="#8D8D8D" />
+          </Pressable>
+
+          {/* Divider */}
+          <View className="h-px bg-[rgba(141,141,141,0.3)] my-1" />
+
+          {/* About & Updates */}
+          <Pressable
+            onPress={handleAbout}
+            className="flex-row items-center justify-between py-3 active:opacity-70"
+          >
+            <View className="flex-row items-center gap-2">
+              <View className="w-8 h-8 rounded-full bg-[#C8FF2F] items-center justify-center">
+                <Ionicons name="information-circle-outline" size={16} color="#080808" />
+              </View>
+              <Text className="text-base text-white font-urbanist">About & Updates</Text>
             </View>
             <Ionicons name="chevron-forward" size={16} color="#8D8D8D" />
           </Pressable>

@@ -6,7 +6,6 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Modal,
-  Platform,
   Pressable,
   Text,
   TextInput,
@@ -162,14 +161,12 @@ export function CollectionPicker({ collectionId, onCollectionIdChange }: Props) 
       >
         {/* RN Modal spawns a native window that ignores the activity's
             adjustResize softInputMode, so this bottom-anchored sheet otherwise
-            sits behind the keyboard — the autoFocus'd name input is hidden and
-            the collection can't be created. KeyboardAvoidingView lifts the
-            sheet above the keyboard on both platforms (same pattern as
-            InviteArtistPicker). */}
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={{ flex: 1 }}
-        >
+            sits behind the keyboard and the name input is hidden. 'padding'
+            behavior lifts the sheet above the keyboard on both platforms. NB:
+            'height' on Android double-corrects against the window's own
+            adjustResize and oscillates into a flicker (asana 1215453204049374),
+            so keep this 'padding' on both platforms — same as InviteArtistPicker. */}
+        <KeyboardAvoidingView behavior="padding" style={{ flex: 1 }}>
           <TouchableOpacity
             activeOpacity={1}
             className="flex-1 bg-black/60 justify-end"
@@ -203,7 +200,6 @@ export function CollectionPicker({ collectionId, onCollectionIdChange }: Props) 
                   setNewName(v.slice(0, COLLECTION_NAME_MAX));
                   if (nameError) setNameError('');
                 }}
-                autoFocus
                 maxLength={COLLECTION_NAME_MAX}
               />
               {nameError ? (

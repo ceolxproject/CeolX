@@ -31,7 +31,7 @@ Request:
 
 ```json
 {
-  "email": "admin@ceolx.ie",
+  "email": "admin@ceolx.com",
   "password": "secure_password_hash"
 }
 ```
@@ -44,7 +44,7 @@ Response (200 OK):
   "session": {
     "id": "session_abc123",
     "adminId": "admin_xyz789",
-    "email": "admin@ceolx.ie",
+    "email": "admin@ceolx.com",
     "expiresAt": "2026-03-24T12:00:00Z"
   }
 }
@@ -113,7 +113,7 @@ Response (200 OK):
 }
 ```
 
-### GET /admin/users?page=1&limit=20&search=email@ceolx.ie
+### GET /admin/users?page=1&limit=20&search=email@ceolx.com
 
 Request: (authenticated, optional query params)
 Response (200 OK):
@@ -226,7 +226,7 @@ import { users } from './schema';
 import { hash } from '@node-rs/argon2';
 
 async function seedAdmin() {
-  const adminEmail = process.env.ADMIN_EMAIL || 'admin@ceolx.ie';
+  const adminEmail = process.env.ADMIN_EMAIL || 'admin@ceolx.com';
   const adminPassword = process.env.ADMIN_PASSWORD || 'ChangeMe123!';
 
   const hashedPassword = await hash(adminPassword);
@@ -390,11 +390,11 @@ export function KPICard({ title, value, trend, subtitle }: KPICardProps) {
 ## Environment Variables Required
 
 ```
-ADMIN_EMAIL=admin@ceolx.ie                          # Seeded admin email
+ADMIN_EMAIL=admin@ceolx.com                          # Seeded admin email
 ADMIN_PASSWORD=ChangeMe123!                         # Seeded admin password (change in production)
 DATABASE_URL=postgresql://...neon.tech              # Neon connection string (production DB)
 SESSION_SECRET=your_super_secret_session_key        # Secret for signing session cookies
-NEXT_PUBLIC_API_URL=https://api.ceolx.ie            # Backend API URL for admin dashboard
+NEXT_PUBLIC_API_URL=https://api.ceolx.com            # Backend API URL for admin dashboard
 ```
 
 ---
@@ -411,7 +411,7 @@ NEXT_PUBLIC_API_URL=https://api.ceolx.ie            # Backend API URL for admin 
 
 - **CSV encoding**: Ensure CSV export encodes non-ASCII characters (e.g. Irish names like "Siobhán") correctly using UTF-8. Use a library like `json2csv` to handle this automatically.
 
-- **CORS for admin**: The Next.js admin dashboard needs CORS headers from the Hono API for cross-origin requests. Configure Hono CORS middleware to allow requests from the admin domain (e.g. `ceolx.ie`).
+- **CORS for admin**: The Next.js admin dashboard needs CORS headers from the Hono API for cross-origin requests. Configure Hono CORS middleware to allow requests from the admin domain (e.g. `ceolx.com`).
 
 - **Separate admin database**: Do NOT use the same database connection pool for admin and end-user queries. Use a read-only connection or a separate admin pool if scaling.
 

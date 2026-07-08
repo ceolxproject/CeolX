@@ -41,6 +41,24 @@ export const MAX_BYTES_BY_TYPE: Record<UploadType, number> = {
   post_audio: 50 * 1024 * 1024,
 };
 
+// Post videos go to Mux (not S3), so they aren't an UploadType, but the cap
+// still belongs here as the single source of truth. The picker copy and both
+// the pick-time and upload-time guards derive from this one number — keeping
+// them in lock-step avoids the mismatch that let oversized videos slip through
+// to a cryptic "Network request failed" (Asana 1216260009179370).
+export const MAX_VIDEO_BYTES = 100 * 1024 * 1024;
+
+/**
+ * A friendly, actionable "too large" message for a picked media asset. Shared
+ * by the pick-time guard (MediaPickerField) and the upload-time guards so the
+ * user always sees the same clear copy instead of a raw upload/network error.
+ */
+export function mediaTooLargeMessage(kind: 'image' | 'video', maxBytes: number): string {
+  const article = kind === 'image' ? 'an' : 'a';
+  const mb = Math.round(maxBytes / (1024 * 1024));
+  return `This ${kind} is too large. Please choose ${article} ${kind} under ${mb}MB.`;
+}
+
 export const presignUploadSchema = z
   .object({
     type: z.enum(UPLOAD_TYPES),

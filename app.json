@@ -4,6 +4,9 @@
       "eas": {
         "projectId": "222e34aa-8637-46cc-8cc1-666ccec22b71"
       }
+    },
+    "android": {
+      "package": "com.ceolx.app"
     }
   }
 }

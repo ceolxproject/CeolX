@@ -7,30 +7,30 @@
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:1057693721951:android:5b2c2d485612b9d44a02ea",
+        "mobilesdk_app_id": "1:1057693721951:android:3a631e8fae09655d4a02ea",
         "android_client_info": {
-          "package_name": "com.raftlabs.ceolx.staging"
+          "package_name": "com.ceolx.app.staging"
         }
       },
       "oauth_client": [
         {
-          "client_id": "1057693721951-a2fu2duh5hqi0jd7vbsq6rvuadg7d4q3.apps.googleusercontent.com",
+          "client_id": "1057693721951-4loa00v0gp5hlo364au8jcvq1ggoovb4.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
-            "package_name": "com.raftlabs.ceolx.staging",
-            "certificate_hash": "26bb253b370cc98a5d4da0c0d1b9754cbb696ace"
+            "package_name": "com.ceolx.app.staging",
+            "certificate_hash": "5bd9c659be5570ab6376859b8780e9ccd814257a"
           }
         },
         {
-          "client_id": "1057693721951-krr0sh25maractb6bbqh2kl5bc3hqpsg.apps.googleusercontent.com",
+          "client_id": "1057693721951-aphirflpv7kr0emuruvu7jn7degpbjld.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
-            "package_name": "com.raftlabs.ceolx.staging",
-            "certificate_hash": "45131ee00f9c8619ae652d15d0aaac9489f8fd46"
+            "package_name": "com.ceolx.app.staging",
+            "certificate_hash": "fb0c9e287d0e81d0475f34601b2f89179935da4e"
           }
         },
         {
-          "client_id": "1057693721951-rtpisqt4dio7pptsterfaf1ldb6hgpv7.apps.googleusercontent.com",
+          "client_id": "1057693721951-4hdov3sbaaoih79qcjn0j2atnpg4itg1.apps.googleusercontent.com",
           "client_type": 3
         }
       ],
@@ -43,14 +43,14 @@
         "appinvite_service": {
           "other_platform_oauth_client": [
             {
-              "client_id": "1057693721951-rtpisqt4dio7pptsterfaf1ldb6hgpv7.apps.googleusercontent.com",
+              "client_id": "1057693721951-4hdov3sbaaoih79qcjn0j2atnpg4itg1.apps.googleusercontent.com",
               "client_type": 3
             },
             {
-              "client_id": "1057693721951-08nqa00s0ood9pimkpbb5p7njtmm4qal.apps.googleusercontent.com",
+              "client_id": "1057693721951-h15tf8t01ftn174qhjpm3qfl7sir0ok9.apps.googleusercontent.com",
               "client_type": 2,
               "ios_info": {
-                "bundle_id": "com.raftlabs.ceolx.staging"
+                "bundle_id": "com.ceolx.app.staging"
               }
             }
           ]

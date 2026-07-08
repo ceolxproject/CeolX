@@ -69,7 +69,7 @@ Health check endpoint for monitoring and uptime verification. Returns immediatel
   - Memory: 1024 MB (sufficient for Hono + Drizzle)
   - Timeout: 30 seconds
   - Env vars: all production keys (see below)
-- R6: **API Gateway** endpoint points to Lambda: `https://api.ceolx.ie/`
+- R6: **API Gateway** endpoint points to Lambda: `https://api.ceolx.com/`
   - Custom domain mapping via Route 53
   - CloudFront caching disabled for `/api/*` (or very short TTL for static responses like `/health`)
 - R7: **Lambda environment variables** configured (store in AWS Secrets Manager, not in code):
@@ -82,14 +82,14 @@ Health check endpoint for monitoring and uptime verification. Returns immediatel
   MUX_ACCESS_TOKEN_SECRET=...
   MUX_WEBHOOK_SECRET=...
   POSTMARK_API_KEY=...
-  POSTMARK_FROM_EMAIL=support@ceolx.ie
+  POSTMARK_FROM_EMAIL=admin@ceolx.com
   FIREBASE_PROJECT_ID=ceolx-prod
   FIREBASE_PRIVATE_KEY=...
   FIREBASE_CLIENT_EMAIL=...
   AWS_S3_BUCKET=ceolx-media-prod
   AWS_S3_REGION=eu-west-1
   BETTER_AUTH_SECRET=...
-  BETTER_AUTH_URL=https://api.ceolx.ie
+  BETTER_AUTH_URL=https://api.ceolx.com
   SESSION_SECRET=...
   ```
 - R8: **CI/CD deployment** configured (GitHub Actions, AWS CodePipeline, or similar)
@@ -102,8 +102,8 @@ Health check endpoint for monitoring and uptime verification. Returns immediatel
 
 - R9: **Next.js admin dashboard** built and deployed to production
   - Hosting: Vercel (recommended for Next.js) or AWS S3 + CloudFront
-  - Domain: `ceolx.ie` (or `admin.ceolx.ie`)
-  - Environment variables: `NEXT_PUBLIC_API_URL=https://api.ceolx.ie`, admin session secret
+  - Domain: `ceolx.com` (or `admin.ceolx.com`)
+  - Environment variables: `NEXT_PUBLIC_API_URL=https://api.ceolx.com`, admin session secret
 - R10: **Admin login page** accessible; login works with seeded admin account
 - R11: **Admin dashboard routes** protected by admin auth middleware; non-admin access returns 401
 
@@ -119,12 +119,12 @@ Health check endpoint for monitoring and uptime verification. Returns immediatel
 
 ### External Services Configuration
 
-- R15: **Stripe webhook** endpoint: `POST https://api.ceolx.ie/webhooks/stripe`
+- R15: **Stripe webhook** endpoint: `POST https://api.ceolx.com/webhooks/stripe`
   - Registered in Stripe Dashboard (Live mode)
   - Events subscribed: `customer.subscription.created`, `customer.subscription.updated`, `customer.subscription.deleted`, `invoice.payment_failed`
   - Webhook secret: stored in AWS Secrets Manager; used for signature verification
   - Test: trigger a test webhook from Stripe Dashboard; verify it's received and processed
-- R16: **Mux webhook** endpoint: `POST https://api.ceolx.ie/webhooks/mux`
+- R16: **Mux webhook** endpoint: `POST https://api.ceolx.com/webhooks/mux`
   - Registered in Mux Dashboard (Live environment)
   - Events subscribed: `video.asset.ready`
   - Webhook secret: stored securely; signature verified before processing
@@ -135,13 +135,13 @@ Health check endpoint for monitoring and uptime verification. Returns immediatel
   - Test: send a test notification to a device token; verify it arrives
 - R18: **Postmark** email sending:
   - API key: live key (not test key)
-  - From address: `support@ceolx.ie` (must be verified in Postmark)
-  - Sending domain: ceolx.ie (DNS DKIM/SPF records configured)
+  - From address: `admin@ceolx.com` (must be verified in Postmark)
+  - Sending domain: ceolx.com (DNS DKIM/SPF records configured)
   - Test: send a test email from API; verify it arrives without spam filtering
 - R19: **AWS S3 + CloudFront**:
   - S3 bucket: `ceolx-media-prod` in `eu-west-1` region
   - Bucket policy: private access only; CloudFront as distribution
-  - CloudFront domain: `cdn.ceolx.ie` (CNAME configured)
+  - CloudFront domain: `cdn.ceolx.com` (CNAME configured)
   - Test: upload a test image via presigned URL; verify it's accessible via CloudFront
 
 ### Mobile App Configuration
@@ -149,7 +149,7 @@ Health check endpoint for monitoring and uptime verification. Returns immediatel
 - R20: **EAS production channel** configured
   - `eas.json` has `production` channel
   - Builds from App Store and Play Store release versions point to production API
-  - Ensure API endpoint is `https://api.ceolx.ie` (not staging or dev)
+  - Ensure API endpoint is `https://api.ceolx.com` (not staging or dev)
 - R21: **Firebase credentials** in `google-services.json` and `GoogleService-Info.plist` are production credentials
   - Verify: Firebase Console shows events from the app (after first users sign up)
 
@@ -157,7 +157,7 @@ Health check endpoint for monitoring and uptime verification. Returns immediatel
 
 - R22: **API CORS headers** allow requests from:
   - Mobile app: `*` (Expo apps have no fixed origin) or specific iOS/Android bundle IDs if checking User-Agent
-  - Admin dashboard: `https://ceolx.ie`
+  - Admin dashboard: `https://ceolx.com`
   - Stripe webhooks: no CORS needed (server-to-server)
 - R23: **Preflight requests** cached for production (Access-Control-Max-Age: 86400)
 
@@ -175,7 +175,7 @@ Health check endpoint for monitoring and uptime verification. Returns immediatel
   - CloudWatch alarms: error rate (> 5%), duration (> 5 seconds), throttling
   - Dashboard: custom dashboard showing Lambda invocations, errors, duration percentiles
 - R26: **Uptime monitoring** via AWS Route 53 Health Checks or external service (e.g., Healthchecks.io, UptimeRobot)
-  - Health check: `GET https://api.ceolx.ie/health` every 30 seconds
+  - Health check: `GET https://api.ceolx.com/health` every 30 seconds
   - Alert: email if health check fails for 5 minutes
 - R27: **Neon database monitoring**:
   - Connection pool usage: monitor to ensure no exhaustion
@@ -220,7 +220,7 @@ Health check endpoint for monitoring and uptime verification. Returns immediatel
   - [ ] CloudWatch alarms configured
   - [ ] Uptime monitoring configured
   - [ ] Smoke test completed successfully
-  - [ ] Privacy Policy and ToS live at ceolx.ie
+  - [ ] Privacy Policy and ToS live at ceolx.com
   - [ ] App Store approved (awaiting release)
   - [ ] Play Store approved (awaiting release)
   - [ ] Team briefed on launch date and go-live steps
@@ -229,7 +229,7 @@ Health check endpoint for monitoring and uptime verification. Returns immediatel
 
 ## Acceptance Criteria
 
-- [ ] `GET https://api.ceolx.ie/health` returns 200 OK with healthy status
+- [ ] `GET https://api.ceolx.com/health` returns 200 OK with healthy status
 - [ ] Admin dashboard accessible and login successful with production admin account
 - [ ] Database migrations run successfully; schema matches current state
 - [ ] All environment variables configured; no hardcoded secrets in code
@@ -315,7 +315,7 @@ import { api } from '../src/client';
 
 describe('Production Smoke Tests', () => {
   it('should allow signup and login flow', async () => {
-    const email = `test_${Date.now()}@ceolx.ie`;
+    const email = `test_${Date.now()}@ceolx.com`;
     const password = 'TestPassword123!';
 
     // Sign up

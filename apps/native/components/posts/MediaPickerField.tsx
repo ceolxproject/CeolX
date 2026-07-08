@@ -4,7 +4,13 @@ import { useVideoPlayer, VideoView } from 'expo-video';
 import { useCallback } from 'react';
 import { ActivityIndicator, Image, Pressable, Text, View } from 'react-native';
 
+import { MAX_BYTES_BY_TYPE, MAX_VIDEO_BYTES, mediaTooLargeMessage } from '@CeolX/shared/validators';
+
 import { appToast } from '@/components/AppToast';
+
+const MB = 1024 * 1024;
+const IMAGE_MAX_MB = Math.round(MAX_BYTES_BY_TYPE.post_image / MB);
+const VIDEO_MAX_MB = Math.round(MAX_VIDEO_BYTES / MB);
 
 /**
  * Muted, looping preview of the picked video. Isolated in its own component so
@@ -94,6 +100,21 @@ export function MediaPickerField({
       const asset = result.assets[0];
       if (asset?.uri) {
         const kind: 'image' | 'video' = asset.type === 'video' ? 'video' : 'image';
+
+        // Reject oversized media the moment it's picked — before the user
+        // writes a caption and taps Publish — so they get a clear reason
+        // instead of a cryptic upload failure deep in the publish flow
+        // (Asana 1216260009179370). uploadVideo/uploadMedia re-check as
+        // defense-in-depth; this is purely for fast, obvious feedback.
+        const max = kind === 'video' ? MAX_VIDEO_BYTES : MAX_BYTES_BY_TYPE.post_image;
+        if (asset.fileSize && asset.fileSize > max) {
+          appToast.error(
+            kind === 'video' ? 'Video too large' : 'Image too large',
+            mediaTooLargeMessage(kind, max)
+          );
+          return;
+        }
+
         onPick({
           uri: asset.uri,
           mimeType: asset.mimeType,
@@ -165,7 +186,7 @@ export function MediaPickerField({
       </Pressable>
 
       <Text className="mt-2 text-xs font-semibold text-[#8D8D8D] font-urbanist">
-        JPG, PNG, MP4, MOV, MP3. Max size: 100MB.
+        JPG, PNG up to {IMAGE_MAX_MB}MB · MP4, MOV up to {VIDEO_MAX_MB}MB.
       </Text>
     </View>
   );

@@ -1,5 +1,5 @@
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useLayoutEffect, useRef, useState } from 'react';
 
 import { MAP_DEBOUNCE_MS } from '@CeolX/shared';
 
@@ -14,6 +14,7 @@ type HydratedPost = {
   caption: string;
   mediaType: string;
   mediaUrl: string | null;
+  eventId: string | null;
   likeCount: number | null;
   createdAt: string | Date;
   author: {
@@ -47,13 +48,17 @@ export function useFeedPosts({ enabled = true }: Opts = {}) {
     offset,
     query: searchQuery.trim() || undefined,
   });
-  const { data, isLoading, isFetching, refetch } = useQuery({
+  const { data, isLoading, isFetching, isError, refetch } = useQuery({
     ...queryOptions,
     enabled,
     placeholderData: keepPreviousData,
   });
 
-  useEffect(() => {
+  // useLayoutEffect (not useEffect) so this sync commits in the same frame as
+  // the query flipping isLoading to false — otherwise there's one painted
+  // frame where isLoading is false but `accumulated` hasn't caught up yet,
+  // flashing the empty state before posts render. (Asana 1216227495516054)
+  useLayoutEffect(() => {
     if (!data || isFetching) return;
     const newPosts = data.posts as HydratedPost[];
     if (offset === 0) {
@@ -111,6 +116,7 @@ export function useFeedPosts({ enabled = true }: Opts = {}) {
     posts,
     isLoading: isLoading && offset === 0,
     isFetchingNextPage: isFetching && offset > 0,
+    isError: isError && offset === 0,
     hasNextPage,
     totalCount,
     loadMore,

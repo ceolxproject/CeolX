@@ -1,5 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
 
+vi.mock('expo-file-system/legacy', () => ({
+  createUploadTask: vi.fn(),
+  FileSystemUploadType: { BINARY_CONTENT: 0, MULTIPART: 1 },
+}));
+
 vi.mock('@CeolX/shared/validators', () => ({
   IMAGE_MIME_TYPES: ['image/jpeg', 'image/png', 'image/webp'],
   AUDIO_MIME_TYPES: ['audio/mpeg', 'audio/mp4', 'audio/aac'],

@@ -59,13 +59,13 @@ describe('handleEmailSend', () => {
       locale: 'en',
       data: {
         venueName: 'The Hut',
-        activationUrl: 'https://ceolx.ie/subscribe',
+        activationUrl: 'https://ceolx.com/subscribe',
       },
     });
     expect(mockSendVenueActivation).toHaveBeenCalledWith({
       to: 'venue@example.com',
       venueName: 'The Hut',
-      activationUrl: 'https://ceolx.ie/subscribe',
+      activationUrl: 'https://ceolx.com/subscribe',
       userName: undefined,
     });
   });
@@ -79,7 +79,7 @@ describe('handleEmailSend', () => {
         amount: '€20.00',
         planName: 'CeolX Venue',
         nextBillingDate: '2026-05-22',
-        manageUrl: 'https://ceolx.ie/account',
+        manageUrl: 'https://ceolx.com/account',
       },
     });
     expect(mockSendPaymentConfirmation).toHaveBeenCalledWith(
@@ -87,7 +87,7 @@ describe('handleEmailSend', () => {
         amount: '€20.00',
         planName: 'CeolX Venue',
         nextBillingDate: '2026-05-22',
-        manageUrl: 'https://ceolx.ie/account',
+        manageUrl: 'https://ceolx.com/account',
       })
     );
   });
