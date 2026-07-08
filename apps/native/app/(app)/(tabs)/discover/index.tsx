@@ -267,6 +267,16 @@ export default function DiscoverScreen() {
             onSubmitEditing={() => setSearchFocused(false)}
             returnKeyType="search"
           />
+          {searchText.length > 0 ? (
+            <Pressable
+              onPress={() => handleSearchChange('')}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel="Clear search"
+            >
+              <Ionicons name="close-circle" size={20} color="rgba(255,255,255,0.6)" />
+            </Pressable>
+          ) : null}
         </View>
       </View>
 
