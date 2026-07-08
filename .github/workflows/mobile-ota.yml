@@ -100,7 +100,12 @@ jobs:
       - uses: expo/expo-github-action@v8
         with:
           eas-version: latest
-          token: ${{ secrets.EXPO_TOKEN }}
+          # Per-branch Expo token: main publishes with the production
+          # EXPO_TOKEN, staging with STAGING_EXPO_TOKEN. Keyed on github.ref
+          # so push and workflow_dispatch resolve the same tier the channel
+          # step above does. (The `&&`/`||` is Actions' ternary — the false
+          # branch is taken for any non-main ref, i.e. staging.)
+          token: ${{ github.ref == 'refs/heads/main' && secrets.EXPO_TOKEN || secrets.STAGING_EXPO_TOKEN }}
       - name: Verify fingerprint matches latest binary
         # Hard gate before publishing. Resolves the most recent finished
         # binary for the compare profile, then diffs its fingerprint against
