@@ -146,6 +146,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setRegistrationRetry(0);
     await SecureStore.deleteItemAsync('pendingRegistration');
     setIsGuest(false);
+    // The queryClient is a module-level singleton that outlives logout (the
+    // provider never unmounts). authClient.signOut only drops the session, so
+    // the previous user's cached queries — critically users.me with their
+    // currentRole — would otherwise survive. A guest who then taps "Skip" reads
+    // that stale role and sees the artist/venue view until a cold restart wipes
+    // the in-memory cache. Clear it here so no prior-account data leaks forward.
+    queryClient.clear();
   };
 
   return (

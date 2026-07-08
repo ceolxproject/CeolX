@@ -1,7 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Capture the options passed to useQuery so we can assert on `enabled`.
-const useQueryMock = vi.fn(() => ({ data: undefined }));
+// Mutable so individual tests can simulate a populated (stale) cache entry —
+// a disabled useQuery still returns whatever is already cached.
+let useQueryResult: { data: unknown } = { data: undefined };
+const useQueryMock = vi.fn(() => useQueryResult);
 const useAuthMock = vi.fn(() => ({ isAuthenticated: false, isGuest: false }));
 
 vi.mock('@tanstack/react-query', () => ({
@@ -25,6 +28,7 @@ function enabledArg() {
 describe('useMe — guest/auth guard (regression for guest "Retrying your session…" loop)', () => {
   beforeEach(() => {
     useQueryMock.mockClear();
+    useQueryResult = { data: undefined };
   });
 
   it('stays disabled for a guest (skip → browse without a session)', () => {
@@ -49,5 +53,26 @@ describe('useMe — guest/auth guard (regression for guest "Retrying your sessio
     useAuthMock.mockReturnValue({ isAuthenticated: true, isGuest: false });
     useMe({ enabled: false });
     expect(enabledArg()).toBe(false);
+  });
+});
+
+describe('useMe — masks stale cache when disabled (regression: guest sees prior artist/venue view after logout→skip)', () => {
+  beforeEach(() => {
+    useQueryMock.mockClear();
+    useQueryResult = { data: undefined };
+  });
+
+  it('returns data:undefined for a guest even when the cache still holds a prior artist role', () => {
+    // Logged-out artist's users.me entry survives in the singleton queryClient;
+    // a disabled useQuery hands it right back. The hook must suppress it.
+    useQueryResult = { data: { currentRole: 'artist' } };
+    useAuthMock.mockReturnValue({ isAuthenticated: false, isGuest: true });
+    expect(useMe().data).toBeUndefined();
+  });
+
+  it('passes cached data through for an authenticated, non-guest user', () => {
+    useQueryResult = { data: { currentRole: 'artist' } };
+    useAuthMock.mockReturnValue({ isAuthenticated: true, isGuest: false });
+    expect(useMe().data).toEqual({ currentRole: 'artist' });
   });
 });
