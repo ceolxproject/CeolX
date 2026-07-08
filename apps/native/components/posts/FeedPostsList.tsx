@@ -1,6 +1,7 @@
 import { useCallback, useRef, useState } from 'react';
 import type { ViewToken } from 'react-native';
-import { ActivityIndicator, FlatList, Pressable, RefreshControl, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, RefreshControl, Text, View } from 'react-native';
+import Animated, { type useAnimatedScrollHandler } from 'react-native-reanimated';
 
 import { PostCard, type PostCardPost } from './PostCard';
 
@@ -16,6 +17,10 @@ type Props = {
   refreshing: boolean;
   onRefresh: () => void;
   emptyMessage?: string;
+  /** Reanimated scroll handler — lets the parent collapse its header on scroll. */
+  onScroll?: ReturnType<typeof useAnimatedScrollHandler>;
+  /** Top padding so the feed clears the parent's absolute (collapsing) header. */
+  contentPaddingTop?: number;
 };
 
 // A card counts as "on screen" once 60% of it is visible. Below that we don't
@@ -40,6 +45,8 @@ export function FeedPostsList({
   refreshing,
   onRefresh,
   emptyMessage = 'No posts yet.',
+  onScroll,
+  contentPaddingTop = 16,
 }: Props) {
   // The post id whose video should currently autoplay. `null` = no video on screen.
   const [activeVideoId, setActiveVideoId] = useState<string | null>(null);
@@ -72,7 +79,7 @@ export function FeedPostsList({
 
   if (isLoading) {
     return (
-      <View className="py-12 items-center">
+      <View className="items-center" style={{ paddingTop: contentPaddingTop + 48 }}>
         <ActivityIndicator color="#C8FF2F" />
       </View>
     );
@@ -92,10 +99,12 @@ export function FeedPostsList({
   }
 
   return (
-    <FlatList
+    <Animated.FlatList
       data={posts}
       keyExtractor={(item) => item.id}
       renderItem={renderItem}
+      onScroll={onScroll}
+      scrollEventThrottle={16}
       // Re-render rows when the active video changes so the right card flips
       // between poster and autoplay.
       extraData={activeVideoId}
@@ -104,7 +113,7 @@ export function FeedPostsList({
       style={{ flex: 1, backgroundColor: '#080808' }}
       contentContainerStyle={{
         paddingHorizontal: 20,
-        paddingTop: 16,
+        paddingTop: contentPaddingTop,
         paddingBottom: 32,
         flexGrow: 1,
       }}
@@ -113,7 +122,12 @@ export function FeedPostsList({
       }}
       onEndReachedThreshold={0.5}
       refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#C8FF2F" />
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={onRefresh}
+          tintColor="#C8FF2F"
+          progressViewOffset={contentPaddingTop}
+        />
       }
       ListFooterComponent={
         isFetchingNextPage ? <ActivityIndicator color="#C8FF2F" className="my-4" /> : null
