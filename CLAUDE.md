@@ -311,6 +311,16 @@ packages/
 
 ---
 
+## Git Workflow
+
+- **Base branch is always `development`** — branch off it, open every PR against it (never `main`).
+- **Merge strategy: rebase and merge only** — no merge commits.
+- **Updating a feature branch with new `development` commits: `git rebase development`.** Never `git pull`/merge `development` into a feature branch — that creates merge commits and non-linear history.
+- One PR per bug/feature. Commits scoped per file/feature, not one giant commit.
+- PR description links the Asana task.
+
+---
+
 ## GDPR (Mandatory — Irish client)
 
 - Consent at sign-up for data collection, location, marketing
