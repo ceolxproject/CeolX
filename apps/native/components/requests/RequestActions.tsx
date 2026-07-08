@@ -64,11 +64,19 @@ export function RequestActions({
 
   const isBusy = Boolean(pendingAction);
 
-  // A past event can no longer be accepted, so neither accepting (recipient) nor
-  // resending the invite (sender) makes sense — both are disabled. WITHDRAW/REJECT
-  // stay live so a stale pending row can still be cleared. The server enforces all
-  // three; this just avoids guaranteed-to-fail taps. (Asana 1216289483780968)
-  const isPastEvent = isEventPast(booking.eventDateStart);
+  // A past event accepts no booking action — it already happened. The Collaboration
+  // list filters these out server-side; this covers the booking-detail screen a
+  // notification can still deep-link to. Show an "expired" notice instead of the
+  // accept/reject/withdraw/resend buttons. (Asana 1216347906046740, 1216347905932214)
+  if (isEventPast(booking.eventDateStart)) {
+    return (
+      <View className="mt-3">
+        <Text className="text-xs text-white/50 font-urbanist text-center">
+          This event has already taken place — this request has expired.
+        </Text>
+      </View>
+    );
+  }
 
   if (isSentByUser) {
     // Anti-spam: a pending row's updatedAt is its last-sent time, so block (and
@@ -77,7 +85,7 @@ export function RequestActions({
     // (Asana 1215700058851990, bug #2)
     const msSinceLastSent = Date.now() - new Date(booking.updatedAt).getTime();
     const isWithinResendCooldown = msSinceLastSent < RESEND_COOLDOWN_MS;
-    const resendDisabled = isBusy || isWithinResendCooldown || isPastEvent;
+    const resendDisabled = isBusy || isWithinResendCooldown;
 
     // Confirm before the destructive withdraw so an accidental tap can't silently
     // cancel a live request. (Asana 1215700058851990, bug #3)
@@ -134,11 +142,7 @@ export function RequestActions({
             )}
           </Pressable>
         </View>
-        {isPastEvent ? (
-          <Text className="text-xs text-white/50 font-urbanist mt-2 text-center">
-            This event has already taken place — it can no longer be accepted.
-          </Text>
-        ) : isWithinResendCooldown && pendingAction !== 'resend' ? (
+        {isWithinResendCooldown && pendingAction !== 'resend' ? (
           <Text className="text-xs text-white/50 font-urbanist mt-2 text-center">
             Recently sent — please wait before sending again.
           </Text>
@@ -147,23 +151,19 @@ export function RequestActions({
     );
   }
 
-  // Recipient → can ACCEPT or REJECT. A past event can no longer be accepted, so
-  // disable ACCEPT (see isPastEvent above). REJECT stays enabled so the recipient
-  // can still clear the stale invite.
-  const acceptDisabled = isBusy || isPastEvent;
-
+  // Recipient → can ACCEPT or REJECT.
   return (
     <View className="mt-3">
       <View className="flex-row gap-3">
         <Pressable
           onPress={onAccept}
-          disabled={acceptDisabled}
+          disabled={isBusy}
           className={cn(
             'flex-1 items-center py-2.5 rounded-full bg-[#662FFF] active:opacity-70',
-            acceptDisabled && 'opacity-50'
+            isBusy && 'opacity-50'
           )}
           accessibilityRole="button"
-          accessibilityState={{ disabled: acceptDisabled, busy: pendingAction === 'accept' }}
+          accessibilityState={{ disabled: isBusy, busy: pendingAction === 'accept' }}
           accessibilityLabel="Accept request"
         >
           {pendingAction === 'accept' ? (
@@ -194,11 +194,6 @@ export function RequestActions({
           )}
         </Pressable>
       </View>
-      {isPastEvent && (
-        <Text className="text-xs text-white/50 font-urbanist mt-2 text-center">
-          This event has already taken place — it can no longer be accepted.
-        </Text>
-      )}
     </View>
   );
 }
