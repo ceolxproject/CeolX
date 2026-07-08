@@ -1,6 +1,5 @@
-import type { BottomSheetModal } from '@gorhom/bottom-sheet';
-import { router, useLocalSearchParams } from 'expo-router';
-import { useRef, useState } from 'react';
+import { Redirect, router, useLocalSearchParams } from 'expo-router';
+import { useState } from 'react';
 import { ActivityIndicator, RefreshControl, ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -12,8 +11,6 @@ import {
   ProfileNotFoundState,
   SegmentControl,
 } from '@/components/profiles';
-import { SettingsBottomSheet } from '@/components/SettingsBottomSheet';
-import { useAuth } from '@/contexts/auth-context';
 import { useArtistProfile } from '@/hooks/use-artist-profile';
 import { useGuestGate } from '@/hooks/use-guest-gate';
 import { useMe } from '@/hooks/use-me';
@@ -48,12 +45,16 @@ export default function ArtistProfileScreen() {
   const { artistId } = useLocalSearchParams<{ artistId: string }>();
   const { data: profile, isLoading, error, refetch } = useArtistProfile(artistId);
   const [activeTab, setActiveTab] = useState<ProfileTab>('events');
-  const settingsRef = useRef<BottomSheetModal>(null);
-  const { logout } = useAuth();
   const { guard } = useGuestGate();
   const { data: me } = useMe();
   const { isFollowing, onFollowPress } = useProfileFollowHandler(profile);
   const { shareInterest } = useShareInterest();
+
+  // Public profile screen. Owners get the richer Profile tab (Collaboration,
+  // owner event actions), so redirect self-views. The param is the target user id.
+  if (me?.id === artistId) {
+    return <Redirect href="/(app)/(tabs)/profile" />;
+  }
 
   if (isLoading) {
     return (
@@ -97,13 +98,11 @@ export default function ArtistProfileScreen() {
           profileImageUrl={profile.profileImageUrl}
           followerCount={profile.followerCount}
           followingCount={profile.followingCount}
-          isOwner={profile.isOwner}
+          isOwner={false}
           isFollowing={isFollowing}
           socialLinks={profile.socialLinks}
           contactEmail={profile.contactEmail}
-          onEditPress={() => router.push('/(app)/(tabs)/profile/edit')}
-          onSettingsPress={profile.isOwner ? () => settingsRef.current?.present() : undefined}
-          onFollowPress={!profile.isOwner ? onFollowPress : undefined}
+          onFollowPress={onFollowPress}
           onFollowersPress={guard(() =>
             router.push({
               pathname: '/(app)/(tabs)/profile/followers',
@@ -117,7 +116,7 @@ export default function ArtistProfileScreen() {
             })
           )}
           secondaryCta={
-            !profile.isOwner && me?.currentRole === 'venue'
+            me?.currentRole === 'venue'
               ? {
                   label: 'Share Interest',
                   onPress: () => shareInterest(profile.userId),
@@ -136,20 +135,6 @@ export default function ArtistProfileScreen() {
           <View className="mt-4 flex-1">{renderTabContent()}</View>
         </View>
       </ScrollView>
-
-      {profile.isOwner && (
-        <SettingsBottomSheet
-          ref={settingsRef}
-          onChangePassword={() => {
-            settingsRef.current?.dismiss();
-          }}
-          onSignOut={async () => {
-            settingsRef.current?.dismiss();
-            await logout();
-            router.replace('/(auth)/sign-in');
-          }}
-        />
-      )}
     </SafeAreaView>
   );
 }

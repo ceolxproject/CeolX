@@ -1,11 +1,9 @@
-import type { BottomSheetModal } from '@gorhom/bottom-sheet';
-import { router, useLocalSearchParams } from 'expo-router';
-import { useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
+import { Redirect, router, useLocalSearchParams } from 'expo-router';
+import { useState } from 'react';
+import { ActivityIndicator, RefreshControl, ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppHeader } from '@/components/AppHeader';
-import { appToast } from '@/components/AppToast';
 import { PostsList } from '@/components/posts/PostsList';
 import {
   EventsTab,
@@ -13,8 +11,6 @@ import {
   ProfileNotFoundState,
   SegmentControl,
 } from '@/components/profiles';
-import { SettingsBottomSheet } from '@/components/SettingsBottomSheet';
-import { useAuth } from '@/contexts/auth-context';
 import { useGuestGate } from '@/hooks/use-guest-gate';
 import { useMe } from '@/hooks/use-me';
 import { useProfileFollowHandler } from '@/hooks/use-profile-follow-handler';
@@ -45,37 +41,20 @@ function PostsTab({ userId }: { userId: string }) {
   );
 }
 
-function SubscriptionBanner({ onResendEmail }: { onResendEmail: () => void }) {
-  return (
-    <View className="mx-5 mb-4 p-4 rounded-xl bg-[#1C1C1E] border border-[#8D8D8D]/30">
-      <Text className="text-sm font-semibold text-white font-urbanist mb-1">
-        Activate Your Venue
-      </Text>
-      <Text className="text-xs text-white/60 font-urbanist mb-3">
-        Your profile is not yet visible to artists. Check your email to activate.
-      </Text>
-      <Pressable
-        className="bg-[#662FFF] rounded-[20px] h-9 items-center justify-center"
-        onPress={onResendEmail}
-      >
-        <Text className="text-xs font-bold text-white uppercase tracking-wider font-urbanist">
-          Resend Activation Email
-        </Text>
-      </Pressable>
-    </View>
-  );
-}
-
 export default function VenueProfileScreen() {
   const { venueId } = useLocalSearchParams<{ venueId: string }>();
   const { data: profile, isLoading, error, refetch } = useVenueProfile(venueId);
   const [activeTab, setActiveTab] = useState<ProfileTab>('events');
-  const settingsRef = useRef<BottomSheetModal>(null);
-  const { logout } = useAuth();
   const { guard } = useGuestGate();
   const { data: me } = useMe();
   const { isFollowing, onFollowPress } = useProfileFollowHandler(profile);
   const { shareInterest } = useShareInterest();
+
+  // Public profile screen. Owners get the richer Profile tab (Collaboration,
+  // owner event actions), so redirect self-views. The param is the target user id.
+  if (me?.id === venueId) {
+    return <Redirect href="/(app)/(tabs)/profile" />;
+  }
 
   if (isLoading) {
     return (
@@ -90,9 +69,6 @@ export default function VenueProfileScreen() {
   if (error || !profile) {
     return <ProfileNotFoundState entityName="Venue" />;
   }
-
-  const showSubscriptionBanner =
-    profile.isOwner && profile.subscriptionStatus && profile.subscriptionStatus !== 'active';
 
   const renderTabContent = () => {
     switch (activeTab) {
@@ -123,13 +99,11 @@ export default function VenueProfileScreen() {
           profileImageUrl={profile.profileImageUrl}
           followerCount={profile.followerCount}
           followingCount={profile.followingCount}
-          isOwner={profile.isOwner}
+          isOwner={false}
           isFollowing={isFollowing}
           socialLinks={profile.socialLinks}
           contactEmail={profile.contactEmail}
-          onEditPress={() => router.push('/(app)/(tabs)/profile/edit')}
-          onSettingsPress={profile.isOwner ? () => settingsRef.current?.present() : undefined}
-          onFollowPress={!profile.isOwner ? onFollowPress : undefined}
+          onFollowPress={onFollowPress}
           onFollowersPress={guard(() =>
             router.push({
               pathname: '/(app)/(tabs)/profile/followers',
@@ -143,7 +117,7 @@ export default function VenueProfileScreen() {
             })
           )}
           secondaryCta={
-            !profile.isOwner && me?.currentRole === 'artist'
+            me?.currentRole === 'artist'
               ? {
                   label: 'Share Interest',
                   onPress: () => shareInterest(profile.userId),
@@ -153,16 +127,6 @@ export default function VenueProfileScreen() {
         />
 
         <View className="bg-[rgba(141,141,141,0.3)] rounded-t-[20px] mt-2 pt-4 flex-1">
-          {showSubscriptionBanner && (
-            <SubscriptionBanner
-              onResendEmail={() =>
-                appToast.info(
-                  'Coming Soon',
-                  'Activation email resend will be available in a future update.'
-                )
-              }
-            />
-          )}
           <SegmentControl
             tabs={TABS}
             labels={TAB_LABELS}
@@ -172,20 +136,6 @@ export default function VenueProfileScreen() {
           <View className="mt-4 flex-1">{renderTabContent()}</View>
         </View>
       </ScrollView>
-
-      {profile.isOwner && (
-        <SettingsBottomSheet
-          ref={settingsRef}
-          onChangePassword={() => {
-            settingsRef.current?.dismiss();
-          }}
-          onSignOut={async () => {
-            settingsRef.current?.dismiss();
-            await logout();
-            router.replace('/(auth)/sign-in');
-          }}
-        />
-      )}
     </SafeAreaView>
   );
 }
