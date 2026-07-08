@@ -65,3 +65,4 @@ yarn-error.*
 
 #Google Services
 rl-mobile-ci-*.json
+celox-production-*.json
