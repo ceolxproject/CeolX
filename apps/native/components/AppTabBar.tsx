@@ -65,13 +65,6 @@ export function AppTabBar({ state, navigation, onFabPress }: AppTabBarProps) {
   // to own the bottom (e.g. the map's event preview card / same-location sheet).
   if (hidden || shouldHideTabBar(pathname)) return null;
 
-  const getTabLabel = (tab: TabConfig) => {
-    if (tab.name === 'bookings') {
-      return currentRole === UserRole.SPECTATOR ? 'Bookings' : 'My Events';
-    }
-    return tab.label;
-  };
-
   const renderTab = (tab: TabConfig, actualIndex: number) => {
     const isFocused = state.index === actualIndex;
     const route = state.routes[actualIndex];
@@ -117,7 +110,7 @@ export function AppTabBar({ state, navigation, onFabPress }: AppTabBarProps) {
           />
         </View>
         <Text className={cn('text-white text-[10px] mt-0.5', isFocused && 'font-semibold')}>
-          {getTabLabel(tab)}
+          {tab.label}
         </Text>
       </Pressable>
     );

@@ -115,7 +115,7 @@ export default function SplashScreen() {
         <Path d={sparkPath(SPARK_X, SPARK_Y, 8)} fill="#A7F46A" />
       </Svg>
 
-      <CeolxLogo fontSize={60} letterSpacing={2} />
+      <CeolxLogo size={60} />
     </View>
   );
 }

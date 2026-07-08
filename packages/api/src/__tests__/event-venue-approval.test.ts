@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { afterEach, describe, expect, it, vi, beforeEach } from 'vitest';
 
 import type { UserRole } from '@CeolX/shared';
 
@@ -184,9 +184,19 @@ const bookingInsertValues = () =>
     | undefined;
 
 beforeEach(() => {
+  // Pin the clock (Date only) to before the fixtures' event date (2026-07-01) so
+  // those events stay *upcoming*. bookings.update now blocks accepting a past
+  // event, and these venue-approval fixtures would otherwise read as past on the
+  // real wall-clock and trip that guard. (Asana 1216289483780968)
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(new Date('2026-06-15T00:00:00Z'));
   vi.clearAllMocks();
   mockResolveCoords.mockResolvedValue({ lat: '53.3498', lng: '-6.2603' });
   mockEventCollabsFindMany.mockResolvedValue([]);
+});
+
+afterEach(() => {
+  vi.useRealTimers();
 });
 
 // ─── events.create ────────────────────────────────────────────────────────────

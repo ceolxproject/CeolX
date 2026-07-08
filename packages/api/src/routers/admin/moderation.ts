@@ -32,6 +32,7 @@ import type { DispatchNotificationInput } from '../../context';
 import { adminProcedure } from '../../index';
 import { AdminAuditAction, AdminAuditTargetType, logAdminAction } from '../../services/admin-audit';
 import { removeEventFromTypesense, syncEventToTypesense } from '../../services/event-sync';
+import { syncPromoPost } from '../../services/promo-post';
 
 // Post-publication moderation (PRD: MoM 3rd Apr 2026, Section 4).
 // Events go live immediately on creation; admins remove inappropriate
@@ -326,6 +327,12 @@ export const removeEvent = adminProcedure
 
     await removeEventFromTypesense(result.id).catch(() => {});
 
+    // Hide the event's promo post from the social feed while it's removed —
+    // mirrors the Typesense removal above (best-effort + loud).
+    await syncPromoPost(db, result.id, { hidden: true }).catch((err: unknown) => {
+      console.warn(`[admin.removeEvent] failed to hide promo post for event ${result.id}:`, err);
+    });
+
     return result;
   });
 
@@ -366,6 +373,11 @@ export const restoreEvent = adminProcedure
     if (!result) {
       throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Restore failed' });
     }
+
+    // Reveal the event's promo post again now that it's active (best-effort).
+    await syncPromoPost(db, result.id, { hidden: false }).catch((err: unknown) => {
+      console.warn(`[admin.restoreEvent] failed to reveal promo post for event ${result.id}:`, err);
+    });
 
     await logAdminAction(db, {
       adminId: ctx.session.user.id,

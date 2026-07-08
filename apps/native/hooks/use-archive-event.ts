@@ -14,6 +14,9 @@ export function useArchiveEvent(opts?: UseArchiveEventOpts) {
     trpc.events.archive.mutationOptions({
       onSuccess: () => {
         void queryClient.invalidateQueries({ queryKey: [['events', 'byId']] });
+        // The event's promo post is hidden server-side on archive — drop it from
+        // the cached posts feeds too so it doesn't linger as a dead card.
+        void queryClient.invalidateQueries({ queryKey: [['posts']] });
         appToast.success('Deleted', 'Your event has been deleted.');
         opts?.onSuccess?.();
       },

@@ -26,28 +26,47 @@ if (!rawVariant && isCI) {
 // dev identity). CI always sets APP_VARIANT explicitly via eas.json / workflow.
 const VARIANT = rawVariant ?? 'development';
 
-// Per-variant identity: display name, bundle/package id, and Firebase config
-// files. Production uses bare filenames; other variants are suffixed. Missing
-// files fail prebuild by design, so a stale APP_VARIANT can't silently fall
-// through to another environment's Firebase config.
+// Per-variant identity: display name, bundle/package id, Firebase config files,
+// and the Expo org + EAS project the build belongs to. Production uses bare
+// filenames; other variants are suffixed. Missing files fail prebuild by design,
+// so a stale APP_VARIANT can't silently fall through to another environment's
+// Firebase config.
+//
+// Expo ownership is split per variant: dev + staging live on the RaftLabs org
+// (shared project 222e34aa, different OTA channels); production lives on the
+// client's `ceol_x` org as a SEPARATE project with its own credentials, OTA
+// lineage, and store listings. `owner` + `projectId` + `updates.url` must all
+// point at the same org/project, so they're resolved together from here.
+const RAFTLABS_PROJECT_ID = '222e34aa-8637-46cc-8cc1-666ccec22b71';
+// TODO: fill in after `APP_VARIANT=production eas init` mints the ceol_x project.
+// Any member with Developer role (or higher) on ceol_x can run this — Owner/Admin
+// is only needed for the org's billing/paid plan, not for creating the project.
+const CEOLX_PROJECT_ID = 'fba52ffe-7650-4df7-beee-8f0ec518885f';
+
 const VARIANT_CONFIG = {
   development: {
     name: 'CeolX (Dev)',
     bundleId: 'com.ceolx.app.dev',
     androidGoogleServices: './google-services.development.json',
     iosGoogleServices: './GoogleService-Info.development.plist',
+    owner: 'raftlabs_expo',
+    projectId: RAFTLABS_PROJECT_ID,
   },
   staging: {
     name: 'CeolX (Staging)',
     bundleId: 'com.ceolx.app.staging',
     androidGoogleServices: './google-services.staging.json',
     iosGoogleServices: './GoogleService-Info.staging.plist',
+    owner: 'raftlabs_expo',
+    projectId: RAFTLABS_PROJECT_ID,
   },
   production: {
     name: 'CeolX',
     bundleId: 'com.ceolx.app',
     androidGoogleServices: './google-services.json',
     iosGoogleServices: './GoogleService-Info.plist',
+    owner: 'ceol_x',
+    projectId: CEOLX_PROJECT_ID,
   },
 };
 
@@ -57,6 +76,13 @@ if (!variantConfig) {
     `Unknown APP_VARIANT "${VARIANT}" (expected "development", "staging" or "production").`
   );
 }
+
+// While CEOLX_PROJECT_ID is still the `<new-ceol_x-id>` placeholder, treat the
+// variant as unlinked: omit extra.eas.projectId and disable updates. This lets
+// `APP_VARIANT=production eas init` create + link a fresh project instead of
+// choking on the placeholder ("Invalid UUID appId"). Once the real UUID is
+// pasted in, both fields activate automatically.
+const hasProjectId = !variantConfig.projectId.startsWith('<');
 
 // REVERSED_CLIENT_ID from the iOS OAuth client (see GoogleService-Info.plist),
 // e.g. com.googleusercontent.apps.1234-abc. Registers the URL scheme the native
@@ -81,7 +107,10 @@ const SHARE_HOST = SHARE_BASE_URL.replace(/^https?:\/\//, '').replace(/\/.*$/, '
 export default (_) => ({
   name: variantConfig.name,
   slug: 'ceolx',
-  owner: 'raftlabs_expo',
+  // Per-variant Expo org (dev/staging → raftlabs_expo, production → ceol_x).
+  // slug is scoped per-org, so raftlabs_expo/ceolx and ceol_x/ceolx are distinct
+  // projects that can share the same slug.
+  owner: variantConfig.owner,
   version: pkg.version,
   orientation: 'portrait',
   icon: './assets/images/icon.png',
@@ -94,9 +123,11 @@ export default (_) => ({
   },
   assetBundlePatterns: ['**/*'],
   runtimeVersion: { policy: 'fingerprint' },
+  // OTA endpoint is resolved by EAS project id, so it must match the variant's
+  // org/project (raftlabs project for dev/staging, ceol_x project for prod).
   updates: {
-    url: 'https://u.expo.dev/222e34aa-8637-46cc-8cc1-666ccec22b71',
-    enabled: true,
+    url: hasProjectId ? `https://u.expo.dev/${variantConfig.projectId}` : undefined,
+    enabled: hasProjectId,
   },
   ios: {
     supportsTablet: false,
@@ -233,9 +264,7 @@ export default (_) => ({
     reactCompiler: true,
   },
   extra: {
-    eas: {
-      projectId: '222e34aa-8637-46cc-8cc1-666ccec22b71',
-    },
+    eas: hasProjectId ? { projectId: variantConfig.projectId } : {},
     appVariant: VARIANT,
   },
 });

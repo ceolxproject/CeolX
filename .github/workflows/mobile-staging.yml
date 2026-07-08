@@ -50,7 +50,7 @@ jobs:
       - uses: expo/expo-github-action@v8
         with:
           eas-version: latest
-          token: ${{ secrets.EXPO_TOKEN }}
+          token: ${{ secrets.STAGING_EXPO_TOKEN }}
       - name: EAS build iOS (staging, auto-submit)
         working-directory: apps/native
         run: eas build --platform ios --profile staging --auto-submit --non-interactive --no-wait
@@ -77,7 +77,7 @@ jobs:
       - uses: expo/expo-github-action@v8
         with:
           eas-version: latest
-          token: ${{ secrets.EXPO_TOKEN }}
+          token: ${{ secrets.STAGING_EXPO_TOKEN }}
       - name: EAS build Android (staging app-bundle, auto-submit)
         working-directory: apps/native
         run: eas build --platform android --profile staging --auto-submit --non-interactive --no-wait

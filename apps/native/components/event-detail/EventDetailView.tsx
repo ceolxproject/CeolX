@@ -3,7 +3,7 @@ import { useMemo, useRef, useState } from 'react';
 import { FlatList, Linking, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { distanceBetween } from '@CeolX/shared';
+import { distanceBetween, isEventPast } from '@CeolX/shared';
 import { EventStatus, UserRole } from '@CeolX/shared/enums';
 
 import { CollectionEventCard } from './CollectionEventCard';
@@ -27,7 +27,7 @@ import {
 } from '@/hooks/use-add-to-calendar';
 import { useGpsRegion } from '@/hooks/use-gps-region';
 import { useRequestToPerform } from '@/hooks/use-request-to-perform';
-import { useSaveEvent } from '@/hooks/use-save-event';
+import { useSaveHandler } from '@/hooks/use-save-handler';
 import { useShareEvent } from '@/hooks/use-share-event';
 import type { EventDetailData } from '@/types/event-detail';
 
@@ -62,7 +62,7 @@ export function EventDetailView({
   // a saved event always reflects the true state instead of a stale `false`.
   const isSaved = event.isSaved;
   const { initialRegion, locationSource } = useGpsRegion();
-  const { mutate: saveEvent } = useSaveEvent();
+  const { onToggleSave: handleToggleSave } = useSaveHandler(event);
   const shareEvent = useShareEvent();
   const { requestToPerform, isRequesting } = useRequestToPerform();
 
@@ -75,12 +75,6 @@ export function EventDetailView({
     () => !!userId && event.collaborators.some((c) => c.id === userId),
     [userId, event.collaborators]
   );
-
-  const handleToggleSave = () => {
-    // Optimistic update + error rollback now live in useSaveEvent's cache patch,
-    // so the icon flips instantly via `event.isSaved` and reverts on failure.
-    saveEvent({ eventId: event.id, saved: !isSaved });
-  };
 
   const handleShare = () => {
     void shareEvent(event.id, event.title, formatDetailDate(event.dateStart));
@@ -350,6 +344,7 @@ export function EventDetailView({
           isCollaborator={isCollaborator}
           isRequesting={isRequesting}
           hasExistingRequest={event.viewerHasPendingRequest}
+          isPastEvent={isEventPast(event.dateStart)}
           onRequestToPerform={handleRequestToPerform}
         />
       )}

@@ -212,6 +212,9 @@ export function useEventForm(options?: UseEventFormOptions) {
   const [ticketQuantity, setTicketQuantity] = useState(init.ticketQuantity);
   const [adTitle, setAdTitle] = useState(init.adTitle);
   const [adDescription, setAdDescription] = useState(init.adDescription);
+  // Opt-in: also publish a promo post to the social feed on create. Create-only
+  // (the server's updateEventSchema ignores it); default on.
+  const [shareToFeed, setShareToFeed] = useState(true);
 
   // Validation errors (keyed by field path)
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -546,6 +549,7 @@ export function useEventForm(options?: UseEventFormOptions) {
       ),
       adTitle: adTitle.trim() || null,
       adDescription: adDescription.trim() || null,
+      shareToFeed,
     };
 
     // Final Zod validation against the shared schema
@@ -576,9 +580,13 @@ export function useEventForm(options?: UseEventFormOptions) {
 
     try {
       if (isEditing && options?.eventId) {
+        // shareToFeed is create-only — drop it from the edit payload rather than
+        // relying on the server's updateEventSchema to strip it.
+        const { shareToFeed, ...updateData } = parsed.data;
+        void shareToFeed;
         await updateMutation.mutateAsync({
           id: options.eventId,
-          data: parsed.data,
+          data: updateData,
         });
       } else {
         await createMutation.mutateAsync(parsed.data);
@@ -604,6 +612,8 @@ export function useEventForm(options?: UseEventFormOptions) {
 
     // Invalidate cached event queries so detail/feed/map show updated data
     void queryClient.invalidateQueries({ queryKey: [['events']] });
+    // ...and posts, so a new/edited promo post appears (or updates) in the feed.
+    void queryClient.invalidateQueries({ queryKey: [['posts']] });
 
     options?.onSuccess?.();
   }, [
@@ -633,6 +643,7 @@ export function useEventForm(options?: UseEventFormOptions) {
     unregisteredCollaborators,
     adTitle,
     adDescription,
+    shareToFeed,
     isEditing,
     options?.eventId,
     updateMutation,
@@ -692,6 +703,8 @@ export function useEventForm(options?: UseEventFormOptions) {
     setAdTitle,
     adDescription,
     setAdDescription,
+    shareToFeed,
+    setShareToFeed,
 
     // Wizard state
     currentStep,

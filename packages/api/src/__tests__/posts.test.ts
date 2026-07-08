@@ -7,6 +7,7 @@ import type { UserRole } from '@CeolX/shared';
 const {
   mockPostsFindFirst,
   mockPostLikesFindFirst,
+  mockEventsFindFirst,
   mockInsertValues,
   mockInsertReturning,
   mockUpdateReturning,
@@ -18,6 +19,7 @@ const {
 } = vi.hoisted(() => {
   const mockPostsFindFirst = vi.fn();
   const mockPostLikesFindFirst = vi.fn();
+  const mockEventsFindFirst = vi.fn();
   const mockInsertReturning = vi.fn();
   // Mux asset lookup performed by posts.create for video posts.
   const mockRetrieveUploadStatus = vi.fn();
@@ -52,6 +54,7 @@ const {
   return {
     mockPostsFindFirst,
     mockPostLikesFindFirst,
+    mockEventsFindFirst,
     mockInsertValues,
     mockInsertReturning,
     mockUpdateReturning,
@@ -66,6 +69,7 @@ const {
 vi.mock('@CeolX/db', () => {
   const chain = {
     from: vi.fn(() => chain),
+    leftJoin: vi.fn(() => chain),
     where: vi.fn(() => chain),
     orderBy: vi.fn(() => chain),
     limit: vi.fn(() => chain),
@@ -79,6 +83,7 @@ vi.mock('@CeolX/db', () => {
       query: {
         posts: { findFirst: mockPostsFindFirst },
         postLikes: { findFirst: mockPostLikesFindFirst },
+        events: { findFirst: mockEventsFindFirst },
       },
       select: vi.fn(() => chain),
       insert: vi.fn(() => ({
@@ -102,6 +107,7 @@ vi.mock('@CeolX/db/schema/social', () => ({
   posts: {
     id: 'id',
     createdBy: 'created_by',
+    eventId: 'event_id',
     deletedAt: 'deleted_at',
     createdAt: 'created_at',
     likeCount: 'like_count',
@@ -511,13 +517,66 @@ describe('posts.byUser', () => {
     expect(result.posts).toHaveLength(1);
     expect(result.posts[0]?.author.displayName).toBe('Test User');
   });
+
+  it('passes the eventEnded flag through to the owner (Ended-badge data)', async () => {
+    // The owner viewing their own profile receives promos for events that have
+    // already ended, flagged eventEnded — the read-time owner/expiry filtering
+    // itself is SQL and verified against a live DB, not these mocks.
+    mockSelectChain
+      .mockResolvedValueOnce([
+        {
+          id: 'promo-1',
+          createdBy: 'user-1',
+          caption: 'Past gig',
+          mediaType: 'image',
+          mediaUrl: 'https://cdn/x.jpg',
+          eventId: 'evt-1',
+          eventEnded: true,
+          likeCount: 3,
+          deletedAt: null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      ])
+      .mockResolvedValueOnce([{ count: 1 }])
+      .mockResolvedValueOnce([{ id: 'user-1', name: 'Test User', image: null }])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([]);
+
+    const result = await authedCaller('user-1').byUser({ userId: 'user-1' });
+    expect(result.posts[0]?.eventEnded).toBe(true);
+    expect(result.posts[0]?.eventId).toBe('evt-1');
+  });
 });
 
 describe('posts.feed', () => {
-  it('requires authentication', async () => {
-    await expect(anonCaller().feed({ limit: 20, offset: 0 })).rejects.toMatchObject({
-      code: 'UNAUTHORIZED',
-    });
+  it('is public — a guest (no session) reads the feed with likedByMe=false', async () => {
+    // Guests ("Skip sign-in") have no session. The feed must stay readable for
+    // them (posts are public), skipping the per-viewer liked lookup and
+    // defaulting likedByMe / isFollowedByMe to false. (Asana 1216227543475896)
+    mockSelectChain
+      .mockResolvedValueOnce([
+        {
+          id: 'post-1',
+          createdBy: 'user-2',
+          caption: 'a public post',
+          mediaType: 'text',
+          mediaUrl: null,
+          likeCount: 3,
+          deletedAt: null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      ]) // paginated posts
+      .mockResolvedValueOnce([{ count: 1 }]) // count
+      .mockResolvedValueOnce([{ id: 'user-2', name: 'Stranger', image: null }]) // users
+      .mockResolvedValueOnce([]) // artists
+      .mockResolvedValueOnce([]); // venues — followedRows + likedRows are skipped for a guest
+
+    const result = await anonCaller().feed({ limit: 20, offset: 0 });
+    expect(result.posts).toHaveLength(1);
+    expect(result.posts[0]?.likedByMe).toBe(false);
+    expect(result.posts[0]?.author.isFollowedByMe).toBe(false);
   });
 
   it('returns all non-deleted posts globally', async () => {
@@ -643,5 +702,95 @@ describe('posts.feed', () => {
     expect(result.posts).toHaveLength(1);
     expect(result.posts[0]?.author.displayName).toBe('Jazz Cat');
     expect(result.totalCount).toBe(1);
+  });
+});
+
+describe('posts.byId — promo-post expiry', () => {
+  const POST_ID = '11111111-1111-4111-8111-111111111111';
+  const POST_ID_2 = '22222222-2222-4222-8222-222222222222';
+  const promoPost = {
+    id: POST_ID,
+    createdBy: 'user-2',
+    eventId: 'evt-1',
+    caption: 'Live at the Cobblestone',
+    mediaType: 'text',
+    mediaUrl: null,
+    likeCount: 0,
+    deletedAt: null,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+
+  it('404s when the linked event has already passed', async () => {
+    mockPostsFindFirst.mockResolvedValueOnce(promoPost);
+    mockEventsFindFirst.mockResolvedValueOnce({
+      status: 'active',
+      dateStart: new Date(Date.now() - 86_400_000),
+      dateEnd: null,
+    });
+    const caller = authedCaller('user-1');
+    await expect(caller.byId({ id: POST_ID })).rejects.toMatchObject({ code: 'NOT_FOUND' });
+  });
+
+  it('returns the post when the linked event is still upcoming', async () => {
+    mockPostsFindFirst.mockResolvedValueOnce(promoPost);
+    mockEventsFindFirst.mockResolvedValueOnce({
+      status: 'active',
+      dateStart: new Date(Date.now() + 86_400_000),
+      dateEnd: null,
+    });
+    const caller = authedCaller('user-1');
+    const result = await caller.byId({ id: POST_ID });
+    expect(result.id).toBe(POST_ID);
+    expect(mockEventsFindFirst).toHaveBeenCalledTimes(1);
+  });
+
+  it('404s when the linked event is not active (e.g. removed), even if upcoming', async () => {
+    mockPostsFindFirst.mockResolvedValueOnce(promoPost);
+    mockEventsFindFirst.mockResolvedValueOnce({
+      status: 'removed',
+      dateStart: new Date(Date.now() + 86_400_000),
+      dateEnd: null,
+    });
+    const caller = authedCaller('user-1');
+    await expect(caller.byId({ id: POST_ID })).rejects.toMatchObject({ code: 'NOT_FOUND' });
+  });
+
+  it('does not look up an event for a non-promo post (eventId null)', async () => {
+    mockPostsFindFirst.mockResolvedValueOnce({ ...promoPost, id: POST_ID_2, eventId: null });
+    const caller = authedCaller('user-1');
+    const result = await caller.byId({ id: POST_ID_2 });
+    expect(result.id).toBe(POST_ID_2);
+    expect(mockEventsFindFirst).not.toHaveBeenCalled();
+  });
+});
+
+describe('posts.remove / update — promo posts are event-managed', () => {
+  const PROMO_ID = '33333333-3333-4333-8333-333333333333';
+  const promo = {
+    id: PROMO_ID,
+    createdBy: 'user-1',
+    eventId: 'evt-1',
+    caption: 'Live at the Cobblestone',
+    mediaType: 'text',
+    mediaUrl: null,
+    likeCount: 0,
+    deletedAt: null,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+
+  it('rejects removing a promo post — managed via its event (FORBIDDEN, prevents resurrection)', async () => {
+    mockPostsFindFirst.mockResolvedValueOnce(promo);
+    const caller = authedCaller('user-1');
+    await expect(caller.delete({ id: PROMO_ID })).rejects.toMatchObject({ code: 'FORBIDDEN' });
+  });
+
+  it('rejects editing a promo post directly (FORBIDDEN)', async () => {
+    mockPostsFindFirst.mockResolvedValueOnce(promo);
+    const caller = authedCaller('user-1');
+    await expect(caller.update({ id: PROMO_ID, caption: 'edited' })).rejects.toMatchObject({
+      code: 'FORBIDDEN',
+    });
   });
 });

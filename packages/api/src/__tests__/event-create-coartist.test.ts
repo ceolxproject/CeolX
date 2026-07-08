@@ -74,6 +74,19 @@ vi.mock('@CeolX/db/schema/events', () => ({
   },
   savedEvents: { id: 'id', eventId: 'event_id', userId: 'user_id' },
 }));
+
+vi.mock('@CeolX/db/schema/social', () => ({
+  posts: {
+    id: 'id',
+    eventId: 'event_id',
+    createdBy: 'created_by',
+    caption: 'caption',
+    mediaType: 'media_type',
+    mediaUrl: 'media_url',
+    deletedAt: 'deleted_at',
+  },
+}));
+
 vi.mock('@CeolX/db/schema/users', () => ({
   artistProfiles: { id: 'id', userId: 'user_id', stageName: 'stage_name' },
   venueProfiles: { id: 'id', userId: 'user_id', venueName: 'venue_name', lat: 'lat', lng: 'lng' },

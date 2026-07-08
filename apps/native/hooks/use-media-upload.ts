@@ -1,4 +1,5 @@
 import { useMutation } from '@tanstack/react-query';
+import * as FileSystem from 'expo-file-system/legacy';
 import { useCallback, useState } from 'react';
 
 import {
@@ -36,29 +37,40 @@ function resolveContentType(asset: Asset, type: UploadType): string {
 }
 
 /**
- * PUT a Blob to a presigned S3 url with progress reporting. fetch() in RN
- * doesn't expose upload progress, so we drop down to XHR for this hop only.
+ * PUT a file to a presigned S3 url with progress reporting.
+ *
+ * Streams the file from disk via expo-file-system (BINARY_CONTENT) instead of
+ * `fetch(uri).blob()` + XHR. Buffering the whole file into a Blob failed on
+ * Android for large assets with a bare "Network request failed"; streaming
+ * keeps memory flat (same root cause as the Mux path — Asana 1216260009179370).
+ * The presigner signs the request with this exact Content-Type, so the header
+ * must match or S3 rejects the PUT.
  */
-function putWithProgress(
+async function putWithProgress(
   url: string,
-  blob: Blob,
+  fileUri: string,
   contentType: string,
   onProgress?: (fraction: number) => void
 ): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const xhr = new XMLHttpRequest();
-    xhr.open('PUT', url);
-    xhr.setRequestHeader('Content-Type', contentType);
-    xhr.upload.onprogress = (e) => {
-      if (e.lengthComputable && onProgress) onProgress(toProgressFraction(e.loaded, e.total));
-    };
-    xhr.onload = () =>
-      xhr.status >= 200 && xhr.status < 300
-        ? resolve()
-        : reject(new Error(`S3 upload failed (${xhr.status})`));
-    xhr.onerror = () => reject(new Error('Network error during S3 upload'));
-    xhr.send(blob);
-  });
+  const task = FileSystem.createUploadTask(
+    url,
+    fileUri,
+    {
+      httpMethod: 'PUT',
+      uploadType: FileSystem.FileSystemUploadType.BINARY_CONTENT,
+      headers: { 'Content-Type': contentType },
+    },
+    (data) => {
+      if (onProgress && data.totalBytesExpectedToSend > 0) {
+        onProgress(toProgressFraction(data.totalBytesSent, data.totalBytesExpectedToSend));
+      }
+    }
+  );
+
+  const result = await task.uploadAsync();
+  if (!result || result.status < 200 || result.status >= 300) {
+    throw new Error(`S3 upload failed (${result?.status ?? 'no response'})`);
+  }
 }
 
 /**
@@ -90,9 +102,7 @@ export function useMediaUpload(type: UploadType) {
           contentType,
         });
 
-        const response = await fetch(asset.uri);
-        const blob = await response.blob();
-        await putWithProgress(uploadUrl, blob, contentType, setProgress);
+        await putWithProgress(uploadUrl, asset.uri, contentType, setProgress);
 
         return { cdnUrl, key };
       } finally {

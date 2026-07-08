@@ -1,6 +1,8 @@
 import '@/global.css';
 
-import { Inter_500Medium, Inter_600SemiBold } from '@expo-google-fonts/inter';
+import { Anton_400Regular } from '@expo-google-fonts/anton';
+import { Inter_400Regular, Inter_500Medium, Inter_600SemiBold } from '@expo-google-fonts/inter';
+import { JetBrainsMono_700Bold } from '@expo-google-fonts/jetbrains-mono';
 import {
   Urbanist_400Regular,
   Urbanist_500Medium,
@@ -15,6 +17,7 @@ import Constants from 'expo-constants';
 import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import { HeroUINativeProvider } from 'heroui-native';
+import { useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
@@ -29,6 +32,7 @@ import { AppToastProvider } from '@/components/AppToast';
 import { FallbackComponent } from '@/components/sentry-fallback';
 import { AppThemeProvider } from '@/contexts/app-theme-context';
 import { AuthProvider } from '@/contexts/auth-context';
+import { applyPendingUpdate } from '@/lib/check-for-update';
 import { configureGoogleSignIn } from '@/lib/google-signin';
 import { queryClient } from '@/utils/trpc';
 
@@ -72,8 +76,11 @@ function RootStack() {
 
 function Layout() {
   const [fontsLoaded, fontError] = useFonts({
+    Anton_400Regular,
+    Inter_400Regular,
     Inter_500Medium,
     Inter_600SemiBold,
+    JetBrainsMono_700Bold,
     Urbanist_400Regular,
     Urbanist_500Medium,
     Urbanist_600SemiBold,
@@ -81,6 +88,18 @@ function Layout() {
     Urbanist_900Black,
   });
   const fontsReady = fontsLoaded || !!fontError;
+
+  // Cold-start OTA check. Runs once on mount and applies a pending EAS Update
+  // before the app is interactive (unless a deep link is being restored — see
+  // applyPendingUpdate). We do NOT gate this behind unmounting the navigator;
+  // instead we extend the brand overlay below (same mechanism as the pre-font
+  // window), so the navigator stays mounted the whole time and cold-start
+  // deep-link restoration is never interrupted. If an update is applied the
+  // process restarts and this state never resolves — that's fine.
+  const [updateChecked, setUpdateChecked] = useState(false);
+  useEffect(() => {
+    void applyPendingUpdate().finally(() => setUpdateChecked(true));
+  }, []);
 
   // Keep the navigator mounted at ALL times. Returning null here (or in
   // (auth)/_layout while the session resolves) unmounts the navigator and races
@@ -106,7 +125,7 @@ function Layout() {
               </HeroUINativeProvider>
             </AppThemeProvider>
           </KeyboardProvider>
-          {!fontsReady && (
+          {(!fontsReady || !updateChecked) && (
             <View style={[StyleSheet.absoluteFill, { backgroundColor: '#0d0c0f' }]} />
           )}
         </GestureHandlerRootView>
