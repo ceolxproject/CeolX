@@ -14,6 +14,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "297835449315-jbr12vhlb2rag4l7qgulgaeqh5ibirb2.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.ceolx.app",
+            "certificate_hash": "b27f445efb38c9d7a6c5e01a5102bfdabf12de96"
+          }
+        },
+        {
           "client_id": "297835449315-btct1vddecjlp90cl96teighh81skqop.apps.googleusercontent.com",
           "client_type": 3
         }
