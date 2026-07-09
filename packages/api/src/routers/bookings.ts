@@ -924,8 +924,21 @@ export const bookingsRouter = router({
       }
     }
 
-    const countResult = groups.size;
-    const pageGroups = [...groups.values()].slice(input.offset, input.offset + input.limit);
+    // Hide expired pending requests: an unanswered invite/application whose event
+    // has already happened is moot, so drop it from the Collaboration list instead
+    // of showing dead action buttons. Accepted/rejected/cancelled rows stay as
+    // history (only PENDING renders actions). Filtering here — after the in-memory
+    // group + before the page slice — keeps `total` and paging consistent. The
+    // booking-detail screen a notification deep-links to shows an "expired" notice.
+    // (Asana 1216347906046740, 1216347905932214)
+    const visibleGroups = [...groups.values()].filter((g) => {
+      if (g.row.status !== BookingStatus.PENDING) return true;
+      const evt = g.row.event;
+      return !evt || !isEventPast(evt.dateStart.toISOString());
+    });
+
+    const countResult = visibleGroups.length;
+    const pageGroups = visibleGroups.slice(input.offset, input.offset + input.limit);
     const groupByBookingId = new Map(pageGroups.map((g) => [g.row.id, g]));
     const rows = pageGroups.map((g) => g.row);
 

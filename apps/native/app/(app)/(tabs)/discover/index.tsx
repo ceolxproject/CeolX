@@ -342,8 +342,8 @@ export default function DiscoverScreen() {
 
           {/* Search bar */}
           <View className="px-5 mt-3" onLayout={onSearchLayout}>
-            <View className="flex-row items-center bg-[rgba(141,141,141,0.2)] rounded-full px-4 py-[14px] gap-3">
-              <Ionicons name="search-outline" size={20} color="rgba(255,255,255,0.6)" />
+            <View className="flex-row items-center bg-[rgba(141,141,141,0.2)] rounded-full px-4 py-[7px] gap-3">
+              <Ionicons name="search-outline" size={18} color="rgba(255,255,255,0.6)" />
               <TextInput
                 value={searchText}
                 placeholder={
@@ -359,6 +359,16 @@ export default function DiscoverScreen() {
                 onSubmitEditing={() => setSearchFocused(false)}
                 returnKeyType="search"
               />
+              {searchText.length > 0 ? (
+                <Pressable
+                  onPress={() => handleSearchChange('')}
+                  hitSlop={8}
+                  accessibilityRole="button"
+                  accessibilityLabel="Clear search"
+                >
+                  <Ionicons name="close-circle" size={18} color="rgba(255,255,255,0.6)" />
+                </Pressable>
+              ) : null}
             </View>
           </View>
 
@@ -370,6 +380,17 @@ export default function DiscoverScreen() {
               onPress={handleSegmentChange}
             />
           </View>
+
+          {/* Search result indicator — shows the committed query once the box is
+              blurred (typing shows the autocomplete instead). Applies to both tabs. */}
+          {searchText.trim().length > 0 && !searchFocused && (
+            <View className="px-5 mt-2">
+              <Text className="text-[13px] text-white/50 font-urbanist" numberOfLines={1}>
+                Showing results for{' '}
+                <Text className="text-white/80 font-semibold">“{searchText.trim()}”</Text>
+              </Text>
+            </View>
+          )}
 
           {/* Active filter indicator */}
           {hasActiveFilters && activeSegment === 0 && (
