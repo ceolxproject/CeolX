@@ -131,17 +131,30 @@ export function useFeedEvents({ lat, lng, enabled = true }: UseFeedEventsOpts) {
     }, MAP_DEBOUNCE_MS);
   }, []);
 
-  const onCategoryChange = useCallback((cat: EventCategory | undefined) => {
-    setCategory(cat);
-    setOffset(0);
-    setAccumulatedEvents([]);
-  }, []);
+  // Same no-op guard as onSearch: re-selecting the current category/date (e.g.
+  // tapping "All" when nothing is filtered, then Apply) leaves the query key
+  // unchanged, so React Query serves cached data without refetching and the
+  // data-sync effect never re-fires. Clearing accumulatedEvents anyway would
+  // leave the feed empty until a manual refresh. (Asana 1215700058851899)
+  const onCategoryChange = useCallback(
+    (cat: EventCategory | undefined) => {
+      if (cat === category) return;
+      setCategory(cat);
+      setOffset(0);
+      setAccumulatedEvents([]);
+    },
+    [category]
+  );
 
-  const onDateChange = useCallback((next: string | undefined) => {
-    setDate(next);
-    setOffset(0);
-    setAccumulatedEvents([]);
-  }, []);
+  const onDateChange = useCallback(
+    (next: string | undefined) => {
+      if (next === date) return;
+      setDate(next);
+      setOffset(0);
+      setAccumulatedEvents([]);
+    },
+    [date]
+  );
 
   return {
     events: accumulatedEvents,

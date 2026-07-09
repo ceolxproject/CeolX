@@ -37,6 +37,7 @@ async function suggestArtists(term: string): Promise<Suggestion[]> {
   const pattern = `%${term}%`;
   const rows = await db
     .select({
+      userId: artistProfiles.userId,
       stageName: artistProfiles.stageName,
       genres: artistProfiles.genres,
       imageUrl: artistProfiles.profileImageUrl,
@@ -61,6 +62,7 @@ async function suggestArtists(term: string): Promise<Suggestion[]> {
       label: r.stageName,
       sublabel: r.genres?.[0] || undefined,
       imageUrl: r.imageUrl || undefined,
+      artistId: r.userId,
     }))
   );
 }
