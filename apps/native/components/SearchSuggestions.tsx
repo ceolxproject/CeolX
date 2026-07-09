@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import { ActivityIndicator, Image, Pressable, ScrollView, Text, View } from 'react-native';
 
 import type { Suggestion } from '@CeolX/shared/validators';
@@ -57,6 +58,7 @@ function SuggestionRow({
   onSelect: (label: string) => void;
 }) {
   const isEvent = item.dateStart !== undefined || item.location !== undefined;
+  const artistId = item.artistId;
 
   return (
     <Pressable
@@ -87,6 +89,22 @@ function SuggestionRow({
           </Text>
         ) : null}
       </View>
+      {artistId !== undefined ? (
+        <Pressable
+          onPress={() =>
+            router.push({
+              pathname: '/(app)/artist/[artistId]',
+              params: { artistId },
+            })
+          }
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel={`View ${item.label}'s profile`}
+          className="size-8 rounded-full bg-[#ECECEC] items-center justify-center active:opacity-60"
+        >
+          <Ionicons name="person-circle-outline" size={20} color="#080808" />
+        </Pressable>
+      ) : null}
     </Pressable>
   );
 }

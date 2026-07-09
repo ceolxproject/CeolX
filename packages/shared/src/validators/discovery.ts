@@ -23,6 +23,8 @@ export type SuggestInput = z.infer<typeof suggestSchema>;
  * - `location` — event area/venue address, shown with a pin icon.
  * - `dateStart` — event start time as a Unix timestamp in **seconds**
  *   (matches Typesense `date_start`), shown with a calendar icon.
+ * - `artistId` — the artist's user id. Present only on artist rows; when set,
+ *   the row shows a button that opens `/(app)/artist/[artistId]` directly.
  */
 export type Suggestion = {
   label: string;
@@ -30,6 +32,7 @@ export type Suggestion = {
   imageUrl?: string;
   location?: string;
   dateStart?: number;
+  artistId?: string;
 };
 
 /** Grouped suggestion payload returned by `discovery.suggest`. */

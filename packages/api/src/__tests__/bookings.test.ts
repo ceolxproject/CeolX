@@ -746,6 +746,48 @@ describe('bookings.list', () => {
     expect(result.bookings[0]?.artistUserId).toBe(ARTIST_USER_ID);
     expect(result.bookings[0]?.venueUserId).toBe(VENUE_USER_ID);
   });
+
+  it('excludes pending requests whose event has already passed', async () => {
+    // Pinned now = 2026-04-20; this event is 2026-03-01 → expired. A pending
+    // request for a past event is moot and must drop off the Collaboration list
+    // rather than sit there with dead action buttons.
+    // (Asana 1216347906046740, 1216347905932214)
+    const caller = createCaller(authedContext('venue', VENUE_USER_ID));
+    mockVenuesFindFirst.mockResolvedValueOnce({ id: VENUE_PROFILE_ID });
+    mockBookingsFindMany.mockResolvedValueOnce([
+      { ...mockBooking, event: { ...mockEvent, dateStart: new Date('2026-03-01T20:00:00Z') } },
+    ]);
+
+    const result = await caller.bookings.list({ tab: 'sent' });
+    expect(result.bookings).toHaveLength(0);
+    expect(result.total).toBe(0);
+  });
+
+  it('keeps non-pending rows for past events as history', async () => {
+    // An accepted booking for a past event is history and renders no action
+    // buttons, so it stays visible — only PENDING past-event rows are filtered.
+    const caller = createCaller(authedContext('venue', VENUE_USER_ID));
+    mockVenuesFindFirst.mockResolvedValueOnce({ id: VENUE_PROFILE_ID });
+    mockBookingsFindMany.mockResolvedValueOnce([
+      {
+        ...mockBooking,
+        status: 'accepted',
+        event: { ...mockEvent, dateStart: new Date('2026-03-01T20:00:00Z') },
+      },
+    ]);
+    mockSelectWhere.mockReturnValueOnce({
+      then: (cb: (v: unknown[]) => void) =>
+        cb([
+          { id: ARTIST_USER_ID, image: 'artist.jpg' },
+          { id: VENUE_USER_ID, image: 'venue.jpg' },
+        ]),
+    });
+
+    const result = await caller.bookings.list({ tab: 'sent' });
+    expect(result.bookings).toHaveLength(1);
+    expect(result.total).toBe(1);
+    expect(result.bookings[0]?.status).toBe('accepted');
+  });
 });
 
 // ─── bookings.list — collapse repeat attempts (Asana 1215700058851996, Issue 1) ─
