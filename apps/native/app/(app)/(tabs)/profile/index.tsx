@@ -221,28 +221,43 @@ function MyEventsTab() {
 
   return (
     <View className="px-5 gap-4 pb-4">
-      {/* Created events — events this profile owns (with manage actions). */}
-      {events.map((event) => (
-        <ProfileEventCard
-          key={event.id}
-          id={event.id}
-          title={event.title}
-          coverImage={event.coverImage}
-          dateStart={event.dateStart}
-          dateEnd={event.dateEnd}
-          category={event.category}
-          venueAddress={event.venueAddress}
-          collectionName={event.collectionName}
-          status={event.status}
-          joinedCount={event.joinedCount}
-          ownerActions={{
-            onEdit: () => router.push(`/(app)/events/edit/${event.id}`),
-            onAnalytics: () => router.push(`/(app)/events/${event.id}/analytics`),
-            onArchive: () => archive.mutate({ id: event.id }),
-          }}
-          onPress={() => router.push(`/(app)/(tabs)/profile/event/${event.id}`)}
-        />
-      ))}
+      {/* Created events — events this profile owns (with manage actions). The
+          server orders upcoming → past and flags isPast, so we insert an
+          "Upcoming" / "Past Events" header whenever the section changes without
+          breaking pagination (the two blocks never interleave). */}
+      {events.flatMap((event, i) => {
+        const sectionChanged = i === 0 || events[i - 1].isPast !== event.isPast;
+        const header = sectionChanged ? (event.isPast ? 'Past Events' : 'Upcoming') : null;
+        return [
+          header ? (
+            <Text
+              key={`section-${event.id}`}
+              className="text-xs font-bold uppercase tracking-wider text-white/50 font-urbanist mt-2"
+            >
+              {header}
+            </Text>
+          ) : null,
+          <ProfileEventCard
+            key={event.id}
+            id={event.id}
+            title={event.title}
+            coverImage={event.coverImage}
+            dateStart={event.dateStart}
+            dateEnd={event.dateEnd}
+            category={event.category}
+            venueAddress={event.venueAddress}
+            collectionName={event.collectionName}
+            status={event.status}
+            joinedCount={event.joinedCount}
+            ownerActions={{
+              onEdit: () => router.push(`/(app)/events/edit/${event.id}`),
+              onAnalytics: () => router.push(`/(app)/events/${event.id}/analytics`),
+              onArchive: () => archive.mutate({ id: event.id }),
+            }}
+            onPress={() => router.push(`/(app)/(tabs)/profile/event/${event.id}`)}
+          />,
+        ];
+      })}
       {isFetchingNextPage && (
         <View className="py-4 items-center">
           <ActivityIndicator color="#C8FF2F" />

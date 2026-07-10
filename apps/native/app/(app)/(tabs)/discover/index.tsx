@@ -3,15 +3,22 @@ import { useRouter } from 'expo-router';
 import { useCallback, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  FlatList,
   Keyboard,
+  type LayoutChangeEvent,
   Pressable,
   RefreshControl,
   Text,
   TextInput,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import Animated, {
+  Easing,
+  useAnimatedScrollHandler,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { EventCategory } from '@CeolX/shared';
 import { EVENT_CATEGORIES } from '@CeolX/shared';
@@ -35,9 +42,14 @@ import { useMe } from '@/hooks/use-me';
 import { useSearchSuggestions } from '@/hooks/use-search-suggestions';
 import { useVenueFallback } from '@/hooks/use-venue-fallback';
 import { authClient } from '@/lib/auth-client';
+import { nextCollapseProgress } from '@/utils/collapsing-header';
 import { resolveFeedLocation, type FeedLocation } from '@/utils/feed-location';
 
 const SEGMENTS = ['Events', 'Posts'];
+
+// One spec for every header collapse/reveal — scroll-driven and tab-switch —
+// so the bar settles the same way however it was triggered.
+const HEADER_ANIM = { duration: 260, easing: Easing.out(Easing.cubic) } as const;
 
 // Date selection lives on the header's calendar button — the filter sheet is
 // category-only.
@@ -116,6 +128,62 @@ export default function DiscoverScreen() {
 
   const [refreshing, setRefreshing] = useState(false);
 
+  const insets = useSafeAreaInsets();
+  // Collapsing header. The whole top block (logo, location, search, tabs, filter
+  // chips) is one absolutely-positioned unit that slides fully off the top on
+  // scroll-down and returns on scroll-up — reading gets the entire screen. One
+  // progress value (0 shown, 1 collapsed) drives it. onLayout feeds back the
+  // header height (the feed's top padding) and the search bar's bottom (where the
+  // autocomplete card anchors).
+  const [headerHeight, setHeaderHeight] = useState(0);
+  const [searchBottomY, setSearchBottomY] = useState(0);
+  const lastScrollY = useSharedValue(0);
+  const collapseProgress = useSharedValue(0);
+  const collapseTargetSV = useSharedValue(0);
+  const headerHeightSV = useSharedValue(0);
+  const insetTop = insets.top;
+
+  // The feed sits behind the header, padded down to clear it at rest.
+  const contentPaddingTop = headerHeight + 16;
+
+  const onHeaderLayout = useCallback(
+    (e: LayoutChangeEvent) => {
+      const h = e.nativeEvent.layout.height;
+      setHeaderHeight(h);
+      headerHeightSV.value = h;
+    },
+    [headerHeightSV]
+  );
+
+  const onSearchLayout = useCallback((e: LayoutChangeEvent) => {
+    setSearchBottomY(e.nativeEvent.layout.y + e.nativeEvent.layout.height);
+  }, []);
+
+  const scrollHandler = useAnimatedScrollHandler({
+    onScroll: (e) => {
+      const y = e.contentOffset.y;
+      const target = nextCollapseProgress(
+        y,
+        lastScrollY.value,
+        headerHeightSV.value,
+        collapseTargetSV.value
+      );
+      // Only kick off a new animation when the target actually flips, so a long
+      // scroll doesn't restart the tween on every frame.
+      if (target !== collapseTargetSV.value) {
+        collapseTargetSV.value = target;
+        collapseProgress.value = withTiming(target, HEADER_ANIM);
+      }
+      lastScrollY.value = y;
+    },
+  });
+
+  // Hide the whole header off the top of the screen — its own height plus the
+  // status-bar inset, so nothing peeks into the status-bar strip when collapsed.
+  const headerAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: -(headerHeightSV.value + insetTop) * collapseProgress.value }],
+  }));
+
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
     await refresh();
@@ -178,8 +246,12 @@ export default function DiscoverScreen() {
       setSearchText('');
       onSearch('');
       postsOnSearch('');
+      // Land the new tab at the top with the header visible.
+      lastScrollY.value = 0;
+      collapseTargetSV.value = 0;
+      collapseProgress.value = withTiming(0, HEADER_ANIM);
     },
-    [onSearch, postsOnSearch]
+    [onSearch, postsOnSearch, lastScrollY, collapseTargetSV, collapseProgress]
   );
 
   const handleFiltersApply = useCallback(
@@ -234,110 +306,126 @@ export default function DiscoverScreen() {
       style={{ flex: 1, backgroundColor: '#080808' }}
       edges={['top']}
     >
-      <FeedHeader
-        locationText={locationText}
-        locationIsSearch={overrideKind === 'search'}
-        onLocationReset={clearOverride}
-        onLocationPress={() => setLocationSheetVisible(true)}
-        onCalendarPress={() => setDatePickerVisible(true)}
-        onFilterPress={() => setFilterSheetVisible(true)}
-        onNotificationPress={() => router.push('/notifications')}
-        calendarActive={activeSegment === 0 && !!date}
-        filterActive={activeSegment === 0 && !!category}
-        showEventActions={activeSegment === 0}
-        showLocation={activeSegment === 0}
-      />
-
-      {/* Search bar */}
-      <View className="px-5 mt-3">
-        <View className="flex-row items-center bg-[rgba(141,141,141,0.2)] rounded-full px-4 py-[7px] gap-3">
-          <Ionicons name="search-outline" size={18} color="rgba(255,255,255,0.6)" />
-          <TextInput
-            value={searchText}
-            placeholder={
-              activeSegment === 1
-                ? 'Search posts by author or caption'
-                : 'Find Music, Artist or Event'
-            }
-            placeholderTextColor="rgba(255,255,255,0.6)"
-            className="flex-1 text-[14px] text-white font-urbanist"
-            onChangeText={handleSearchChange}
-            onFocus={handleSearchFocus}
-            onBlur={handleSearchBlur}
-            onSubmitEditing={() => setSearchFocused(false)}
-            returnKeyType="search"
+      <View className="flex-1 relative" style={{ backgroundColor: '#080808' }}>
+        {/* Collapsing header — logo, location, search, tabs and filter chips as
+            one unit. Slides fully off the top on scroll-down (its own height +
+            the status-bar inset) and returns on scroll-up. Absolute; the feed
+            scrolls under it and is padded down by its measured height. */}
+        <Animated.View
+          onLayout={onHeaderLayout}
+          style={[
+            {
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              zIndex: 30,
+              backgroundColor: '#080808',
+            },
+            headerAnimatedStyle,
+          ]}
+          className="pb-3"
+        >
+          <FeedHeader
+            locationText={locationText}
+            locationIsSearch={overrideKind === 'search'}
+            onLocationReset={clearOverride}
+            onLocationPress={() => setLocationSheetVisible(true)}
+            onCalendarPress={() => setDatePickerVisible(true)}
+            onFilterPress={() => setFilterSheetVisible(true)}
+            onNotificationPress={() => router.push('/notifications')}
+            calendarActive={activeSegment === 0 && !!date}
+            filterActive={activeSegment === 0 && !!category}
+            showEventActions={activeSegment === 0}
+            showLocation={activeSegment === 0}
           />
-          {searchText.length > 0 ? (
-            <Pressable
-              onPress={() => handleSearchChange('')}
-              hitSlop={8}
-              accessibilityRole="button"
-              accessibilityLabel="Clear search"
-            >
-              <Ionicons name="close-circle" size={18} color="rgba(255,255,255,0.6)" />
-            </Pressable>
-          ) : null}
-        </View>
-      </View>
 
-      {/* Everything below the search bar lives in one relative container so the
-          autocomplete can float on top of the feed instead of pushing it down. */}
-      <View className="flex-1 relative">
-        {/* Segment toggle — mb-3 keeps a persistent gap between the pinned tabs
-            and the scrollable feed below (the feed clips at the list frame, so
-            this gap never fills with content even when scrolled). */}
-        <View className="px-5 mt-4 mb-3">
-          <SegmentToggle
-            segments={SEGMENTS}
-            activeIndex={activeSegment}
-            onPress={handleSegmentChange}
-          />
-        </View>
-
-        {/* Search result indicator — shows the committed query once the box is
-            blurred (typing shows the autocomplete instead). Applies to both tabs. */}
-        {searchText.trim().length > 0 && !searchFocused && (
-          <View className="px-5 mt-2">
-            <Text className="text-[13px] text-white/50 font-urbanist" numberOfLines={1}>
-              Showing results for{' '}
-              <Text className="text-white/80 font-semibold">“{searchText.trim()}”</Text>
-            </Text>
+          {/* Search bar */}
+          <View className="px-5 mt-3" onLayout={onSearchLayout}>
+            <View className="flex-row items-center bg-[rgba(141,141,141,0.2)] rounded-full px-4 py-[7px] gap-3">
+              <Ionicons name="search-outline" size={18} color="rgba(255,255,255,0.6)" />
+              <TextInput
+                value={searchText}
+                placeholder={
+                  activeSegment === 1
+                    ? 'Search posts by author or caption'
+                    : 'Find Music, Artist or Event'
+                }
+                placeholderTextColor="rgba(255,255,255,0.6)"
+                className="flex-1 text-[14px] text-white font-urbanist"
+                onChangeText={handleSearchChange}
+                onFocus={handleSearchFocus}
+                onBlur={handleSearchBlur}
+                onSubmitEditing={() => setSearchFocused(false)}
+                returnKeyType="search"
+              />
+              {searchText.length > 0 ? (
+                <Pressable
+                  onPress={() => handleSearchChange('')}
+                  hitSlop={8}
+                  accessibilityRole="button"
+                  accessibilityLabel="Clear search"
+                >
+                  <Ionicons name="close-circle" size={18} color="rgba(255,255,255,0.6)" />
+                </Pressable>
+              ) : null}
+            </View>
           </View>
-        )}
 
-        {/* Active filter indicator */}
-        {hasActiveFilters && activeSegment === 0 && (
-          <View className="flex-row items-center px-5 mt-2 gap-2">
-            {date && (
-              <View className="flex-row items-center bg-[#C8FF2F]/20 border border-[#C8FF2F] rounded-full px-3 py-1 gap-1">
-                <Ionicons name="calendar-outline" size={12} color="#C8FF2F" />
-                <Text className="text-[11px] font-semibold text-[#C8FF2F] font-urbanist">
-                  {parseLocalYmd(date).toLocaleDateString('en-IE', {
-                    weekday: 'short',
-                    day: 'numeric',
-                    month: 'short',
-                  })}
-                </Text>
-              </View>
-            )}
-            {category && (
-              <View className="flex-row items-center bg-[#C8FF2F]/20 border border-[#C8FF2F] rounded-full px-3 py-1 gap-1">
-                <Ionicons name="musical-note-outline" size={12} color="#C8FF2F" />
-                <Text className="text-[11px] font-semibold text-[#C8FF2F] font-urbanist">
-                  {category}
-                </Text>
-              </View>
-            )}
-            <Pressable
-              onPress={() => {
-                handleFiltersApply({});
-                setDate(undefined);
-              }}
-            >
-              <Text className="text-[11px] text-white/40 font-urbanist underline">Clear</Text>
-            </Pressable>
+          {/* Segment toggle */}
+          <View className="px-5 mt-4">
+            <SegmentToggle
+              segments={SEGMENTS}
+              activeIndex={activeSegment}
+              onPress={handleSegmentChange}
+            />
           </View>
-        )}
+
+          {/* Search result indicator — shows the committed query once the box is
+              blurred (typing shows the autocomplete instead). Applies to both tabs. */}
+          {searchText.trim().length > 0 && !searchFocused && (
+            <View className="px-5 mt-2">
+              <Text className="text-[13px] text-white/50 font-urbanist" numberOfLines={1}>
+                Showing results for{' '}
+                <Text className="text-white/80 font-semibold">“{searchText.trim()}”</Text>
+              </Text>
+            </View>
+          )}
+
+          {/* Active filter indicator */}
+          {hasActiveFilters && activeSegment === 0 && (
+            <View className="flex-row items-center px-5 mt-3 gap-2">
+              {date && (
+                <View className="flex-row items-center bg-[#C8FF2F]/20 border border-[#C8FF2F] rounded-full px-3 py-1 gap-1">
+                  <Ionicons name="calendar-outline" size={12} color="#C8FF2F" />
+                  <Text className="text-[11px] font-semibold text-[#C8FF2F] font-urbanist">
+                    {parseLocalYmd(date).toLocaleDateString('en-IE', {
+                      weekday: 'short',
+                      day: 'numeric',
+                      month: 'short',
+                    })}
+                  </Text>
+                </View>
+              )}
+              {category && (
+                <View className="flex-row items-center bg-[#C8FF2F]/20 border border-[#C8FF2F] rounded-full px-3 py-1 gap-1">
+                  <Ionicons name="musical-note-outline" size={12} color="#C8FF2F" />
+                  <Text className="text-[11px] font-semibold text-[#C8FF2F] font-urbanist">
+                    {category}
+                  </Text>
+                </View>
+              )}
+              <Pressable
+                onPress={() => {
+                  handleFiltersApply({});
+                  setDate(undefined);
+                }}
+              >
+                <Text className="text-[11px] text-white/40 font-urbanist underline">Clear</Text>
+              </Pressable>
+            </View>
+          )}
+        </Animated.View>
 
         {/* Events tab content */}
         {activeSegment === 0 && (
@@ -374,11 +462,13 @@ export default function DiscoverScreen() {
                 </Pressable>
               </View>
             ) : (
-              <FlatList
+              <Animated.FlatList
                 data={events}
                 keyExtractor={(item) => item.id}
                 style={{ flex: 1, backgroundColor: '#080808' }}
                 renderItem={renderEvent}
+                onScroll={scrollHandler}
+                scrollEventThrottle={16}
                 ListHeaderComponent={<AdStack />}
                 onEndReached={() => {
                   if (hasNextPage) loadMore();
@@ -389,6 +479,7 @@ export default function DiscoverScreen() {
                     refreshing={refreshing}
                     onRefresh={handleRefresh}
                     tintColor="#C8FF2F"
+                    progressViewOffset={contentPaddingTop}
                   />
                 }
                 ListFooterComponent={
@@ -411,7 +502,7 @@ export default function DiscoverScreen() {
                 contentContainerStyle={{
                   flexGrow: 1,
                   backgroundColor: '#080808',
-                  paddingTop: 16,
+                  paddingTop: contentPaddingTop,
                   paddingBottom: 32,
                 }}
                 initialNumToRender={5}
@@ -437,6 +528,8 @@ export default function DiscoverScreen() {
             onLoadMore={feedPosts.loadMore}
             refreshing={feedPosts.isFetchingNextPage}
             onRefresh={feedPosts.refresh}
+            onScroll={scrollHandler}
+            contentPaddingTop={contentPaddingTop}
             emptyMessage={
               searchText.trim()
                 ? `No posts match "${searchText.trim()}".`
@@ -445,18 +538,24 @@ export default function DiscoverScreen() {
           />
         )}
 
-        {/* Autocomplete overlay — a dim scrim plus the floating suggestion card,
-            both anchored just under the search bar and stacked above the feed. */}
+        {/* Autocomplete overlay — a dim scrim + floating card anchored to the
+            search bar's bottom. Both sit above the header (zIndex > 30) so the
+            search box stays bright while everything below it dims. Only shown
+            while the box is focused, i.e. when the header is fully visible. */}
         {showSuggestionsOverlay && (
-          <View className="absolute inset-0" style={{ zIndex: 30 }}>
+          <>
             <Pressable
-              className="absolute inset-0 bg-black/50"
+              className="absolute left-0 right-0 bottom-0 bg-black/50"
+              style={{ top: searchBottomY, zIndex: 31 }}
               onPress={() => {
                 setSearchFocused(false);
                 Keyboard.dismiss();
               }}
             />
-            <View className="absolute left-0 right-0 top-1 px-5">
+            <View
+              className="absolute left-0 right-0 px-5"
+              style={{ top: searchBottomY + 4, zIndex: 32 }}
+            >
               <SearchSuggestions
                 artists={suggestions.artists}
                 venues={suggestions.venues}
@@ -465,7 +564,7 @@ export default function DiscoverScreen() {
                 onSelect={handleSuggestionSelect}
               />
             </View>
-          </View>
+          </>
         )}
       </View>
 
