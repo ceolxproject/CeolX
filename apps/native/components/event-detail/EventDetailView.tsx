@@ -221,7 +221,7 @@ export function EventDetailView({
               icon="location-outline"
               title={event.venueAddress?.split(',')[0] ?? 'Venue TBC'}
               subtitle={event.venueAddress ?? `${event.lat.toFixed(4)}, ${event.lng.toFixed(4)}`}
-              actionLabel="View map"
+              actionLabel="Get Directions"
               onAction={handleViewMap}
               onTitlePress={
                 event.venueUserId
