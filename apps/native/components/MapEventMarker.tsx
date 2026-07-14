@@ -77,7 +77,10 @@ function MapEventMarkerComponent({ event, onSelect }: MapEventMarkerProps) {
       // Android. Mirrors MapClusterMarker, which is tappable on both platforms.
       onPress={() => onSelect(event)}
     >
-      <View className="items-center">
+      {/* collapsable=false: without it, Android New-Arch flattens this
+          background-less view and the marker snapshots to clipped bounds
+          (pin renders as a crescent). */}
+      <View collapsable={false} className="items-center">
         <MapEventPin
           type="single"
           coverImageUrl={event.coverImageUrl}
