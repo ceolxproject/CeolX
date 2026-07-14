@@ -48,13 +48,32 @@ docs/handoff/
   04-architecture.md   where-things-live tour + key data flows & state machines
 ```
 
+## Scope of gotchas: high-impact only
+
+**Not full coverage.** We deliberately do **not** document all 73 memory entries. Include
+only the **high-impact traps** — the ones that cost hours/days, block a build or deploy, or
+cause silent data loss. Skip low-value entries (personal preferences, trivial one-liners,
+process reminders already covered in `CLAUDE.md`/commitlint config, and superseded notes).
+
+Selection test — include an entry only if at least one is true:
+- It blocks or breaks a **build, deploy, or release** (EAS, Neon, Vercel, Typesense).
+- It causes **silent data loss or a wrong-data bug** (stale cache, coordless events vanish,
+  archived-means-deleted, follow count divergence).
+- It is a **platform trap** a fluent dev would still lose a day to (Android marker bitmap
+  flattening, Fabric+clustering blank pins, native module needs rebuild-not-OTA).
+- It encodes a **non-obvious architectural rule** whose violation is hard to detect
+  (shared validators source of truth, Typesense-not-Neon reads, two profile-image columns).
+
+Everything else is omitted. If useful, the raw memory index can be attached as an appendix
+link, but it is not curated.
+
 ## Extraction method (quality-critical)
 
 Content comes from the **full memory files**, not the index one-liners (which are lossy).
 
-1. Read all 73 memory files in full.
-2. Group into the categories below; merge duplicates and supersessions into one coherent
-   entry (e.g. FCM PR #51 add + PR #55 revert -> single "FCM current status" entry).
+1. Read the memory files, filtering to the high-impact set per the selection test above.
+2. Group the survivors into the categories below; merge duplicates and supersessions into
+   one coherent entry (e.g. FCM PR #51 add + PR #55 revert -> single "FCM current status").
 3. Verify high-stakes claims (file paths, flags, config keys) against the **current**
    codebase via the code-review-graph before enshrining them. Memories reflect what was
    true when written and may be stale.
@@ -74,7 +93,8 @@ Content comes from the **full memory files**, not the index one-liners (which ar
   (PRD, Asana workspace/project IDs, flow diagrams).
 
 ### 01-gotchas.md (core deliverable)
-73 entries grouped into ~9 sections, each ordered by likelihood of biting:
+**High-impact traps only** (per the selection test above — not all 73), grouped into the
+relevant subset of these sections, each ordered by likelihood of biting:
 - Auth & onboarding · Map & discovery · Media / posts / feed · Notifications & deep-linking
   · Events & bookings · Email · Builds & EAS · Deploy & infra · DB & data-modeling
 - Entry format: **Symptom → Cause → Fix**, with the owning file path and any Asana ref.
