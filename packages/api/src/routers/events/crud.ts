@@ -1452,6 +1452,11 @@ export const getMyEvents = creatorProcedure
       ne(events.status, EventStatus.ARCHIVED)
     );
 
+    // Date-driven "past" predicate — matches the public profile split and the
+    // map's date filter. Shared by the select flag and the ordering below so the
+    // two can never drift, and resolved against the same statement-stable now().
+    const isPastExpr = sql<boolean>`${events.dateStart} <= now()`;
+
     const [rows, countResult] = await Promise.all([
       db
         .select({
@@ -1469,11 +1474,28 @@ export const getMyEvents = creatorProcedure
           collectionName: collections.name,
           // M11-T3 — saves count for the "X Joined" badge
           joinedCount: sql<number>`(SELECT count(*)::int FROM ${savedEvents} WHERE ${savedEvents.eventId} = ${events.id})`,
+          // Returned so the client can section the list without recomputing
+          // "now" on its own clock.
+          isPast: isPastExpr,
         })
         .from(events)
         .leftJoin(collections, eq(events.collectionId, collections.id))
         .where(ownAndNotArchived)
-        .orderBy(desc(events.createdAt))
+        .orderBy(
+          // Upcoming block first, then past — a stable global order so offset
+          // pagination never interleaves the two and the client's section
+          // headers stay correct across pages.
+          isPastExpr,
+          // Within upcoming: soonest first (past rows are null here, sorted by
+          // the next key). Within past: most recent first. Mirrors the public
+          // profile's ordering.
+          sql`CASE WHEN ${events.dateStart} > now() THEN ${events.dateStart} END ASC NULLS LAST`,
+          desc(events.dateStart),
+          // Unique final key so the total order is deterministic — without it,
+          // two events sharing a dateStart could swap between offset pages and
+          // duplicate/skip at the boundary.
+          events.id
+        )
         .limit(limit)
         .offset(offset),
       db

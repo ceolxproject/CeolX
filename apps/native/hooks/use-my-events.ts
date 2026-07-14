@@ -21,6 +21,8 @@ type MyEvent = {
   createdAt: string;
   joinedCount: number;
   collectionName: string | null;
+  // Server-computed (date-driven) — drives the Upcoming / Past Events sections.
+  isPast: boolean;
 };
 
 export function useMyEvents() {

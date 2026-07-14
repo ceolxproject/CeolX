@@ -13,6 +13,8 @@
     "db:check": "tsx --env-file ../../apps/server/.env src/check.ts",
     "db:seed": "tsx --env-file ../../apps/server/.env src/seed.ts",
     "db:seed-map-demo": "tsx --env-file ../../apps/server/.env src/seed-map-demo.ts",
+    "db:seed-events-galway": "tsx --env-file ../../apps/server/.env src/seed-galway.ts",
+    "db:seed-posts": "tsx --env-file ../../apps/server/.env src/seed-posts.ts",
     "db:push": "drizzle-kit push",
     "db:generate": "drizzle-kit generate",
     "db:studio": "drizzle-kit studio",

@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { FlatList, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
@@ -13,8 +13,24 @@ const VISIBLE_ITEMS = 5; // Must be odd so the centre item is the selection
 const HOURS = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
 const MINUTES = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0'));
 
+// Copies of the wheel stacked to fake an endless loop; we sit in the middle
+// copy and recenter after every scroll so there's always runway both ways.
+// FlatList virtualizes, so a big number here costs nothing — only ~10 rows
+// are ever mounted regardless of copy count.
+const LOOPS = 40;
+const MIDDLE_LOOP = Math.floor(LOOPS / 2);
+
+// Wrap a raw (possibly negative, from overscroll bounce) row index into [0, len).
+function wrapIndex(rawIndex: number, len: number) {
+  return ((rawIndex % len) + len) % len;
+}
+
 // ─── WheelColumn ─────────────────────────────────────────────────────────────
 
+// Known limitation: this custom wheel is not screen-reader operable (TalkBack /
+// VoiceOver). Kept for the dark drum-roller design. To close the gap, add
+// accessibilityRole="adjustable" with increment/decrement actions, or swap in
+// @react-native-community/datetimepicker (accessible + native looping).
 type WheelProps = {
   items: string[];
   value: number;
@@ -22,24 +38,40 @@ type WheelProps = {
 };
 
 function WheelColumn({ items, value, onChange }: WheelProps) {
-  const scrollRef = useRef<ScrollView>(null);
+  const listRef = useRef<FlatList<string>>(null);
   // Tracks whether a user-initiated scroll is in progress so external value
   // changes (e.g. modal opening with a new time) don't fight the scroll.
   const isUserScrolling = useRef(false);
+  // A fling fires onScrollEndDrag THEN onMomentumScrollEnd; this flag lets
+  // drag-end defer to momentum so we don't commit (and recenter) twice.
+  const willMomentum = useRef(false);
   const padding = Math.floor(VISIBLE_ITEMS / 2) * ITEM_HEIGHT;
+  const len = items.length;
+  const midIndex = (index: number) => MIDDLE_LOOP * len + index;
 
-  // Scroll to new position whenever value is updated externally
+  // Stable reference — rebuilding this each render would defeat virtualization.
+  const data = useMemo(
+    () => Array.from({ length: len * LOOPS }, (_, i) => items[i % len]),
+    [items, len]
+  );
+
+  // Scroll to new position (in the middle copy) whenever value is set externally
   useEffect(() => {
     if (!isUserScrolling.current) {
-      scrollRef.current?.scrollTo({ y: value * ITEM_HEIGHT, animated: false });
+      listRef.current?.scrollToOffset({
+        offset: (MIDDLE_LOOP * len + value) * ITEM_HEIGHT,
+        animated: false,
+      });
     }
-  }, [value]);
+  }, [value, len]);
 
   const commit = (offsetY: number) => {
     isUserScrolling.current = false;
-    const index = Math.round(offsetY / ITEM_HEIGHT);
-    const clamped = Math.max(0, Math.min(items.length - 1, index));
-    onChange(clamped);
+    const index = wrapIndex(Math.round(offsetY / ITEM_HEIGHT), len);
+    // Snap back into the middle copy so 23:59 → 00:00 keeps scrolling down.
+    // Recentering shifts by whole wheel-lengths, so it's visually invisible.
+    listRef.current?.scrollToOffset({ offset: midIndex(index) * ITEM_HEIGHT, animated: false });
+    onChange(index);
   };
 
   return (
@@ -60,26 +92,44 @@ function WheelColumn({ items, value, onChange }: WheelProps) {
         }}
       />
 
-      <ScrollView
-        ref={scrollRef}
+      <FlatList
+        ref={listRef}
+        data={data}
+        // Rows read `value` for the centred-item highlight, which isn't in
+        // `data`; extraData tells FlatList to re-render them when it changes.
+        extraData={value}
+        keyExtractor={(_, i) => String(i)}
         showsVerticalScrollIndicator={false}
         snapToInterval={ITEM_HEIGHT}
         decelerationRate="fast"
+        getItemLayout={(_, index) => ({
+          length: ITEM_HEIGHT,
+          offset: ITEM_HEIGHT * index,
+          index,
+        })}
+        initialScrollIndex={midIndex(value)}
         contentContainerStyle={{ paddingVertical: padding }}
         onScrollBeginDrag={() => {
           isUserScrolling.current = true;
         }}
+        onMomentumScrollBegin={() => {
+          willMomentum.current = true;
+        }}
         onMomentumScrollEnd={(e) => commit(e.nativeEvent.contentOffset.y)}
-        // onScrollEndDrag fires when drag ends without momentum (slow drag)
-        onScrollEndDrag={(e) => commit(e.nativeEvent.contentOffset.y)}
-      >
-        {items.map((label, i) => {
-          const isCentre = i === value;
+        // Drag-end fires before any fling. Wait a beat: if momentum takes over,
+        // let onMomentumScrollEnd settle it. Only commit here on a slow drag
+        // with no momentum — otherwise we'd snap mid-fling and jump again.
+        onScrollEndDrag={(e) => {
+          willMomentum.current = false;
+          const y = e.nativeEvent.contentOffset.y;
+          setTimeout(() => {
+            if (!willMomentum.current) commit(y);
+          }, 60);
+        }}
+        renderItem={({ item, index }) => {
+          const isCentre = index % len === value;
           return (
-            <View
-              key={label}
-              style={{ height: ITEM_HEIGHT, alignItems: 'center', justifyContent: 'center' }}
-            >
+            <View style={{ height: ITEM_HEIGHT, alignItems: 'center', justifyContent: 'center' }}>
               <Text
                 style={{
                   fontSize: isCentre ? 22 : 18,
@@ -88,12 +138,12 @@ function WheelColumn({ items, value, onChange }: WheelProps) {
                   letterSpacing: 0.5,
                 }}
               >
-                {label}
+                {item}
               </Text>
             </View>
           );
-        })}
-      </ScrollView>
+        }}
+      />
     </View>
   );
 }
@@ -141,7 +191,7 @@ export function TimePickerModal({
           The sheet is rendered AFTER the backdrop so it sits on top — touches
           on the sheet never reach the backdrop Pressable. This avoids using
           onStartShouldSetResponder which would steal the responder from the
-          ScrollView wheel columns and break scrolling. */}
+          scroll wheel columns and break scrolling. */}
       <View style={{ flex: 1, justifyContent: 'flex-end' }}>
         {/* Backdrop */}
         <Pressable
