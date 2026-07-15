@@ -1,18 +1,5 @@
 # Changelog
 
-<a name="1.0.11"></a>
-
-## 1.0.11 (2026-07-07)
-
-### Added
-
-- ✨ feat: auto post on event creation (#176) [e265a30]
-- ✨ feat(native): add about screen with app version and ota update check [b29f2ec]
-
-### Fixed
-
-- 🐛 fix(native): stream media uploads and cap videos at 100mb with clear error [8a8e541]
-
 <a name="1.0.10"></a>
 
 ## 1.0.10 (2026-07-06)
