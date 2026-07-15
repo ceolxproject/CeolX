@@ -3,6 +3,8 @@ import { useEffect, useState } from 'react';
 import { Modal, Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { CategoryIcon } from '@/components/icons/CategoryIcon';
+
 // ─── Palette (single dark sheet — Figma node 1:3817) ─────────────────────────
 
 const SHEET_BG = '#2b2b2b';
@@ -23,6 +25,8 @@ export interface FilterSection {
   labels?: Record<string, string>;
   /** Label for the "clear this filter" chip. Defaults to "All". */
   allLabel?: string;
+  /** When true, options render the shared category icon (options must be category keys). */
+  showIcons?: boolean;
 }
 
 interface FilterSheetProps {
@@ -103,6 +107,7 @@ export function FilterSheet({ visible, filters, sections, onApply, onClose }: Fi
                     <Chip
                       key={option}
                       label={section.labels?.[option] ?? option}
+                      icon={section.showIcons ? option : undefined}
                       isActive={isActive}
                       onPress={() => select(section.key, isActive ? undefined : option)}
                     />
@@ -132,19 +137,23 @@ export function FilterSheet({ visible, filters, sections, onApply, onClose }: Fi
 
 function Chip({
   label,
+  icon,
   isActive,
   onPress,
 }: {
   label: string;
+  /** Category key to render the shared icon for. Omitted → no icon (e.g. the "All" chip). */
+  icon?: string;
   isActive: boolean;
   onPress: () => void;
 }) {
   return (
     <Pressable
       onPress={onPress}
-      className={cn('px-5 py-1.5 rounded-2xl', !isActive && 'bg-white')}
+      className={cn('flex-row items-center gap-1 px-5 py-1.5 rounded-2xl', !isActive && 'bg-white')}
       style={isActive ? { backgroundColor: CHIP_ACTIVE } : undefined}
     >
+      {icon ? <CategoryIcon category={icon} size={13} color="#000" /> : null}
       <Text className="text-[13px] font-semibold text-black font-urbanist">{label}</Text>
     </Pressable>
   );

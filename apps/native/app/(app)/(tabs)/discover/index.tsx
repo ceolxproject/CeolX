@@ -54,7 +54,7 @@ const HEADER_ANIM = { duration: 260, easing: Easing.out(Easing.cubic) } as const
 // Date selection lives on the header's calendar button — the filter sheet is
 // category-only.
 const FEED_FILTER_SECTIONS: FilterSection[] = [
-  { key: 'category', label: 'Category', options: EVENT_CATEGORIES },
+  { key: 'category', label: 'Category', options: EVENT_CATEGORIES, showIcons: true },
 ];
 
 // Device-local YYYY-MM-DD. Avoids the UTC day-shift that toISOString() causes

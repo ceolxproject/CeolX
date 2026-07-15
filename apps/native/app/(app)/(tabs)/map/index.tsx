@@ -59,7 +59,7 @@ import type { FeedLocation } from '@/utils/feed-location';
 import type { GeocodeResult } from '@/utils/geocode';
 
 const MAP_FILTER_SECTIONS: FilterSection[] = [
-  { key: 'category', label: 'Category', options: EVENT_CATEGORIES },
+  { key: 'category', label: 'Category', options: EVENT_CATEGORIES, showIcons: true },
   { key: 'county', label: 'County', options: IRISH_COUNTIES },
 ];
 
