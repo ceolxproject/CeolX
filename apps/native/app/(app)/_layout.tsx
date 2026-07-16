@@ -11,6 +11,7 @@ import { useFcmRegistration } from '@/hooks/use-fcm-registration';
 import { useLocationSetupGate } from '@/hooks/use-location-setup-gate';
 import { useMe } from '@/hooks/use-me';
 import { trpc } from '@/utils/trpc';
+import { getTRPCErrorCode } from '@/utils/trpc-error';
 
 export default function AppLayout() {
   const { user, isGuest, isLoading, isCompletingRegistration } = useAuth();
@@ -31,9 +32,13 @@ export default function AppLayout() {
     refetch: meRefetch,
   } = useMe({ enabled: !!user && !isGuest });
 
-  // Show toast + auto-retry when users.me fails — prevents onboarding guard bypass
+  // Auto-retry a failed users.me — but NOT a 401. A 401 means the session
+  // expired; retrying it just loops (the bug this whole change fixes). The
+  // session-expiry bus (utils/query-error-handler → auth-context) owns that
+  // path and signs the user out. Here we only retry genuine transient errors.
   useEffect(() => {
     if (!meError) return;
+    if (getTRPCErrorCode(meError) === 'UNAUTHORIZED') return;
     appToast.error('Something went wrong', 'Retrying your session…');
     void meRefetch();
   }, [meError, meRefetch]);
