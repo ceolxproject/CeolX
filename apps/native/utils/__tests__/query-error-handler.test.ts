@@ -1,7 +1,7 @@
 import { TRPCClientError } from '@trpc/client';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { emitMock } = vi.hoisted(() => ({ emitMock: vi.fn<[], void>() }));
+const { emitMock } = vi.hoisted(() => ({ emitMock: vi.fn() }));
 vi.mock('../session-events', () => ({
   emitSessionExpired: (): void => {
     emitMock();
