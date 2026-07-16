@@ -167,7 +167,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   logoutRef.current = logout;
   useEffect(() => {
     const unsubscribe = onSessionExpired(() => {
-      void logoutRef.current();
+      logoutRef.current().catch((err) => {
+        // Logout teardown failed (e.g. authClient.signOut network error), so the
+        // user is still authed on an expired session. Surface it, and re-arm the
+        // latch so the NEXT 401 retries the sign-out instead of being suppressed —
+        // otherwise the one-shot latch would leave the user stuck until a cold
+        // start. logout()'s steps are idempotent, so a retry is safe.
+        console.warn('[auth-context] session-expiry logout failed', err);
+        resetSessionExpired();
+      });
     });
     return unsubscribe;
   }, []);
