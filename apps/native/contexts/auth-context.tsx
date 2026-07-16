@@ -4,6 +4,8 @@ import React, { createContext, useContext, useEffect, useRef, useState } from 'r
 
 import { authClient } from '@/lib/auth-client';
 import { signOutGoogle } from '@/lib/google-signin';
+import { installAppStateFocusBridge } from '@/utils/query-focus';
+import { onSessionExpired, resetSessionExpired } from '@/utils/session-events';
 import { trpc } from '@/utils/trpc';
 
 interface AuthContextType {
@@ -19,7 +21,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { data: session, isPending } = authClient.useSession();
+  const { data: session, isPending, refetch: refetchSession } = authClient.useSession();
   const [isGuest, setIsGuest] = useState(false);
   const [guestLoaded, setGuestLoaded] = useState(false);
   // Gates (app)/_layout while we consume pendingRegistration on a fresh OAuth
@@ -56,6 +58,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!session?.user) return;
     setIsGuest(false);
     void SecureStore.deleteItemAsync('isGuest').catch(() => {});
+    // Re-arm the session-expiry latch: this session is valid now, so a later
+    // expiry must be allowed to emit again (the latch is one-shot per cycle).
+    resetSessionExpired();
   }, [session?.user]);
 
   useEffect(() => {
@@ -154,6 +159,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // the in-memory cache. Clear it here so no prior-account data leaks forward.
     queryClient.clear();
   };
+
+  // Backstop: a protected query that 401s (session revoked server-side while the
+  // app was foregrounded) emits on the session-expiry bus. Tear the session down
+  // via the SAME logout() used everywhere else — never duplicate that teardown.
+  const logoutRef = useRef(logout);
+  logoutRef.current = logout;
+  useEffect(() => {
+    const unsubscribe = onSessionExpired(() => {
+      void logoutRef.current();
+    });
+    return unsubscribe;
+  }, []);
+
+  // Primary fix: on app resume, revalidate the session so a phantom (in-memory
+  // but cookie-expired) session resolves to null and the layout guard redirects,
+  // instead of sitting authed until a protected query 401s. refetchSession (from
+  // useSession) updates the reactive store the redirect reads — getSession() would
+  // not reliably push into that atom.
+  const refetchSessionRef = useRef(refetchSession);
+  refetchSessionRef.current = refetchSession;
+  useEffect(() => {
+    return installAppStateFocusBridge(() => {
+      void refetchSessionRef.current();
+    });
+  }, []);
 
   return (
     <AuthContext.Provider
