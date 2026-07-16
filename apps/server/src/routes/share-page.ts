@@ -20,6 +20,30 @@ export function storeUrls(): { iosStoreUrl: string; androidStoreUrl: string } {
   };
 }
 
+// Crawlers get the HTML (for OG unfurls), never a redirect. In-app browsers
+// (Instagram "FBAN", Facebook) are humans, not crawlers — intentionally excluded.
+const SHARE_BOT_RE =
+  /bot\b|crawler|spider|facebookexternalhit|Facebot|WhatsApp|Twitterbot|Slackbot|Slack-ImgProxy|LinkedInBot|TelegramBot|Discordbot|Pinterest|redditbot|Applebot|Googlebot|bingbot|SkypeUriPreview|Embedly|Iframely|vkShare|Google-InspectionTool/i;
+
+/**
+ * Store URL for a not-installed mobile visitor, or null to render the HTML page.
+ * Installed users never reach here — the OS deep-links first — so a real mobile
+ * browser means "no app".
+ *
+ * Note: we can't detect install server-side, so an installed user in an in-app
+ * webview also lands on the store ("Open" button); acceptable.
+ */
+export function storeRedirectFor(
+  userAgent: string | undefined,
+  stores: { iosStoreUrl: string; androidStoreUrl: string }
+): string | null {
+  const ua = userAgent ?? '';
+  if (SHARE_BOT_RE.test(ua)) return null;
+  if (/iPhone|iPad|iPod/.test(ua)) return stores.iosStoreUrl;
+  if (/Android/.test(ua)) return stores.androidStoreUrl;
+  return null;
+}
+
 // Locks down the rendered page: no scripts, only inline styles + https/data
 // images (the Mux/CloudFront preview). A stray injected tag can never execute.
 export const SHARE_CSP =
