@@ -28,7 +28,7 @@ export default function AppLayout() {
   const {
     data: meData,
     isLoading: meLoading,
-    isError: meError,
+    error: meError,
     refetch: meRefetch,
   } = useMe({ enabled: !!user && !isGuest });
 
