@@ -1,3 +1,5 @@
+import type { Context } from 'hono';
+
 import { env } from '@CeolX/env/server';
 
 /** Matches a canonical lowercase/uppercase UUID. Shared by every share route. */
@@ -42,6 +44,24 @@ export function storeRedirectFor(
   if (/iPhone|iPad|iPod/.test(ua)) return stores.iosStoreUrl;
   if (/Android/.test(ua)) return stores.androidStoreUrl;
   return null;
+}
+
+/**
+ * Shared by every share route: if this is a not-installed mobile browser, return
+ * a 302 to the store; otherwise return null so the caller renders the HTML page.
+ * Always sets `Vary: User-Agent` (on redirect and fall-through alike) so a CDN
+ * never serves a cached HTML page to a mobile browser in place of the redirect;
+ * `no-store` keeps the redirect itself out of shared caches.
+ */
+export function maybeStoreRedirect(
+  ctx: Context,
+  stores: { iosStoreUrl: string; androidStoreUrl: string }
+): Response | null {
+  ctx.header('Vary', 'User-Agent');
+  const target = storeRedirectFor(ctx.req.header('user-agent'), stores);
+  if (!target) return null;
+  ctx.header('Cache-Control', 'no-store');
+  return ctx.redirect(target, 302);
 }
 
 // Locks down the rendered page: no scripts, only inline styles + https/data

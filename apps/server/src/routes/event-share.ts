@@ -3,11 +3,11 @@ import { Hono } from 'hono';
 import { db } from '@CeolX/db';
 
 import {
+  maybeStoreRedirect,
   renderNotFoundPage,
   renderSharePage,
   SHARE_CSP,
   SHARE_ORIGIN,
-  storeRedirectFor,
   storeUrls,
   UUID_RE,
 } from './share-page.js';
@@ -44,18 +44,8 @@ eventShare.get('/event/:id', async (c) => {
   const id = c.req.param('id');
   const { iosStoreUrl, androidStoreUrl } = storeUrls();
 
-  // App absent → OS opened this in a browser. Redirect real mobile browsers to
-  // the store; no-store keeps that redirect out of shared caches so a crawler
-  // can't be served it and lose the unfurl.
-  c.header('Vary', 'User-Agent');
-  const storeRedirect = storeRedirectFor(c.req.header('user-agent'), {
-    iosStoreUrl,
-    androidStoreUrl,
-  });
-  if (storeRedirect) {
-    c.header('Cache-Control', 'no-store');
-    return c.redirect(storeRedirect, 302);
-  }
+  const storeRedirect = maybeStoreRedirect(c, { iosStoreUrl, androidStoreUrl });
+  if (storeRedirect) return storeRedirect;
 
   c.header('Content-Security-Policy', SHARE_CSP);
 
