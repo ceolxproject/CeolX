@@ -1,3 +1,5 @@
+import type { Context } from 'hono';
+
 import { env } from '@CeolX/env/server';
 
 /** Matches a canonical lowercase/uppercase UUID. Shared by every share route. */
@@ -18,6 +20,48 @@ export function storeUrls(): { iosStoreUrl: string; androidStoreUrl: string } {
     iosStoreUrl: env.IOS_APP_STORE_URL ?? DEFAULT_APP_STORE,
     androidStoreUrl: env.ANDROID_PLAY_STORE_URL ?? DEFAULT_PLAY_STORE,
   };
+}
+
+// Crawlers get the HTML (for OG unfurls), never a redirect. In-app browsers
+// (Instagram "FBAN", Facebook) are humans, not crawlers — intentionally excluded.
+const SHARE_BOT_RE =
+  /bot\b|crawler|spider|facebookexternalhit|Facebot|WhatsApp|Twitterbot|Slackbot|Slack-ImgProxy|LinkedInBot|TelegramBot|Discordbot|Pinterest|redditbot|Applebot|Googlebot|bingbot|SkypeUriPreview|Embedly|Iframely|vkShare|Google-InspectionTool/i;
+
+/**
+ * Store URL for a not-installed mobile visitor, or null to render the HTML page.
+ * Installed users never reach here — the OS deep-links first — so a real mobile
+ * browser means "no app".
+ *
+ * Note: we can't detect install server-side, so an installed user in an in-app
+ * webview also lands on the store ("Open" button); acceptable.
+ */
+export function storeRedirectFor(
+  userAgent: string | undefined,
+  stores: { iosStoreUrl: string; androidStoreUrl: string }
+): string | null {
+  const ua = userAgent ?? '';
+  if (SHARE_BOT_RE.test(ua)) return null;
+  if (/iPhone|iPad|iPod/.test(ua)) return stores.iosStoreUrl;
+  if (/Android/.test(ua)) return stores.androidStoreUrl;
+  return null;
+}
+
+/**
+ * Shared by every share route: if this is a not-installed mobile browser, return
+ * a 302 to the store; otherwise return null so the caller renders the HTML page.
+ * Always sets `Vary: User-Agent` (on redirect and fall-through alike) so a CDN
+ * never serves a cached HTML page to a mobile browser in place of the redirect;
+ * `no-store` keeps the redirect itself out of shared caches.
+ */
+export function maybeStoreRedirect(
+  ctx: Context,
+  stores: { iosStoreUrl: string; androidStoreUrl: string }
+): Response | null {
+  ctx.header('Vary', 'User-Agent');
+  const target = storeRedirectFor(ctx.req.header('user-agent'), stores);
+  if (!target) return null;
+  ctx.header('Cache-Control', 'no-store');
+  return ctx.redirect(target, 302);
 }
 
 // Locks down the rendered page: no scripts, only inline styles + https/data

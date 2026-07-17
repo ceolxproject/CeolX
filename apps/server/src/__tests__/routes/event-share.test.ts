@@ -107,3 +107,48 @@ describe('GET /event/:id', () => {
     expect((await buildApp().request(`/event/${VALID_ID}`)).status).toBe(404);
   });
 });
+
+const IOS_UA =
+  'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1';
+const ANDROID_UA =
+  'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36';
+const CRAWLER_UA = 'facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)';
+const DESKTOP_UA =
+  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+
+describe('GET /event/:id — not-installed store redirect', () => {
+  function requestWithUa(ua: string) {
+    return buildApp().request(`/event/${VALID_ID}`, { headers: { 'user-agent': ua } });
+  }
+
+  it('302-redirects a mobile iOS browser to the App Store without touching the db', async () => {
+    const res = await requestWithUa(IOS_UA);
+    expect(res.status).toBe(302);
+    expect(res.headers.get('location')).toMatch(/apps\.apple\.com/);
+    // Redirect must never be shared-cached, or a crawler could get it and lose the unfurl.
+    expect(res.headers.get('cache-control')).toMatch(/no-store/);
+    expect(res.headers.get('vary')).toMatch(/user-agent/i);
+    expect(mockFindFirst).not.toHaveBeenCalled();
+  });
+
+  it('302-redirects a mobile Android browser to the Play Store', async () => {
+    const res = await requestWithUa(ANDROID_UA);
+    expect(res.status).toBe(302);
+    expect(res.headers.get('location')).toMatch(/play\.google\.com/);
+  });
+
+  it('serves the HTML unfurl page (not a redirect) to a link-preview crawler', async () => {
+    mockFindFirst.mockResolvedValue(activeEvent());
+    const res = await requestWithUa(CRAWLER_UA);
+    expect(res.status).toBe(200);
+    const html = await res.text();
+    expect(html).toContain('<meta property="og:title" content="Trad Session at The Cobblestone">');
+  });
+
+  it('serves the HTML page to a desktop browser', async () => {
+    mockFindFirst.mockResolvedValue(activeEvent());
+    const res = await requestWithUa(DESKTOP_UA);
+    expect(res.status).toBe(200);
+    expect(res.headers.get('content-type')).toMatch(/text\/html/);
+  });
+});

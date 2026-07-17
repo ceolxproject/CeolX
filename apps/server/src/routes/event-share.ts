@@ -3,6 +3,7 @@ import { Hono } from 'hono';
 import { db } from '@CeolX/db';
 
 import {
+  maybeStoreRedirect,
   renderNotFoundPage,
   renderSharePage,
   SHARE_CSP,
@@ -42,6 +43,9 @@ const eventShare = new Hono();
 eventShare.get('/event/:id', async (c) => {
   const id = c.req.param('id');
   const { iosStoreUrl, androidStoreUrl } = storeUrls();
+
+  const storeRedirect = maybeStoreRedirect(c, { iosStoreUrl, androidStoreUrl });
+  if (storeRedirect) return storeRedirect;
 
   c.header('Content-Security-Policy', SHARE_CSP);
 
