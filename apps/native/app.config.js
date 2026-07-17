@@ -198,6 +198,7 @@ export default (_) => ({
         data: [
           { scheme: 'https', host: SHARE_HOST, pathPrefix: '/post' },
           { scheme: 'https', host: SHARE_HOST, pathPrefix: '/event' },
+          { scheme: 'https', host: SHARE_HOST, pathPrefix: '/u' },
         ],
         category: ['BROWSABLE', 'DEFAULT'],
       },

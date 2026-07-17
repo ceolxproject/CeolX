@@ -15,6 +15,8 @@ import { useAuth } from '@/contexts/auth-context';
 import { initialStageName } from '@/hooks/use-artist-onboarding.utils';
 import { useMediaUpload } from '@/hooks/use-media-upload';
 import { useOnboardingDraft } from '@/hooks/use-onboarding-draft';
+import { useUsernameField } from '@/hooks/use-username-field';
+import { authClient } from '@/lib/auth-client';
 import { computeStepErrors } from '@/lib/onboarding-validation';
 import { pickSquarePhoto, requestPhotoLibraryPermission } from '@/utils/image-picker';
 import { normalizeOptionalUrl } from '@/utils/normalize-url';
@@ -28,6 +30,7 @@ type Step = 1 | 2 | 3;
 // re-derived from the restored values on the next interaction.
 interface ArtistOnboardingDraft {
   stageName: string;
+  username: string;
   bio: string;
   contactEmail: string;
   socialLinks: SocialLinks;
@@ -51,6 +54,10 @@ export function useArtistOnboarding() {
   // Pre-fill from the registration name so registration → onboarding → profile
   // start consistent; the artist can still override it (band name).
   const [stageName, setStageName] = useState(() => initialStageName(user?.name));
+  // Handle is stored on the user row (BetterAuth username plugin), not the
+  // artist profile — set via authClient.updateUser at submit, so it stays out
+  // of the createArtistProfile contract.
+  const username = useUsernameField();
   const [bio, setBio] = useState('');
   const [contactEmail, setContactEmail] = useState(user?.email ?? '');
   const [socialLinks, setSocialLinks] = useState<SocialLinks>({
@@ -77,9 +84,18 @@ export function useArtistOnboarding() {
   const { clearDraft } = useOnboardingDraft<ArtistOnboardingDraft>({
     role: 'artist',
     userId: user?.id,
-    draft: { stageName, bio, contactEmail, socialLinks, profileImageUri, currentStep },
+    draft: {
+      stageName,
+      username: username.value,
+      bio,
+      contactEmail,
+      socialLinks,
+      profileImageUri,
+      currentStep,
+    },
     onHydrate: (saved) => {
       setStageName(saved.stageName ?? '');
+      if (saved.username) username.setValue(saved.username);
       setBio(saved.bio ?? '');
       if (saved.contactEmail) setContactEmail(saved.contactEmail);
       setSocialLinks({
@@ -165,7 +181,12 @@ export function useArtistOnboarding() {
       return;
     }
 
-    if (validateStep(currentStep, newTouched)) {
+    // Step 1 also carries the permanent handle, which lives outside the step
+    // schema (it's set via updateUser). Gate advancement on it too.
+    if (currentStep === 1) username.markTouched();
+    const stepValid = validateStep(currentStep, newTouched);
+    const usernameOk = currentStep !== 1 || username.canSubmit;
+    if (stepValid && usernameOk) {
       setCurrentStep((s) => (s + 1) as Step);
     }
   };
@@ -276,6 +297,19 @@ export function useArtistOnboarding() {
     }
 
     try {
+      // Claim the permanent handle on the user row first. The DB unique index is
+      // the real backstop against a race between the availability check and now;
+      // a rejection here means someone else just took it.
+      const handleRes = await authClient.updateUser({
+        username: username.value,
+        displayUsername: username.value,
+      });
+      if (handleRes.error) {
+        setSubmitError('That username was just taken — please pick another.');
+        setCurrentStep(1);
+        return;
+      }
+
       await createArtistProfile(parsed.data);
       // Onboarding succeeded — the draft has served its purpose and must not
       // resurrect on a future sign-up for this account.
@@ -314,6 +348,10 @@ export function useArtistOnboarding() {
     // fields
     stageName,
     setStageName: handleStageNameChange,
+    username: username.value,
+    setUsername: username.setValue,
+    usernameStatus: username.status,
+    usernameError: username.error,
     bio,
     setBio: handleBioChange,
     contactEmail,

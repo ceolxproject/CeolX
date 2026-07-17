@@ -23,7 +23,7 @@ import { ConfirmedBookingCard } from '@/components/bookings/ConfirmedBookingCard
 import { EmptyState } from '@/components/EmptyState';
 import { PostsList } from '@/components/posts/PostsList';
 import { ProfileEventCard } from '@/components/ProfileEventCard';
-import { SegmentControl } from '@/components/profiles';
+import { SegmentControl, ShareProfileButton } from '@/components/profiles';
 import { EmptyRequests } from '@/components/requests/EmptyRequests';
 import { BOOKING_STATUS_FEEDBACK, type RequestAction } from '@/components/requests/RequestActions';
 import { RequestCard } from '@/components/requests/RequestCard';
@@ -163,6 +163,7 @@ function ProfileHeader({
             Edit Profile
           </Text>
         </Pressable>
+        <ShareProfileButton />
         <Pressable
           className="w-8 h-8 items-center justify-center"
           onPress={onSettingsPress}

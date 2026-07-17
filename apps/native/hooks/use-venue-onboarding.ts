@@ -14,6 +14,8 @@ import type { VenueLinks } from '@/components/onboarding/VenueLinksSection';
 import { useAuth } from '@/contexts/auth-context';
 import { useMediaUpload } from '@/hooks/use-media-upload';
 import { useOnboardingDraft } from '@/hooks/use-onboarding-draft';
+import { useUsernameField, type UsernameStatus } from '@/hooks/use-username-field';
+import { authClient } from '@/lib/auth-client';
 import { computeStepErrors } from '@/lib/onboarding-validation';
 import { pickSquarePhoto, requestPhotoLibraryPermission } from '@/utils/image-picker';
 import { normalizeOptionalUrl } from '@/utils/normalize-url';
@@ -27,6 +29,7 @@ type Step = 1 | 2 | 3;
 // re-derived from the restored values on the next interaction.
 interface VenueOnboardingDraft {
   venueName: string;
+  username: string;
   bio: string;
   address: string;
   lat: number | null;
@@ -46,6 +49,10 @@ const FIELDS_BY_STEP: Record<Step, readonly string[]> = {
 interface UseVenueOnboardingReturn {
   venueName: string;
   setVenueName: (v: string) => void;
+  username: string;
+  setUsername: (v: string) => void;
+  usernameStatus: UsernameStatus;
+  usernameError: string | null;
   bio: string;
   setBio: (v: string) => void;
   address: string;
@@ -78,6 +85,9 @@ export function useVenueOnboarding(): UseVenueOnboardingReturn {
   const { user } = useAuth();
 
   const [venueName, setVenueName] = useState('');
+  // Handle lives on the user row (BetterAuth username plugin), set via
+  // authClient.updateUser at submit — kept out of the createVenueProfile contract.
+  const username = useUsernameField();
   const [bio, setBio] = useState('');
   const [address, setAddress] = useState('');
   const [lat, setLat] = useState<number | null>(null);
@@ -109,6 +119,7 @@ export function useVenueOnboarding(): UseVenueOnboardingReturn {
     userId: user?.id,
     draft: {
       venueName,
+      username: username.value,
       bio,
       address,
       lat,
@@ -120,6 +131,7 @@ export function useVenueOnboarding(): UseVenueOnboardingReturn {
     },
     onHydrate: (saved) => {
       setVenueName(saved.venueName ?? '');
+      if (saved.username) username.setValue(saved.username);
       setBio(saved.bio ?? '');
       setAddress(saved.address ?? '');
       setLat(saved.lat ?? null);
@@ -237,7 +249,12 @@ export function useVenueOnboarding(): UseVenueOnboardingReturn {
       return;
     }
 
-    if (validateStep(currentStep, newTouched)) {
+    // Step 1 also carries the permanent handle (set via updateUser, outside the
+    // step schema) — gate advancement on it too.
+    if (currentStep === 1) username.markTouched();
+    const stepValid = validateStep(currentStep, newTouched);
+    const usernameOk = currentStep !== 1 || username.canSubmit;
+    if (stepValid && usernameOk) {
       setCurrentStep((s) => (s + 1) as Step);
     }
   };
@@ -350,6 +367,18 @@ export function useVenueOnboarding(): UseVenueOnboardingReturn {
     }
 
     try {
+      // Claim the permanent handle on the user row first. The DB unique index is
+      // the real backstop against a race; a rejection means it was just taken.
+      const handleRes = await authClient.updateUser({
+        username: username.value,
+        displayUsername: username.value,
+      });
+      if (handleRes.error) {
+        setSubmitError('That username was just taken — please pick another.');
+        setCurrentStep(1);
+        return;
+      }
+
       await createVenueProfile(parsed.data);
       // Onboarding succeeded — the draft has served its purpose and must not
       // resurrect on a future sign-up for this account.
@@ -388,6 +417,10 @@ export function useVenueOnboarding(): UseVenueOnboardingReturn {
     // fields
     venueName,
     setVenueName: handleVenueNameChange,
+    username: username.value,
+    setUsername: username.setValue,
+    usernameStatus: username.status,
+    usernameError: username.error,
     bio,
     setBio: handleBioChange,
     address,

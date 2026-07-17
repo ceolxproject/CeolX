@@ -16,6 +16,7 @@ import { useGuestGate } from '@/hooks/use-guest-gate';
 import { useMe } from '@/hooks/use-me';
 import { useProfileFollowHandler } from '@/hooks/use-profile-follow-handler';
 import { useShareInterest } from '@/hooks/use-share-interest';
+import { useShareProfile } from '@/hooks/use-share-profile';
 import { useUserPosts } from '@/hooks/use-user-posts';
 
 type ProfileTab = 'events' | 'posts';
@@ -49,6 +50,7 @@ export default function ArtistProfileScreen() {
   const { data: me } = useMe();
   const { isFollowing, onFollowPress } = useProfileFollowHandler(profile);
   const { shareInterest } = useShareInterest();
+  const shareProfile = useShareProfile();
 
   // Public profile screen. Owners get the richer Profile tab (Collaboration,
   // owner event actions), so redirect self-views. The param is the target user id.
@@ -80,6 +82,13 @@ export default function ArtistProfileScreen() {
         return <PostsTab userId={profile.userId} />;
     }
   };
+
+  // Share is offered on this public profile only once the artist has claimed a
+  // handle (a const so the truthy check narrows null away inside the closure).
+  const shareUsername = profile.username;
+  const onSharePress = shareUsername
+    ? () => shareProfile(shareUsername, profile.displayName)
+    : undefined;
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#080808' }}>
@@ -123,6 +132,7 @@ export default function ArtistProfileScreen() {
                 }
               : undefined
           }
+          onSharePress={onSharePress}
         />
 
         <View className="bg-[rgba(141,141,141,0.3)] rounded-t-[20px] mt-2 pt-4 flex-1">

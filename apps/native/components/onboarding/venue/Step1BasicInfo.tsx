@@ -5,10 +5,16 @@ import { VENUE_NAME_MAX } from '@CeolX/shared/validators';
 
 import { AppTextField } from '@/components/AppTextField';
 import { ProfilePicture } from '@/components/onboarding/ProfilePicture';
+import { UsernameField } from '@/components/onboarding/UsernameField';
+import type { UsernameStatus } from '@/hooks/use-username-field';
 
 interface Step1BasicInfoProps {
   venueName: string;
   setVenueName: (v: string) => void;
+  username: string;
+  setUsername: (v: string) => void;
+  usernameStatus: UsernameStatus;
+  usernameError: string | null;
   /** Locked to the account email — shown read-only, never edited here. */
   contactEmail: string;
   profileImageUri: string | null;
@@ -22,6 +28,10 @@ interface Step1BasicInfoProps {
 export function Step1BasicInfo({
   venueName,
   setVenueName,
+  username,
+  setUsername,
+  usernameStatus,
+  usernameError,
   contactEmail,
   profileImageUri,
   imageError,
@@ -63,6 +73,13 @@ export function Step1BasicInfo({
             maxLength={VENUE_NAME_MAX}
           />
         </View>
+
+        <UsernameField
+          value={username}
+          onChangeText={setUsername}
+          status={usernameStatus}
+          error={usernameError}
+        />
 
         <View className="gap-2">
           <Text className="text-sm font-bold text-white/80">Contact Email</Text>

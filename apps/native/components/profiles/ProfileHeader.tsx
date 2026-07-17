@@ -32,6 +32,9 @@ type ProfileHeaderProps = {
   onFollowersPress?: () => void;
   onFollowingPress?: () => void;
   secondaryCta?: { label: string; onPress: () => void };
+  /** When set, a Share button appears (used on public profiles that have a
+   *  shareable handle). Omit to hide it — e.g. profiles with no username yet. */
+  onSharePress?: () => void;
 };
 
 function CountBlock({
@@ -83,6 +86,7 @@ export function ProfileHeader({
   onFollowersPress,
   onFollowingPress,
   secondaryCta,
+  onSharePress,
 }: ProfileHeaderProps) {
   const trimmedEmail = contactEmail?.trim();
   return (
@@ -169,6 +173,17 @@ export function ProfileHeader({
               <Text className="text-xs font-bold text-white uppercase tracking-wider font-urbanist">
                 {secondaryCta.label}
               </Text>
+            </Pressable>
+          )}
+          {onSharePress && (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Share profile"
+              hitSlop={8}
+              className="w-9 h-9 items-center justify-center rounded-full bg-[#333335]"
+              onPress={onSharePress}
+            >
+              <Ionicons name="share-outline" size={18} color="#fff" />
             </Pressable>
           )}
         </View>
