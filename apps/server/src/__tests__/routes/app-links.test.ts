@@ -43,7 +43,7 @@ describe('GET /.well-known/apple-app-site-association', () => {
     const detail = body.applinks.details[0];
     expect(detail?.appIDs).toEqual(['ABCDE12345.com.ceolx.app']);
     const paths = detail?.components.map((comp) => comp['/']);
-    expect(paths).toEqual(['/post/*', '/event/*']);
+    expect(paths).toEqual(['/post/*', '/event/*', '/u/*']);
   });
 
   it('serves valid-but-empty JSON when the Team ID is unset (never 500s the crawler)', async () => {

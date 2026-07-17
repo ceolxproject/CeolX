@@ -153,6 +153,65 @@ export const createArtistOnboardingSchema = artistOnboardingStep1Schema
 export type CreateArtistOnboardingInput = z.infer<typeof createArtistOnboardingSchema>;
 export type SocialLinks = z.infer<typeof socialLinksSchema>;
 
+// ── Username handle (shareable ceolx.com/u/<username> — one-time, permanent) ──
+
+// Handles live in the shared /u/ URL namespace and never change once set, so
+// the rule set is deliberately tight: lowercase a–z, digits, underscore; a
+// leading letter is NOT required but at least one letter must appear (blocks
+// "123"/"___"). This same schema is passed to the better-auth username() plugin
+// validator, so client form, tRPC input, and auth-layer all enforce the
+// identical rule. lowercase-only ⇒ displayUsername always equals username.
+export const USERNAME_MIN = 3;
+export const USERNAME_MAX = 20;
+
+// Brand/impersonation + defensive route names + generic words. Kept as an
+// in-code Set (not a DB table) so the check stays one lookup away and the list
+// is trivially extensible. Values are compared against the lowercased handle.
+export const RESERVED_USERNAMES = new Set<string>([
+  // brand / impersonation
+  'ceolx',
+  'official',
+  'support',
+  'help',
+  'admin',
+  'team',
+  'staff',
+  'mod',
+  'moderator',
+  'contact',
+  // route names — defensive; the /u/ namespace already isolates real routes
+  'api',
+  'event',
+  'events',
+  'post',
+  'posts',
+  'subscribe',
+  'auth',
+  'login',
+  'signup',
+  'invite',
+  'r',
+  'u',
+  'well-known',
+  // generic
+  'me',
+  'all',
+  'everyone',
+  'null',
+  'undefined',
+]);
+
+export const usernameSchema = z
+  .string()
+  .trim()
+  .min(USERNAME_MIN, `Username must be at least ${USERNAME_MIN} characters`)
+  .max(USERNAME_MAX, `Username must be ${USERNAME_MAX} characters or less`)
+  .regex(/^[a-z0-9_]+$/, 'Use lowercase letters, numbers, and underscores only')
+  .regex(/[a-z]/, 'Username must contain at least one letter')
+  .refine((u) => !RESERVED_USERNAMES.has(u), 'That username is not available');
+
+export type Username = z.infer<typeof usernameSchema>;
+
 // ── Artist / Venue profile schemas (profile editing — M6-T1) ───────────────
 
 export const artistProfileSchema = z.object({

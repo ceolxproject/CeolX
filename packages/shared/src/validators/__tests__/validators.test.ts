@@ -23,7 +23,61 @@ import {
   venueOnboardingStep2Schema,
   venueOnboardingStep3Schema,
   BIO_MAX_LENGTH,
+  usernameSchema,
+  RESERVED_USERNAMES,
+  USERNAME_MIN,
+  USERNAME_MAX,
 } from '../index.js';
+
+// ─── Username handle (shareable /u/<username>) ───────────────────────────────
+
+describe('usernameSchema', () => {
+  it('accepts a valid lowercase handle', () => {
+    expect(usernameSchema.safeParse('priyamusic').success).toBe(true);
+    expect(usernameSchema.safeParse('the_cobblestone').success).toBe(true);
+    expect(usernameSchema.safeParse('u2').success).toBe(false); // too short (2 chars)
+    expect(usernameSchema.safeParse('band_23').success).toBe(true);
+  });
+
+  it('rejects handles shorter than the minimum', () => {
+    expect(usernameSchema.safeParse('ab').success).toBe(false);
+    expect(usernameSchema.safeParse('a'.repeat(USERNAME_MIN)).success).toBe(true);
+  });
+
+  it('rejects handles longer than the maximum', () => {
+    expect(usernameSchema.safeParse('a'.repeat(USERNAME_MAX)).success).toBe(true);
+    expect(usernameSchema.safeParse('a'.repeat(USERNAME_MAX + 1)).success).toBe(false);
+  });
+
+  it('rejects uppercase, spaces, and disallowed characters', () => {
+    expect(usernameSchema.safeParse('PriyaMusic').success).toBe(false);
+    expect(usernameSchema.safeParse('priya music').success).toBe(false);
+    expect(usernameSchema.safeParse('priya.music').success).toBe(false); // dot not allowed
+    expect(usernameSchema.safeParse('priya-music').success).toBe(false);
+    expect(usernameSchema.safeParse('priya@music').success).toBe(false);
+    expect(usernameSchema.safeParse('café').success).toBe(false);
+  });
+
+  it('requires at least one letter', () => {
+    expect(usernameSchema.safeParse('123').success).toBe(false);
+    expect(usernameSchema.safeParse('___').success).toBe(false);
+    expect(usernameSchema.safeParse('12_34').success).toBe(false);
+    expect(usernameSchema.safeParse('a123').success).toBe(true);
+  });
+
+  it('rejects reserved handles', () => {
+    expect(usernameSchema.safeParse('admin').success).toBe(false);
+    expect(usernameSchema.safeParse('ceolx').success).toBe(false);
+    expect(usernameSchema.safeParse('subscribe').success).toBe(false);
+    expect(usernameSchema.safeParse('event').success).toBe(false);
+    for (const reserved of RESERVED_USERNAMES) {
+      // every reserved word that is otherwise format-valid must be rejected
+      if (/^[a-z0-9_]{3,20}$/.test(reserved) && /[a-z]/.test(reserved)) {
+        expect(usernameSchema.safeParse(reserved).success).toBe(false);
+      }
+    }
+  });
+});
 
 // ─── Admin users filters ─────────────────────────────────────────────────────
 

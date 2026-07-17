@@ -70,6 +70,7 @@ temp
 .playwright-mcp/
 phase6b-*.png
 docs/plans/.dev-session.json
+docs/plans/.*.json
 
 #misc
 mentor-project-management

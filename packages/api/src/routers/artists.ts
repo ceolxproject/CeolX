@@ -11,7 +11,12 @@ import { updateArtistProfileSchema } from '@CeolX/shared/validators';
 
 import { artistProcedure, protectedProcedure, publicProcedure, router } from '../index';
 
-import { getFollowerCounts, getSocialLinksRecord, upsertSocialLinks } from './_profile-helpers';
+import {
+  getFollowerCounts,
+  getSocialLinksRecord,
+  isProfileVisibleToViewer,
+  upsertSocialLinks,
+} from './_profile-helpers';
 
 export const artistsRouter = router({
   // Search artist profiles by stage name OR account name — used by InviteArtistPicker.
@@ -57,6 +62,9 @@ export const artistsRouter = router({
         updatedAt: artistProfiles.updatedAt,
         userImage: user.image,
         userName: user.name,
+        // Shareable handle — drives the Share button on this public profile
+        // (shown only when set). null until the artist claims one.
+        username: user.username,
       })
       .from(artistProfiles)
       .innerJoin(user, eq(artistProfiles.userId, user.id))
@@ -67,9 +75,10 @@ export const artistsRouter = router({
       throw new TRPCError({ code: 'NOT_FOUND', message: 'Artist not found' });
     }
 
-    // Inactive profiles return 404 unless the requester is the profile owner
+    // Inactive profiles return 404 unless the requester is the profile owner.
+    // Shared predicate so the /u/<username> share link uses the identical rule.
     const isOwner = ctx.session?.user?.id === profile.userId;
-    if (!profile.isActive && !isOwner) {
+    if (!isProfileVisibleToViewer('artist', profile, ctx.session?.user?.id, profile.userId)) {
       throw new TRPCError({ code: 'NOT_FOUND', message: 'Artist not found' });
     }
 
@@ -174,6 +183,7 @@ export const artistsRouter = router({
     return {
       id: profile.id,
       userId: profile.userId,
+      username: profile.username,
       displayName: profile.displayName,
       bio: profile.bio,
       genres: profile.genres ?? (profile.genre ? [profile.genre] : []),

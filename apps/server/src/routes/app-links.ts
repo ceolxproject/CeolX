@@ -37,7 +37,7 @@ const PROD_ANDROID_SHA256 =
 // Shared-link path scopes, kept identical on both platforms. Each shareable web
 // route (apps/native/hooks/use-share-*.ts) needs its prefix listed here AND in
 // the matching app.config.js intentFilters + admin vercel.json rewrite.
-const LINK_PATH_GLOBS = ['/post/*', '/event/*'];
+const LINK_PATH_GLOBS = ['/post/*', '/event/*', '/u/*'];
 
 const appLinks = new Hono();
 

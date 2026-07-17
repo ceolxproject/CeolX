@@ -12,6 +12,7 @@ import { followsRouter } from './follows';
 import { notificationsRouter } from './notifications';
 import { onboardingRouter } from './onboarding';
 import { postsRouter } from './posts';
+import { profilesRouter } from './profiles';
 import { stripeRouter } from './stripe';
 import { uploadsRouter } from './uploads';
 import { usersRouter } from './users';
@@ -23,6 +24,7 @@ export const appRouter = router({
   events: eventsRouter,
   artists: artistsRouter,
   venues: venuesRouter,
+  profiles: profilesRouter,
   bookings: bookingsRouter,
   collaboration: collaborationRouter,
   collections: collectionsRouter,

@@ -2,17 +2,20 @@ import { expo } from '@better-auth/expo';
 import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { createAuthMiddleware } from 'better-auth/api';
+import { username } from 'better-auth/plugins';
 
 import { db } from '@CeolX/db';
 import * as schema from '@CeolX/db/schema/auth';
 import { sendPasswordResetEmail, sendVerificationEmail } from '@CeolX/email';
 import { env } from '@CeolX/env/server';
+import { USERNAME_MAX, USERNAME_MIN, usernameSchema } from '@CeolX/shared/validators';
 
 import { generateAppleClientSecret } from './apple-secret.js';
 import { buildDeepLinkBridgeUrl, buildVerificationBridgeUrl } from './email-utils';
 import { onSessionCreated } from './login-hook.js';
 import { normalizeEmail } from './normalize-email.js';
 import { assertEmailAvailable } from './signup-hook.js';
+import { assertUsernameImmutable } from './username-hook.js';
 
 // Endpoints whose request body carries a user-supplied email we must
 // canonicalize so storage (sign-up) and lookup (sign-in / resend / reset)
@@ -66,6 +69,22 @@ export const auth = betterAuth({
     session: {
       create: {
         after: onSessionCreated,
+      },
+    },
+    user: {
+      update: {
+        // Permanent handles: reject changing an already-set username. Runs inside
+        // the endpoint (unlike global hooks.before), so ctx.context.session is
+        // populated. Covers both username and the displayUsername copy path.
+        // Setting from null / re-sending the same value is allowed. See
+        // username-hook.ts (security review — stale-link hijack via recycling).
+        before: async (data, ctx) => {
+          const fields = data as { username?: unknown; displayUsername?: unknown };
+          // assertUsernameImmutable no-ops for non-handle updates (raw not a
+          // string), so this stays cheap for name/image updates.
+          const raw = fields.username ?? fields.displayUsername;
+          await assertUsernameImmutable(ctx?.context.session?.session?.userId, raw);
+        },
       },
     },
   },
@@ -189,5 +208,23 @@ export const auth = betterAuth({
       httpOnly: true,
     },
   },
-  plugins: [expo()],
+  plugins: [
+    expo(),
+    // Shareable profile handles (ceolx.com/u/<username>). Validation is delegated
+    // to the shared usernameSchema so client form, tRPC input and this auth layer
+    // enforce one identical rule. We do NOT surface sign-in-by-username in any UI;
+    // login stays email/Google/Apple. Handles are nullable — spectators never set
+    // one — and treated as permanent (no change UI). Asana: profile-username-sharing.
+    username({
+      minUsernameLength: USERNAME_MIN,
+      maxUsernameLength: USERNAME_MAX,
+      // Validate BOTH fields with the same rule. Without displayUsernameValidator,
+      // a raw request sending only `displayUsername` bypasses usernameValidator +
+      // reserved words: the plugin copies displayUsername → username, so an
+      // unvalidated value (e.g. "ceolx", "admin") would be stored. (Security review.)
+      usernameValidator: (value) => usernameSchema.safeParse(value).success,
+      displayUsernameValidator: (value) =>
+        usernameSchema.safeParse(value.trim().toLowerCase()).success,
+    }),
+  ],
 });

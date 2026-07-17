@@ -35,6 +35,7 @@ export const usersRouter = router({
         emailVerified: user.emailVerified,
         image: user.image,
         currentRole: user.currentRole,
+        username: user.username,
         deletionCancelledAt: user.deletionCancelledAt,
       })
       .from(user)

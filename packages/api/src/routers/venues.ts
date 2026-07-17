@@ -11,7 +11,12 @@ import { updateVenueProfileSchema } from '@CeolX/shared/validators';
 
 import { protectedProcedure, publicProcedure, router, venueProcedure } from '../index';
 
-import { getFollowerCounts, getSocialLinksRecord, upsertSocialLinks } from './_profile-helpers';
+import {
+  getFollowerCounts,
+  getSocialLinksRecord,
+  isProfileVisibleToViewer,
+  upsertSocialLinks,
+} from './_profile-helpers';
 
 export const venuesRouter = router({
   /** List registered venues — used by artists when picking a performance venue.
@@ -62,6 +67,9 @@ export const venuesRouter = router({
         createdAt: venueProfiles.createdAt,
         updatedAt: venueProfiles.updatedAt,
         userImage: user.image,
+        // Shareable handle — drives the Share button on this public profile
+        // (shown only when set). null until the venue claims one.
+        username: user.username,
       })
       .from(venueProfiles)
       .innerJoin(user, eq(venueProfiles.userId, user.id))
@@ -74,12 +82,14 @@ export const venuesRouter = router({
 
     const isOwner = ctx.session?.user?.id === profile.userId;
 
-    // NOTE: subscription-based visibility gating is intentionally disabled until
-    // the subscription system ships. Venues never reach `subscription_status =
-    // active` / `is_active = true` yet, so the previous owner-only gate 404'd
-    // every venue profile — e.g. a spectator tapping an event host saw "Venue
-    // Not Found". Restore the gate (subscriptionStatus === 'active' && isActive
-    // for non-owners) once subscriptions are live. Asana 1215489113550392.
+    // Visibility runs through the shared predicate so the /u/<username> share
+    // link can never diverge from this screen. Venue gating is intentionally
+    // disabled until subscriptions ship — the rule (and the Asana 1215489113550392
+    // restore note) lives in isProfileVisibleToViewer, so today this never 404s a
+    // venue (previously the owner-only gate hid every venue from spectators).
+    if (!isProfileVisibleToViewer('venue', profile, ctx.session?.user?.id, profile.userId)) {
+      throw new TRPCError({ code: 'NOT_FOUND', message: 'Venue not found' });
+    }
 
     const { followerCount, followingCount } = await getFollowerCounts(profile.userId);
     const socialLinksRecord = await getSocialLinksRecord(profile.userId);
@@ -145,6 +155,7 @@ export const venuesRouter = router({
     return {
       id: profile.id,
       userId: profile.userId,
+      username: profile.username,
       displayName: profile.venueName,
       bio: profile.bio,
       address: profile.address,

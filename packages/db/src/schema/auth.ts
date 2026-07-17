@@ -34,6 +34,13 @@ export const user = pgTable('user', {
   // Migration backfills existing rows so pre-launch accounts aren't re-welcomed.
   welcomeSentAt: timestamp('welcome_sent_at'),
   welcomePushSentAt: timestamp('welcome_push_sent_at'),
+  // Shareable handle for artist/venue profiles (ceolx.com/u/<username>). Managed
+  // by the better-auth username() plugin: `username` is the normalized (lowercase)
+  // value with a unique constraint (the DB backstop for the availability race);
+  // `display_username` holds the original casing. Both nullable — spectators
+  // never set one. Set once at onboarding / first-share and then permanent.
+  username: text('username').unique(),
+  displayUsername: text('display_username'),
 });
 
 export const session = pgTable(

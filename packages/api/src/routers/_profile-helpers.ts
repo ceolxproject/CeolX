@@ -55,6 +55,29 @@ export async function getFollowerCounts(userId: string) {
 }
 
 /**
+ * Public-visibility predicate shared by artists.byId, venues.byId and
+ * profiles.getByUsername, so "is this profile public?" lives in ONE place and
+ * the shareable ceolx.com/u/<username> link can never diverge from what the
+ * profile screens show.
+ *
+ * The owner always sees their own profile. Artist profiles are gated on
+ * `is_active`. Venue subscription gating is intentionally disabled until
+ * subscriptions ship (Asana 1215489113550392) — restore it HERE (return
+ * `subscriptionStatus === 'active' && isActive` for non-owners) and every
+ * caller, including the shared link, is covered at once.
+ */
+export function isProfileVisibleToViewer(
+  role: 'artist' | 'venue',
+  profile: { isActive: boolean | null; subscriptionStatus?: string | null },
+  viewerId: string | undefined,
+  ownerId: string
+): boolean {
+  if (viewerId && viewerId === ownerId) return true;
+  if (role === 'artist') return profile.isActive === true;
+  return true; // venue: gate disabled — see note above
+}
+
+/**
  * Get social links for a user as a Record<platform, url>.
  * Shared across artist and venue profile queries.
  */
