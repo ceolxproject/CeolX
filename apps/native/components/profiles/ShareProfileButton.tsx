@@ -68,9 +68,9 @@ export function ShareProfileButton() {
         hitSlop={8}
         accessibilityRole="button"
         accessibilityLabel="Share profile"
-        className="h-10 w-10 items-center justify-center rounded-full bg-white/10"
+        className="h-9 w-9 items-center justify-center"
       >
-        <Ionicons name="share-outline" size={20} color="#fff" />
+        <Ionicons name="share-outline" size={22} color="#fff" />
       </Pressable>
 
       <Modal

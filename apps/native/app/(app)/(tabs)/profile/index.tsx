@@ -165,7 +165,7 @@ function ProfileHeader({
         </Pressable>
         <ShareProfileButton />
         <Pressable
-          className="w-8 h-8 items-center justify-center"
+          className="h-9 w-9 items-center justify-center"
           onPress={onSettingsPress}
           hitSlop={6}
         >
