@@ -14,14 +14,21 @@ import {
 import { db } from '@CeolX/db';
 import { user } from '@CeolX/db/schema/auth';
 import { events } from '@CeolX/db/schema/events';
-import { postLikes, posts } from '@CeolX/db/schema/social';
+import { follows, postLikes, posts } from '@CeolX/db/schema/social';
 import { artistProfiles, venueProfiles } from '@CeolX/db/schema/users';
 import { postFeedQuerySchema } from '@CeolX/shared/validators';
 
 import { publicProcedure } from '../../index';
+import { rankFeedPosts } from '../../lib/feed-ranking';
 import { promoVisible } from '../../services/promo-post';
 
 import { hydrateAuthors } from './hydrate';
+
+// Upper bound on the candidate set the browse feed ranks in memory. Mirrors
+// events.getFeed's fetch-then-score shape (Typesense caps that one at 250).
+// ponytail: 500 newest posts is the whole table at launch scale; push scoring
+// into SQL if the table ever outgrows an in-memory sort.
+const CANDIDATE_LIMIT = 500;
 
 /**
  * Build the optional caption/author search predicate for the feed.
@@ -59,39 +66,10 @@ async function buildSearchFilter(query: string | undefined): Promise<SQL | undef
     : captionMatch;
 }
 
-export const feed = publicProcedure.input(postFeedQuerySchema).query(async ({ input, ctx }) => {
-  const { limit, offset, query } = input;
-  // Posts are public: guests ("Skip sign-in") browse the feed with no session.
-  // A null viewer skips the per-viewer follow/like lookups and leaves
-  // isFollowedByMe / likedByMe false. (Asana 1216227543475896)
-  const viewerId = ctx.session?.user?.id ?? null;
+type PostRow = typeof posts.$inferSelect;
 
-  const searchFilter = await buildSearchFilter(query);
-  // Hide promo posts whose event isn't live/upcoming — read-time backstop to the
-  // deleted_at toggle, plus expiry, via the events join. Non-promo posts are
-  // unaffected. `and` drops undefined, so no-query still filters correctly.
-  const where = and(isNull(posts.deletedAt), promoVisible(), searchFilter);
-
-  const [rows, countRow] = await Promise.all([
-    db
-      .select(getTableColumns(posts))
-      .from(posts)
-      .leftJoin(events, eq(events.id, posts.eventId))
-      .where(where)
-      .orderBy(desc(posts.createdAt))
-      .limit(limit + 1)
-      .offset(offset),
-    db
-      .select({ count: sql<number>`count(*)::int` })
-      .from(posts)
-      .leftJoin(events, eq(events.id, posts.eventId))
-      .where(where),
-  ]);
-
-  const totalCount = countRow[0]?.count ?? 0;
-  const hasNextPage = rows.length > limit;
-  const page = hasNextPage ? rows.slice(0, limit) : rows;
-
+/** Attach author + likedByMe to a page of post rows (shared by both feed paths). */
+async function hydratePage(page: PostRow[], viewerId: string | null) {
   const [authors, likedRows] = await Promise.all([
     hydrateAuthors(
       page.map((p) => p.createdBy),
@@ -115,19 +93,100 @@ export const feed = publicProcedure.input(postFeedQuerySchema).query(async ({ in
 
   const likedSet = new Set(likedRows.map((r) => r.postId));
 
-  return {
-    posts: page.map((p) => ({
-      ...p,
-      author: authors.get(p.createdBy) ?? {
-        id: p.createdBy,
-        displayName: 'Unknown',
-        profileImageUrl: null,
-        profileType: 'user' as const,
-        isFollowedByMe: false,
-      },
-      likedByMe: likedSet.has(p.id),
+  return page.map((p) => ({
+    ...p,
+    author: authors.get(p.createdBy) ?? {
+      id: p.createdBy,
+      displayName: 'Unknown',
+      profileImageUrl: null,
+      profileType: 'user' as const,
+      isFollowedByMe: false,
+    },
+    likedByMe: likedSet.has(p.id),
+  }));
+}
+
+export const feed = publicProcedure.input(postFeedQuerySchema).query(async ({ input, ctx }) => {
+  const { limit, offset, query, lat, lng } = input;
+  // Posts are public: guests ("Skip sign-in") browse the feed with no session.
+  // A null viewer skips the per-viewer follow/like lookups and leaves
+  // isFollowedByMe / likedByMe false. (Asana 1216227543475896)
+  const viewerId = ctx.session?.user?.id ?? null;
+
+  const searchFilter = await buildSearchFilter(query);
+  // Hide promo posts whose event isn't live/upcoming — read-time backstop to the
+  // deleted_at toggle, plus expiry, via the events join. Non-promo posts are
+  // unaffected. `and` drops undefined, so no-query still filters correctly.
+  const where = and(isNull(posts.deletedAt), promoVisible(), searchFilter);
+
+  // Search results stay newest-first: ranked order would fight text relevance,
+  // and the SQL path returns exact counts for arbitrarily large result sets.
+  if (query) {
+    const [rows, countRow] = await Promise.all([
+      db
+        .select(getTableColumns(posts))
+        .from(posts)
+        .leftJoin(events, eq(events.id, posts.eventId))
+        .where(where)
+        .orderBy(desc(posts.createdAt))
+        .limit(limit + 1)
+        .offset(offset),
+      db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(posts)
+        .leftJoin(events, eq(events.id, posts.eventId))
+        .where(where),
+    ]);
+
+    const hasNextPage = rows.length > limit;
+    const page = hasNextPage ? rows.slice(0, limit) : rows;
+
+    return {
+      posts: await hydratePage(page, viewerId),
+      totalCount: countRow[0]?.count ?? 0,
+      hasNextPage,
+    };
+  }
+
+  // Browse feed is ranked — recency + followed-author + proximity to the linked
+  // event — over a bounded candidate set, mirroring events.getFeed. totalCount
+  // is the candidate count (capped at CANDIDATE_LIMIT); the client only uses it
+  // for pagination, never display.
+  const [candidates, followedIds] = await Promise.all([
+    db
+      .select({ ...getTableColumns(posts), eventLat: events.lat, eventLng: events.lng })
+      .from(posts)
+      .leftJoin(events, eq(events.id, posts.eventId))
+      .where(where)
+      .orderBy(desc(posts.createdAt))
+      .limit(CANDIDATE_LIMIT),
+    viewerId
+      ? db
+          .select({ followeeId: follows.followeeId })
+          .from(follows)
+          .where(eq(follows.followerId, viewerId))
+          .then((rows) => new Set(rows.map((r) => r.followeeId)))
+      : Promise.resolve(new Set<string>()),
+  ]);
+
+  const ranked = rankFeedPosts(
+    // numeric columns come back as strings from Drizzle; the ranker wants numbers
+    candidates.map((c) => ({
+      ...c,
+      eventLat: c.eventLat === null ? null : Number(c.eventLat),
+      eventLng: c.eventLng === null ? null : Number(c.eventLng),
     })),
-    totalCount,
-    hasNextPage,
+    lat,
+    lng,
+    followedIds
+  );
+  const page = ranked
+    .slice(offset, offset + limit)
+    .map(({ eventLat: _lat, eventLng: _lng, ...p }) => p);
+
+  return {
+    posts: await hydratePage(page, viewerId),
+    totalCount: ranked.length,
+    hasNextPage: offset + limit < ranked.length,
   };
 });

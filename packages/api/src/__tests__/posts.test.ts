@@ -552,7 +552,7 @@ describe('posts.byUser', () => {
 describe('posts.feed', () => {
   it('is public — a guest (no session) reads the feed with likedByMe=false', async () => {
     // Guests ("Skip sign-in") have no session. The feed must stay readable for
-    // them (posts are public), skipping the per-viewer liked lookup and
+    // them (posts are public), skipping the per-viewer follow/liked lookups and
     // defaulting likedByMe / isFollowedByMe to false. (Asana 1216227543475896)
     mockSelectChain
       .mockResolvedValueOnce([
@@ -566,9 +566,10 @@ describe('posts.feed', () => {
           deletedAt: null,
           createdAt: new Date(),
           updatedAt: new Date(),
+          eventLat: null,
+          eventLng: null,
         },
-      ]) // paginated posts
-      .mockResolvedValueOnce([{ count: 1 }]) // count
+      ]) // ranked candidates
       .mockResolvedValueOnce([{ id: 'user-2', name: 'Stranger', image: null }]) // users
       .mockResolvedValueOnce([]) // artists
       .mockResolvedValueOnce([]); // venues — followedRows + likedRows are skipped for a guest
@@ -580,10 +581,12 @@ describe('posts.feed', () => {
   });
 
   it('returns all non-deleted posts globally', async () => {
-    // 1st select: posts page
-    // 2nd: count
-    // Then hydration queries (user, artist, venue)
+    // Browse (no query) is the ranked path. Select order: the viewer's full
+    // followed set resolves first (its .then() is invoked at expression
+    // evaluation), then the candidate set, then hydration (users, artists,
+    // venues, followedRows) and likedRows.
     mockSelectChain
+      .mockResolvedValueOnce([]) // viewer's followed set (ranking)
       .mockResolvedValueOnce([
         {
           id: 'post-1',
@@ -595,12 +598,14 @@ describe('posts.feed', () => {
           deletedAt: null,
           createdAt: new Date(),
           updatedAt: new Date(),
+          eventLat: null,
+          eventLng: null,
         },
-      ]) // paginated posts
-      .mockResolvedValueOnce([{ count: 1 }]) // count
+      ]) // ranked candidates
       .mockResolvedValueOnce([{ id: 'user-2', name: 'Stranger', image: null }]) // users hydration
       .mockResolvedValueOnce([]) // artists
       .mockResolvedValueOnce([]) // venues
+      .mockResolvedValueOnce([]) // followedRows (hydration, page-scoped)
       .mockResolvedValueOnce([]); // likedRows
 
     const caller = authedCaller('user-1', 'artist' as UserRole);
@@ -615,6 +620,7 @@ describe('posts.feed', () => {
     // followedRows — then the feed handler runs likedRows. A non-empty
     // followedRows for user-2 must surface as isFollowedByMe on the author.
     mockSelectChain
+      .mockResolvedValueOnce([{ followeeId: 'user-2' }]) // viewer's followed set (ranking)
       .mockResolvedValueOnce([
         {
           id: 'post-1',
@@ -626,9 +632,10 @@ describe('posts.feed', () => {
           deletedAt: null,
           createdAt: new Date(),
           updatedAt: new Date(),
+          eventLat: null,
+          eventLng: null,
         },
-      ]) // paginated posts
-      .mockResolvedValueOnce([{ count: 1 }]) // count
+      ]) // ranked candidates
       .mockResolvedValueOnce([{ id: 'user-2', name: 'Stranger', image: null }]) // users
       .mockResolvedValueOnce([]) // artists
       .mockResolvedValueOnce([]) // venues
@@ -644,6 +651,7 @@ describe('posts.feed', () => {
     // A self-follow row never exists, so the followed lookup returns nothing for
     // the viewer's own author id → false (the documented "never follows self").
     mockSelectChain
+      .mockResolvedValueOnce([]) // viewer's followed set (ranking)
       .mockResolvedValueOnce([
         {
           id: 'post-1',
@@ -655,9 +663,10 @@ describe('posts.feed', () => {
           deletedAt: null,
           createdAt: new Date(),
           updatedAt: new Date(),
+          eventLat: null,
+          eventLng: null,
         },
-      ]) // paginated posts
-      .mockResolvedValueOnce([{ count: 1 }]) // count
+      ]) // ranked candidates
       .mockResolvedValueOnce([{ id: 'user-1', name: 'Me', image: null }]) // users
       .mockResolvedValueOnce([]) // artists
       .mockResolvedValueOnce([]) // venues
@@ -667,6 +676,71 @@ describe('posts.feed', () => {
     const caller = authedCaller('user-1', 'artist' as UserRole);
     const result = await caller.feed({ limit: 20, offset: 0 });
     expect(result.posts[0]?.author.isFollowedByMe).toBe(false);
+  });
+
+  it('ranks a followed author above a stranger posting at the same time', async () => {
+    const createdAt = new Date();
+    const makeRow = (id: string, createdBy: string) => ({
+      id,
+      createdBy,
+      caption: 'same-age post',
+      mediaType: 'text',
+      mediaUrl: null,
+      likeCount: 0,
+      deletedAt: null,
+      createdAt,
+      updatedAt: createdAt,
+      eventLat: null,
+      eventLng: null,
+    });
+    mockSelectChain
+      .mockResolvedValueOnce([{ followeeId: 'followed-author' }]) // viewer's followed set (ranking)
+      .mockResolvedValueOnce([
+        makeRow('post-stranger', 'stranger'),
+        makeRow('post-followed', 'followed-author'),
+      ]) // candidates, newest-first from SQL
+      .mockResolvedValueOnce([
+        { id: 'stranger', name: 'Stranger', image: null },
+        { id: 'followed-author', name: 'Followed', image: null },
+      ]) // users
+      .mockResolvedValueOnce([]) // artists
+      .mockResolvedValueOnce([]) // venues
+      .mockResolvedValueOnce([{ followeeId: 'followed-author' }]) // followedRows (hydration)
+      .mockResolvedValueOnce([]); // likedRows
+
+    const caller = authedCaller('user-1', 'artist' as UserRole);
+    const result = await caller.feed({ limit: 20, offset: 0 });
+    expect(result.posts.map((p) => p.id)).toEqual(['post-followed', 'post-stranger']);
+  });
+
+  it('coerces string event coords from Drizzle and ranks a nearby post above a far one', async () => {
+    // Drizzle returns numeric columns as strings — this pins the string→Number
+    // bridge in the router; the ranker itself is covered in feed-ranking.test.ts.
+    const createdAt = new Date();
+    const makeRow = (id: string, eventLat: string, eventLng: string) => ({
+      id,
+      createdBy: 'user-2',
+      caption: 'gig post',
+      mediaType: 'text',
+      mediaUrl: null,
+      likeCount: 0,
+      deletedAt: null,
+      createdAt,
+      updatedAt: createdAt,
+      eventLat,
+      eventLng,
+    });
+    mockSelectChain
+      .mockResolvedValueOnce([
+        makeRow('post-cork', '51.8985000', '-8.4756000'), // ~220 km from viewer
+        makeRow('post-dublin', '53.3498000', '-6.2603000'),
+      ]) // ranked candidates — guest viewer, so no follows queries
+      .mockResolvedValueOnce([{ id: 'user-2', name: 'Stranger', image: null }]) // users
+      .mockResolvedValueOnce([]) // artists
+      .mockResolvedValueOnce([]); // venues
+
+    const result = await anonCaller().feed({ limit: 20, offset: 0, lat: 53.3498, lng: -6.2603 });
+    expect(result.posts.map((p) => p.id)).toEqual(['post-dublin', 'post-cork']);
   });
 
   it('filters by query — resolves matching author ids before the post page', async () => {
