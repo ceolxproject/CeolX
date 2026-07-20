@@ -39,6 +39,14 @@ const PROD_ANDROID_SHA256 =
 // the matching app.config.js intentFilters + admin vercel.json rewrite.
 const LINK_PATH_GLOBS = ['/post/*', '/event/*', '/u/*'];
 
+// Both files are fetched by Google/Apple verification crawlers on a tight
+// deadline. s-maxage keeps a warm copy on Vercel's edge so the crawler never
+// hits a cold Lambda (which timed out → deadline_exceeded → App Links unverified);
+// stale-while-revalidate serves the cached copy instantly while refreshing in the
+// background, so even a post-expiry crawl never blocks on the function.
+const WELL_KNOWN_CACHE_CONTROL =
+  'public, max-age=86400, s-maxage=86400, stale-while-revalidate=604800';
+
 const appLinks = new Hono();
 
 // iOS Universal Links. The `appID` is `<App ID Prefix>.<bundle id>`; the prefix
@@ -61,8 +69,7 @@ appLinks.get('/.well-known/apple-app-site-association', (c) => {
     : [];
 
   c.header('Content-Type', 'application/json');
-  // Apple caches the AASA; a day keeps it fresh without hammering this route.
-  c.header('Cache-Control', 'public, max-age=86400');
+  c.header('Cache-Control', WELL_KNOWN_CACHE_CONTROL);
   return c.body(JSON.stringify({ applinks: { details } }));
 });
 
@@ -83,7 +90,7 @@ appLinks.get('/.well-known/assetlinks.json', (c) => {
   ];
 
   c.header('Content-Type', 'application/json');
-  c.header('Cache-Control', 'public, max-age=86400');
+  c.header('Cache-Control', WELL_KNOWN_CACHE_CONTROL);
   return c.body(JSON.stringify(statements));
 });
 
