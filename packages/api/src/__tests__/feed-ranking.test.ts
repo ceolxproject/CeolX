@@ -3,9 +3,13 @@ import { describe, expect, it } from 'vitest';
 import {
   computeDistanceScore,
   computeFeedScore,
+  computePostFeedScore,
+  computePostRecencyScore,
   computeRecencyScore,
   computeSocialScore,
   rankFeedEvents,
+  rankFeedPosts,
+  type RankablePost,
   type RawFeedEvent,
 } from '../lib/feed-ranking';
 
@@ -201,5 +205,125 @@ describe('rankFeedEvents', () => {
     expect(first).toBeDefined();
     if (!first) return;
     expect(first.id).toBe('b');
+  });
+});
+
+// ─── computePostRecencyScore ────────────────────────────────────────────────
+
+describe('computePostRecencyScore', () => {
+  it('returns ~1.0 for a post created just now', () => {
+    expect(computePostRecencyScore(new Date())).toBeCloseTo(1.0, 1);
+  });
+
+  it('returns ~0.5 for a post created 7 days ago (14-day window)', () => {
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    expect(computePostRecencyScore(sevenDaysAgo)).toBeCloseTo(0.5, 1);
+  });
+
+  it('clamps to 0 for posts older than 14 days', () => {
+    const fifteenDaysAgo = new Date(Date.now() - 15 * 24 * 60 * 60 * 1000);
+    expect(computePostRecencyScore(fifteenDaysAgo)).toBe(0);
+  });
+});
+
+// ─── computePostFeedScore ───────────────────────────────────────────────────
+
+describe('computePostFeedScore', () => {
+  it('applies 45/20/35 weights (recency/distance/social)', () => {
+    expect(computePostFeedScore(1, 1, 1)).toBeCloseTo(1.0, 5);
+    expect(computePostFeedScore(1, 0, 0)).toBeCloseTo(0.45, 5);
+    expect(computePostFeedScore(0, 1, 0)).toBeCloseTo(0.2, 5);
+    expect(computePostFeedScore(0, 0, 1)).toBeCloseTo(0.35, 5);
+  });
+});
+
+// ─── rankFeedPosts ──────────────────────────────────────────────────────────
+
+function makePost(
+  overrides: Partial<RankablePost> & { id: string }
+): RankablePost & { id: string } {
+  return {
+    createdAt: new Date().toISOString(),
+    createdBy: 'user-1',
+    eventLat: null,
+    eventLng: null,
+    ...overrides,
+  };
+}
+
+describe('rankFeedPosts', () => {
+  const dublin = { lat: 53.3498, lng: -6.2603 };
+
+  it('returns empty array for empty input', () => {
+    expect(rankFeedPosts([], dublin.lat, dublin.lng, new Set())).toEqual([]);
+  });
+
+  it('ranks followed authors above strangers at equal recency', () => {
+    const followed = makePost({ id: 'followed', createdBy: 'artist-1' });
+    const stranger = makePost({ id: 'stranger', createdBy: 'artist-2' });
+    const result = rankFeedPosts(
+      [stranger, followed],
+      dublin.lat,
+      dublin.lng,
+      new Set(['artist-1'])
+    );
+    expect(result.map((p) => p.id)).toEqual(['followed', 'stranger']);
+  });
+
+  it('ranks a nearby event post above a far one at equal recency', () => {
+    const near = makePost({ id: 'near', eventLat: dublin.lat, eventLng: dublin.lng });
+    const far = makePost({ id: 'far', eventLat: 51.8985, eventLng: -8.4756 }); // Cork, ~220km
+    const result = rankFeedPosts([far, near], dublin.lat, dublin.lng, new Set());
+    expect(result.map((p) => p.id)).toEqual(['near', 'far']);
+  });
+
+  it('scores posts without an event neutral — above far posts, below nearby ones', () => {
+    const near = makePost({ id: 'near', eventLat: dublin.lat, eventLng: dublin.lng });
+    const noEvent = makePost({ id: 'no-event' });
+    const far = makePost({ id: 'far', eventLat: 51.8985, eventLng: -8.4756 });
+    const result = rankFeedPosts([far, noEvent, near], dublin.lat, dublin.lng, new Set());
+    expect(result.map((p) => p.id)).toEqual(['near', 'no-event', 'far']);
+  });
+
+  it('falls back to recency + social when the viewer has no coordinates', () => {
+    const oldFollowed = makePost({
+      id: 'old-followed',
+      createdBy: 'artist-1',
+      createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+    });
+    const newStranger = makePost({ id: 'new-stranger', createdBy: 'artist-2' });
+    const result = rankFeedPosts(
+      [newStranger, oldFollowed],
+      undefined,
+      undefined,
+      new Set(['artist-1'])
+    );
+    // 2-day-old followed post: 0.45*(1-2/14) + 0.35 ≈ 0.736 beats fresh stranger 0.45
+    expect(result.map((p) => p.id)).toEqual(['old-followed', 'new-stranger']);
+  });
+
+  it('a fresh stranger post beats a stale (>14d) followed post', () => {
+    const staleFollowed = makePost({
+      id: 'stale-followed',
+      createdBy: 'artist-1',
+      createdAt: new Date(Date.now() - 20 * 24 * 60 * 60 * 1000).toISOString(),
+    });
+    const freshStranger = makePost({ id: 'fresh-stranger', createdBy: 'artist-2' });
+    const result = rankFeedPosts(
+      [staleFollowed, freshStranger],
+      undefined,
+      undefined,
+      new Set(['artist-1'])
+    );
+    // stale followed: 0 + 0.35 = 0.35; fresh stranger: 0.45
+    expect(result.map((p) => p.id)).toEqual(['fresh-stranger', 'stale-followed']);
+  });
+
+  it('breaks score ties by createdAt descending', () => {
+    const now = Date.now();
+    const older = makePost({ id: 'older', createdAt: new Date(now - 1000).toISOString() });
+    const newer = makePost({ id: 'newer', createdAt: new Date(now).toISOString() });
+    const result = rankFeedPosts([older, newer], undefined, undefined, new Set());
+    expect(result[0]?.id).toBe('newer');
   });
 });
