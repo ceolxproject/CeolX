@@ -65,6 +65,10 @@ export const postFeedQuerySchema = z.object({
   // Free-text search. Matches a post's caption OR its author's display name
   // (artist stage name / venue name / user name). Omitted/empty → unfiltered feed.
   query: z.string().trim().min(1).max(100).optional(),
+  // Viewer location for proximity ranking of the browse feed. Optional — without
+  // coords the feed still ranks on recency + followed authors (distance neutral).
+  lat: z.number().min(-90).max(90).optional(),
+  lng: z.number().min(-180).max(180).optional(),
 });
 
 export const userPostsQuerySchema = z.object({
