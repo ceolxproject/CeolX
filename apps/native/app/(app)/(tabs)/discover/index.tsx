@@ -105,7 +105,11 @@ export default function DiscoverScreen() {
 
   const { data: me } = useMe();
 
-  const feedPosts = useFeedPosts({ enabled: activeSegment === 1 });
+  const feedPosts = useFeedPosts({
+    enabled: activeSegment === 1,
+    lat: effectiveLocation.lat,
+    lng: effectiveLocation.lng,
+  });
 
   const {
     events,

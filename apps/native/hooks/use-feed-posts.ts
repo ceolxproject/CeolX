@@ -1,5 +1,5 @@
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useCallback, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 
 import { MAP_DEBOUNCE_MS } from '@CeolX/shared';
 
@@ -27,10 +27,17 @@ type HydratedPost = {
   likedByMe: boolean;
 };
 
-type Opts = { enabled?: boolean };
+type Opts = { enabled?: boolean; lat?: number; lng?: number };
 
-/** Discover feed — all non-deleted posts, newest first. */
-export function useFeedPosts({ enabled = true }: Opts = {}) {
+/**
+ * Discover feed — all non-deleted posts. Browsing is ranked server-side
+ * (recency + followed authors + proximity to the post's event when lat/lng are
+ * provided); searching is newest-first.
+ *
+ * NOTE: in browse mode `totalCount` is capped at the server's ranking candidate
+ * limit (500) — treat it as a pagination bound, not a display count.
+ */
+export function useFeedPosts({ enabled = true, lat, lng }: Opts = {}) {
   const queryClient = useQueryClient();
   const [offset, setOffset] = useState(0);
   const [accumulated, setAccumulated] = useState<HydratedPost[]>([]);
@@ -47,6 +54,8 @@ export function useFeedPosts({ enabled = true }: Opts = {}) {
     limit: PAGE_SIZE,
     offset,
     query: searchQuery.trim() || undefined,
+    lat,
+    lng,
   });
   const { data, isLoading, isFetching, isError, refetch } = useQuery({
     ...queryOptions,
@@ -70,11 +79,27 @@ export function useFeedPosts({ enabled = true }: Opts = {}) {
       setHasNextPage(data.hasNextPage);
       setTotalCount(data.totalCount);
     } else if (accumulated.length < offset + newPosts.length) {
-      setAccumulated((prev) => [...prev, ...newPosts]);
+      // Ranked order can shift between page fetches (a mid-scroll follow, a new
+      // post landing, recency drift), letting a row from page N reappear on page
+      // N+1 — drop ids we already hold so FlatList keys stay unique.
+      setAccumulated((prev) => {
+        const seen = new Set(prev.map((p) => p.id));
+        return [...prev, ...newPosts.filter((p) => !seen.has(p.id))];
+      });
       setHasNextPage(data.hasNextPage);
       setTotalCount(data.totalCount);
     }
   }, [data, isFetching]);
+
+  // Reset pagination when the feed location changes (new point picked in the
+  // location sheet, or GPS/IP resolving after the Ireland default) — the ranked
+  // order changes with it, so appending onto the old list would interleave two
+  // different orderings. Mirrors the same reset in use-feed-events.
+  useEffect(() => {
+    setOffset(0);
+    setAccumulated([]);
+    setHasNextPage(true);
+  }, [lat, lng]);
 
   const loadMore = useCallback(() => {
     if (hasNextPage && !isFetching) setOffset((o) => o + PAGE_SIZE);
