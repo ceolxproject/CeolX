@@ -28,7 +28,9 @@ function StatusAdornment({ status }: { status: UsernameStatus }) {
 export function UsernameField({ value, onChangeText, status, error }: UsernameFieldProps) {
   return (
     <View className="gap-2">
-      <Text className="text-sm font-bold text-white/80">Username</Text>
+      <Text className="text-sm font-bold text-white/80">
+        Username <Text className="text-error">*</Text>
+      </Text>
       <AppTextField
         variant="light"
         placeholder="yourhandle"
