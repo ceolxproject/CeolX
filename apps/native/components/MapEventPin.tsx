@@ -26,38 +26,47 @@ type ClusterPinProps = {
 
 type MapEventPinProps = SinglePinProps | ClusterPinProps;
 
-export function MapEventPin(props: MapEventPinProps) {
-  if (props.type === 'cluster') {
-    return (
-      <View className="w-9 h-9 rounded-full bg-[#C8FF2F] items-center justify-center">
-        <Text className="text-black text-[13px] font-bold">{props.count}</Text>
-      </View>
-    );
-  }
+const pinStyle = { width: 44, height: 44, borderRadius: 22 };
 
-  const { coverImageUrl, category, categoryKey, onImageLoad } = props;
+// Split out as a real top-level component (not an inline arrow inside
+// MapEventPin) so its hook has a stable identity — an inline nested component is
+// a fresh type every render and would remount, firing the effect every frame.
+function SinglePin({
+  coverImageUrl,
+  category,
+  categoryKey,
+  onImageLoad,
+}: Omit<SinglePinProps, 'type'>) {
+  // No cover uploaded — there's no image to wait on, so fire onImageLoad
+  // immediately (same contract as Image's onLoad) rather than leaving
+  // tracksViewChanges stuck on and re-rasterizing the marker every frame.
+  useEffect(() => {
+    if (!coverImageUrl) onImageLoad?.();
+  }, [coverImageUrl, onImageLoad]);
 
-  const pinStyle = { width: 44, height: 44, borderRadius: 22 };
+  return (
+    <View className="items-center">
+      {/* Pin circle MUST be the FIRST/top child. On the New Architecture,
+          react-native-maps gives a frozen custom marker a touch frame that only
+          covers its top element — so the tappable circle has to sit on top and
+          the category label below it as a non-interactive caption. A label ABOVE
+          the circle steals every tap and leaves the circle dead (Asana
+          1215961153969025).
 
-  // Clip the circle on the <Image> itself (borderRadius + border) rather than a
-  // parent View with `overflow:hidden`. On Android's New Architecture the marker
-  // is rasterized off-screen via react-native-maps' ViewAttacherGroup, and a
-  // clipped child layer is not reliably captured in that snapshot — the image
-  // paints fine in normal views (e.g. the preview card) but stays blank inside
-  // the marker. Image natively clips to its own borderRadius, so this avoids the
-  // separate clip layer that the off-screen snapshot drops.
-  const PinContent = () => {
-    // No cover uploaded — there's no image to wait on, so fire onImageLoad
-    // immediately (same contract as Image's onLoad) rather than leaving
-    // tracksViewChanges stuck on and re-rasterizing the marker every frame.
-    useEffect(() => {
-      if (!coverImageUrl) onImageLoad?.();
-      // PinContent is redefined every render, so this effect already re-runs on
-      // mount whenever coverImageUrl changes — no dependency needed.
-    }, []);
-
-    if (!coverImageUrl) {
-      return (
+          Clip the circle on the <Image> itself (borderRadius + border) rather
+          than a parent View with `overflow:hidden`. On Android's New
+          Architecture the marker is rasterized off-screen via
+          react-native-maps' ViewAttacherGroup, and a clipped child layer is not
+          reliably captured in that snapshot — the image paints fine in normal
+          views but stays blank inside the marker. */}
+      {coverImageUrl ? (
+        <Image
+          source={{ uri: coverImageUrl }}
+          style={[pinStyle, { borderWidth: 2, borderColor: '#ffffff', backgroundColor: '#2B2B2B' }]}
+          resizeMode="cover"
+          onLoad={onImageLoad}
+        />
+      ) : (
         // Solid fill so the circle always has painted, tappable pixels — a
         // transparent placeholder would be dead to taps in the frozen iOS
         // marker snapshot.
@@ -67,28 +76,7 @@ export function MapEventPin(props: MapEventPinProps) {
         >
           <Ionicons name="image-outline" size={18} color="rgba(255,255,255,0.6)" />
         </View>
-      );
-    }
-
-    return (
-      <Image
-        source={{ uri: coverImageUrl }}
-        style={[pinStyle, { borderWidth: 2, borderColor: '#ffffff', backgroundColor: '#2B2B2B' }]}
-        resizeMode="cover"
-        onLoad={onImageLoad}
-      />
-    );
-  };
-
-  return (
-    <View className="items-center">
-      {/* Pin circle MUST be the FIRST/top child. On the New Architecture,
-          react-native-maps gives a frozen custom marker a touch frame that only
-          covers its top element — so the tappable circle has to sit on top and
-          the category label below it as a non-interactive caption. A label ABOVE
-          the circle steals every tap and leaves the circle dead (Asana
-          1215961153969025). */}
-      <PinContent />
+      )}
 
       {/* Category caption below the pin (informational — not tappable). */}
       {(category ?? categoryKey) ? (
@@ -106,4 +94,16 @@ export function MapEventPin(props: MapEventPinProps) {
       ) : null}
     </View>
   );
+}
+
+export function MapEventPin(props: MapEventPinProps) {
+  if (props.type === 'cluster') {
+    return (
+      <View className="w-9 h-9 rounded-full bg-[#C8FF2F] items-center justify-center">
+        <Text className="text-black text-[13px] font-bold">{props.count}</Text>
+      </View>
+    );
+  }
+
+  return <SinglePin {...props} />;
 }
