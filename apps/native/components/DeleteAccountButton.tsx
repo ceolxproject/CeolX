@@ -30,7 +30,10 @@ export function DeleteAccountButton({ onDismiss }: DeleteAccountButtonProps) {
     const userId = user?.id;
     try {
       await requestDeletion.mutateAsync();
-      appToast.success('Account scheduled for deletion', 'Sign in within 30 days to cancel.');
+      appToast.success(
+        'Account scheduled for deletion',
+        'Sign back in within 30 days to keep your account.'
+      );
       onDismiss();
       await logout();
       // GDPR teardown — drop this account's device-local location-setup flag so a
@@ -47,7 +50,7 @@ export function DeleteAccountButton({ onDismiss }: DeleteAccountButtonProps) {
   const handlePress = () => {
     Alert.alert(
       'Delete Account',
-      'Your account will be anonymised in 30 days. Sign in again before then to cancel.',
+      'Your account will be permanently deleted after 30 days. Sign back in before then if you want to keep it.',
       [
         { text: 'Cancel', style: 'cancel' },
         {
