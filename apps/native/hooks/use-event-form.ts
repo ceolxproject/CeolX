@@ -290,6 +290,8 @@ export function useEventForm(options?: UseEventFormOptions) {
         }
         case 'category':
           return category ? undefined : 'Category is required';
+        case 'coverImageUri':
+          return coverImageUri ? undefined : 'Cover image is required';
         case 'dateStart':
           return dateStart ? undefined : 'Start date is required';
         case 'startTime':
@@ -312,7 +314,19 @@ export function useEventForm(options?: UseEventFormOptions) {
           return undefined;
       }
     },
-    [title, description, category, dateStart, dateEnd, startTime, endTime, lat, lng, venueId]
+    [
+      title,
+      description,
+      category,
+      dateStart,
+      dateEnd,
+      startTime,
+      endTime,
+      lat,
+      lng,
+      venueId,
+      coverImageUri,
+    ]
   );
 
   // Re-validate every already-touched field whenever any value changes, so an
@@ -374,7 +388,7 @@ export function useEventForm(options?: UseEventFormOptions) {
   );
 
   const validateStep1 = useCallback(
-    (): boolean => validateFields(['title', 'description', 'category']),
+    (): boolean => validateFields(['title', 'description', 'category', 'coverImageUri']),
     [validateFields]
   );
 
