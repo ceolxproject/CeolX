@@ -70,7 +70,11 @@ async function suggestArtists(term: string): Promise<Suggestion[]> {
 // Venue-name matches, only venues whose subscription is active (i.e. visible).
 async function suggestVenues(term: string): Promise<Suggestion[]> {
   const rows = await db
-    .select({ venueName: venueProfiles.venueName, imageUrl: venueProfiles.profileImageUrl })
+    .select({
+      userId: venueProfiles.userId,
+      venueName: venueProfiles.venueName,
+      imageUrl: venueProfiles.profileImageUrl,
+    })
     .from(venueProfiles)
     .where(
       and(
@@ -81,7 +85,12 @@ async function suggestVenues(term: string): Promise<Suggestion[]> {
     .limit(GROUP_LIMIT);
 
   return dedupeByLabel(
-    rows.map((r) => ({ label: r.venueName, imageUrl: r.imageUrl || undefined }))
+    rows.map((r) => ({
+      label: r.venueName,
+      imageUrl: r.imageUrl || undefined,
+      // The venue profile route keys off the owner's user id (see venue/[venueId]).
+      venueId: r.userId,
+    }))
   );
 }
 

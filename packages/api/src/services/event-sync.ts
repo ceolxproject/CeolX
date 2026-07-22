@@ -1,4 +1,5 @@
 import { and, count, eq, gte } from 'drizzle-orm';
+import { alias } from 'drizzle-orm/pg-core';
 
 import { db } from '@CeolX/db';
 import { events, savedEvents } from '@CeolX/db/schema/events';
@@ -14,6 +15,7 @@ import { typesenseClient } from '../lib/typesense';
 
 type EnrichedEvent = Event & {
   creatorName: string;
+  venueName?: string;
   joinedCount: number;
 };
 
@@ -26,6 +28,7 @@ function toTypesenseDoc(event: EnrichedEvent) {
     date_start: Math.floor(event.dateStart.getTime() / 1000),
     date_end: event.dateEnd ? Math.floor(event.dateEnd.getTime() / 1000) : undefined,
     venue_address: event.venueAddress ?? undefined,
+    venue_name: event.venueName ?? undefined,
     cover_image: event.coverImage ?? undefined,
     status: event.status,
     creator_id: event.createdBy,
@@ -36,7 +39,7 @@ function toTypesenseDoc(event: EnrichedEvent) {
 }
 
 async function enrichEvent(event: Event): Promise<EnrichedEvent> {
-  const [artistRow, venueRow, [joinedRow]] = await Promise.all([
+  const [artistRow, venueRow, registeredVenueRow, [joinedRow]] = await Promise.all([
     db
       .select({ stageName: artistProfiles.stageName })
       .from(artistProfiles)
@@ -47,12 +50,20 @@ async function enrichEvent(event: Event): Promise<EnrichedEvent> {
       .from(venueProfiles)
       .where(eq(venueProfiles.userId, event.createdBy))
       .limit(1),
+    event.venueId
+      ? db
+          .select({ venueName: venueProfiles.venueName })
+          .from(venueProfiles)
+          .where(eq(venueProfiles.id, event.venueId))
+          .limit(1)
+      : Promise.resolve([]),
     db.select({ total: count() }).from(savedEvents).where(eq(savedEvents.eventId, event.id)),
   ]);
 
   return {
     ...event,
     creatorName: artistRow[0]?.stageName ?? venueRow[0]?.venueName ?? 'Unknown',
+    venueName: registeredVenueRow[0]?.venueName,
     joinedCount: joinedRow?.total ?? 0,
   };
 }
@@ -88,15 +99,19 @@ export async function removeEventFromTypesense(eventId: string): Promise<void> {
 // Used for initial seed and recovery.
 // ---------------------------------------------------------------------------
 export async function bulkSyncEventsToTypesense(): Promise<{ synced: number }> {
+  const registeredVenue = alias(venueProfiles, 'registered_venue');
+
   const rows = await db
     .select({
       event: events,
       artistStageName: artistProfiles.stageName,
       venueName: venueProfiles.venueName,
+      registeredVenueName: registeredVenue.venueName,
     })
     .from(events)
     .leftJoin(artistProfiles, eq(artistProfiles.userId, events.createdBy))
     .leftJoin(venueProfiles, eq(venueProfiles.userId, events.createdBy))
+    .leftJoin(registeredVenue, eq(registeredVenue.id, events.venueId))
     .where(and(eq(events.status, EventStatus.ACTIVE), gte(events.dateStart, new Date())));
 
   if (rows.length === 0) {
@@ -111,10 +126,11 @@ export async function bulkSyncEventsToTypesense(): Promise<{ synced: number }> {
 
   const joinedByEventId = new Map(joinedCounts.map((r) => [r.eventId, r.total]));
 
-  const docs = rows.map(({ event, artistStageName, venueName }) =>
+  const docs = rows.map(({ event, artistStageName, venueName, registeredVenueName }) =>
     toTypesenseDoc({
       ...event,
       creatorName: artistStageName ?? venueName ?? 'Unknown',
+      venueName: registeredVenueName ?? undefined,
       joinedCount: joinedByEventId.get(event.id) ?? 0,
     })
   );
