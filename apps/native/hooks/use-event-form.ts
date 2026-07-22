@@ -388,8 +388,16 @@ export function useEventForm(options?: UseEventFormOptions) {
   );
 
   const validateStep1 = useCallback(
-    (): boolean => validateFields(['title', 'description', 'category', 'coverImageUri']),
-    [validateFields]
+    // Cover image is required on create only. On edit we keep it optional so a
+    // legacy event saved before covers were mandatory can still be edited
+    // without being forced to upload one — matches updateEventSchema's .partial().
+    (): boolean =>
+      validateFields(
+        isEditing
+          ? ['title', 'description', 'category']
+          : ['title', 'description', 'category', 'coverImageUri']
+      ),
+    [validateFields, isEditing]
   );
 
   const validateStep2 = useCallback(
