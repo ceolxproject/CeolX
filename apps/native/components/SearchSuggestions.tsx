@@ -58,7 +58,7 @@ function SuggestionRow({
   onSelect: (label: string) => void;
 }) {
   const isEvent = item.dateStart !== undefined || item.location !== undefined;
-  const artistId = item.artistId;
+  const { artistId, venueId } = item;
 
   return (
     <Pressable
@@ -89,14 +89,18 @@ function SuggestionRow({
           </Text>
         ) : null}
       </View>
-      {artistId !== undefined ? (
+      {artistId !== undefined || venueId !== undefined ? (
         <Pressable
-          onPress={() =>
-            router.push({
-              pathname: '/(app)/artist/[artistId]',
-              params: { artistId },
-            })
-          }
+          onPress={() => {
+            // The only way to reach an entity's full event list from search:
+            // a plain text search stays location-scoped and hides events
+            // outside the radius, the profile lists them all.
+            if (artistId !== undefined) {
+              router.push({ pathname: '/(app)/artist/[artistId]', params: { artistId } });
+            } else if (venueId !== undefined) {
+              router.push({ pathname: '/(app)/venue/[venueId]', params: { venueId } });
+            }
+          }}
           hitSlop={8}
           accessibilityRole="button"
           accessibilityLabel={`View ${item.label}'s profile`}
