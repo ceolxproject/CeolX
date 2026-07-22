@@ -4,7 +4,6 @@ import { Image, Text, View } from 'react-native';
 
 import { CategoryChip } from '@/components/CategoryChip';
 import { EventCollectionBadge } from '@/components/EventCollectionBadge';
-import { getMockEventImage } from '@/utils/mock-images';
 
 interface EventHeroImageProps {
   coverImageUrl?: string;
@@ -24,11 +23,17 @@ export function EventHeroImage({
 }: EventHeroImageProps) {
   return (
     <View className={cn('w-full aspect-[375/208] relative', className)}>
-      <Image
-        source={coverImageUrl ? { uri: coverImageUrl } : getMockEventImage('hero')}
-        className="absolute inset-0 w-full h-full"
-        resizeMode="cover"
-      />
+      {coverImageUrl ? (
+        <Image
+          source={{ uri: coverImageUrl }}
+          className="absolute inset-0 w-full h-full"
+          resizeMode="cover"
+        />
+      ) : (
+        <View className="absolute inset-0 w-full h-full bg-white/5 items-center justify-center">
+          <Ionicons name="image-outline" size={40} color="rgba(255,255,255,0.3)" />
+        </View>
+      )}
 
       {/* Collection tag — top-left over the cover (category sits bottom-left) */}
       {collectionName ? (

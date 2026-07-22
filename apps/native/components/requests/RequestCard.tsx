@@ -11,7 +11,6 @@ import { RequestActions, type RequestAction } from './RequestActions';
 
 import { formatEventDate } from '@/utils/format-event-date';
 import { formatRequestAttempts } from '@/utils/format-request-attempts';
-import { getMockEventImage, MOCK_PROFILE_IMAGE } from '@/utils/mock-images';
 
 interface RequestCardProps {
   booking: BookingSummary;
@@ -103,15 +102,17 @@ export function RequestCard({
     >
       {/* Cover image */}
       <View className="h-[180px] relative">
-        <Image
-          source={
-            booking.eventCoverImage
-              ? { uri: booking.eventCoverImage }
-              : getMockEventImage(booking.id)
-          }
-          className="absolute inset-0 w-full h-full"
-          resizeMode="cover"
-        />
+        {booking.eventCoverImage ? (
+          <Image
+            source={{ uri: booking.eventCoverImage }}
+            className="absolute inset-0 w-full h-full"
+            resizeMode="cover"
+          />
+        ) : (
+          <View className="absolute inset-0 w-full h-full bg-white/5 items-center justify-center">
+            <Ionicons name="image-outline" size={36} color="rgba(255,255,255,0.3)" />
+          </View>
+        )}
 
         {/* Dim overlay for deleted events */}
         {isEventDeleted && <View className="absolute inset-0 bg-black/50" />}
@@ -176,10 +177,13 @@ export function RequestCard({
             <View className="mt-3">
               <Text className="text-xs text-white/50 font-urbanist mb-1.5">{directionLabel}</Text>
               <View className="flex-row items-center gap-2">
-                <Image
-                  source={otherPartyImage ? { uri: otherPartyImage } : MOCK_PROFILE_IMAGE}
-                  className="w-8 h-8 rounded-full"
-                />
+                {otherPartyImage ? (
+                  <Image source={{ uri: otherPartyImage }} className="w-8 h-8 rounded-full" />
+                ) : (
+                  <View className="w-8 h-8 rounded-full bg-white/10 items-center justify-center">
+                    <Ionicons name="person-outline" size={14} color="#8d8d8d" />
+                  </View>
+                )}
                 <Text className="text-sm font-semibold text-white font-urbanist flex-1">
                   {otherPartyName}
                 </Text>

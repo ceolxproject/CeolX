@@ -1,7 +1,6 @@
+import { Ionicons } from '@expo/vector-icons';
 import { cn } from 'heroui-native';
 import { Image, Pressable, Text, View, type PressableProps } from 'react-native';
-
-import { MOCK_PROFILE_IMAGE } from '@/utils/mock-images';
 
 interface Tag {
   label: string;
@@ -33,11 +32,17 @@ export function PersonaCard({
       )}
       {...props}
     >
-      <Image
-        source={imageUri ? { uri: imageUri } : MOCK_PROFILE_IMAGE}
-        className="h-14 w-14 rounded-full bg-muted"
-        resizeMode="cover"
-      />
+      {imageUri ? (
+        <Image
+          source={{ uri: imageUri }}
+          className="h-14 w-14 rounded-full bg-muted"
+          resizeMode="cover"
+        />
+      ) : (
+        <View className="h-14 w-14 rounded-full bg-muted items-center justify-center">
+          <Ionicons name="person-outline" size={24} color="#8d8d8d" />
+        </View>
+      )}
       <View className="flex-1 gap-1">
         <Text className="font-semibold text-white text-sm" numberOfLines={1}>
           {name}

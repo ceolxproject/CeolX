@@ -17,7 +17,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ProfileTypeTag } from '@/components/profiles';
 import { useFollow } from '@/hooks/use-follow';
 import { useMe } from '@/hooks/use-me';
-import { MOCK_PROFILE_IMAGE } from '@/utils/mock-images';
 import { trpc } from '@/utils/trpc';
 
 type FollowingItem = {
@@ -57,58 +56,59 @@ function FollowingRow({
 
   return (
     <Pressable className="flex-row items-center px-4 h-14" onPress={handleRowPress}>
-      <Image
-        source={
-          item.profile.profileImageUrl ? { uri: item.profile.profileImageUrl } : MOCK_PROFILE_IMAGE
-        }
-        className="w-[45px] h-[45px] rounded-full bg-surface"
-      />
-      <View className="flex-1 ml-3">
-        <View className="flex-row items-center gap-2">
-          <Text
-            className="shrink text-[15px] font-medium text-white font-urbanist"
-            numberOfLines={1}
-          >
-            {item.profile.displayName}
-          </Text>
-          <ProfileTypeTag type={item.profileType} />
+      {item.profile.profileImageUrl ? (
+        <Image
+          source={{ uri: item.profile.profileImageUrl }}
+          className="w-[45px] h-[45px] rounded-full bg-surface"
+        />
+      ) : (
+        <View className="w-[45px] h-[45px] rounded-full bg-surface items-center justify-center">
+          <Ionicons name="person-outline" size={20} color="#8d8d8d" />
         </View>
+      )}
+      <View className="flex-1 ml-3">
+        <Text className="text-[15px] font-medium text-white font-urbanist" numberOfLines={1}>
+          {item.profile.displayName}
+        </Text>
         <Text className="text-[13px] text-[#8a8a8f] font-urbanist mt-0.5">
           {item.eventsCount} events
         </Text>
       </View>
-      {/* The toggle is viewer-relative: on another profile's Following list it
-          reflects whether *you* follow each person, not the profile owner. */}
-      {!item.isSelf &&
-        (item.isFollowedByViewer ? (
-          <Pressable
-            className="border border-gray-10 rounded-[20px] h-8 px-3 items-center justify-center"
-            onPress={() => onToggle(item.followeeId, true)}
-            disabled={isPending}
-          >
-            {isPending ? (
-              <ActivityIndicator size="small" color="#fff" />
-            ) : (
-              <Text className="text-[12px] font-bold text-white uppercase tracking-[0.24px] font-urbanist">
-                Following
-              </Text>
-            )}
-          </Pressable>
-        ) : (
-          <Pressable
-            className="bg-blue-10 rounded-[20px] h-8 px-4 items-center justify-center"
-            onPress={() => onToggle(item.followeeId, false)}
-            disabled={isPending}
-          >
-            {isPending ? (
-              <ActivityIndicator size="small" color="#fff" />
-            ) : (
-              <Text className="text-[12px] font-bold text-white uppercase tracking-[0.24px] font-urbanist">
-                Follow
-              </Text>
-            )}
-          </Pressable>
-        ))}
+      <View className="flex-row items-center gap-2 ml-2">
+        <ProfileTypeTag type={item.profileType} />
+        {/* The toggle is viewer-relative: on another profile's Following list it
+            reflects whether *you* follow each person, not the profile owner. */}
+        {!item.isSelf &&
+          (item.isFollowedByViewer ? (
+            <Pressable
+              className="border border-gray-10 rounded-[20px] h-8 px-3 items-center justify-center"
+              onPress={() => onToggle(item.followeeId, true)}
+              disabled={isPending}
+            >
+              {isPending ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Text className="text-[12px] font-bold text-white uppercase tracking-[0.24px] font-urbanist">
+                  Following
+                </Text>
+              )}
+            </Pressable>
+          ) : (
+            <Pressable
+              className="bg-blue-10 rounded-[20px] h-8 px-4 items-center justify-center"
+              onPress={() => onToggle(item.followeeId, false)}
+              disabled={isPending}
+            >
+              {isPending ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Text className="text-[12px] font-bold text-white uppercase tracking-[0.24px] font-urbanist">
+                  Follow
+                </Text>
+              )}
+            </Pressable>
+          ))}
+      </View>
     </Pressable>
   );
 }
@@ -168,7 +168,11 @@ export default function FollowingScreen() {
         >
           <Ionicons name="arrow-back" size={24} color="#fff" />
         </Pressable>
-        <Pressable onPress={toggleSearch} hitSlop={12} className="absolute right-4 bottom-[22px]">
+        <Pressable
+          onPress={toggleSearch}
+          hitSlop={12}
+          className="absolute right-1 bottom-3 size-12 items-center justify-center rounded-full"
+        >
           <Ionicons name={isSearchOpen ? 'close' : 'search'} size={22} color="#fff" />
         </Pressable>
       </View>
