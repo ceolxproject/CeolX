@@ -35,9 +35,16 @@ export const getFeed = publicProcedure.input(feedQuerySchema).query(async ({ inp
           // creator_name is included so tapping an artist/venue name suggestion
           // (discovery.suggest) surfaces that creator's events, not just title hits.
           query_by: 'title,category,venue_address,venue_name,creator_name',
-          // 100 km radius matches MAX_DISTANCE_KM in feed-ranking.ts
+          // Radius is a *browse* filter only. When the user types an explicit
+          // query the name match takes priority over proximity, so we drop the
+          // location filter entirely — otherwise an artist/venue playing far away
+          // would be searched-for-but-never-shown. Browsing (q === '*') keeps the
+          // 100 km cap, which matches MAX_DISTANCE_KM in feed-ranking.ts.
           filter_by:
-            `location:(${lat},${lng},100 km)` + ` && status:=active` + dateFilter + categoryFilter,
+            (searchQuery === '*' ? `location:(${lat},${lng},100 km) && ` : '') +
+            `status:=active` +
+            dateFilter +
+            categoryFilter,
           sort_by:
             searchQuery === '*'
               ? `location(${lat},${lng}):asc`
