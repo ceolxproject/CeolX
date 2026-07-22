@@ -295,6 +295,7 @@ describe('createEventSchema', () => {
     title: 'Trad Night',
     description: 'A wonderful traditional session at the local pub.',
     dateStart: '2026-08-01T20:00:00.000Z',
+    coverImage: 'https://cdn.ceolx.com/events/cover.jpg',
     lat: 53.3498,
     lng: -6.2603,
     venueAddress: "O'Brien's Pub, Dublin",
@@ -329,6 +330,7 @@ describe('createEventSchema', () => {
       title: valid.title,
       description: valid.description,
       dateStart: valid.dateStart,
+      coverImage: valid.coverImage,
       category: valid.category,
     };
     expect(createEventSchema.safeParse(noLocation).success).toBe(false);
@@ -341,6 +343,7 @@ describe('createEventSchema', () => {
       title: valid.title,
       description: valid.description,
       dateStart: valid.dateStart,
+      coverImage: valid.coverImage,
       venueAddress: "O'Brien's Pub, Dublin",
       category: valid.category,
     };
@@ -352,6 +355,7 @@ describe('createEventSchema', () => {
       title: valid.title,
       description: valid.description,
       dateStart: valid.dateStart,
+      coverImage: valid.coverImage,
       venueId: '550e8400-e29b-41d4-a716-446655440000',
       category: valid.category,
     };

@@ -130,6 +130,7 @@ export interface BookingSummary {
   viewerIsSender?: boolean;
   eventId: string;
   eventTitle: string;
+  eventDescription?: string;
   eventCoverImage?: string;
   eventCategory: string;
   eventDateStart: string;

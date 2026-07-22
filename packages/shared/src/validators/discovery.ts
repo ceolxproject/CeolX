@@ -25,6 +25,10 @@ export type SuggestInput = z.infer<typeof suggestSchema>;
  *   (matches Typesense `date_start`), shown with a calendar icon.
  * - `artistId` — the artist's user id. Present only on artist rows; when set,
  *   the row shows a button that opens `/(app)/artist/[artistId]` directly.
+ * - `venueId` — the venue's user id. Present only on venue rows; when set, the
+ *   row shows a button that opens `/(app)/venue/[venueId]` directly. This is the
+ *   only way to reach a venue's full event list from search — a plain text
+ *   search stays location-scoped and would hide events outside the radius.
  */
 export type Suggestion = {
   label: string;
@@ -33,6 +37,7 @@ export type Suggestion = {
   location?: string;
   dateStart?: number;
   artistId?: string;
+  venueId?: string;
 };
 
 /** Grouped suggestion payload returned by `discovery.suggest`. */
