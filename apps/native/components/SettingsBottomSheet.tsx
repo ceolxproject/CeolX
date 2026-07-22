@@ -6,8 +6,8 @@ import {
   BottomSheetView,
 } from '@gorhom/bottom-sheet';
 import { useRouter } from 'expo-router';
-import { forwardRef, useCallback } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { forwardRef, useCallback, useEffect, useState } from 'react';
+import { BackHandler, Pressable, Text, View } from 'react-native';
 
 import { DeleteAccountButton } from './DeleteAccountButton';
 
@@ -19,12 +19,27 @@ interface SettingsBottomSheetProps {
 export const SettingsBottomSheet = forwardRef<BottomSheetModal, SettingsBottomSheetProps>(
   ({ onChangePassword, onSignOut }, ref) => {
     const router = useRouter();
+    const [isOpen, setIsOpen] = useState(false);
 
     const handleClose = useCallback(() => {
       if (ref && 'current' in ref) {
         ref.current?.dismiss();
       }
     }, [ref]);
+
+    // Android hardware back: @gorhom/bottom-sheet doesn't hook into it, so an
+    // unhandled press falls through to the tab navigator (jumps to the initial
+    // tab) instead of just closing the sheet. Returning true consumes the press
+    // here so it never reaches the navigator. (Asana bug-bash: settings popup
+    // persists / back navigates away instead of closing it.)
+    useEffect(() => {
+      if (!isOpen) return;
+      const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+        handleClose();
+        return true;
+      });
+      return () => sub.remove();
+    }, [isOpen, handleClose]);
 
     const handleAbout = useCallback(() => {
       handleClose();
@@ -43,6 +58,7 @@ export const SettingsBottomSheet = forwardRef<BottomSheetModal, SettingsBottomSh
         ref={ref}
         enableDynamicSizing
         enablePanDownToClose
+        onChange={(index) => setIsOpen(index >= 0)}
         backdropComponent={renderBackdrop}
         backgroundStyle={{ backgroundColor: '#2B2B2B' }}
         handleIndicatorStyle={{ backgroundColor: '#8d8d8d' }}
