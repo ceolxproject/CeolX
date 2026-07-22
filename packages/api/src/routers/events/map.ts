@@ -20,7 +20,7 @@ export const getMap = publicProcedure.input(MapQueryInput).query(async ({ input 
       .documents()
       .search({
         q: searchQuery,
-        query_by: 'title,category,venue_address',
+        query_by: 'title,category,venue_address,venue_name',
         filter_by:
           `location:(${swLat},${swLng},${swLat},${neLng},${neLat},${neLng},${neLat},${swLng})` +
           dateFilter +

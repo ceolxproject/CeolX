@@ -111,7 +111,9 @@ beforeEach(() => {
 describe('discovery.suggest', () => {
   it('groups artists, venues and events for the events scope', async () => {
     setArtistRows([{ stageName: 'Tune Bomb', genres: ['Trad'], imageUrl: 'https://cdn/a.jpg' }]);
-    setVenueRows([{ venueName: 'The Cobblestone', imageUrl: 'https://cdn/v.jpg' }]);
+    setVenueRows([
+      { userId: 'venue-user-1', venueName: 'The Cobblestone', imageUrl: 'https://cdn/v.jpg' },
+    ]);
     mockSearch.mockResolvedValueOnce({
       hits: [
         eventHit('Trad Night', 'Smithfield, Dublin', {
@@ -127,7 +129,9 @@ describe('discovery.suggest', () => {
     expect(result.artists).toEqual([
       { label: 'Tune Bomb', sublabel: 'Trad', imageUrl: 'https://cdn/a.jpg' },
     ]);
-    expect(result.venues).toEqual([{ label: 'The Cobblestone', imageUrl: 'https://cdn/v.jpg' }]);
+    expect(result.venues).toEqual([
+      { label: 'The Cobblestone', imageUrl: 'https://cdn/v.jpg', venueId: 'venue-user-1' },
+    ]);
     expect(result.events).toEqual([
       {
         label: 'Trad Night',

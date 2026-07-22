@@ -25,6 +25,7 @@ export const EVENTS_COLLECTION_SCHEMA: CollectionCreateSchema = {
     { name: 'date_start', type: 'int64' },
     { name: 'date_end', type: 'int64', optional: true },
     { name: 'venue_address', type: 'string', optional: true },
+    { name: 'venue_name', type: 'string', optional: true },
     { name: 'cover_image', type: 'string', optional: true },
     { name: 'status', type: 'string' },
     { name: 'creator_id', type: 'string' },
