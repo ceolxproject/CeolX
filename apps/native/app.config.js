@@ -149,11 +149,16 @@ export default (_) => ({
       // skips the per-build "Missing Compliance" prompt in TestFlight/App Store
       // Connect. Set to true only if you add non-exempt/custom cryptography.
       ITSAppUsesNonExemptEncryption: false,
+      // Also set by the expo-location plugin (locationWhenInUsePermission), which
+      // overwrites this at prebuild — keep the two strings identical so neither drifts.
       NSLocationWhenInUseUsageDescription:
-        'CeolX uses your location to show nearby Irish music events',
-      NSCameraUsageDescription: 'Upload videos of your performances',
-      NSPhotoLibraryUsageDescription: 'Upload images and videos',
-      NSMicrophoneUsageDescription: 'Record audio for posts',
+        'CeolX uses your location to show music events happening near you — for example, gigs and sessions in your county this week.',
+      NSCameraUsageDescription:
+        'CeolX uses your camera so you can record videos and take photos to share — for example, filming a clip of your performance to post to your profile.',
+      NSPhotoLibraryUsageDescription:
+        'CeolX accesses your photo library so you can upload images and videos to your profile and events — for example, choosing a cover photo for a gig you are promoting.',
+      NSMicrophoneUsageDescription:
+        'CeolX uses your microphone to capture sound while you record videos to share — for example, the audio of a live gig you post to your profile.',
       NSAppTransportSecurity: {
         NSAllowsLocalNetworking: true,
       },
@@ -217,7 +222,7 @@ export default (_) => ({
       'expo-location',
       {
         locationWhenInUsePermission:
-          'Allow CeolX to use your location to show nearby Irish music events',
+          'CeolX uses your location to show Irish music events happening near you — for example, gigs and sessions in your county this week.',
       },
     ],
     'expo-secure-store',
