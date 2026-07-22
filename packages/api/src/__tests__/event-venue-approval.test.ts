@@ -151,6 +151,7 @@ const artistEventInput = {
   title: 'Friday Night Trad Session',
   description: 'A great traditional Irish music session at the pub.',
   dateStart: new Date('2026-07-01T20:00:00Z').toISOString(),
+  coverImage: 'https://cdn.ceolx.com/events/cover.jpg',
   lat: 53.3498,
   lng: -6.2603,
   category: 'Open Trad Sessions' as const,

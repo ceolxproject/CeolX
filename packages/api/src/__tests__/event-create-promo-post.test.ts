@@ -122,6 +122,7 @@ const baseInput = {
   title: TITLE,
   description: 'An evening of traditional Irish music.',
   dateStart: new Date('2026-08-01T20:00:00Z').toISOString(),
+  coverImage: 'https://cdn.ceolx.com/events/cover.jpg',
   lat: 53.3498,
   lng: -6.2603,
   category: 'Open Trad Sessions' as const,

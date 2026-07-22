@@ -193,6 +193,7 @@ const validEventInput = {
   title: 'Saturday Trad Night',
   description: 'An evening of traditional Irish music.',
   dateStart: new Date('2026-07-05T20:00:00Z').toISOString(),
+  coverImage: 'https://cdn.ceolx.com/events/cover.jpg',
   // Provide explicit lat/lng so resolveEventCoordinates mock is not blocked by
   // the missing venueProfiles select chain.
   lat: 53.3498,
