@@ -9,6 +9,7 @@ import { CATEGORY_LABELS, isEventUnavailableForCollaboration } from '@CeolX/shar
 import { BookingDirection, BookingStatus, UserRole } from '@CeolX/shared/enums';
 
 import { appToast } from '@/components/AppToast';
+import { DescriptionSection } from '@/components/event-detail/DescriptionSection';
 import {
   BOOKING_STATUS_FEEDBACK,
   RequestActions,
@@ -141,7 +142,7 @@ export function BookingDetailScreen() {
             />
           ) : (
             <View className="absolute inset-0 w-full h-full bg-white/5 items-center justify-center">
-              <Text className="text-5xl">🎵</Text>
+              <Ionicons name="musical-notes-outline" size={40} color="rgba(255,255,255,0.4)" />
             </View>
           )}
 
@@ -192,6 +193,12 @@ export function BookingDetailScreen() {
               </Text>
             </View>
           </View>
+
+          {/* Event description — gives the viewer context before they act on the request.
+              Reuses the same component/pattern as the main event detail screen. */}
+          {booking.eventDescription && (
+            <DescriptionSection description={booking.eventDescription} className="mt-4" />
+          )}
 
           {/* Divider */}
           <View className="h-px bg-white/10 my-4" />
