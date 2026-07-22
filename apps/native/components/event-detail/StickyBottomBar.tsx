@@ -24,7 +24,8 @@ interface StickyBottomBarProps {
   isRequesting?: boolean;
   hasExistingRequest?: boolean;
   /** Event date has passed — hide "Request to Perform" (the server rejects a
-   *  performance request for a past event). */
+   *  performance request for a past event) and "Book Ticket" (spectators
+   *  shouldn't be able to buy tickets for an event that already happened). */
   isPastEvent?: boolean;
   onRequestToPerform: () => void;
   className?: string;
@@ -60,7 +61,7 @@ export function StickyBottomBar({
   // may arrive from non-app sources (admin web, seed, API), which would
   // otherwise make Linking/WebBrowser fail to open.
   const bookableUrl = normalizeOptionalUrl(ticketLink ?? undefined);
-  const showBookTicket = !!bookableUrl;
+  const showBookTicket = !!bookableUrl && !isPastEvent;
 
   const ticketLabel =
     ticketPrice !== null && ticketPrice !== undefined && ticketPrice > 0

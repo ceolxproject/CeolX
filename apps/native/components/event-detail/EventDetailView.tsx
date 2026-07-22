@@ -139,6 +139,11 @@ export function EventDetailView({
   const formattedDate = formatDetailDate(event.dateStart);
   const formattedTime = formatDetailTime(event.dateStart, event.dateEnd ?? undefined);
 
+  // Multi-hour/multi-day events (dateEnd set) are only "past" once they've
+  // actually finished. Shared by the calendar row and the sticky CTA bar so the
+  // two can never disagree about whether the event has happened.
+  const isPastEvent = isEventPast(event.dateEnd ?? event.dateStart);
+
   return (
     <View className="flex-1 bg-background" style={{ paddingTop: insets.top }}>
       {/* Fixed header — stays pinned while the hero + details scroll beneath it. */}
@@ -211,8 +216,11 @@ export function EventDetailView({
               icon="calendar-outline"
               title={formattedDate}
               subtitle={formattedTime}
-              actionLabel={calendarAdded ? 'Added' : 'Add to calendar'}
-              onAction={handleAddToCalendar}
+              // No "Add to calendar" once the event has happened — you can't
+              // put a past date on your calendar. Omitting the action drops the
+              // button entirely (EventInfoRow renders none without it).
+              actionLabel={isPastEvent ? undefined : calendarAdded ? 'Added' : 'Add to calendar'}
+              onAction={isPastEvent ? undefined : handleAddToCalendar}
               actionDisabled={calendarAdded}
             />
 
@@ -344,7 +352,7 @@ export function EventDetailView({
           isCollaborator={isCollaborator}
           isRequesting={isRequesting}
           hasExistingRequest={event.viewerHasPendingRequest}
-          isPastEvent={isEventPast(event.dateStart)}
+          isPastEvent={isPastEvent}
           onRequestToPerform={handleRequestToPerform}
         />
       )}
