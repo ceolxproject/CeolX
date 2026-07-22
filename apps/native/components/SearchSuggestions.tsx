@@ -59,23 +59,15 @@ function SuggestionRow({
 }) {
   const isEvent = item.dateStart !== undefined || item.location !== undefined;
   const { artistId, venueId } = item;
-  const isEntity = artistId !== undefined || venueId !== undefined;
-
-  // Artist/venue rows open the profile directly — the only way to see ALL of an
-  // entity's events, since a plain text search stays scoped to the location
-  // radius and would hide events outside it. Event rows run the search instead.
-  const handlePress = () => {
-    if (artistId !== undefined) {
-      router.push({ pathname: '/(app)/artist/[artistId]', params: { artistId } });
-    } else if (venueId !== undefined) {
-      router.push({ pathname: '/(app)/venue/[venueId]', params: { venueId } });
-    } else {
-      onSelect(item.label);
-    }
-  };
 
   return (
-    <Pressable onPress={handlePress} className="flex-row items-center gap-3 active:opacity-60">
+    <Pressable
+      // The row runs the name search — the feed now drops the radius filter when
+      // a query is present, so this surfaces ALL of the entity's events (near and
+      // far) on the events page. The trailing icon is a separate profile shortcut.
+      onPress={() => onSelect(item.label)}
+      className="flex-row items-center gap-3 active:opacity-60"
+    >
       <Avatar uri={item.imageUrl} label={item.label} />
       <View className="flex-1 gap-1">
         <Text
@@ -100,11 +92,24 @@ function SuggestionRow({
           </Text>
         ) : null}
       </View>
-      {isEntity ? (
-        // Static affordance only — the whole row navigates, so this is not its
-        // own tap target (a nested Pressable inside a Pressable is unreliable on
-        // RN). The chevron signals the row opens the profile.
-        <Ionicons name="chevron-forward" size={18} color="#8D8D8D" />
+      {artistId !== undefined || venueId !== undefined ? (
+        <Pressable
+          // Secondary shortcut straight to the profile. The row itself runs the
+          // (radius-free) name search — this is for when you want the profile.
+          onPress={() => {
+            if (artistId !== undefined) {
+              router.push({ pathname: '/(app)/artist/[artistId]', params: { artistId } });
+            } else if (venueId !== undefined) {
+              router.push({ pathname: '/(app)/venue/[venueId]', params: { venueId } });
+            }
+          }}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel={`View ${item.label}'s profile`}
+          className="size-8 rounded-full bg-[#ECECEC] items-center justify-center active:opacity-60"
+        >
+          <Ionicons name="person-circle-outline" size={20} color="#080808" />
+        </Pressable>
       ) : null}
     </Pressable>
   );
