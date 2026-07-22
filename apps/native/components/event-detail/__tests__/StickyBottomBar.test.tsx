@@ -112,6 +112,17 @@ describe('StickyBottomBar', () => {
     expect(toastError).toHaveBeenCalled();
   });
 
+  it('hides Book Ticket for a spectator once the event has passed', () => {
+    // Ticket-buying only makes sense for events still ahead of the viewer —
+    // once isPastEvent is true, the CTA must not render even with a valid link.
+    const tree = StickyBottomBar({
+      ...baseProps,
+      ticketLink: 'https://tix.ie/e',
+      isPastEvent: true,
+    });
+    expect(tree).toBeNull();
+  });
+
   it('shows Request to Perform (not Book Ticket) for an artist on a linkless venue event', () => {
     const tree = StickyBottomBar({
       ...baseProps,
