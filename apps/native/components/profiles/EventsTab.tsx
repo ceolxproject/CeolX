@@ -71,7 +71,6 @@ export function EventsTab({ upcomingEvents, pastEvents }: EventsTabProps) {
               category={event.category}
               venueAddress={event.venueAddress}
               collectionName={event.collectionName}
-              status="archived"
               onPress={() => router.push(`/(app)/events/${event.id}`)}
             />
           ))}
