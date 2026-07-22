@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import type { BottomSheetModal } from '@gorhom/bottom-sheet';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { cn } from 'heroui-native';
 import { useCallback, useRef, useState } from 'react';
 import {
@@ -39,7 +39,6 @@ import { useResendBooking } from '@/hooks/use-resend-booking';
 import { useSavedEvents } from '@/hooks/use-saved-events';
 import { useUpdateBooking } from '@/hooks/use-update-booking';
 import { getBookingActionErrorBody } from '@/utils/booking-error';
-import { MOCK_PROFILE_IMAGE } from '@/utils/mock-images';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -107,10 +106,16 @@ function ProfileHeader({
           </Text>
         </Pressable>
 
-        <Image
-          source={avatarUrl ? { uri: avatarUrl } : MOCK_PROFILE_IMAGE}
-          className="w-[86px] h-[86px] rounded-full bg-surface"
-        />
+        {avatarUrl ? (
+          <Image
+            source={{ uri: avatarUrl }}
+            className="w-[86px] h-[86px] rounded-full bg-surface"
+          />
+        ) : (
+          <View className="w-[86px] h-[86px] rounded-full bg-surface items-center justify-center">
+            <Ionicons name="person-outline" size={36} color="#8d8d8d" />
+          </View>
+        )}
 
         <Pressable
           className="items-center min-w-[58px]"
@@ -492,6 +497,14 @@ function SpectatorProfile() {
 
   const email = me?.email ?? user?.email ?? '—';
 
+  // Dismiss the Settings sheet on blur so it can't get stuck open when the
+  // user navigates away and back (Asana bug-bash: settings popup persists).
+  useFocusEffect(
+    useCallback(() => {
+      return () => settingsRef.current?.dismiss();
+    }, [])
+  );
+
   const handleLogout = async () => {
     settingsRef.current?.dismiss();
     // Navigation is handled declaratively by (app)/_layout, which redirects to
@@ -510,10 +523,13 @@ function SpectatorProfile() {
       </View>
 
       <View className="items-center py-8">
-        <Image
-          source={me?.image ? { uri: me.image } : MOCK_PROFILE_IMAGE}
-          className="w-20 h-20 rounded-full bg-surface mb-3"
-        />
+        {me?.image ? (
+          <Image source={{ uri: me.image }} className="w-20 h-20 rounded-full bg-surface mb-3" />
+        ) : (
+          <View className="w-20 h-20 rounded-full bg-surface items-center justify-center mb-3">
+            <Ionicons name="person-outline" size={36} color="#8d8d8d" />
+          </View>
+        )}
         {me?.name ? (
           <>
             <Text className="text-lg font-semibold text-white">{me.name}</Text>
@@ -638,6 +654,14 @@ function CreatorProfile({
 
   const myEvents = useMyEvents();
   const { totalCount: savedCount } = useSavedEvents();
+
+  // Dismiss the Settings sheet on blur so it can't get stuck open when the
+  // user navigates away and back (Asana bug-bash: settings popup persists).
+  useFocusEffect(
+    useCallback(() => {
+      return () => settingsRef.current?.dismiss();
+    }, [])
+  );
 
   const handleRefresh = useCallback(async () => {
     await myEvents.refresh();

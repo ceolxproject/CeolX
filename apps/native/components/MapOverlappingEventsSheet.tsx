@@ -6,7 +6,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CATEGORY_LABELS } from '@CeolX/shared';
 
 import type { MapEvent } from '@/components/MapEventMarker';
-import { getMockEventImage } from '@/utils/mock-images';
 
 type MapOverlappingEventsSheetProps = {
   events: MapEvent[];
@@ -60,12 +59,16 @@ export function MapOverlappingEventsSheet({ events, onClose }: MapOverlappingEve
               className="flex-row items-center gap-3 py-3 border-b border-[#F0F0F0]"
               onPress={() => openEvent(event.id)}
             >
-              <Image
-                source={
-                  event.coverImageUrl ? { uri: event.coverImageUrl } : getMockEventImage(event.id)
-                }
-                className="w-12 h-12 rounded-[10px] bg-[#E8E8E8]"
-              />
+              {event.coverImageUrl ? (
+                <Image
+                  source={{ uri: event.coverImageUrl }}
+                  className="w-12 h-12 rounded-[10px] bg-[#E8E8E8]"
+                />
+              ) : (
+                <View className="w-12 h-12 rounded-[10px] bg-[#E8E8E8] items-center justify-center">
+                  <Ionicons name="image-outline" size={20} color="#B0B0B0" />
+                </View>
+              )}
               <View className="flex-1 gap-0.5">
                 <Text className="text-[15px] font-semibold text-[#1A1A1A]" numberOfLines={1}>
                   {event.title}

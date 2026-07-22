@@ -24,6 +24,7 @@ export function FeedEventCard({ event, onPress, className }: FeedEventCardProps)
       venueAddress={event.venueAddress ?? null}
       onPress={onPress}
       className={className}
+      byline={`by ${event.creatorName}`}
       topLeftBadge={
         event.collectionName ? <EventCollectionBadge name={event.collectionName} /> : undefined
       }

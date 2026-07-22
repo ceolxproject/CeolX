@@ -22,7 +22,6 @@ import { useLikeHandler } from '@/hooks/use-like-handler';
 import { useProfileFollowHandler } from '@/hooks/use-profile-follow-handler';
 import { useSharePost } from '@/hooks/use-share-post';
 import { splitCaptionLinks } from '@/utils/linkify';
-import { MOCK_PROFILE_IMAGE } from '@/utils/mock-images';
 
 export type PostCardPost = {
   id: string;
@@ -308,12 +307,16 @@ export function PostCard({
   // to the card's openDetail.
   const authorIdentity = (
     <>
-      <Image
-        source={
-          post.author.profileImageUrl ? { uri: post.author.profileImageUrl } : MOCK_PROFILE_IMAGE
-        }
-        className="h-9 w-9 rounded-full bg-white/10"
-      />
+      {post.author.profileImageUrl ? (
+        <Image
+          source={{ uri: post.author.profileImageUrl }}
+          className="h-9 w-9 rounded-full bg-white/10"
+        />
+      ) : (
+        <View className="h-9 w-9 rounded-full bg-white/10 items-center justify-center">
+          <Ionicons name="person-outline" size={16} color="#8d8d8d" />
+        </View>
+      )}
       <View className="flex-1">
         <Text numberOfLines={1} className="text-sm font-medium text-white font-urbanist">
           {post.author.displayName}

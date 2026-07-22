@@ -5,7 +5,6 @@ import { Image, Pressable, Text, View } from 'react-native';
 
 import { CategoryChip } from '@/components/CategoryChip';
 import { formatEventDate } from '@/utils/format-event-date';
-import { getMockEventImage } from '@/utils/mock-images';
 
 interface BaseEventCardProps {
   title: string;
@@ -24,6 +23,8 @@ interface BaseEventCardProps {
   bottomRightOverlay?: ReactNode;
   /** Content rendered below the info area but inside the card border (e.g. cancel button) */
   bottomSlot?: ReactNode;
+  /** Small line under the location/date row (e.g. "by {creatorName}") */
+  byline?: string;
 }
 
 export function BaseEventCard({
@@ -39,6 +40,7 @@ export function BaseEventCard({
   topRightBadge,
   bottomRightOverlay,
   bottomSlot,
+  byline,
 }: BaseEventCardProps) {
   const formattedDate = formatEventDate(dateStart, dateEnd);
 
@@ -59,11 +61,9 @@ export function BaseEventCard({
             resizeMode="cover"
           />
         ) : (
-          <Image
-            source={getMockEventImage(title)}
-            className="absolute inset-0 w-full h-full"
-            resizeMode="cover"
-          />
+          <View className="absolute inset-0 w-full h-full bg-white/5 items-center justify-center">
+            <Ionicons name="image-outline" size={40} color="rgba(255,255,255,0.3)" />
+          </View>
         )}
 
         {/* Top-left badge slot */}
@@ -100,6 +100,12 @@ export function BaseEventCard({
             </Text>
           </View>
         </View>
+
+        {byline && (
+          <Text className="text-xs text-white/40 font-urbanist mt-2" numberOfLines={1}>
+            {byline}
+          </Text>
+        )}
       </View>
 
       {/* Optional bottom slot (e.g. cancel button) */}

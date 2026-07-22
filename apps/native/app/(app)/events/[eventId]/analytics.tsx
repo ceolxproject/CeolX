@@ -15,7 +15,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ProgressRing } from '@/components/analytics/ProgressRing';
 import { useEventAnalytics } from '@/hooks/use-event-analytics';
 import { formatEventDate } from '@/utils/format-event-date';
-import { getMockEventImage } from '@/utils/mock-images';
 
 const ACCENT = '#C8FF2F';
 const SUBTLE_TEXT = 'rgba(255,255,255,0.6)';
@@ -122,11 +121,17 @@ function HeroCard({ data }: HeroCardProps) {
   return (
     <View className="mx-5 mt-2 rounded-2xl overflow-hidden border border-[rgba(141,141,141,0.4)] bg-[rgba(141,141,141,0.1)]">
       <View className="h-[208px] relative">
-        <Image
-          source={event.coverImage ? { uri: event.coverImage } : getMockEventImage(event.title)}
-          className="absolute inset-0 w-full h-full"
-          resizeMode="cover"
-        />
+        {event.coverImage ? (
+          <Image
+            source={{ uri: event.coverImage }}
+            className="absolute inset-0 w-full h-full"
+            resizeMode="cover"
+          />
+        ) : (
+          <View className="absolute inset-0 w-full h-full bg-white/5 items-center justify-center">
+            <Ionicons name="image-outline" size={40} color="rgba(255,255,255,0.3)" />
+          </View>
+        )}
         <View className="absolute bottom-3 left-3 right-3 flex-row items-center justify-between">
           <View className="flex-row items-center bg-[#C8FF2F] rounded-full px-2 h-5 gap-1">
             <Text className="text-[11px]">🎵</Text>

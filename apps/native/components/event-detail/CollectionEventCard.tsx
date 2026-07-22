@@ -5,7 +5,6 @@ import { Image, Pressable, Text, View } from 'react-native';
 import { CategoryChip } from '@/components/CategoryChip';
 import { EventCollectionBadge } from '@/components/EventCollectionBadge';
 import type { RelatedEvent } from '@/types/event-detail';
-import { getMockEventImage } from '@/utils/mock-images';
 
 interface CollectionEventCardProps {
   event: RelatedEvent;
@@ -37,11 +36,17 @@ export function CollectionEventCard({
     >
       {/* Cover image */}
       <View className="h-[208px] relative rounded-t-2xl overflow-hidden">
-        <Image
-          source={event.coverImageUrl ? { uri: event.coverImageUrl } : getMockEventImage(event.id)}
-          className="absolute inset-0 w-full h-full"
-          resizeMode="cover"
-        />
+        {event.coverImageUrl ? (
+          <Image
+            source={{ uri: event.coverImageUrl }}
+            className="absolute inset-0 w-full h-full"
+            resizeMode="cover"
+          />
+        ) : (
+          <View className="absolute inset-0 w-full h-full bg-white/5 items-center justify-center">
+            <Ionicons name="image-outline" size={40} color="rgba(255,255,255,0.3)" />
+          </View>
+        )}
 
         {/* Collection tag — top-left (category lives in the bottom pill below) */}
         {collectionName ? (

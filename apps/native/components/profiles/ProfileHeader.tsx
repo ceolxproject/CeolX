@@ -3,7 +3,6 @@ import { cn } from 'heroui-native';
 import { Image, Linking, Pressable, Text, View } from 'react-native';
 
 import { appToast } from '@/components/AppToast';
-import { MOCK_PROFILE_IMAGE } from '@/utils/mock-images';
 
 const SOCIAL_ICONS: Record<string, string> = {
   INSTAGRAM: 'logo-instagram',
@@ -95,10 +94,16 @@ export function ProfileHeader({
       <View className="flex-row items-center justify-center gap-6 mb-3">
         <CountBlock value={followerCount} label="Followers" onPress={onFollowersPress} />
 
-        <Image
-          source={profileImageUrl ? { uri: profileImageUrl } : MOCK_PROFILE_IMAGE}
-          className="w-[86px] h-[86px] rounded-full bg-surface"
-        />
+        {profileImageUrl ? (
+          <Image
+            source={{ uri: profileImageUrl }}
+            className="w-[86px] h-[86px] rounded-full bg-surface"
+          />
+        ) : (
+          <View className="w-[86px] h-[86px] rounded-full bg-surface items-center justify-center">
+            <Ionicons name="person-outline" size={36} color="#8d8d8d" />
+          </View>
+        )}
 
         <CountBlock value={followingCount} label="Following" onPress={onFollowingPress} />
       </View>

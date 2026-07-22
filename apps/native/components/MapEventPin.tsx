@@ -1,7 +1,8 @@
+import { Ionicons } from '@expo/vector-icons';
+import { useEffect } from 'react';
 import { Image, Text, View } from 'react-native';
 
 import { CategoryIcon } from '@/components/icons/CategoryIcon';
-import { getMockEventImage } from '@/utils/mock-images';
 
 type SinglePinProps = {
   type: 'single';
@@ -45,17 +46,39 @@ export function MapEventPin(props: MapEventPinProps) {
   // paints fine in normal views (e.g. the preview card) but stays blank inside
   // the marker. Image natively clips to its own borderRadius, so this avoids the
   // separate clip layer that the off-screen snapshot drops.
-  const PinContent = () => (
-    <Image
-      source={coverImageUrl ? { uri: coverImageUrl } : getMockEventImage(category ?? 'pin')}
-      // Solid fill so the circle always has painted, tappable pixels — a
-      // not-yet-loaded / failed remote cover would otherwise be transparent and
-      // dead to taps in the frozen iOS marker snapshot.
-      style={[pinStyle, { borderWidth: 2, borderColor: '#ffffff', backgroundColor: '#2B2B2B' }]}
-      resizeMode="cover"
-      onLoad={onImageLoad}
-    />
-  );
+  const PinContent = () => {
+    // No cover uploaded — there's no image to wait on, so fire onImageLoad
+    // immediately (same contract as Image's onLoad) rather than leaving
+    // tracksViewChanges stuck on and re-rasterizing the marker every frame.
+    useEffect(() => {
+      if (!coverImageUrl) onImageLoad?.();
+      // PinContent is redefined every render, so this effect already re-runs on
+      // mount whenever coverImageUrl changes — no dependency needed.
+    }, []);
+
+    if (!coverImageUrl) {
+      return (
+        // Solid fill so the circle always has painted, tappable pixels — a
+        // transparent placeholder would be dead to taps in the frozen iOS
+        // marker snapshot.
+        <View
+          style={[pinStyle, { borderWidth: 2, borderColor: '#ffffff', backgroundColor: '#2B2B2B' }]}
+          className="items-center justify-center"
+        >
+          <Ionicons name="image-outline" size={18} color="rgba(255,255,255,0.6)" />
+        </View>
+      );
+    }
+
+    return (
+      <Image
+        source={{ uri: coverImageUrl }}
+        style={[pinStyle, { borderWidth: 2, borderColor: '#ffffff', backgroundColor: '#2B2B2B' }]}
+        resizeMode="cover"
+        onLoad={onImageLoad}
+      />
+    );
+  };
 
   return (
     <View className="items-center">
