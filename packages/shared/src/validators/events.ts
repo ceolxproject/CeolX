@@ -21,7 +21,9 @@ const eventBaseShape = {
     .min(10, 'Description must be at least 10 characters')
     .max(EVENT_DESCRIPTION_MAX)
     .trim(),
-  coverImage: z.string().url().optional(),
+  // Required on create; updateEventSchema wraps eventBaseShape in .partial(),
+  // so existing events without one can still be edited without re-uploading.
+  coverImage: z.string().url(),
   dateStart: z.string().datetime(),
   dateEnd: z.string().datetime().optional(),
   lat: z.number().min(-90).max(90).optional(),
