@@ -67,7 +67,12 @@ async function suggestArtists(term: string): Promise<Suggestion[]> {
   );
 }
 
-// Venue-name matches, only venues whose subscription is active (i.e. visible).
+// Venue-name matches. No subscription-status filter: the venue visibility gate
+// is disabled until subscriptions ship (isProfileVisibleToViewer('venue') always
+// returns true — Asana 1215489113550392), so venue profiles are visible on every
+// other screen. Search must match that, otherwise a venue you can open from a
+// profile link wouldn't appear here. When the gate is restored in
+// isProfileVisibleToViewer, re-add the `subscriptionStatus = 'active'` filter here.
 async function suggestVenues(term: string): Promise<Suggestion[]> {
   const rows = await db
     .select({
@@ -76,12 +81,7 @@ async function suggestVenues(term: string): Promise<Suggestion[]> {
       imageUrl: venueProfiles.profileImageUrl,
     })
     .from(venueProfiles)
-    .where(
-      and(
-        ilike(venueProfiles.venueName, `%${term}%`),
-        eq(venueProfiles.subscriptionStatus, 'active')
-      )
-    )
+    .where(ilike(venueProfiles.venueName, `%${term}%`))
     .limit(GROUP_LIMIT);
 
   return dedupeByLabel(
