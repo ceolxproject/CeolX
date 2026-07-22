@@ -1080,6 +1080,7 @@ export const bookingsRouter = router({
         venueImage: resolveProfileImageUrl(booking.venue, venueUser?.image) ?? undefined,
         eventId: booking.event?.id ?? '',
         eventTitle: booking.event?.title ?? '',
+        eventDescription: booking.event?.description ?? undefined,
         eventCoverImage: booking.event?.coverImage ?? undefined,
         eventCategory: booking.event?.category ?? '',
         eventDateStart: booking.event?.dateStart?.toISOString() ?? '',
