@@ -30,9 +30,11 @@ type Props = {
 /**
  * Location priming screen (Figma 1:4696).
  *
- * Full-black priming screen. "DETECT MY LOCATION" fires the native OS
- * permission prompt directly — the OS dialog already lets the user pick
- * Precise vs Approximate, so we don't duplicate that choice in-app.
+ * Full-black priming screen. "CONTINUE" fires the native OS permission
+ * prompt directly — the OS dialog already lets the user pick Precise vs
+ * Approximate, so we don't duplicate that choice in-app. The CTA label is
+ * deliberately neutral ("Continue", not "Detect my location") — App Store
+ * Guideline 5.1.1(iv) rejection, review 22 Jul 2026.
  * "SELECT LOCATION MANUALLY" skips GPS entirely (fallback chain handles it).
  */
 export function LocationPermissionScreen({ onDone, insets, headerSlot }: Props) {
@@ -92,13 +94,13 @@ export function LocationPermissionScreen({ onDone, insets, headerSlot }: Props) 
             : 'Set your location to start exploring events, artists and venues around you!'}
         </Text>
 
-        {/* DETECT MY LOCATION / OPEN SETTINGS pill button */}
+        {/* CONTINUE / OPEN SETTINGS pill button */}
         <Pressable
           onPress={handleDetectPress}
           className="bg-[#6155F5] h-14 rounded-full items-center justify-center w-full mb-6"
         >
           <Text className="text-white text-base font-semibold tracking-widest uppercase">
-            {settingsOnly ? 'Open settings' : 'Detect my location'}
+            {settingsOnly ? 'Open settings' : 'Continue'}
           </Text>
         </Pressable>
 
