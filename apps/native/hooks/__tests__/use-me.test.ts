@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 // Mutable so individual tests can simulate a populated (stale) cache entry —
 // a disabled useQuery still returns whatever is already cached.
 let useQueryResult: { data: unknown } = { data: undefined };
-const useQueryMock = vi.fn(() => useQueryResult);
+const useQueryMock = vi.fn((_opts: unknown) => useQueryResult);
 const useAuthMock = vi.fn(() => ({ isAuthenticated: false, isGuest: false }));
 
 vi.mock('@tanstack/react-query', () => ({
