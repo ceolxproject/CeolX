@@ -43,10 +43,14 @@ function ctx(role: UserRole, userId: string): Context {
   } as unknown as Context;
 }
 
+// Now-relative so the test never time-bombs: both events must be *upcoming* for
+// isUpcomingEvent to keep them — DELETED_EVENT stays in the future on purpose so
+// this proves the status filter (not the date filter) is what hides it.
+const DAY = 24 * 60 * 60 * 1000;
 const ACTIVE_EVENT = {
   id: 'e0000000-0000-4000-a000-00000000aaaa',
   title: 'Live Trad Session',
-  dateStart: new Date('2026-07-10T20:00:00Z'),
+  dateStart: new Date(Date.now() + 10 * DAY),
   coverImage: null,
   status: EventStatus.ACTIVE,
   category: 'Open Trad Sessions',
@@ -55,7 +59,7 @@ const ACTIVE_EVENT = {
 const DELETED_EVENT = {
   id: 'e0000000-0000-4000-a000-00000000dddd',
   title: 'Deleted Gig',
-  dateStart: new Date('2026-07-11T20:00:00Z'),
+  dateStart: new Date(Date.now() + 11 * DAY),
   coverImage: null,
   status: EventStatus.ARCHIVED,
   category: 'Open Trad Sessions',
