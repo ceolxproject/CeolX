@@ -13,8 +13,17 @@ import { useEventById } from '@/hooks/use-event-by-id';
 import { useMe } from '@/hooks/use-me';
 
 interface EventDetailScreenProps {
-  /** Tab route prefix for related-event navigation, e.g. "/(app)/(tabs)/discover/event" */
-  tabEventRoute: string;
+  /**
+   * Tab route prefix for related-event navigation. Typed as the exact set of
+   * mount points so `${tabEventRoute}/${id}` stays a valid expo-router Href
+   * under typedRoutes (a bare string widens to `${string}/${string}`).
+   */
+  tabEventRoute:
+    | '/(app)/(tabs)/discover/event'
+    | '/(app)/(tabs)/bookings/event'
+    | '/(app)/(tabs)/map/event'
+    | '/(app)/(tabs)/profile/event'
+    | '/(app)/events';
 }
 
 export function EventDetailScreen({ tabEventRoute }: EventDetailScreenProps) {
