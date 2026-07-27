@@ -67,8 +67,11 @@ export type EmailTemplateMap = {
    * the in-app Discover feed (web + mobile). Direct-send, not queued.
    * `userName` is optional — the sender defaults it and the template falls back
    * to "there" when the account has no display name yet (social sign-ups).
+   *
+   * `isVenue` adds the free-access line — venues are the only paid persona.
+   * Drop the flag and its paragraph once subscriptions ship.
    */
-  welcome: { userName?: string; ctaUrl: string };
+  welcome: { userName?: string; ctaUrl: string; isVenue?: boolean };
   /**
    * GDPR erasure confirmation (matrix S-06 / A-18 / V-17). Sent to the account's
    * original email immediately after anonymisation. No CTA — the account no

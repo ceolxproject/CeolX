@@ -9,6 +9,8 @@ interface WelcomeEmailProps {
   userName?: string;
   /** HTTPS redirect-bridge URL that opens the app's Discover feed. */
   ctaUrl: string;
+  /** Adds the free-access line — venues are the only paid persona. */
+  isVenue?: boolean;
 }
 
 const listText: React.CSSProperties = {
@@ -17,7 +19,7 @@ const listText: React.CSSProperties = {
   paddingLeft: '20px',
 };
 
-export function WelcomeEmail({ userName, ctaUrl }: WelcomeEmailProps) {
+export function WelcomeEmail({ userName, ctaUrl, isVenue }: WelcomeEmailProps) {
   return (
     <EmailLayout preview="Welcome to CeolX — discover live music, artists, and venues near you">
       <Text style={heading}>Welcome to CeolX 🎶</Text>
@@ -41,6 +43,14 @@ export function WelcomeEmail({ userName, ctaUrl }: WelcomeEmailProps) {
           Open CeolX →
         </Button>
       </Section>
+
+      {isVenue ? (
+        <Text style={bodyText}>
+          You're using CeolX during our introductory free access period. Subscription plans for
+          venues will be introduced in a future update, and we'll let you know before anything
+          changes.
+        </Text>
+      ) : null}
 
       <Text style={bodyText}>
         See you out there,

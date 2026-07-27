@@ -166,8 +166,22 @@ describe('sendWelcomeEmail', () => {
     expect(sendEmail).toHaveBeenCalledWith({
       to: 'u@example.com',
       template: 'welcome',
-      data: { userName: 'Aoife', ctaUrl: 'https://api.ceolx.com/r?to=%2Fdiscover' },
+      data: {
+        userName: 'Aoife',
+        ctaUrl: 'https://api.ceolx.com/r?to=%2Fdiscover',
+        isVenue: false,
+      },
     });
+  });
+
+  it('flags venues so the template renders the free-access line', async () => {
+    await sendWelcomeEmail(
+      'u@example.com',
+      'https://api.ceolx.com/r?to=%2Fdiscover',
+      'Aoife',
+      true
+    );
+    expect(vi.mocked(sendEmail).mock.calls[0]?.[0].data).toMatchObject({ isVenue: true });
   });
 
   it('defaults userName to empty string when omitted', async () => {

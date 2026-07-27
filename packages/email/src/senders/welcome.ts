@@ -7,10 +7,15 @@ import { sendEmail } from '../send.js';
  * queued) — mirrors verification / password-reset, which also originate in the
  * auth layer.
  */
-export async function sendWelcomeEmail(to: string, ctaUrl: string, userName = ''): Promise<void> {
+export async function sendWelcomeEmail(
+  to: string,
+  ctaUrl: string,
+  userName = '',
+  isVenue = false
+): Promise<void> {
   await sendEmail({
     to,
     template: 'welcome',
-    data: { userName, ctaUrl },
+    data: { userName, ctaUrl, isVenue },
   });
 }

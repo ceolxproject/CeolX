@@ -188,6 +188,21 @@ describe('WelcomeEmail', () => {
     const html = await render(React.createElement(WelcomeEmail, { ...props, userName: '' }));
     expect(html).toContain('>there<');
   });
+
+  it('adds the free-access line for venues, with no price or subscribe link', async () => {
+    const html = await render(React.createElement(WelcomeEmail, { ...props, isVenue: true }));
+    expect(html).toMatch(/free access period/i);
+    expect(html).toMatch(/future update/i);
+    // 3.1.1 guard. React Email emits a bare `<!--$-->`, so require a digit
+    // after the symbol — a lone `$` isn't evidence of a price.
+    expect(html).not.toContain('ceolx.com/subscribe');
+    expect(html).not.toMatch(/[€$]\s?\d/);
+  });
+
+  it('omits the free-access line for non-venue personas', async () => {
+    const html = await render(React.createElement(WelcomeEmail, props));
+    expect(html).not.toMatch(/free access period/i);
+  });
 });
 
 // ---------------------------------------------------------------------------
