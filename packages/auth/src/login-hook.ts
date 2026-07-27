@@ -42,7 +42,7 @@ async function sendWelcomeOnFirstSession(userId: string): Promise<void> {
     .update(user)
     .set({ welcomeSentAt: new Date() })
     .where(and(eq(user.id, userId), isNull(user.welcomeSentAt)))
-    .returning({ email: user.email, name: user.name });
+    .returning({ email: user.email, name: user.name, currentRole: user.currentRole });
 
   // Already welcomed (or backfilled pre-launch account) — nothing to do.
   if (!claimed) return;
@@ -69,10 +69,15 @@ async function sendWelcomeOnFirstSession(userId: string): Promise<void> {
       await db.insert(notificationUsers).values({ notificationId: row.id, userId });
     }
 
+    // Venues get an extra free-access line. Email sign-ups already have
+    // `currentRole` set by this point, but social sign-ups only set it on the
+    // NEXT session (via completeRegistration) — so a social venue's first
+    // welcome email misses the line. In-app notices cover that gap.
     await sendWelcomeEmail(
       claimed.email,
       buildAppRedirectUrl(env.BETTER_AUTH_URL, inApp.route),
-      claimed.name ?? ''
+      claimed.name ?? '',
+      claimed.currentRole === 'venue'
     );
   } catch (err) {
     // Release the claim so a later login can retry the welcome. Rethrow so the

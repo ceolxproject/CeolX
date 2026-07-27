@@ -9,7 +9,7 @@ const mockSelect = vi.hoisted(() => vi.fn(() => ({ from: mockSelectFrom })));
 // `.returning()` for the welcome claim. So `where` returns a thenable that also
 // exposes `.returning`. The welcome claim's result is driven by mockWelcomeClaim.
 const mockWelcomeClaim = vi.hoisted(() =>
-  vi.fn(() => [] as Array<{ email: string; name: string }>)
+  vi.fn(() => [] as Array<{ email: string; name: string; currentRole?: string }>)
 );
 const mockUpdateWhere = vi.hoisted(() =>
   vi.fn(() => ({
@@ -39,7 +39,13 @@ vi.mock('@CeolX/db', () => ({
 }));
 
 vi.mock('@CeolX/db/schema/auth', () => ({
-  user: { id: 'id', email: 'email', name: 'name', welcomeSentAt: 'welcome_sent_at' },
+  user: {
+    id: 'id',
+    email: 'email',
+    name: 'name',
+    welcomeSentAt: 'welcome_sent_at',
+    currentRole: 'current_role',
+  },
 }));
 
 vi.mock('@CeolX/db/schema/notifications', () => ({
@@ -157,6 +163,22 @@ describe('onSessionCreated — welcome on first session', () => {
     expect(call?.[2]).toBe('Aoife');
     expect(call?.[1]).toContain('https://api.ceolx.test/r?to=');
     expect(call?.[1]).toContain(encodeURIComponent('/(app)/(tabs)/discover'));
+  });
+
+  // Only venues get the free-access line — artists and spectators don't.
+  it.each([
+    ['venue', true],
+    ['artist', false],
+    ['spectator', false],
+  ])('sets the venue flag for a %s account (isVenue=%s)', async (role, expected) => {
+    mockSelectLimit.mockResolvedValueOnce([{ deletionScheduledFor: null, isAnonymized: false }]);
+    mockWelcomeClaim.mockReturnValueOnce([
+      { email: 'new@ceolx.com', name: 'Aoife', currentRole: role },
+    ]);
+
+    await onSessionCreated(SESSION);
+
+    expect(mockSendWelcomeEmail.mock.calls[0]?.[3]).toBe(expected);
   });
 
   it('is a no-op when the account was already welcomed (claim returns nothing)', async () => {
