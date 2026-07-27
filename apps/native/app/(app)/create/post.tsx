@@ -12,13 +12,16 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { UserRole } from '@CeolX/shared/enums';
 import { createPostSchema, POST_CAPTION_MAX, updatePostSchema } from '@CeolX/shared/validators';
 
 import { AppHeader } from '@/components/AppHeader';
 import { appToast } from '@/components/AppToast';
 import { CharacterCount, CharacterLimitNote } from '@/components/CharacterCount';
+import { FreeAccessNotice } from '@/components/FreeAccessNotice';
 import { MediaPickerField } from '@/components/posts/MediaPickerField';
 import { useCreatePost } from '@/hooks/use-create-post';
+import { useMe } from '@/hooks/use-me';
 import { useMediaDelete, keyFromCdnUrl } from '@/hooks/use-media-delete';
 import { useMediaUpload } from '@/hooks/use-media-upload';
 import { usePostById } from '@/hooks/use-post-by-id';
@@ -38,6 +41,9 @@ type LocalMedia = {
 export default function CreatePostScreen() {
   const { editId } = useLocalSearchParams<{ editId?: string }>();
   const isEditing = !!editId;
+
+  const { data: me } = useMe();
+  const isVenue = me?.currentRole === UserRole.VENUE;
 
   const existing = usePostById(editId ?? null);
   const [caption, setCaption] = useState('');
@@ -259,7 +265,9 @@ export default function CreatePostScreen() {
           </View>
         </ScrollView>
 
-        <View className="px-6 pb-6">
+        <View className="px-6 pb-6 gap-3">
+          {isVenue && !isEditing ? <FreeAccessNotice /> : null}
+
           <Pressable
             onPress={handlePublish}
             disabled={disabled}

@@ -14,6 +14,7 @@ import { AD_DESCRIPTION_MAX, AD_TITLE_MAX } from '@CeolX/shared/validators';
 import { FieldLabel } from './FieldLabel';
 
 import { CharacterCount, CharacterLimitNote } from '@/components/CharacterCount';
+import { FreeAccessNotice } from '@/components/FreeAccessNotice';
 
 type Props = {
   ticketPrice: string;
@@ -32,6 +33,8 @@ type Props = {
   isPending: boolean;
   isEditing: boolean;
   isVenue?: boolean;
+  /** Shows the free-access notice. Set only from create.tsx — not on edit. */
+  showFreeAccessNotice?: boolean;
 };
 
 export function TicketAdsStep({
@@ -51,6 +54,7 @@ export function TicketAdsStep({
   isPending,
   isEditing,
   isVenue,
+  showFreeAccessNotice,
 }: Props) {
   return (
     <ScrollView
@@ -208,6 +212,8 @@ export function TicketAdsStep({
       )}
 
       {/* ── Gig Opportunity & Collaborators deferred to M5/M6 ── */}
+
+      {isVenue && showFreeAccessNotice ? <FreeAccessNotice /> : null}
 
       {/* ── Buttons ── */}
       <View className="mt-2 flex-row gap-3">

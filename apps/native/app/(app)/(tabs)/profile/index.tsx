@@ -21,6 +21,7 @@ import { AppHeader } from '@/components/AppHeader';
 import { appToast } from '@/components/AppToast';
 import { ConfirmedBookingCard } from '@/components/bookings/ConfirmedBookingCard';
 import { EmptyState } from '@/components/EmptyState';
+import { FreeAccessBadge } from '@/components/FreeAccessNotice';
 import { PostsList } from '@/components/posts/PostsList';
 import { ProfileEventCard } from '@/components/ProfileEventCard';
 import { SegmentControl, ShareProfileButton } from '@/components/profiles';
@@ -133,6 +134,7 @@ function ProfileHeader({
       {/* Name + details */}
       <View className="items-center gap-1.5 mb-3">
         <Text className="text-xl font-bold text-white font-urbanist">{displayName}</Text>
+        {isVenue && <FreeAccessBadge />}
         {isVenue && (venueProfile?.address ?? me.venueAddress) && (
           <View className="flex-row items-start justify-center gap-1 max-w-[292px]">
             <Ionicons

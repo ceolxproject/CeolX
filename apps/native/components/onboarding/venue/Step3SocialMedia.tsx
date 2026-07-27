@@ -1,5 +1,6 @@
 import { Text, View } from 'react-native';
 
+import { FreeAccessNotice } from '@/components/FreeAccessNotice';
 import { VenueLinksSection, type VenueLinks } from '@/components/onboarding/VenueLinksSection';
 
 interface Step3SocialMediaProps {
@@ -22,6 +23,8 @@ export function Step3SocialMedia({
       </Text>
 
       <VenueLinksSection values={venueLinks} errors={errors} onChange={handleVenueLinkChange} />
+
+      <FreeAccessNotice />
 
       {submitError ? (
         <View className="rounded-lg bg-error/15 p-3">
