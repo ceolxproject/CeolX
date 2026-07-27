@@ -11,6 +11,7 @@ import {
   NotificationSurface,
   NotificationTrigger,
 } from '@CeolX/shared';
+import { UserRole } from '@CeolX/shared/enums';
 
 interface SessionLike {
   userId: string;
@@ -77,7 +78,7 @@ async function sendWelcomeOnFirstSession(userId: string): Promise<void> {
       claimed.email,
       buildAppRedirectUrl(env.BETTER_AUTH_URL, inApp.route),
       claimed.name ?? '',
-      claimed.currentRole === 'venue'
+      claimed.currentRole === UserRole.VENUE
     );
   } catch (err) {
     // Release the claim so a later login can retry the welcome. Rethrow so the
