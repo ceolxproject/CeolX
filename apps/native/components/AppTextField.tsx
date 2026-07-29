@@ -1,9 +1,24 @@
 import { Ionicons } from '@expo/vector-icons';
 import { cn } from 'heroui-native';
+import { PostHogMaskView } from 'posthog-react-native';
 import { type ReactNode, useState } from 'react';
 import { Pressable, Text, TextInput, type TextInputProps, View } from 'react-native';
 
 import { CharacterLimitNote } from './CharacterCount';
+
+/**
+ * Hides a password input from session replay, and only a password input.
+ *
+ * `flex: 1` is carried on the wrapper because the TextInput it wraps sits in a
+ * `flex-row` field box and relies on `flex-1` to fill the row — an unstyled
+ * wrapper would collapse the input to its intrinsic width. Non-secure fields get
+ * no wrapper at all, so their layout is byte-identical to before.
+ */
+function MaskWhenSecure({ secure, children }: { secure: boolean; children: ReactNode }) {
+  if (!secure) return <>{children}</>;
+
+  return <PostHogMaskView style={{ flex: 1 }}>{children}</PostHogMaskView>;
+}
 
 export type AppTextFieldVariant = 'light' | 'dark' | 'surface';
 
@@ -104,21 +119,29 @@ export function AppTextField({
         )}
       >
         {leftIcon && <View className="mr-3">{leftIcon}</View>}
-        <TextInput
-          value={value}
-          maxLength={maxLength}
-          className={cn('flex-1', v.input, className)}
-          // The fixed height lives on the container; the TextInput stays at its
-          // intrinsic one-line height and is centered by `items-center`. A
-          // single-line iOS UITextField given a frame taller than its line does
-          // NOT reliably center — it drops the line to the bottom on the first
-          // re-layout (typing). `padding: 0` clears iOS's default content inset.
-          // No `lineHeight`. Mirrors the rock-solid MapSearchBar pattern.
-          style={{ padding: 0 }}
-          placeholderTextColor={v.placeholder}
-          secureTextEntry={secureTextEntry ? !visible : undefined}
-          {...props}
-        />
+        {/* Session replay records the screen unmasked, so a password field would
+            otherwise be captured as plaintext the moment the eye toggle below is
+            tapped. PostHogMaskView redacts just this input in the recording; the
+            wrapper is a plain View when the field isn't secure, so non-password
+            fields are unaffected. Masking happens on-device before upload and
+            cannot be applied retroactively, hence masking at the source. */}
+        <MaskWhenSecure secure={secureTextEntry}>
+          <TextInput
+            value={value}
+            maxLength={maxLength}
+            className={cn('flex-1', v.input, className)}
+            // The fixed height lives on the container; the TextInput stays at its
+            // intrinsic one-line height and is centered by `items-center`. A
+            // single-line iOS UITextField given a frame taller than its line does
+            // NOT reliably center — it drops the line to the bottom on the first
+            // re-layout (typing). `padding: 0` clears iOS's default content inset.
+            // No `lineHeight`. Mirrors the rock-solid MapSearchBar pattern.
+            style={{ padding: 0 }}
+            placeholderTextColor={v.placeholder}
+            secureTextEntry={secureTextEntry ? !visible : undefined}
+            {...props}
+          />
+        </MaskWhenSecure>
         {secureTextEntry ? (
           <Pressable onPress={() => setVisible((s) => !s)} hitSlop={8} className="ml-2 p-1">
             <Ionicons name={visible ? 'eye-outline' : 'eye-off-outline'} size={20} color={v.icon} />
