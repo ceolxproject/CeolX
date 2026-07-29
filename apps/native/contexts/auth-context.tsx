@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import * as SecureStore from 'expo-secure-store';
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 
+import { AnalyticsEvent, identify, resetAnalytics, track } from '@/lib/analytics';
 import { authClient } from '@/lib/auth-client';
 import { signOutGoogle } from '@/lib/google-signin';
 import { installAppStateFocusBridge } from '@/utils/query-focus';
@@ -61,6 +62,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Re-arm the session-expiry latch: this session is valid now, so a later
     // expiry must be allowed to emit again (the latch is one-shot per cycle).
     resetSessionExpired();
+    // Attach analytics to the real user. PostHog merges the anonymous
+    // pre-signup person into this one, which is what makes the signup funnel
+    // measurable end to end. Only ever for an authenticated session — guests
+    // stay anonymous.
+    identify(session.user.id);
   }, [session?.user]);
 
   useEffect(() => {
@@ -89,6 +95,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           await completeRegistration({
             currentRole: parsed.currentRole,
             marketingConsent: parsed.marketingConsent,
+          });
+          track(AnalyticsEvent.SIGNUP_COMPLETED, {
+            role: parsed.currentRole,
+            marketing_consent: parsed.marketingConsent,
           });
           // Refetch users.me so (app)/_layout sees the freshly-written role and
           // routes to artist/venue-onboarding instead of the cached spectator default.
@@ -128,6 +138,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const continueAsGuest = async () => {
     await SecureStore.setItemAsync('isGuest', 'true');
     setIsGuest(true);
+    track(AnalyticsEvent.GUEST_MODE_ENTERED);
   };
 
   const logout = async () => {
@@ -158,6 +169,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // that stale role and sees the artist/venue view until a cold restart wipes
     // the in-memory cache. Clear it here so no prior-account data leaks forward.
     queryClient.clear();
+    // Same reasoning for analytics: without a reset, the next account (or guest)
+    // on this device keeps the previous user's distinct id and their events —
+    // and their session recordings — are attributed to the wrong person. This is
+    // the single teardown path used by both the logout button and the
+    // session-expiry backstop below, so one call here covers both.
+    resetAnalytics();
   };
 
   // Backstop: a protected query that 401s (session revoked server-side while the

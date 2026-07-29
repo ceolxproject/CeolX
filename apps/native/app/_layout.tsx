@@ -15,8 +15,10 @@ import * as Sentry from '@sentry/react-native';
 import { QueryClientProvider } from '@tanstack/react-query';
 import Constants from 'expo-constants';
 import { useFonts } from 'expo-font';
-import { Stack } from 'expo-router';
+import { Stack, usePathname } from 'expo-router';
 import { HeroUINativeProvider } from 'heroui-native';
+import { PostHogProvider } from 'posthog-react-native';
+import type { ReactNode } from 'react';
 import { useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -32,6 +34,7 @@ import { AppToastProvider } from '@/components/AppToast';
 import { FallbackComponent } from '@/components/sentry-fallback';
 import { AppThemeProvider } from '@/contexts/app-theme-context';
 import { AuthProvider } from '@/contexts/auth-context';
+import { posthog, trackScreen } from '@/lib/analytics';
 import { applyPendingUpdate } from '@/lib/check-for-update';
 import { configureGoogleSignIn } from '@/lib/google-signin';
 import { queryClient } from '@/utils/trpc';
@@ -74,6 +77,20 @@ function RootStack() {
   );
 }
 
+// PostHogProvider needs a client, and ours is null when the key is unset or in
+// dev — so pass through untouched rather than mounting a provider with no client.
+// `captureScreens` is off because it only understands React Navigation v6 and
+// below; expo-router screens are tracked manually from usePathname in Layout.
+function AnalyticsProvider({ children }: { children: ReactNode }) {
+  if (!posthog) return <>{children}</>;
+
+  return (
+    <PostHogProvider client={posthog} autocapture={{ captureScreens: false, captureTouches: true }}>
+      {children}
+    </PostHogProvider>
+  );
+}
+
 function Layout() {
   const [fontsLoaded, fontError] = useFonts({
     Anton_400Regular,
@@ -101,6 +118,13 @@ function Layout() {
     void applyPendingUpdate().finally(() => setUpdateChecked(true));
   }, []);
 
+  // Screen tracking. expo-router has no navigation-state callback PostHog can
+  // hook, so the pathname is the signal; record ids are stripped in trackScreen.
+  const pathname = usePathname();
+  useEffect(() => {
+    trackScreen(pathname);
+  }, [pathname]);
+
   // Keep the navigator mounted at ALL times. Returning null here (or in
   // (auth)/_layout while the session resolves) unmounts the navigator and races
   // with Expo Router's cold-start deep-link restoration — that race is what
@@ -113,18 +137,20 @@ function Layout() {
     <QueryClientProvider client={queryClient}>
       <SafeAreaProvider initialMetrics={initialWindowMetrics}>
         <GestureHandlerRootView style={{ flex: 1 }}>
-          <KeyboardProvider>
-            <AppThemeProvider>
-              <HeroUINativeProvider>
-                <AuthProvider>
-                  <BottomSheetModalProvider>
-                    <RootStack />
-                    <AppToastProvider />
-                  </BottomSheetModalProvider>
-                </AuthProvider>
-              </HeroUINativeProvider>
-            </AppThemeProvider>
-          </KeyboardProvider>
+          <AnalyticsProvider>
+            <KeyboardProvider>
+              <AppThemeProvider>
+                <HeroUINativeProvider>
+                  <AuthProvider>
+                    <BottomSheetModalProvider>
+                      <RootStack />
+                      <AppToastProvider />
+                    </BottomSheetModalProvider>
+                  </AuthProvider>
+                </HeroUINativeProvider>
+              </AppThemeProvider>
+            </KeyboardProvider>
+          </AnalyticsProvider>
           {(!fontsReady || !updateChecked) && (
             <View style={[StyleSheet.absoluteFill, { backgroundColor: '#0d0c0f' }]} />
           )}
