@@ -214,6 +214,10 @@ export default (_) => ({
   },
   plugins: [
     'expo-font',
+    // Peer of posthog-react-native — the SDK reads the device locale for the
+    // $locale event property. `expo install` can't append to a dynamic config,
+    // so this entry is added by hand.
+    'expo-localization',
     // Mux HLS video playback in PostCard / post detail (M10-T2). expo-video
     // plays .m3u8 streams natively on iOS + Android; no background playback or
     // picture-in-picture needed for V1, so the bare plugin string is enough.
