@@ -6,6 +6,7 @@ import { MAP_DEBOUNCE_MS } from '@CeolX/shared';
 
 import { mergePaginatedEvents } from './merge-paginated-events';
 
+import { AnalyticsEvent, track } from '@/lib/analytics';
 import { trpc } from '@/utils/trpc';
 
 const FEED_PAGE_SIZE = 20;
@@ -69,6 +70,20 @@ export function useFeedEvents({ lat, lng, enabled = true }: UseFeedEventsOpts) {
     enabled,
     placeholderData: keepPreviousData,
   });
+
+  // Search is live-as-you-type, so the only sane place to record it is once a
+  // settled query has come back — keyed on the trimmed term, not on keystrokes,
+  // which would emit an event per character. The term itself is never sent (it is
+  // user-typed free text); only whether it found anything, which is the actual
+  // question: are people searching for things CeolX does not have?
+  const settledQuery = searchQuery.trim();
+  useEffect(() => {
+    if (!settledQuery || isFetching || !data) return;
+    track(AnalyticsEvent.SEARCH_PERFORMED, {
+      has_results: data.totalCount > 0,
+      filter_type: category ? 'category' : date ? 'date' : 'none',
+    });
+  }, [settledQuery, isFetching, data, category, date]);
 
   // Sync data into accumulated events when data arrives. Must be an effect —
   // calling setState in the render body causes infinite re-renders — but a

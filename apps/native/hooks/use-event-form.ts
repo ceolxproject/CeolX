@@ -16,6 +16,7 @@ import {
 } from '@/hooks/use-event-form.utils';
 import { keyFromCdnUrl, useMediaDelete } from '@/hooks/use-media-delete';
 import { useMediaUpload } from '@/hooks/use-media-upload';
+import { AnalyticsEvent, track } from '@/lib/analytics';
 import { trpc } from '@/utils/trpc';
 
 // ---------------------------------------------------------------------------
@@ -612,6 +613,24 @@ export function useEventForm(options?: UseEventFormOptions) {
         });
       } else {
         await createMutation.mutateAsync(parsed.data);
+        // Both are optional in createEventSchema — invites are not required to
+        // create an event (Asana 1215188774775403).
+        const platformInviteCount = parsed.data.platformInvites?.length ?? 0;
+        const inviteCount =
+          platformInviteCount + (parsed.data.unregisteredCollaborators?.length ?? 0);
+        track(AnalyticsEvent.EVENT_CREATED, {
+          category: parsed.data.category,
+          has_cover_image: !!parsed.data.coverImage,
+          invited_artist_count: inviteCount,
+        });
+        // Invites are optional since the direct-collaborator field was removed
+        // (Asana 1215188774775403), so how often they are actually used is a
+        // product question worth answering rather than assuming.
+        if (inviteCount > 0) {
+          track(AnalyticsEvent.ARTIST_INVITE_SENT, {
+            is_platform_artist: platformInviteCount > 0,
+          });
+        }
       }
     } catch (err) {
       const message =

@@ -11,6 +11,7 @@ import {
   getBoundingBox,
 } from '@CeolX/shared';
 
+import { AnalyticsEvent, track } from '@/lib/analytics';
 import { trpc } from '@/utils/trpc';
 
 export type MapFilters = {
@@ -150,6 +151,15 @@ export function useMapEvents(opts?: UseMapEventsOpts) {
             setExpandedEvents(result.events);
           }
           setExpandExhausted(result.exhausted);
+          if (result.exhausted) {
+            // Exhausted means the whole 5 → 25 → 100km chain came back empty.
+            // The radius is deliberately never shown to the user, but knowing how
+            // often the widest sweep finds nothing is the clearest signal of
+            // whether the launch coverage is thin.
+            track(AnalyticsEvent.MAP_EMPTY_STATE_SHOWN, {
+              final_radius_km: MAP_EXPAND_RADIUS_KM[MAP_EXPAND_RADIUS_KM.length - 1],
+            });
+          }
         }
       })
       .catch((err: unknown) => {

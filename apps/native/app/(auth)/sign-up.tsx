@@ -14,6 +14,7 @@ import { CheckboxField } from '@/components/CheckboxField';
 import { SocialLoginButtons } from '@/components/SocialLoginButtons';
 import { useAuth } from '@/contexts/auth-context';
 import { useSocialAuth } from '@/hooks/use-social-auth';
+import { AnalyticsEvent, track } from '@/lib/analytics';
 import { authClient } from '@/lib/auth-client';
 
 type Role = 'spectator' | 'artist' | 'venue';
@@ -100,6 +101,7 @@ export default function SignUpScreen() {
         );
       }
 
+      track(AnalyticsEvent.SIGNUP_SUBMITTED, { role: currentRole, method: 'email' });
       await SecureStore.setItemAsync('pendingVerificationEmail', normalizedEmail);
       router.replace('/(auth)/verify-email');
     } finally {
@@ -118,6 +120,7 @@ export default function SignUpScreen() {
       return;
     }
     const opts = { currentRole, marketingConsent: marketingOptIn };
+    track(AnalyticsEvent.SIGNUP_SUBMITTED, { role: currentRole, method: provider });
     if (provider === 'google') {
       void signInWithGoogle(opts);
     } else {

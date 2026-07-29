@@ -23,6 +23,13 @@ vi.mock('@/utils/trpc', () => ({
   },
 }));
 vi.mock('react-native-maps', () => ({}));
+// The hook emits map_empty_state_shown. Importing the real module pulls in
+// posthog-react-native and @CeolX/env/native, whose schema requires
+// EXPO_PUBLIC_SERVER_URL and throws at import when it is unset.
+vi.mock('@/lib/analytics', () => ({
+  AnalyticsEvent: { MAP_EMPTY_STATE_SHOWN: 'map_empty_state_shown' },
+  track: vi.fn(),
+}));
 vi.mock('@CeolX/shared', () => ({
   MAP_DEBOUNCE_MS: 400,
   MAP_MAX_PINS_PER_FETCH: 50,

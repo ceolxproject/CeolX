@@ -8,6 +8,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { AppHeader } from '@/components/AppHeader';
 import { CeolxLogo } from '@/components/CeolxLogo';
 import { ArtistIcon, SpectatorIcon, VenueIcon } from '@/components/icons/PersonaIcons';
+import { AnalyticsEvent, track } from '@/lib/analytics';
 
 // ── Types ────────────────────────────────────────────────────────────
 
@@ -91,6 +92,9 @@ export default function WhoAreYouScreen() {
 
   const handleSelect = (role: Role) => {
     setSelected(role);
+    // Top of the signup funnel. Fires pre-auth and anonymously; identify() later
+    // merges this person into the real user, so the funnel joins up.
+    track(AnalyticsEvent.SIGNUP_STARTED, { role });
     setTimeout(() => {
       router.push(`/(auth)/sign-up?role=${role}`);
     }, 150);

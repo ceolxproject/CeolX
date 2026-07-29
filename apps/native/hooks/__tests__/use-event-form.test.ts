@@ -23,6 +23,13 @@ vi.mock('@/components/AppToast', () => ({
 vi.mock('@/hooks/use-media-delete', () => ({ keyFromCdnUrl: vi.fn(), useMediaDelete: vi.fn() }));
 vi.mock('@/hooks/use-media-upload', () => ({ useMediaUpload: vi.fn() }));
 vi.mock('@/utils/trpc', () => ({ trpc: {} }));
+// The hook emits event_created / artist_invite_sent. Importing the real module
+// pulls in posthog-react-native and @CeolX/env/native, whose schema requires
+// EXPO_PUBLIC_SERVER_URL and throws at import when it is unset.
+vi.mock('@/lib/analytics', () => ({
+  AnalyticsEvent: { EVENT_CREATED: 'event_created', ARTIST_INVITE_SENT: 'artist_invite_sent' },
+  track: vi.fn(),
+}));
 
 import { endTimeBeforeStartError } from '../use-event-form';
 

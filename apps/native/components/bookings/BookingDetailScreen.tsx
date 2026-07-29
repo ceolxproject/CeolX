@@ -17,6 +17,7 @@ import {
 } from '@/components/requests/RequestActions';
 import { useResendBooking } from '@/hooks/use-resend-booking';
 import { useUpdateBooking } from '@/hooks/use-update-booking';
+import { AnalyticsEvent, track } from '@/lib/analytics';
 import { authClient } from '@/lib/auth-client';
 import { getBookingActionErrorBody } from '@/utils/booking-error';
 import { formatEventDate } from '@/utils/format-event-date';
@@ -47,6 +48,10 @@ export function BookingDetailScreen() {
       setPendingAction(copy.action);
       try {
         await updateBooking.mutateAsync({ id: bookingId, status });
+        // `direction` records which side of the booking the responder sits on —
+        // a venue accepting an artist's request and an artist accepting a venue's
+        // invite are the same status but very different funnels.
+        track(AnalyticsEvent.BOOKING_RESPONDED, { decision: status, direction: userRole });
         appToast.success(copy.success);
       } catch (err) {
         appToast.error(copy.error, getBookingActionErrorBody(err));
@@ -54,7 +59,7 @@ export function BookingDetailScreen() {
         setPendingAction(null);
       }
     },
-    [bookingId, updateBooking]
+    [bookingId, updateBooking, userRole]
   );
 
   const handleResend = useCallback(async () => {

@@ -11,6 +11,7 @@ import { UserRole } from '@CeolX/shared/enums';
 import { AppButton } from '@/components/AppButton';
 import { appToast } from '@/components/AppToast';
 import { CeolxLogo } from '@/components/CeolxLogo';
+import { AnalyticsEvent, track } from '@/lib/analytics';
 import { authClient } from '@/lib/auth-client';
 import { openEmailApp } from '@/utils/open-email-app';
 import { trpc } from '@/utils/trpc';
@@ -30,6 +31,13 @@ export default function VerifyEmailScreen() {
   const { mutateAsync: completeRegistration } = useMutation(
     trpc.users.completeRegistration.mutationOptions()
   );
+
+  // Signup funnel step. No `role` property — it lives in SecureStore behind an
+  // async read, and PostHog can join this to signup_started on the same person
+  // anyway, so reading it here would be code for data we already have.
+  useEffect(() => {
+    track(AnalyticsEvent.EMAIL_VERIFICATION_OPENED);
+  }, []);
 
   // Load pending email from SecureStore (set during sign-up)
   useEffect(() => {
@@ -81,6 +89,15 @@ export default function VerifyEmailScreen() {
           currentRole = pending.currentRole;
           try {
             await completeRegistration({ currentRole, marketingConsent: pending.marketingConsent });
+            // The email-verified path completes registration here rather than in
+            // auth-context, and consumes pendingRegistration on the way — so
+            // without this the whole email signup flow would never record a
+            // completion. The two paths are mutually exclusive (auth-context only
+            // runs when this one left the key behind), so this cannot double-fire.
+            track(AnalyticsEvent.SIGNUP_COMPLETED, {
+              role: currentRole,
+              marketing_consent: pending.marketingConsent,
+            });
           } catch {
             // completeRegistration failed — role is already set by BetterAuth.
             // Leave pendingRegistration in SecureStore so auth-context retries on next session.

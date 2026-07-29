@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { appToast } from '@/components/AppToast';
+import { AnalyticsEvent, track } from '@/lib/analytics';
 import { trpc } from '@/utils/trpc';
 
 export function useRequestToPerform() {
@@ -17,7 +18,8 @@ export function useRequestToPerform() {
 
   const { mutate, isPending: isRequesting } = useMutation(
     trpc.bookings.requestToPerform.mutationOptions({
-      onSuccess: () => {
+      onSuccess: (_data, variables) => {
+        track(AnalyticsEvent.PERFORMANCE_REQUEST_SENT, { event_id: variables.eventId });
         appToast.success('Request Sent!', 'The venue will review your request.');
         refreshRequestState();
       },

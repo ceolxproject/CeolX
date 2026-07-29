@@ -15,6 +15,7 @@ import { useAuth } from '@/contexts/auth-context';
 import { useMediaUpload } from '@/hooks/use-media-upload';
 import { useOnboardingDraft } from '@/hooks/use-onboarding-draft';
 import { useUsernameField, type UsernameStatus } from '@/hooks/use-username-field';
+import { AnalyticsEvent, track } from '@/lib/analytics';
 import { authClient } from '@/lib/auth-client';
 import { computeStepErrors } from '@/lib/onboarding-validation';
 import { pickSquarePhoto, requestPhotoLibraryPermission } from '@/utils/image-picker';
@@ -255,6 +256,8 @@ export function useVenueOnboarding(): UseVenueOnboardingReturn {
     const stepValid = validateStep(currentStep, newTouched);
     const usernameOk = currentStep !== 1 || username.canSubmit;
     if (stepValid && usernameOk) {
+      // Only on a validated advance — see the artist hook for the reasoning.
+      track(AnalyticsEvent.ONBOARDING_STEP_COMPLETED, { role: 'venue', step: currentStep });
       setCurrentStep((s) => (s + 1) as Step);
     }
   };

@@ -16,6 +16,7 @@ import { initialStageName } from '@/hooks/use-artist-onboarding.utils';
 import { useMediaUpload } from '@/hooks/use-media-upload';
 import { useOnboardingDraft } from '@/hooks/use-onboarding-draft';
 import { useUsernameField } from '@/hooks/use-username-field';
+import { AnalyticsEvent, track } from '@/lib/analytics';
 import { authClient } from '@/lib/auth-client';
 import { computeStepErrors } from '@/lib/onboarding-validation';
 import { pickSquarePhoto, requestPhotoLibraryPermission } from '@/utils/image-picker';
@@ -187,6 +188,9 @@ export function useArtistOnboarding() {
     const stepValid = validateStep(currentStep, newTouched);
     const usernameOk = currentStep !== 1 || username.canSubmit;
     if (stepValid && usernameOk) {
+      // Only on a validated advance, so an abandoned step that failed validation
+      // isn't recorded as completed — the drop-off is the signal we want here.
+      track(AnalyticsEvent.ONBOARDING_STEP_COMPLETED, { role: 'artist', step: currentStep });
       setCurrentStep((s) => (s + 1) as Step);
     }
   };
