@@ -21,6 +21,23 @@ export const env = createEnv({
     // Google Sign-In SDK returns (configureGoogleSignIn). Optional so dev/Expo
     // Go builds without it still boot; native Google is disabled when unset.
     EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID: z.string().optional(),
+    // PostHog project API key. Optional — analytics is disabled entirely when
+    // unset, so Expo Go and fresh clones boot without it.
+    EXPO_PUBLIC_POSTHOG_KEY: z.string().optional(),
+    // EU Cloud for GDPR (Irish client). Defaulted rather than required so a
+    // missing value can never silently ship EU data to the US region.
+    EXPO_PUBLIC_POSTHOG_HOST: z.url().default('https://eu.i.posthog.com'),
+    // Session replay kill switch, separate from the key so analytics can ship
+    // and be verified before replay is switched on. Masking is applied on-device
+    // before upload and is NOT retroactive, so replay stays off until the
+    // masking has been eyeballed on a non-production project.
+    EXPO_PUBLIC_POSTHOG_REPLAY: z.enum(['true', 'false']).default('false'),
+    // Local-only escape hatch. Analytics is off in __DEV__ so day-to-day dev
+    // never pollutes the project, but that also makes it impossible to verify a
+    // newly-wired event without a release build. Set this to 'true' in
+    // .env.development.local (gitignored, machine-specific) to capture from a dev
+    // client. Never set it in .env.staging / .env.production.
+    EXPO_PUBLIC_POSTHOG_DEV_CAPTURE: z.enum(['true', 'false']).default('false'),
   },
   // Metro's babel-preset-expo only inlines static `process.env.EXPO_PUBLIC_*`
   // accesses at build time. `runtimeEnv: process.env` passes the whole object
@@ -33,6 +50,10 @@ export const env = createEnv({
     EXPO_PUBLIC_SHARE_BASE_URL: process.env.EXPO_PUBLIC_SHARE_BASE_URL,
     EXPO_PUBLIC_CLOUDFRONT_DOMAIN: process.env.EXPO_PUBLIC_CLOUDFRONT_DOMAIN,
     EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
+    EXPO_PUBLIC_POSTHOG_KEY: process.env.EXPO_PUBLIC_POSTHOG_KEY,
+    EXPO_PUBLIC_POSTHOG_HOST: process.env.EXPO_PUBLIC_POSTHOG_HOST,
+    EXPO_PUBLIC_POSTHOG_REPLAY: process.env.EXPO_PUBLIC_POSTHOG_REPLAY,
+    EXPO_PUBLIC_POSTHOG_DEV_CAPTURE: process.env.EXPO_PUBLIC_POSTHOG_DEV_CAPTURE,
   },
   emptyStringAsUndefined: true,
 });
