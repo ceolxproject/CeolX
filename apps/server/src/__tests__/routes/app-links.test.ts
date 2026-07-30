@@ -38,6 +38,12 @@ describe('GET /.well-known/apple-app-site-association', () => {
 
     expect(res.status).toBe(200);
     expect(res.headers.get('content-type')).toMatch(/application\/json/);
+    // Asserted as a literal, not via the route's own constant — importing that
+    // would test it against itself. Trimming s-maxage/SWR here regressed App
+    // Links verification once; this is the guard.
+    expect(res.headers.get('cache-control')).toBe(
+      'public, max-age=86400, s-maxage=86400, stale-while-revalidate=604800'
+    );
 
     const body = (await res.json()) as Aasa;
     const detail = body.applinks.details[0];
@@ -59,6 +65,9 @@ describe('GET /.well-known/assetlinks.json', () => {
     const res = await buildApp().request('/.well-known/assetlinks.json');
     expect(res.status).toBe(200);
     expect(res.headers.get('content-type')).toMatch(/application\/json/);
+    expect(res.headers.get('cache-control')).toBe(
+      'public, max-age=86400, s-maxage=86400, stale-while-revalidate=604800'
+    );
 
     const body = (await res.json()) as AssetLinks;
     expect(Array.isArray(body)).toBe(true);
