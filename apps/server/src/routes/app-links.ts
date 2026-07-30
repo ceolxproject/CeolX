@@ -40,10 +40,11 @@ const PROD_ANDROID_SHA256 =
 const LINK_PATH_GLOBS = ['/post/*', '/event/*', '/u/*'];
 
 // Both files are fetched by Google/Apple verification crawlers on a tight
-// deadline. s-maxage keeps a warm copy on Vercel's edge so the crawler never
-// hits a cold Lambda (which timed out → deadline_exceeded → App Links unverified);
-// stale-while-revalidate serves the cached copy instantly while refreshing in the
-// background, so even a post-expiry crawl never blocks on the function.
+// deadline, and a cold start here once timed out → deadline_exceeded → App Links
+// unverified. s-maxage keeps a warm copy on api.ceolx.com's edge so a cached PoP
+// answers the crawler without invoking the function; stale-while-revalidate keeps
+// answering from cache past expiry while refreshing behind the request. The first
+// crawl per PoP after each deploy still cold-starts — this shrinks the window.
 const WELL_KNOWN_CACHE_CONTROL =
   'public, max-age=86400, s-maxage=86400, stale-while-revalidate=604800';
 
