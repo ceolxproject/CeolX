@@ -1,7 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "installCommand": "pnpm install",
-  "buildCommand": "cd ../.. && pnpm turbo build --filter={./apps/admin}...",
+  "buildCommand": "cd ../.. && pnpm turbo build --filter={./apps/admin}... --force",
   "outputDirectory": "dist",
   "rewrites": [
     { "source": "/.well-known/:path*", "destination": "https://api.ceolx.com/.well-known/:path*" },
