@@ -27,6 +27,28 @@ function localDayWindowSeconds(ymd: string): { dayStart: number; dayEnd: number 
   };
 }
 
+/**
+ * Whether a settled search result should emit `search_performed`.
+ *
+ * Exported for test: `offset` is part of the feed query key, so every page of an
+ * infinite scroll hands the effect a fresh result with the term unchanged. Without
+ * the first-page and already-reported guards, scrolling five pages emits five
+ * events — and page 2+ always has results, which biases the one thing the event
+ * measures ("are people searching for things CeolX does not have?") toward success.
+ */
+export function shouldReportSearch(args: {
+  settledQuery: string;
+  isFetching: boolean;
+  hasData: boolean;
+  offset: number;
+  searchKey: string;
+  lastReported: string | null;
+}): boolean {
+  if (!args.settledQuery || args.isFetching || !args.hasData) return false;
+  if (args.offset !== 0) return false;
+  return args.lastReported !== args.searchKey;
+}
+
 export type UseFeedEventsOpts = {
   lat: number;
   lng: number;
@@ -77,13 +99,26 @@ export function useFeedEvents({ lat, lng, enabled = true }: UseFeedEventsOpts) {
   // user-typed free text); only whether it found anything, which is the actual
   // question: are people searching for things CeolX does not have?
   const settledQuery = searchQuery.trim();
+  // Keyed on term + filters so changing a filter still counts as a new search, but
+  // paginating the same one does not. See shouldReportSearch above for why.
+  const searchKey = `${settledQuery}|${category ?? ''}|${date ?? ''}`;
+  const reportedSearchRef = useRef<string | null>(null);
   useEffect(() => {
-    if (!settledQuery || isFetching || !data) return;
+    const report = shouldReportSearch({
+      settledQuery,
+      isFetching,
+      hasData: !!data,
+      offset,
+      searchKey,
+      lastReported: reportedSearchRef.current,
+    });
+    if (!report || !data) return;
+    reportedSearchRef.current = searchKey;
     track(AnalyticsEvent.SEARCH_PERFORMED, {
       has_results: data.totalCount > 0,
       filter_type: category ? 'category' : date ? 'date' : 'none',
     });
-  }, [settledQuery, isFetching, data, category, date]);
+  }, [settledQuery, isFetching, data, category, date, offset, searchKey]);
 
   // Sync data into accumulated events when data arrives. Must be an effect —
   // calling setState in the render body causes infinite re-renders — but a
