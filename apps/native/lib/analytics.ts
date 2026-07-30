@@ -1,3 +1,4 @@
+import * as Sentry from '@sentry/react-native';
 import PostHog from 'posthog-react-native';
 
 import { env } from '@CeolX/env/native';
@@ -30,40 +31,81 @@ if (__DEV__ && !env.EXPO_PUBLIC_POSTHOG_KEY) {
   );
 }
 
-export const posthog = enabled
-  ? new PostHog(env.EXPO_PUBLIC_POSTHOG_KEY as string, {
-      host: env.EXPO_PUBLIC_POSTHOG_HOST,
-      // Verbose SDK logging when capturing from a dev client — without it there is
-      // no way to tell "event sent" from "event silently dropped" locally. Never
-      // on in production, where it would be noise on every capture.
-      debug: devCapture,
-      // Send immediately in dev instead of batching at 20 events, so a single
-      // tapped flow shows up in PostHog straight away rather than sitting in the
-      // queue. Production keeps the default batching to save battery.
-      ...(devCapture ? { flushAt: 1 } : {}),
-      // Replay is gated separately from the key: masking is applied on-device
-      // before upload and cannot be corrected afterwards, so anything captured
-      // wrong is stored wrong permanently. Off until verified on a non-prod project.
-      //
-      // Turning this on ALSO requires installing @posthog/react-native-plugin
-      // (native iOS/Android code — needs a rebuild and a fresh dev client) and
-      // enabling "Record user sessions" in PostHog Project Settings. With the flag
-      // off, this option is inert and the app stays pure JS.
-      enableSessionReplay: env.EXPO_PUBLIC_POSTHOG_REPLAY === 'true',
-      sessionReplayConfig: {
-        // Record the screen as-is — decision 28/07/2026. Unmasked replay is the
-        // point of the integration here: masked images make a visual app
-        // (event covers, artist photos, the map) useless to review.
-        // Passwords are the one exception and are masked at the input itself
-        // via PostHogMaskView in AppTextField — AppTextField has an eye toggle
-        // that renders the password as plaintext, which screenshot-mode replay
-        // would otherwise capture.
-        maskAllTextInputs: false,
-        maskAllImages: false,
-        maskAllSandboxedViews: false,
-      },
-    })
-  : null;
+function createClient(): PostHog | null {
+  if (!enabled) return null;
+  try {
+    return buildClient();
+  } catch (err) {
+    // This runs at import time from the root layout, i.e. before Sentry.init and
+    // outside any ErrorBoundary — a throw here is a white screen at launch, not a
+    // fallback screen, and it cannot be reported. The SDK can throw for reasons
+    // that have nothing to do with us (no storage backend available if a native
+    // dep failed to link), so it is caught and dropped: analytics is never worth
+    // the app not booting. Visible in dev only; a production construction failure
+    // is silent, which is the accepted trade for guaranteed boot.
+    if (__DEV__) console.error('PostHog client construction failed', err);
+    return null;
+  }
+}
+
+function buildClient(): PostHog {
+  const client = new PostHog(env.EXPO_PUBLIC_POSTHOG_KEY as string, {
+    host: env.EXPO_PUBLIC_POSTHOG_HOST,
+    // Send immediately in dev instead of batching at 20 events, so a single
+    // tapped flow shows up in PostHog straight away rather than sitting in the
+    // queue. Production keeps the default batching to save battery.
+    ...(devCapture ? { flushAt: 1 } : {}),
+    // Replay is gated separately from the key: masking is applied on-device
+    // before upload and cannot be corrected afterwards, so anything captured
+    // wrong is stored wrong permanently. Off until verified on a non-prod project.
+    //
+    // Turning this on ALSO requires installing @posthog/react-native-plugin
+    // (native iOS/Android code — needs a rebuild and a fresh dev client) and
+    // enabling "Record user sessions" in PostHog Project Settings. With the flag
+    // off, this option is inert and the app stays pure JS.
+    enableSessionReplay: env.EXPO_PUBLIC_POSTHOG_REPLAY === 'true',
+    sessionReplayConfig: {
+      // Record the screen as-is — decision 28/07/2026. Unmasked replay is the
+      // point of the integration here: masked images make a visual app
+      // (event covers, artist photos, the map) useless to review.
+      // Passwords are the one exception and are masked at the input itself
+      // via PostHogMaskView in AppTextField — AppTextField has an eye toggle
+      // that renders the password as plaintext, which screenshot-mode replay
+      // would otherwise capture.
+      maskAllTextInputs: false,
+      maskAllImages: false,
+      maskAllSandboxedViews: false,
+    },
+  });
+
+  // Verbose SDK logging when capturing from a dev client — without it there is no
+  // way to tell "event sent" from "event silently dropped" locally. Never on in
+  // production, where it would be noise on every capture.
+  //
+  // NOT a constructor option: `debug` is a PostHogProvider prop, so passing it in
+  // the options object was accepted by the spread-widened literal and then ignored
+  // — dev logging never actually turned on. `debug()` is the real switch.
+  if (devCapture) client.debug(true);
+
+  return client;
+}
+
+export const posthog = createClient();
+
+/**
+ * Analytics must never abort the caller. Every `track` site sits immediately
+ * before the navigation, toast or state update it accompanies, so an SDK throw
+ * would strand the user mid-flow — a failed capture on signup would leave the
+ * account created but the user on a dead screen. `?.` only guards a null client,
+ * not a throwing one, so the call itself is wrapped and reported instead.
+ */
+function safely(op: string, fn: () => void): void {
+  try {
+    fn();
+  } catch (err) {
+    Sentry.captureException(err, { tags: { feature: 'analytics', op } });
+  }
+}
 
 // ── Events ───────────────────────────────────────────────────────────
 // The whole set. Nothing outside this object is emitted; referencing names from
@@ -112,7 +154,7 @@ export type AnalyticsEventName = (typeof AnalyticsEvent)[keyof typeof AnalyticsE
 type AnalyticsProperties = Record<string, string | number | boolean | null>;
 
 export function track(event: AnalyticsEventName, properties?: AnalyticsProperties): void {
-  posthog?.capture(event, properties);
+  safely(event, () => posthog?.capture(event, properties));
 }
 
 /**
@@ -121,7 +163,7 @@ export function track(event: AnalyticsEventName, properties?: AnalyticsPropertie
  * person into this one, which is what makes the signup funnel measurable.
  */
 export function identify(userId: string): void {
-  posthog?.identify(userId);
+  safely('identify', () => posthog?.identify(userId));
 }
 
 /**
@@ -129,7 +171,7 @@ export function identify(userId: string): void {
  * attributed to the previous user. Belongs in every logout path.
  */
 export function resetAnalytics(): void {
-  posthog?.reset();
+  safely('reset', () => posthog?.reset());
 }
 
 // ── Screen tracking ──────────────────────────────────────────────────
@@ -157,6 +199,10 @@ export function collapseRoute(pathname: string): string {
 
 export function trackScreen(pathname: string): void {
   // Fire-and-forget: the SDK queues and retries internally, and a failed screen
-  // event must never surface to the caller mid-navigation.
-  void posthog?.screen(collapseRoute(pathname));
+  // event must never surface to the caller mid-navigation. `screen()` is async, so
+  // the rejection needs an explicit catch — `void` alone only silences the lint
+  // rule and would leave an unhandled rejection on every navigation.
+  safely('screen', () => {
+    posthog?.screen(collapseRoute(pathname)).catch(() => {});
+  });
 }

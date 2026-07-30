@@ -4,6 +4,10 @@ import { describe, expect, it, vi } from 'vitest';
 // the client is a no-op in tests anyway (no key). Only collapseRoute is under
 // test here — it is the one piece with real branching logic.
 vi.mock('posthog-react-native', () => ({ default: vi.fn() }));
+// Same reason: @sentry/react-native re-exports react-native, whose index.js uses
+// Flow's `import typeof` syntax that vite cannot parse. analytics.ts imports Sentry
+// to report a throwing capture, so the module can't load here without this.
+vi.mock('@sentry/react-native', () => ({ captureException: vi.fn() }));
 vi.mock('@CeolX/env/native', () => ({
   env: { EXPO_PUBLIC_POSTHOG_KEY: undefined, EXPO_PUBLIC_POSTHOG_HOST: 'https://eu.i.posthog.com' },
 }));
