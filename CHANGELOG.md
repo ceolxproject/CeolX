@@ -1,17 +1,204 @@
 # Changelog
 
+<a name="1.0.13"></a>
+
+## 1.0.13 (2026-07-30)
+
+### Added
+
+- ✨ feat(native): block a production release with no posthog key [[7f76b2f](https://github.com/Raft-Labs/CeolX/commit/7f76b2f0c8a43b7cf7f60985407f2d57aeedc830)]
+- ✨ feat(native): emit signup, discovery, creation and booking events [[21c8a96](https://github.com/Raft-Labs/CeolX/commit/21c8a96e5485bfb2217d897fe52f0350ea56b055)]
+- ✨ feat(native): mask password inputs in session replay [[578820a](https://github.com/Raft-Labs/CeolX/commit/578820abe3a8afb3f61519f1ebb7f965226ab0b1)]
+- ✨ feat(native): wire posthog provider, screen tracking and identify [[4771e88](https://github.com/Raft-Labs/CeolX/commit/4771e885b3081b080d96b9a1212a558411709cca)]
+- ✨ feat(native): add analytics client and event catalogue [[d2a41a9](https://github.com/Raft-Labs/CeolX/commit/d2a41a99e911491232c4c18cbd0171305a508339)]
+- 👷‍♂️ build(native): add posthog sdk and expo peers [[e1ccd8e](https://github.com/Raft-Labs/CeolX/commit/e1ccd8e551cb0bbc11ac70bd3beebe8dc6fff5cd)]
+- ✨ feat(env): add posthog config to native env schema [[4426074](https://github.com/Raft-Labs/CeolX/commit/44260748a275f31f40baf4a8e82eed454c34ff82)]
+- ✅ test(server): pin the well-known cache-control header [[f66b941](https://github.com/Raft-Labs/CeolX/commit/f66b941dddf280b6597be61d589ba141277b129c)]
+- ✨ feat(native): show interim free-access notice across venue flows [[fe2ab3b](https://github.com/Raft-Labs/CeolX/commit/fe2ab3bb10fa1fa3a21da899588f2b6b70968ca3)]
+- ✨ feat(auth): pass venue flag to welcome email on first login [[108c699](https://github.com/Raft-Labs/CeolX/commit/108c699831f1b17b07f862d5154825cdbb5545f4)]
+- ✨ feat(email): add free-access line to venue welcome emails [[2747712](https://github.com/Raft-Labs/CeolX/commit/274771217c3412715318bcb40364c8d2a633701c)]
+- ✨ feat(native): send feed location to posts feed, dedupe paged rows [[aa39336](https://github.com/Raft-Labs/CeolX/commit/aa393362ea35ce0274facc82fd78ffb34393bb98)]
+- ✨ feat(api): rank browse posts feed, keep search newest-first [[32490ca](https://github.com/Raft-Labs/CeolX/commit/32490caad61dae596c1542ec0ebb9b309bc139ac)]
+- ✨ feat(api): add post feed ranking (recency + followed + proximity) [[16953ab](https://github.com/Raft-Labs/CeolX/commit/16953ab2de8e5692f24d16d6eec4a154eeaba045)]
+- ✨ feat(shared): add optional viewer lat/lng to post feed query schema [[0663c82](https://github.com/Raft-Labs/CeolX/commit/0663c821f742fddf05c0e809412a2eab62236017)]
+- ✨ feat(native): open artist or venue profile when tapping its search suggestion [[8719699](https://github.com/Raft-Labs/CeolX/commit/871969911620143cb64e8dd3d5416954964732c1)]
+- ✨ feat(native): show event description on booking request screen [[6a59a38](https://github.com/Raft-Labs/CeolX/commit/6a59a38f82209a84015bdcd0268078e6fd1aaa62)]
+- ✨ feat(native): open venue profile from search suggestions [[e132476](https://github.com/Raft-Labs/CeolX/commit/e1324761ff54e9ad07d14a815a2ddd0bc2eb411b)]
+- ✅ test(api): add cover image to event-create fixtures for required-cover schema [[60bc072](https://github.com/Raft-Labs/CeolX/commit/60bc072864f009f1c7f86e2256e239b02c19a166)]
+- ✨ feat(api): include event description in booking summary [[77cf320](https://github.com/Raft-Labs/CeolX/commit/77cf320aef4c08dec18246888e6a5c41c2b4eab9)]
+- ✨ feat(api): search events by venue name and return venue suggestions [[bb483f5](https://github.com/Raft-Labs/CeolX/commit/bb483f5de09900ff6f1d2c34a1cf87cdc32efd51)]
+- ✨ feat(shared): add venue suggestion id, booking description, require event cover [[6df681d](https://github.com/Raft-Labs/CeolX/commit/6df681d41a64087166332239844f7123c0a3f79d)]
+
+### Changed
+
+- 🚚 chore(native): document and encrypt posthog env vars [[63764a4](https://github.com/Raft-Labs/CeolX/commit/63764a48874b66c5c8109746e01be60e148e9515)]
+- ♻️ refactor(auth): compare against the venue role enum, not a raw string [[96b3d3e](https://github.com/Raft-Labs/CeolX/commit/96b3d3ee382f5618e47abace97f379b6da69b0e8)]
+- 💄 style(native): use plain language in delete-account confirmation copy [[f11c0f9](https://github.com/Raft-Labs/CeolX/commit/f11c0f960368e6a248aa6309103e0a18ff421da6)]
+- ♻️ refactor(native): run name search from a suggestion tap, keep profile as a shortcut [[cc949d2](https://github.com/Raft-Labs/CeolX/commit/cc949d2e955ea42b585c2588f053c2fc018d5498)]
+- 🚚 chore(native): remove orphaned mock image assets [[0f94f24](https://github.com/Raft-Labs/CeolX/commit/0f94f24f303e920727445a73030510df6e46d95e)]
+- ♻️ refactor(native): split map pin into a top-level component to stop effect remounts [[8978b15](https://github.com/Raft-Labs/CeolX/commit/8978b15028fcddc3f6e8c7f5e076af796490f6de)]
+- ♻️ refactor(native): replace mock placeholder images with icon fallbacks [[49c6a30](https://github.com/Raft-Labs/CeolX/commit/49c6a30728060a37a043565c24985d66b9765368)]
+- 💄 style(native): mark the handle field as required [[a3fb79e](https://github.com/Raft-Labs/CeolX/commit/a3fb79e228263563ddbbcc12fd9c881f70e501f1)]
+
+### Fixed
+
+- 🐛 fix(ci): force turbo rebuild so vercel stops serving a stale bundle [[35e5438](https://github.com/Raft-Labs/CeolX/commit/35e5438628a45f33b89e9a5cfd0d1b5c42e6be72)]
+- 🐛 fix(native): emit search_performed once per search, not per page [[b1aeba9](https://github.com/Raft-Labs/CeolX/commit/b1aeba9f5a30058103799826deb7a3e451135cd7)]
+- 🐛 fix(env): degrade unreadable posthog flags instead of failing boot [[fa959f9](https://github.com/Raft-Labs/CeolX/commit/fa959f9505014bcdc0ddd987e6ba41ddae601f0f)]
+- 🐛 fix(native): stop analytics failures from breaking user flows [[dc496a9](https://github.com/Raft-Labs/CeolX/commit/dc496a905249b5100ff7d87a2cde8a2fc6b1cd4a)]
+- 🐛 fix(server): edge-cache well-known files to avoid verification crawler timeouts [[bd95d19](https://github.com/Raft-Labs/CeolX/commit/bd95d192a04973fd91696c6aef3bd5d2f8f1b570)]
+- 🐛 fix(native): add a param signature to the use-me test query mock [[e10891b](https://github.com/Raft-Labs/CeolX/commit/e10891bb1c03d2dd23ac8e11ec7a9270bd3c480f)]
+- 🐛 fix(native): type event-detail related-route prop as a route-literal union [[02ca01e](https://github.com/Raft-Labs/CeolX/commit/02ca01ed9d4979ddf8fcbdfac0c46620c79eec92)]
+- 🐛 fix(email): expose built .d.ts via types export condition [[6f3965b](https://github.com/Raft-Labs/CeolX/commit/6f3965b89cd9254b6082da463aa9b94b7d0c2ac8)]
+- 🐛 fix(api): use now-relative dates in collection-byid-archived test [[f20fcc5](https://github.com/Raft-Labs/CeolX/commit/f20fcc5e6d9b99d9d98e3729cae4e73c13b5c68e)]
+- 🐛 fix(server): point geocoding key at a billed gcp project [[aae1ce8](https://github.com/Raft-Labs/CeolX/commit/aae1ce8ab034e3757f56ceac01c1413925396f8d)]
+- 🐛 fix(native): use neutral continue label on location permission cta [[a0e0440](https://github.com/Raft-Labs/CeolX/commit/a0e0440ff5470057da8851ac9ced1f6547d9a6a7)]
+- 🐛 fix(api): show all events for an explicit search, ignoring the browse radius [[04bdbbb](https://github.com/Raft-Labs/CeolX/commit/04bdbbb4d867a884afae72b58386656cab72b780)]
+- 🐛 fix(api): stop hiding subscription-inactive venues from search [[7ccd545](https://github.com/Raft-Labs/CeolX/commit/7ccd545a8fa62cb6c4dcaad820e421d47ecd0e8e)]
+- 🐛 fix(native): require event cover on create only, keep edit optional [[5eaa397](https://github.com/Raft-Labs/CeolX/commit/5eaa397ac11481293b81b8b63c4d890295e84795)]
+- 🐛 fix(native): drop stale archived badge from past profile events [[29d90fa](https://github.com/Raft-Labs/CeolX/commit/29d90fae027aa9983e9223693311825c22df0ee9)]
+- 🐛 fix(native): require a cover image when creating an event [[d27fe3c](https://github.com/Raft-Labs/CeolX/commit/d27fe3cb65e35435e921d7c4315b52c801c19bc7)]
+- 🐛 fix(native): hide ticket, perform and calendar actions on past events [[a62c8f1](https://github.com/Raft-Labs/CeolX/commit/a62c8f16e39e16fdc8bf912763290423a3285c4f)]
+- 🐛 fix(native): close settings sheet on android back instead of leaving the screen [[a60a7c1](https://github.com/Raft-Labs/CeolX/commit/a60a7c1f50956f14f1d936512d55340c339a83e0)]
+- 🐛 fix(native): clarify ios permission purpose strings for app review [[124cc31](https://github.com/Raft-Labs/CeolX/commit/124cc31e1f4478a67fafb60a2a7914e12130a074)]
+- 🐛 fix(native): make claim-handle sheet responsive and keyboard-safe [[7b7490d](https://github.com/Raft-Labs/CeolX/commit/7b7490d59581f333ec1b6dea1bc60d395c3d8cc8)]
+
+### Miscellaneous
+
+- 📝 docs(server): correct what the well-known cache comment guarantees [[d19f26e](https://github.com/Raft-Labs/CeolX/commit/d19f26eed6756aeb267069ae90d0d7a4b8a47429)]
+- 📝 docs(stack): document google cloud api key setup [[d197207](https://github.com/Raft-Labs/CeolX/commit/d197207c1dc96564aeeba2a175995d5f266ec045)]
+- 📝 docs(release): add staging release runbook [[74806dd](https://github.com/Raft-Labs/CeolX/commit/74806dd591ec01a4177d03edc51b7290e2b40091)]
+- fix(username): align profile share button with edit and settings actions [[c4df3e1](https://github.com/Raft-Labs/CeolX/commit/c4df3e1fb7f3ee40c4cd7c8b8fddca278897e745)]
+- test(username): cover set-once handle enforcement (assertUsernameImmutable) [[619097b](https://github.com/Raft-Labs/CeolX/commit/619097bc9e0f154eb146608e425a9df32617aef4)]
+- docs(username): brainstorm design + implementation plan [[b61b4a4](https://github.com/Raft-Labs/CeolX/commit/b61b4a46b344aaf643a905c7c3fd7e650e917d48)]
+- feat(username): mobile onboarding handle, share button, deep-link shim [[17d6b40](https://github.com/Raft-Labs/CeolX/commit/17d6b402ac6160cf8209cc751b848c4a9433bd41)]
+- feat(username): backend for shareable @username profile handles [[81c0d85](https://github.com/Raft-Labs/CeolX/commit/81c0d85fa200e47040550449347d64c2e9c318d5)]
+- 🔀 chore(release): converge staging and main into development [[0931491](https://github.com/Raft-Labs/CeolX/commit/09314910a72476f8dbc4259597a8280307852cb0)]
+- Merge branch &#x27;development&#x27; into staging [[aab24be](https://github.com/Raft-Labs/CeolX/commit/aab24befa2dbf8de6122d21de0bc332012f2a1e0)]
+- Merge pull request [#194](https://github.com/Raft-Labs/CeolX/issues/194) from Raft-Labs/development [[3b24fca](https://github.com/Raft-Labs/CeolX/commit/3b24fcaf8ca5406aa95b95c5378da402a285a6fe)]
+- Merge branch &#x27;development&#x27; into staging [[85c47c0](https://github.com/Raft-Labs/CeolX/commit/85c47c09d971325e3ded8fee299663c3c4060449)]
+- Merge branch &#x27;development&#x27; into staging [[514d65f](https://github.com/Raft-Labs/CeolX/commit/514d65f8c07ccfe31e7d44745ef4543ec1e03855)]
+- Merge pull request [#8](https://github.com/Raft-Labs/CeolX/issues/8) from ceolxproject/staging [[52091ee](https://github.com/Raft-Labs/CeolX/commit/52091eebb8ee25384c002258fad7fea92eda2a11)]
+- Merge branch &#x27;development&#x27; into staging [[7f52689](https://github.com/Raft-Labs/CeolX/commit/7f526892a8df7457839fab05819b2678f3186404)]
+- Merge pull request [#7](https://github.com/Raft-Labs/CeolX/issues/7) from ceolxproject/staging [[ee1df60](https://github.com/Raft-Labs/CeolX/commit/ee1df60fdd2383acb728e7f8c3a1193e57e011a9)]
+- Merge pull request [#6](https://github.com/Raft-Labs/CeolX/issues/6) from ceolxproject/staging [[d878a4f](https://github.com/Raft-Labs/CeolX/commit/d878a4f8494e933fd6aecb3487bb76d09a2db6c7)]
+- 🎡 ci(native): register mobile staging and production build workflows on main [[7e5dc92](https://github.com/Raft-Labs/CeolX/commit/7e5dc9291edda31c6166db07f1b5ef2eaa272cb9)]
+
+<a name="1.0.12"></a>
+
+## 1.0.12 (2026-07-17)
+
+### Added
+
+- ✨ feat(native): add appstate focusmanager session-revalidation bridge [[c0059b7](https://github.com/Raft-Labs/CeolX/commit/c0059b7d74be0ea49c6721c7600a2f6626655dd9)]
+- ✨ feat(native): add query-error handler that emits on 401 only [[9bc8e94](https://github.com/Raft-Labs/CeolX/commit/9bc8e9448d89b052eb886f259be24574ab503e57)]
+- ✨ feat(native): add session-expiry event bus with de-dupe latch [[c386b7a](https://github.com/Raft-Labs/CeolX/commit/c386b7ae8f4d2788816fd6270201ff988665e76a)]
+- ✨ feat(server): redirect not-installed mobile visitors to the store [[fbfb684](https://github.com/Raft-Labs/CeolX/commit/fbfb6840f35735f4b22440f4b76cf499af4d64e7)]
+- ✨ feat(native): show category icons in filter sheet chips [[4dabf64](https://github.com/Raft-Labs/CeolX/commit/4dabf64e7fff72e6912549aea00407aff7ea0c5c)]
+- ✨ feat(native): loop time picker wheels past 23:59 [[f41067c](https://github.com/Raft-Labs/CeolX/commit/f41067c673fba0f38885c43f8e1bc4b9f561f4c7)]
+- ✨ feat(native): group my events into upcoming and past sections [[2c233f6](https://github.com/Raft-Labs/CeolX/commit/2c233f65caf89da4e52b6a2a2a762da6b8a75187)]
+- ✨ feat(api): sort my events upcoming-first and return is-past flag [[b7cf44d](https://github.com/Raft-Labs/CeolX/commit/b7cf44d04faaf67b0423dbef98c9a5dd77828cb3)]
+- ✨ feat(native): show active search query and slim the search bar [[ba18b89](https://github.com/Raft-Labs/CeolX/commit/ba18b89da357ee3fa7984c5474f192eac76bd867)]
+- ✨ feat(native): add clear button to the discover search bar [[31dcc27](https://github.com/Raft-Labs/CeolX/commit/31dcc27a3a162c0126f0e0c0950ff3caa52a922a)]
+- ✨ feat(native): open artist profile from search suggestions [[f204bc9](https://github.com/Raft-Labs/CeolX/commit/f204bc933771d40be15e9601d27c4e4a3d4eb0a2)]
+- ✨ feat(native): show active search query and slim the search bar [[750fa93](https://github.com/Raft-Labs/CeolX/commit/750fa93dcc9af55be66fb5a4c539136082e2f211)]
+- ✨ feat(native): add clear button to the discover search bar [[c71a6df](https://github.com/Raft-Labs/CeolX/commit/c71a6dffe80a74e0cf3fd1205396368573ac3097)]
+- ✨ feat(native): open artist profile from search suggestions [[54c530c](https://github.com/Raft-Labs/CeolX/commit/54c530caacd59e59790d7d736f2dba8950d7b809)]
+- ✨ feat(native): hide the whole discover header on scroll, tabs included [[bb5150a](https://github.com/Raft-Labs/CeolX/commit/bb5150a277dc1a802bb54eeac1d3b100fcd45931)]
+- ✨ feat(native): collapse discover header on scroll, keep tabs pinned [[965c15e](https://github.com/Raft-Labs/CeolX/commit/965c15e5ce3abdd10ac6fc73f5e2377127a3663c)]
+
+### Changed
+
+- 🔧 chore(native): remove unused @tanstack/react-form dependency [[9474da8](https://github.com/Raft-Labs/CeolX/commit/9474da8d44c7ec88eaa6785033b3f689bdeb7f9b)]
+- ♻️ refactor(server): extract shared store-redirect helper for share routes [[4ae9fda](https://github.com/Raft-Labs/CeolX/commit/4ae9fdaee5364745bfdf5a5c4bea9bae36da7a80)]
+- 🔧 chore(db): add local-only feed seed scripts for discover testing [[6dd2b2a](https://github.com/Raft-Labs/CeolX/commit/6dd2b2a7a0ffd224cf8aa31ea58394d451fdacf9)]
+- 🔧 chore(ci): select expo token per branch for ota publish [[8af0c62](https://github.com/Raft-Labs/CeolX/commit/8af0c62211ebd5e7baad66258f0e7d34140fd24b)]
+- 🔧 chore(ci): use staging expo token for staging build and ignore prod service account json [[6ee7b40](https://github.com/Raft-Labs/CeolX/commit/6ee7b40f133df1e02637849a693f83d3b128842f)]
+- 🔧 chore(native): link production builds to ceol_x expo org and set ios asc app id [[42eeac8](https://github.com/Raft-Labs/CeolX/commit/42eeac8ffc27893e2c455cbee8148f01801e641d)]
+- 🔧 chore(native): set google oauth web client id and ios url scheme for development build [[dc3e89e](https://github.com/Raft-Labs/CeolX/commit/dc3e89e5ca89f4d04ba9b9fd46a528911d3f740d)]
+- 🔧 chore(server): drop stale vercel outputdirectory on main [[a4185ba](https://github.com/Raft-Labs/CeolX/commit/a4185ba8fada66558f6b62136391fa9f7c42d90d)]
+
+### Fixed
+
+- 🐛 fix(native): re-arm session latch when backstop logout fails [[6c3f874](https://github.com/Raft-Labs/CeolX/commit/6c3f874127b162cb49ce1302d88e828c2b23bc7c)]
+- 🐛 fix(native): pass the real me error object to the 401 guard [[7c0babb](https://github.com/Raft-Labs/CeolX/commit/7c0babb00e26c10b8cc1ad0869be057716d6e009)]
+- 🐛 fix(native): stop retrying users.me on a 401 to break the loop [[ee9736a](https://github.com/Raft-Labs/CeolX/commit/ee9736a2ad81bd810786fc1551707a11bf831f1d)]
+- 🐛 fix(native): revalidate session on resume and sign out on 401 [[e68446e](https://github.com/Raft-Labs/CeolX/commit/e68446ee198a85518c8d8858b2ffda6aec9dfad3)]
+- 🐛 fix(native): correct vi.fn type args in query-error-handler test [[a04a245](https://github.com/Raft-Labs/CeolX/commit/a04a2456dedf8e4b6ce1fd396f2eb0d97767ccc6)]
+- 🐛 fix(native): sign out on query 401 via querycache onerror [[7a14cd7](https://github.com/Raft-Labs/CeolX/commit/7a14cd74545162ae4d7e485ae3e2706cd95d01f5)]
+- 🐛 fix(native): render map event pin as full circle on android [[eff315b](https://github.com/Raft-Labs/CeolX/commit/eff315bbf44d11d7cc43c5355a92ee464b93c166)]
+- 🐛 fix(native): rename event location action to get directions [[f06030f](https://github.com/Raft-Labs/CeolX/commit/f06030f14e6e8ea3db8cea9baeb1afc4257d14ff)]
+- 🐛 fix(native): register play app signing sha-1 in google-services for android sign-in [[0a162f4](https://github.com/Raft-Labs/CeolX/commit/0a162f40b05ef52a18c36592c05c441e46533268)]
+- 🐛 fix(native): keep events feed populated when re-selecting a filter [[c050a33](https://github.com/Raft-Labs/CeolX/commit/c050a33365530291667765c51330943f0f588f27)]
+- 🐛 fix(native): redirect profile owner from public view to own profile tab [[f2e3851](https://github.com/Raft-Labs/CeolX/commit/f2e3851c548de5003a8eb79a6d008adc587f85ce)]
+- 🐛 fix(native): show expired notice for past-event booking requests [[7b52e25](https://github.com/Raft-Labs/CeolX/commit/7b52e25b06d46190c0a5bf8071d8f1ab5edeb85d)]
+- 🐛 fix(api): hide past-event pending requests from collaboration list [[ebe0d88](https://github.com/Raft-Labs/CeolX/commit/ebe0d88a6150f7284f3aa6e5ed57399a4befd821)]
+- 🐛 fix(native): clear stale role cache so guests never see prior artist/venue view [[3dbe5c2](https://github.com/Raft-Labs/CeolX/commit/3dbe5c251c0a0edb3b27d8f461a57251ae837de0)]
+- 🐛 fix(native): register play app signing sha-1 in google-services for android sign-in [[36b7321](https://github.com/Raft-Labs/CeolX/commit/36b7321735ed226ded8b79a9f5753a7d28b5e038)]
+- 🐛 fix(native): keep events feed populated when re-selecting a filter [[d4231fa](https://github.com/Raft-Labs/CeolX/commit/d4231fad6d909bc362a39325a3672178aa2abcb1)]
+- 🐛 fix(native): redirect profile owner from public view to own profile tab [[6132a41](https://github.com/Raft-Labs/CeolX/commit/6132a41caf4ec08bbbcca5890dfd00fccfec5001)]
+- 🐛 fix(native): show expired notice for past-event booking requests [[de5df42](https://github.com/Raft-Labs/CeolX/commit/de5df42895a570f84c57f4ff492f971fe65f1dff)]
+- 🐛 fix(api): hide past-event pending requests from collaboration list [[db66281](https://github.com/Raft-Labs/CeolX/commit/db6628165838bceebadf94afba6d23092497f7aa)]
+- 🐛 fix(native): clear stale role cache so guests never see prior artist/venue view [[ff4b29d](https://github.com/Raft-Labs/CeolX/commit/ff4b29d14980a280df333aaef13b58d02f2c763b)]
+- 🐛 fix(native): key location-setup completion flag per user [[5226c13](https://github.com/Raft-Labs/CeolX/commit/5226c139a13e6a1692190202a606b80900e8d6e3)]
+
+### Security
+
+- 🔒 ci(db): restrict staging migration dispatch to staging ref [[4d13375](https://github.com/Raft-Labs/CeolX/commit/4d13375dfbcb241b019623c7331bc4281353478f)]
+
+### Miscellaneous
+
+- Merge pull request [#196](https://github.com/Raft-Labs/CeolX/issues/196) from Raft-Labs/feature/native-401-session-handler [[ee9d64a](https://github.com/Raft-Labs/CeolX/commit/ee9d64a5323af5f6051fe64c0167b3ee8978b028)]
+- Merge pull request [#195](https://github.com/Raft-Labs/CeolX/issues/195) from Raft-Labs/feature/share-store-redirect [[b32a826](https://github.com/Raft-Labs/CeolX/commit/b32a826a797e45ce09b6139decbc37675838da96)]
+- 📝 docs(native): spec for global 401 handler + appstate session revalidation [[42dbab2](https://github.com/Raft-Labs/CeolX/commit/42dbab2fa2558e92a367e9868383138af16fca93)]
+- Merge pull request [#190](https://github.com/Raft-Labs/CeolX/issues/190) from Raft-Labs/docs/developer-handoff [[c3099c3](https://github.com/Raft-Labs/CeolX/commit/c3099c3bdd02c21301ceacb9d397c4d7019af9cb)]
+- Merge branch &#x27;development&#x27; into docs/developer-handoff [[a0accab](https://github.com/Raft-Labs/CeolX/commit/a0accabd91b8d7d88e4bba5ac963f6e2b022b49f)]
+- docs: add handoff index and remove triage scratch file [[f64dbeb](https://github.com/Raft-Labs/CeolX/commit/f64dbebf66547d9393c33e8d199c38033ce060d5)]
+- docs: add high-impact gotchas catalogue to handoff [[f62c692](https://github.com/Raft-Labs/CeolX/commit/f62c6925a161221be5903a32fb27f944fd751be6)]
+- docs: add ops runbooks to handoff [[ecf8695](https://github.com/Raft-Labs/CeolX/commit/ecf869587ec1d9c18e6cb47bad043050f19499ff)]
+- docs: add architecture and data-flow map to handoff [[6a46468](https://github.com/Raft-Labs/CeolX/commit/6a464687e790921d30a505efc21f33226e5090ac)]
+- docs: add project state and open items to handoff [[c703327](https://github.com/Raft-Labs/CeolX/commit/c703327242fd826854fd6cc529026da87ab7e045)]
+- docs: triage handoff memory files into high-impact set [[1644412](https://github.com/Raft-Labs/CeolX/commit/164441212fa9fbe2bb7140b9ff2fab0c476366f6)]
+- docs: add developer handoff implementation plan [[a50ff6e](https://github.com/Raft-Labs/CeolX/commit/a50ff6e3d85d4151007dcaaf6dabcd727cdceb1d)]
+- docs: scope handoff gotchas to high-impact traps only [[40a6448](https://github.com/Raft-Labs/CeolX/commit/40a64483b832212aa467cd0a29ac2add0ac38765)]
+- docs: add developer handoff documentation design spec [[ffdbf5f](https://github.com/Raft-Labs/CeolX/commit/ffdbf5f399a19686410701b220fc9ff827341568)]
+- Merge pull request [#185](https://github.com/Raft-Labs/CeolX/issues/185) from Raft-Labs/chore/db-seed-scripts [[ba3029a](https://github.com/Raft-Labs/CeolX/commit/ba3029a89dcaca107948fa4d0938348adf51cf2c)]
+- Merge pull request [#184](https://github.com/Raft-Labs/CeolX/issues/184) from Raft-Labs/feature/discover-collapsing-header [[0ec5280](https://github.com/Raft-Labs/CeolX/commit/0ec528011ffc751b1a99b69bce5069452a3c0a60)]
+- 📝 docs(claude): update git workflow guidelines [[b0e83c9](https://github.com/Raft-Labs/CeolX/commit/b0e83c96e74619211a25d6b5c9463efccbe5472c)]
+- Merge remote-tracking branch &#x27;origin/development&#x27; into feature/discover-collapsing-header [[8811d2a](https://github.com/Raft-Labs/CeolX/commit/8811d2a2473327d4979f207ed9f18d0f20a440bc)]
+- Merge pull request [#182](https://github.com/Raft-Labs/CeolX/issues/182) from Raft-Labs/staging [[4b78b49](https://github.com/Raft-Labs/CeolX/commit/4b78b49e09ab5d72e3bfc60644f52d9019d1c931)]
+- Merge branch &#x27;development&#x27; into staging [[a258eb2](https://github.com/Raft-Labs/CeolX/commit/a258eb2e4b6acae34a8873626b71eca5bf9fdd3a)]
+- Merge branch &#x27;development&#x27; into staging [[0de2500](https://github.com/Raft-Labs/CeolX/commit/0de25008228037615f7b82e2e233f023bb693d34)]
+- Merge branch &#x27;development&#x27; into staging [[548ab53](https://github.com/Raft-Labs/CeolX/commit/548ab5300f70c52a68c5488c6decca1eb014d2c1)]
+- Merge branch &#x27;development&#x27; into staging [[85c51f1](https://github.com/Raft-Labs/CeolX/commit/85c51f1d4315719220cc8808d46c92e18251780f)]
+- Merge branch &#x27;development&#x27; into staging [[791111e](https://github.com/Raft-Labs/CeolX/commit/791111e0ac6c55ed5d62076ff8f1fc86e25a3290)]
+- Merge branch &#x27;development&#x27; into staging [[44d0060](https://github.com/Raft-Labs/CeolX/commit/44d0060b1eaeb213028821e6a370991c66025ab2)]
+- 🎡 ci(db): add neon production migration workflow [[6f4d901](https://github.com/Raft-Labs/CeolX/commit/6f4d9016cbefe06d1a568ee14f1908dd1176aed8)]
+- Merge branch &#x27;development&#x27; into staging [[fb841f9](https://github.com/Raft-Labs/CeolX/commit/fb841f935b8da9a4b3c42e34761c96e02f71cf25)]
+- Merge branch &#x27;development&#x27; into staging [[5362a32](https://github.com/Raft-Labs/CeolX/commit/5362a32eca4f4fff7fbdf758110010dbe3d16530)]
+- 🎡 ci(native): install pnpm before setup-node so cache resolves in mobile workflows [[9391ce6](https://github.com/Raft-Labs/CeolX/commit/9391ce61fad2055395bdab94aa4a04031635354b)]
+- Merge staging into main [[c2c0069](https://github.com/Raft-Labs/CeolX/commit/c2c0069568c038aeddb9b9f0347f54a951f10a01)]
+- Merge origin/main into main (unify divergent main histories) [[d95bebd](https://github.com/Raft-Labs/CeolX/commit/d95bebdc5f6cb490eb6cabe77024637ee949ab2d)]
+- Merge branch &#x27;development&#x27; [[4b169a1](https://github.com/Raft-Labs/CeolX/commit/4b169a108610dd3a8067fe3943ba9fdd8ffdd06b)]
+- Merge pull request [#4](https://github.com/Raft-Labs/CeolX/issues/4) from ceolxproject/staging [[01b25b7](https://github.com/Raft-Labs/CeolX/commit/01b25b7f457e0e2df88e0870afd586cea23e690e)]
+- 👷 ci(db): register staging migration workflow on default branch [[7f5b902](https://github.com/Raft-Labs/CeolX/commit/7f5b9023fbe3e4d6cdbb0077b5f60e0525a54d71)]
+
 <a name="1.0.11"></a>
 
 ## 1.0.11 (2026-07-07)
 
 ### Added
 
-- ✨ feat: auto post on event creation (#176) [e265a30]
-- ✨ feat(native): add about screen with app version and ota update check [b29f2ec]
+- ✨ feat: auto post on event creation ([#176](https://github.com/Raft-Labs/CeolX/issues/176)) [[e265a30](https://github.com/Raft-Labs/CeolX/commit/e265a30cdb20640a9473cfb398e2d519c3024a77)]
+- ✨ feat(native): add about screen with app version and ota update check [[b29f2ec](https://github.com/Raft-Labs/CeolX/commit/b29f2ece4a00fce0813c121bfac66d655d4fb90e)]
 
 ### Fixed
 
-- 🐛 fix(native): stream media uploads and cap videos at 100mb with clear error [8a8e541]
+- 🐛 fix(api): block performance requests and resends for past events [[0186309](https://github.com/Raft-Labs/CeolX/commit/018630923ef2fe5d0f17a7b8768405d7ca3c0452)]
+- 🐛 fix(api): block accepting bookings for past events [[f1fcc97](https://github.com/Raft-Labs/CeolX/commit/f1fcc97c59f3e6ac0794a912daceb5ce00bd8d9f)]
+- 🐛 fix(native): label bookings tab and header as my events for all roles [[fdf87a0](https://github.com/Raft-Labs/CeolX/commit/fdf87a0351698a12be1a335cecc4e0a83e9d48ec)]
+- 🐛 fix(api): exclude past events from event-detail collection preview [[09e36b5](https://github.com/Raft-Labs/CeolX/commit/09e36b5ce940dae2e7d8c56fabbfd86de2a3e812)]
+- 🐛 fix(native): stream media uploads and cap videos at 100mb with clear error [[8a8e541](https://github.com/Raft-Labs/CeolX/commit/8a8e5415740823e52597da351c609fced99870b4)]
 
 <a name="1.0.10"></a>
 
