@@ -31,13 +31,17 @@ export const env = createEnv({
     // and be verified before replay is switched on. Masking is applied on-device
     // before upload and is NOT retroactive, so replay stays off until the
     // masking has been eyeballed on a non-production project.
-    EXPO_PUBLIC_POSTHOG_REPLAY: z.enum(['true', 'false']).default('false'),
+    // `.catch` rather than a bare enum: this schema validates at import on the boot
+    // path, so a typo'd value ('TRUE', '1') would throw and the app would not start
+    // at all. An unreadable analytics flag must degrade to off, never to a failed
+    // launch — the strict-and-throw trade is right for SERVER_URL, wrong here.
+    EXPO_PUBLIC_POSTHOG_REPLAY: z.enum(['true', 'false']).default('false').catch('false'),
     // Local-only escape hatch. Analytics is off in __DEV__ so day-to-day dev
     // never pollutes the project, but that also makes it impossible to verify a
     // newly-wired event without a release build. Set this to 'true' in
     // .env.development.local (gitignored, machine-specific) to capture from a dev
     // client. Never set it in .env.staging / .env.production.
-    EXPO_PUBLIC_POSTHOG_DEV_CAPTURE: z.enum(['true', 'false']).default('false'),
+    EXPO_PUBLIC_POSTHOG_DEV_CAPTURE: z.enum(['true', 'false']).default('false').catch('false'),
   },
   // Metro's babel-preset-expo only inlines static `process.env.EXPO_PUBLIC_*`
   // accesses at build time. `runtimeEnv: process.env` passes the whole object
