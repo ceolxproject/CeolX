@@ -5,7 +5,7 @@ import { user } from '@CeolX/db/schema/auth';
 import { artistProfiles, venueProfiles } from '@CeolX/db/schema/users';
 import { suggestSchema, type Suggestion } from '@CeolX/shared/validators';
 
-import { protectedProcedure, router } from '../index';
+import { publicProcedure, router } from '../index';
 import { typesenseClient } from '../lib/typesense';
 
 // Per-group cap. Keeps the dropdown short and the fan-out queries cheap.
@@ -136,7 +136,17 @@ async function suggestEvents(term: string): Promise<Suggestion[]> {
 export const discoveryRouter = router({
   // Autocomplete for the Discover search box. `scope` tailors which groups load:
   // the Posts tab has no event entity to suggest, so it skips Typesense entirely.
-  suggest: protectedProcedure.input(suggestSchema).query(async ({ input }) => {
+  //
+  // Public, unlike `artists.search`: the two look similar but return different
+  // things. `artists.search` powers the venue's Invite Artist picker and returns
+  // `user.name` (the account holder's real name — personal data), so it stays
+  // authenticated. This one returns only what the profile screens already show
+  // anonymously — stage/venue name, genres, image — and artists are filtered to
+  // `isActive`, so hidden profiles never surface. Guests can already open any
+  // profile via `artists.byId` / `profiles.getByUsername` (the ceolx.com/u/<handle>
+  // share links), so gating *discovery* while leaving *viewing* open only meant a
+  // visitor arriving from a shared link couldn't search for anyone else.
+  suggest: publicProcedure.input(suggestSchema).query(async ({ input }) => {
     const { q, scope } = input;
     const [artists, venues, events] = await Promise.all([
       suggestArtists(q),

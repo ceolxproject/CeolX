@@ -94,6 +94,14 @@ function authedContext(): Context {
   } as unknown as Context;
 }
 
+// No session at all — what the server sees for a guest / signed-out visitor.
+function guestContext(): Context {
+  return {
+    session: null,
+    dispatchNotification: vi.fn(async () => {}),
+  } as unknown as Context;
+}
+
 function eventHit(
   title: string,
   venueAddress?: string,
@@ -195,5 +203,41 @@ describe('discovery.suggest', () => {
     const result = await caller.discovery.suggest({ q: 'zzz', scope: 'events' });
 
     expect(result).toEqual({ artists: [], venues: [], events: [] });
+  });
+
+  // Guests must be able to search. A visitor arriving from a shared
+  // ceolx.com/u/<handle> link is unauthenticated, and `artists.byId` /
+  // `profiles.getByUsername` already serve them the profile itself — so search
+  // being protected made the app look broken for exactly those users. Locking
+  // this back down is a regression: it returns no personal data (see the note on
+  // the procedure), unlike `artists.search`, which must stay authenticated.
+  it('is public — a guest with no session can search', async () => {
+    setArtistRows([{ stageName: 'Tune Bomb', genres: ['Trad'], imageUrl: 'https://cdn/a.jpg' }]);
+    setVenueRows([{ userId: 'venue-user-1', venueName: 'The Cobblestone' }]);
+    mockSearch.mockResolvedValueOnce({ hits: [] });
+
+    const caller = createCaller(guestContext());
+    const result = await caller.discovery.suggest({ q: 't', scope: 'events' });
+
+    expect(result.artists).toEqual([
+      { label: 'Tune Bomb', sublabel: 'Trad', imageUrl: 'https://cdn/a.jpg' },
+    ]);
+    expect(result.venues).toEqual([
+      { label: 'The Cobblestone', imageUrl: undefined, venueId: 'venue-user-1' },
+    ]);
+  });
+
+  it('never returns the account holder name to a guest (GDPR)', async () => {
+    // The WHERE clause matches `user.name` so an artist is findable by their real
+    // name, but that value must never appear in the response — only the stage name.
+    setArtistRows([
+      { stageName: 'Tune Bomb', genres: ['Trad'], imageUrl: null, name: 'Aoife Ní Bhriain' },
+    ]);
+    mockSearch.mockResolvedValueOnce({ hits: [] });
+
+    const caller = createCaller(guestContext());
+    const result = await caller.discovery.suggest({ q: 'aoife', scope: 'events' });
+
+    expect(JSON.stringify(result)).not.toContain('Aoife Ní Bhriain');
   });
 });
