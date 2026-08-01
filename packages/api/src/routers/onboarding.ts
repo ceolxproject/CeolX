@@ -70,7 +70,12 @@ export const onboardingRouter = router({
             userId,
             stageName: input.stageName,
             bio: input.bio ?? null,
-            contactEmail: input.contactEmail ?? null,
+            // Never store the account email as a public booking address — the
+            // artist profile is public and the onboarding form gave no opt-out.
+            // Ignored rather than rejected so already-shipped app builds, which
+            // still send it, keep working. The column stays for a future
+            // opt-in booking email wired through the update schemas.
+            contactEmail: null,
             profileImageUrl: input.profileImageUrl ?? null,
             genre: null,
             isActive: true,
@@ -167,7 +172,8 @@ export const onboardingRouter = router({
             lat: String(input.lat),
             lng: String(input.lng),
             bio: input.bio ?? null,
-            contactEmail: input.contactEmail ?? null,
+            // Same as the artist path — the account email is never published.
+            contactEmail: null,
             profileImageUrl: input.profileImageUrl ?? null,
             subscriptionStatus: SubscriptionStatus.INACTIVE,
             isActive: false,
