@@ -9,9 +9,9 @@ export const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f
 // sets PUBLIC_WEB_ORIGIN to its own Vercel URL (where it serves /post + /event).
 export const SHARE_ORIGIN = env.PUBLIC_WEB_ORIGIN ?? 'https://ceolx.com';
 
-// Until the app is published the numeric App Store id is unknown, so fall back
-// to an App Store search. Replace via IOS_APP_STORE_URL once live.
-const DEFAULT_APP_STORE = 'https://apps.apple.com/search?term=ceolx';
+// Storefront-less form — Apple redirects to the viewer's own storefront, so this
+// works from any country. Never hardcode a /ie/ or /in/ path.
+const DEFAULT_APP_STORE = 'https://apps.apple.com/app/id6788365524';
 const DEFAULT_PLAY_STORE = 'https://play.google.com/store/apps/details?id=com.ceolx.app';
 
 /** Resolves the store-button urls, honouring per-deploy env overrides. */
