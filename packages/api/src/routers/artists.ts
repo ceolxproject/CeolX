@@ -56,7 +56,6 @@ export const artistsRouter = router({
         location: artistProfiles.location,
         profileImageUrl: artistProfiles.profileImageUrl,
         coverImageUrl: artistProfiles.coverImageUrl,
-        contactEmail: artistProfiles.contactEmail,
         isActive: artistProfiles.isActive,
         createdAt: artistProfiles.createdAt,
         updatedAt: artistProfiles.updatedAt,
@@ -190,7 +189,10 @@ export const artistsRouter = router({
       location: profile.location,
       profileImageUrl: profile.profileImageUrl ?? profile.userImage,
       coverImageUrl: profile.coverImageUrl,
-      contactEmail: profile.contactEmail,
+      // This profile is public (guests included), so it never carries an email.
+      // Kept in the response so shipped app builds keep type-checking; they read
+      // it as null and hide the contact chip.
+      contactEmail: null,
       socialLinks: socialLinksRecord,
       isActive: profile.isActive,
       isOwner,

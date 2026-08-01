@@ -61,7 +61,6 @@ export const venuesRouter = router({
         coverImageUrl: venueProfiles.coverImageUrl,
         websiteUrl: venueProfiles.websiteUrl,
         phone: venueProfiles.phone,
-        contactEmail: venueProfiles.contactEmail,
         isActive: venueProfiles.isActive,
         subscriptionStatus: venueProfiles.subscriptionStatus,
         createdAt: venueProfiles.createdAt,
@@ -166,7 +165,9 @@ export const venuesRouter = router({
       coverImageUrl: profile.coverImageUrl,
       websiteUrl: profile.websiteUrl,
       phone: profile.phone,
-      contactEmail: profile.contactEmail,
+      // Public profile — never carries an email. See artists.byId for why the
+      // key stays in the response instead of being dropped.
+      contactEmail: null,
       socialLinks: socialLinksRecord,
       isActive: profile.isActive,
       subscriptionStatus: isOwner ? profile.subscriptionStatus : undefined,
