@@ -96,3 +96,48 @@ describe('onboarding.createArtistProfile — claim outside-platform invites (A-1
     expect(mockUpdate).not.toHaveBeenCalled();
   });
 });
+
+// Artist and venue profiles are public, and onboarding offered no opt-out — the
+// account email must never be persisted as a public booking address. The input
+// stays optional so shipped app builds that still send it keep working, which is
+// exactly why the discard needs a test: re-adding `input.contactEmail` compiles.
+describe('onboarding — the client-sent contact email is never stored', () => {
+  it('discards contactEmail on artist profile creation', async () => {
+    mockSelectLimit
+      .mockResolvedValueOnce([{ currentRole: UserRole.ARTIST, email: 'sean@example.com' }])
+      .mockResolvedValueOnce([]);
+
+    const caller = createCaller(ctx());
+    await caller.onboarding.createArtistProfile({
+      stageName: 'Tune Bomb',
+      contactEmail: 'sean@example.com',
+    });
+
+    const inserted = mockInsertValues.mock.calls.find(
+      ([values]) => (values as Record<string, unknown>)?.stageName === 'Tune Bomb'
+    )?.[0] as Record<string, unknown>;
+    expect(inserted).toBeDefined();
+    expect(inserted.contactEmail).toBeNull();
+  });
+
+  it('discards contactEmail on venue profile creation', async () => {
+    mockSelectLimit
+      .mockResolvedValueOnce([{ currentRole: UserRole.VENUE, email: 'pub@example.com' }])
+      .mockResolvedValueOnce([]);
+
+    const caller = createCaller(ctx());
+    await caller.onboarding.createVenueProfile({
+      venueName: 'The Cobblestone',
+      address: '77 King St N, Dublin',
+      lat: 53.3498,
+      lng: -6.2701,
+      contactEmail: 'pub@example.com',
+    });
+
+    const inserted = mockInsertValues.mock.calls.find(
+      ([values]) => (values as Record<string, unknown>)?.venueName === 'The Cobblestone'
+    )?.[0] as Record<string, unknown>;
+    expect(inserted).toBeDefined();
+    expect(inserted.contactEmail).toBeNull();
+  });
+});
