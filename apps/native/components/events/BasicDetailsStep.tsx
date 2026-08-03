@@ -12,6 +12,7 @@ import { FieldLabel } from './FieldLabel';
 import { InviteArtistPicker } from './InviteArtistPicker';
 
 import { CharacterCount, CharacterLimitNote } from '@/components/CharacterCount';
+import { clampFeedRatio, FALLBACK_RATIO, useImageRatio } from '@/hooks/use-image-ratio';
 
 type Props = {
   title: string;
@@ -65,6 +66,12 @@ export function BasicDetailsStep({
   isVenue,
   myUserId,
 }: Props) {
+  // Preview the cover at the shape the event screens will use, so the poster
+  // the creator approves here is the poster that gets published.
+  const naturalCoverRatio = useImageRatio(coverImageUri);
+  const coverRatio =
+    naturalCoverRatio === null ? FALLBACK_RATIO : clampFeedRatio(naturalCoverRatio);
+
   return (
     <ScrollView
       className="flex-1"
@@ -109,7 +116,7 @@ export function BasicDetailsStep({
         />
         <Pressable onPress={onPickImage}>
           {coverImageUri ? (
-            <View className="h-44 rounded-xl overflow-hidden">
+            <View style={{ aspectRatio: coverRatio }} className="rounded-xl overflow-hidden">
               {/* The image must be a normal flow child (h-full w-full), NOT
                   absolute inset-0. On Android, an absolutely-positioned <Image>
                   contributes nothing to layout, so when it's revealed inside an

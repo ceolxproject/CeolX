@@ -254,10 +254,11 @@ export function useEventForm(options?: UseEventFormOptions) {
       return;
     }
 
+    // No forced crop — a gig poster is portrait, and the 16:9 edit step this
+    // replaced destroyed the top and bottom of it before upload. The original
+    // is stored whole; the hero and cards size themselves to it instead.
     const result = await launchImageLibraryAsync({
       mediaTypes: ['images'],
-      allowsEditing: true,
-      aspect: [16, 9],
       quality: 0.8,
     });
 

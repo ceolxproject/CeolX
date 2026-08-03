@@ -5,6 +5,7 @@ import { useCallback } from 'react';
 import { Image, Pressable, Text, View } from 'react-native';
 
 import { appToast } from '@/components/AppToast';
+import { clampFeedRatio, useImageRatio } from '@/hooks/use-image-ratio';
 
 type Props = {
   imageUri: string | null;
@@ -12,6 +13,10 @@ type Props = {
 };
 
 export function ImageUploader({ imageUri, onImagePicked }: Props) {
+  // Preview at the ratio the event screens will actually use, so what the
+  // uploader sees here is what gets published.
+  const natural = useImageRatio(imageUri);
+
   const pickImage = useCallback(async () => {
     const permResult = await requestMediaLibraryPermissionsAsync();
     if (!permResult.granted) {
@@ -19,10 +24,9 @@ export function ImageUploader({ imageUri, onImagePicked }: Props) {
       return;
     }
 
+    // No forced crop — see the note in use-event-form's pickCoverImage.
     const pickerResult = await launchImageLibraryAsync({
       mediaTypes: ['images'],
-      allowsEditing: true,
-      aspect: [16, 9],
       quality: 0.8,
     });
 
@@ -38,9 +42,14 @@ export function ImageUploader({ imageUri, onImagePicked }: Props) {
     <View>
       <Pressable
         onPress={pickImage}
+        style={imageUri && natural !== null ? { aspectRatio: clampFeedRatio(natural) } : undefined}
         className={cn(
           'items-center justify-center overflow-hidden rounded-lg',
-          imageUri ? 'h-48' : 'h-36 border border-dashed border-gray-600 bg-white/5'
+          imageUri
+            ? natural === null
+              ? 'h-48'
+              : 'w-full'
+            : 'h-36 border border-dashed border-gray-600 bg-white/5'
         )}
       >
         {imageUri ? (

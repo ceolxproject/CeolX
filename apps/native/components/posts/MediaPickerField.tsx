@@ -7,6 +7,7 @@ import { ActivityIndicator, Image, Pressable, Text, View } from 'react-native';
 import { MAX_BYTES_BY_TYPE, MAX_VIDEO_BYTES, mediaTooLargeMessage } from '@CeolX/shared/validators';
 
 import { appToast } from '@/components/AppToast';
+import { clampFeedRatio, useImageRatio } from '@/hooks/use-image-ratio';
 
 const MB = 1024 * 1024;
 const IMAGE_MAX_MB = Math.round(MAX_BYTES_BY_TYPE.post_image / MB);
@@ -82,6 +83,12 @@ export function MediaPickerField({
   progress,
   readOnly,
 }: Props) {
+  // Preview an image at the ratio the feed will use. The old fixed 16:9 preview
+  // disagreed with both the feed and the detail screen, so the poster the
+  // creator approved was not the poster that got published.
+  const natural = useImageRatio(mediaKind === 'image' ? mediaUri : null);
+  const imageRatio = natural === null ? null : clampFeedRatio(natural);
+
   const handlePick = useCallback(async () => {
     if (readOnly) return;
     const perm = await requestMediaLibraryPermissionsAsync();
@@ -132,11 +139,16 @@ export function MediaPickerField({
       <Pressable
         onPress={handlePick}
         disabled={isUploading || readOnly}
+        style={
+          mediaUri && mediaKind === 'image' && imageRatio ? { aspectRatio: imageRatio } : undefined
+        }
         className={
           mediaUri
             ? mediaKind === 'video'
               ? 'aspect-[4/5] overflow-hidden rounded-lg bg-black'
-              : 'aspect-video overflow-hidden rounded-lg bg-white/10'
+              : imageRatio
+                ? 'overflow-hidden rounded-lg bg-white/10'
+                : 'aspect-video overflow-hidden rounded-lg bg-white/10'
             : 'aspect-video items-center justify-center rounded-lg border border-dashed border-[#8D8D8D] bg-[rgba(141,141,141,0.3)]'
         }
       >
