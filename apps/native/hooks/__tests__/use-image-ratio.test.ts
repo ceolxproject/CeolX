@@ -1,9 +1,12 @@
 import { describe, expect, it, vi } from 'vitest';
 
 // The module only needs Image.getSize at runtime; the clamp itself is pure.
-vi.mock('react-native', () => ({ Image: { getSize: vi.fn() } }));
+// Hoisted so the tests can assert on the same mock the module under test calls.
+const getSize = vi.hoisted(() => vi.fn());
+vi.mock('react-native', () => ({ Image: { getSize } }));
 
-const { clampFeedRatio, FEED_MAX_RATIO, FEED_MIN_RATIO } = await import('../use-image-ratio');
+const { clampFeedRatio, FEED_MAX_RATIO, FEED_MIN_RATIO, prefetchImageRatios } =
+  await import('../use-image-ratio');
 
 /**
  * Every distinct image ratio in production on 2026-08-03, measured off the
@@ -35,5 +38,26 @@ describe('clampFeedRatio', () => {
 
   it('bounds an image wider than the ceiling', () => {
     expect(clampFeedRatio(5)).toBe(FEED_MAX_RATIO);
+  });
+});
+
+describe('prefetchImageRatios', () => {
+  /**
+   * Image.getSize fetches and decodes the image to read two integers, so a
+   * duplicate call is a duplicate network fetch. The feed re-prefetches on every
+   * change to the posts array — pagination, refetch, an optimistic like patch —
+   * and each card measures its own image too. Only one fetch may result.
+   */
+  it('measures an unresolved image once across repeated calls', () => {
+    getSize.mockClear();
+    // Never invokes the callback: the ratio stays unresolved, which is exactly
+    // the window in which the duplicate calls used to pile up.
+    getSize.mockImplementation(() => {});
+
+    prefetchImageRatios(['https://cdn.example/poster.jpg']);
+    prefetchImageRatios(['https://cdn.example/poster.jpg']);
+    prefetchImageRatios(['https://cdn.example/poster.jpg', null, undefined]);
+
+    expect(getSize).toHaveBeenCalledTimes(1);
   });
 });

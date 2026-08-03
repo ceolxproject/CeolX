@@ -23,11 +23,23 @@ export function clampFeedRatio(ratio: number): number {
 // to matter; swap for an LRU if that ever becomes true.
 const cache = new Map<string, number>();
 
+// A URI already being measured must not be measured again. Both the page prefetch
+// and each card's own hook ask for the same image, and the feed re-prefetches
+// whenever the posts array identity changes — pagination, a refetch, even an
+// optimistic like patch. Since `cache` is only written on success, that meant
+// several concurrent Image.getSize fetches for one image. Failures are left
+// retryable (a transient error shouldn't pin a wrong ratio for the session), and
+// this guard is what stops a retry storm.
+const inFlight = new Map<string, Promise<number | null>>();
+
 function measure(uri: string): Promise<number | null> {
   const hit = cache.get(uri);
   if (hit !== undefined) return Promise.resolve(hit);
 
-  return new Promise((resolve) => {
+  const pending = inFlight.get(uri);
+  if (pending) return pending;
+
+  const promise = new Promise<number | null>((resolve) => {
     Image.getSize(
       uri,
       (width, height) => {
@@ -41,7 +53,12 @@ function measure(uri: string): Promise<number | null> {
       },
       () => resolve(null)
     );
+  }).finally(() => {
+    inFlight.delete(uri);
   });
+
+  inFlight.set(uri, promise);
+  return promise;
 }
 
 /**
@@ -51,7 +68,7 @@ function measure(uri: string): Promise<number | null> {
  */
 export function prefetchImageRatios(uris: (string | null | undefined)[]): void {
   for (const uri of uris) {
-    if (uri && !cache.has(uri)) void measure(uri);
+    if (uri) void measure(uri);
   }
 }
 
