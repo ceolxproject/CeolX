@@ -146,6 +146,11 @@ await trpc.events.create.mutate({ ..., coverImage: cdnUrl });
 - Max file size: 10MB per image
 - Supported formats: JPEG, PNG, WebP
 - Old cover images are NOT deleted when replaced (manual cleanup via admin dashboard in future)
+- **The original is stored uncropped — no aspect ratio is enforced at upload.** Cover art
+  is usually a portrait gig poster, so a fixed crop destroys the venue and date at the
+  bottom of it. The event screens size themselves to whatever the image is instead.
+  Do not reintroduce `allowsEditing`/`aspect` in the picker: it rewrites the file before
+  upload, so the original never reaches S3 and no display change can recover it.
 
 ### Location Input
 
@@ -498,9 +503,11 @@ export const CreateEventScreen: React.FC = () => {
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const pickImage = async () => {
+    // Do NOT pass allowsEditing/aspect here. It crops the file permanently
+    // before upload, and `aspect` is Android-only — iOS forces a square
+    // instead. Store the original; the event screens size themselves to it.
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      aspect: [16, 9],
       quality: 0.8,
     });
 

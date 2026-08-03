@@ -86,7 +86,11 @@ if (event.isSaved) {
 
 ### Display & Layout
 
-- **Cover image** at top (16:9 aspect ratio, 300px height on mobile)
+- **Cover image** at top, rendered at the image's **own aspect ratio** — not a fixed
+  ratio or height. Cover art is usually a portrait gig poster, and a 16:9 band shows a
+  meaningless slice of one. Bounded to 9:16–1.91:1 so a pathological image can't fill
+  several screens; those bounds crop nothing that exists in production today.
+  With no cover, a short placeholder is shown rather than a screenful of empty grey.
 - **Title** bold, large font, below image
 - **Category badge** with icon (color-coded by category)
 - **Date/time** in readable format (e.g. "Fri, Mar 28 · 7:00 PM - 11:00 PM")
@@ -155,7 +159,7 @@ if (event.isSaved) {
 - [ ] "See full details" in bottom sheet expands to full Event Detail screen
 - [ ] Tapping a feed card (M3-T4) opens Event Detail full screen
 - [ ] All event fields display correctly: title, cover image, date, location, description, category
-- [ ] Cover image displays at 16:9 aspect ratio (300px height on mobile)
+- [ ] Cover image displays whole at its own aspect ratio — a portrait poster is not cropped
 - [ ] Ticket link button visible and tappable (opens in external browser)
 - [ ] Collaborating artists displayed with profile pictures and names; names are tappable links
 - [ ] Creator profile section shows artist/venue name and profile picture; name is tappable link
@@ -478,12 +482,17 @@ export const EventDetailScreen: React.FC = () => {
   const canEdit = isCreator && ['draft', 'pending_review', 'rejected'].includes(event.status);
   const isArtist = user?.current_role === 'artist';
 
+  // Cover art takes its own shape. useImageRatio resolves the natural ratio and
+  // falls back while it loads; clampFeedRatio bounds it to 9:16–1.91:1.
+  const naturalRatio = useImageRatio(event.cover_image);
+  const coverRatio = naturalRatio === null ? FALLBACK_RATIO : clampFeedRatio(naturalRatio);
+
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-      {/* Cover Image */}
+      {/* Cover Image — sized to the poster's own ratio, never a fixed height */}
       <Image
         source={{ uri: event.cover_image }}
-        style={styles.coverImage}
+        style={[styles.coverImage, { aspectRatio: coverRatio }]}
       />
 
       {/* Rejection Banner */}
@@ -631,7 +640,9 @@ const styles = StyleSheet.create({
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   errorContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   errorText: { fontSize: 16, color: '#666' },
-  coverImage: { width: '100%', height: 250, backgroundColor: '#E0E0E0' },
+  // No fixed height — the ratio comes from the image itself (see useImageRatio).
+  // A fixed height here is what reduced portrait gig posters to a thin band.
+  coverImage: { width: '100%', backgroundColor: '#E0E0E0' },
   rejectionBanner: {
     backgroundColor: '#FFF3CD',
     padding: 16,
