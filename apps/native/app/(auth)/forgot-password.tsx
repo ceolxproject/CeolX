@@ -47,9 +47,16 @@ export default function ForgotPasswordScreen() {
             <Text className="text-[28px] font-bold text-white mb-2 text-center">
               Check your email
             </Text>
-            <Text className="text-[15px] text-gray-10 text-center leading-[22px] mb-8">
+            <Text className="text-[15px] text-gray-10 text-center leading-[22px] mb-3">
               If an account exists with that email, we've sent a password reset link. The link
               expires in 15 minutes.
+            </Text>
+            {/* There is no resend on this screen, so this is the only recovery hint
+                the user gets — and a reset email is filtered as readily as a signup
+                one. Both words on purpose: Gmail files it under Spam, Outlook under
+                Junk. Matches the verify-email screen. */}
+            <Text className="text-white/40 text-xs text-center mb-8">
+              Can't find it? Check your spam or junk folder.
             </Text>
             <AppButton
               variant="primary"
