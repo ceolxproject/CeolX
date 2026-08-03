@@ -1,14 +1,8 @@
 import { useCallback } from 'react';
 import { Share } from 'react-native';
 
-import { env } from '@CeolX/env/native';
-
 import { appToast } from '@/components/AppToast';
-
-// Prod marketing domain by default; staging overrides via env to point at the
-// staging server's Vercel URL (no custom domain off prod). Must stay in sync
-// with the associatedDomains / intentFilters host in app.config.js.
-const SHARE_BASE_URL = env.EXPO_PUBLIC_SHARE_BASE_URL ?? 'https://ceolx.com';
+import { buildShareContent, shareUrlFor } from '@/utils/share';
 
 /**
  * Opens the native Share sheet for a post.
@@ -22,13 +16,9 @@ const SHARE_BASE_URL = env.EXPO_PUBLIC_SHARE_BASE_URL ?? 'https://ceolx.com';
  */
 export function useSharePost() {
   return useCallback(async (postId: string, caption: string) => {
-    const url = `${SHARE_BASE_URL}/post/${postId}`;
+    const url = shareUrlFor(`/post/${postId}`);
     try {
-      await Share.share({
-        url,
-        message: `${caption}\n\n${url}`,
-        title: 'Check out this post on CeolX',
-      });
+      await Share.share(buildShareContent(url, caption, 'Check out this post on CeolX'));
     } catch {
       appToast.error('Unable to share', 'Please try again.');
     }

@@ -92,12 +92,15 @@ const hasProjectId = !variantConfig.projectId.startsWith('<');
 const GOOGLE_IOS_URL_SCHEME = process.env.GOOGLE_IOS_URL_SCHEME;
 
 // Host the OS verifies Universal Links (iOS) / App Links (Android) against for
-// shared post URLs. Defaults to the prod marketing domain; staging sets
-// EXPO_PUBLIC_SHARE_BASE_URL to the staging server's Vercel URL (no custom
-// domain off prod). MUST match SHARE_BASE_URL in hooks/use-share-post.ts so the
-// shared link's host is the one declared here. Stripped to a bare host because
-// associatedDomains / intentFilters take a host, not a URL.
-const SHARE_BASE_URL = process.env.EXPO_PUBLIC_SHARE_BASE_URL ?? 'https://ceolx.com';
+// shared post URLs. Every build sets EXPO_PUBLIC_SHARE_BASE_URL via eas.json
+// (prod api.ceolx.com, staging api-staging.ceolx.com); the fallback only applies
+// to a build that forgot to. It must be the API host, NOT the ceolx.com marketing
+// site — ceolx.com serves no /post, /event or /u routes and no
+// apple-app-site-association or assetlinks.json, so a link built against it 404s
+// and the OS never verifies the domain. MUST match SHARE_BASE_URL in
+// utils/share.ts. Stripped to a bare host because associatedDomains /
+// intentFilters take a host, not a URL.
+const SHARE_BASE_URL = process.env.EXPO_PUBLIC_SHARE_BASE_URL ?? 'https://api.ceolx.com';
 const SHARE_HOST = SHARE_BASE_URL.replace(/^https?:\/\//, '').replace(/\/.*$/, '');
 
 /**
