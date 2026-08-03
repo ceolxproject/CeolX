@@ -232,12 +232,17 @@ export default function VerifyEmailScreen() {
           <Text className="text-[28px] font-bold text-white mb-4 text-center">
             Check your email
           </Text>
-          <Text className="text-base text-white/60 text-center leading-6 mb-8">
-            We've sent a verification link to{'\n'}
-            <Text className="text-white font-semibold">{email ?? 'your email address'}</Text>.
-            {'\n\n'}
-            Tap the link in the email to activate your account.
-          </Text>
+          {/* Separate Texts with a gap rather than '\n\n' inside one block — a blank
+              line costs a full 24px of leading and leaves the paragraphs floating. */}
+          <View className="self-stretch gap-3 mb-8">
+            <Text className="text-base text-white/60 text-center leading-6">
+              We've sent a verification link to{'\n'}
+              <Text className="text-white font-semibold">{email ?? 'your email address'}</Text>.
+            </Text>
+            <Text className="text-base text-white/60 text-center leading-6">
+              Tap the link in the email to activate your account.
+            </Text>
+          </View>
 
           {verifyError ? (
             <View className="bg-error/15 rounded-lg p-3 mb-4 self-stretch">
@@ -266,7 +271,7 @@ export default function VerifyEmailScreen() {
           </AppButton>
 
           <Pressable
-            className={`py-3 mb-4 ${resendCooldown > 0 || !email ? 'opacity-40' : ''}`}
+            className={`py-3 ${resendCooldown > 0 || !email ? 'opacity-40' : ''}`}
             onPress={handleResend}
             disabled={resendCooldown > 0 || !email}
           >
@@ -276,6 +281,14 @@ export default function VerifyEmailScreen() {
                 : "Didn't receive it? Resend email"}
             </Text>
           </Pressable>
+
+          {/* Sits with resend rather than up in the main copy: this is what someone
+              reads only once the email hasn't shown up, so it belongs in the quiet
+              troubleshooting tier instead of pushing the CTA down the screen.
+              Both words on purpose — Gmail files it under Spam, Outlook under Junk. */}
+          <Text className="text-white/40 text-xs text-center mb-4">
+            Still nothing? Check your spam or junk folder.
+          </Text>
 
           <Pressable onPress={confirmLeave}>
             <Text className="text-white/40 text-sm text-center">Back to Sign In</Text>
