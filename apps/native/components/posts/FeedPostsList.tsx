@@ -1,9 +1,11 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ViewToken } from 'react-native';
 import { ActivityIndicator, Pressable, RefreshControl, Text, View } from 'react-native';
 import Animated, { type useAnimatedScrollHandler } from 'react-native-reanimated';
 
 import { PostCard, type PostCardPost } from './PostCard';
+
+import { prefetchImageRatios } from '@/hooks/use-image-ratio';
 
 type Props = {
   posts: PostCardPost[];
@@ -50,6 +52,15 @@ export function FeedPostsList({
 }: Props) {
   // The post id whose video should currently autoplay. `null` = no video on screen.
   const [activeVideoId, setActiveVideoId] = useState<string | null>(null);
+
+  // Cards size themselves to each poster's own ratio, which needs the image's
+  // natural dimensions. Measure a page of them as it arrives so the card is the
+  // right height on first paint rather than resizing once the image resolves.
+  useEffect(() => {
+    prefetchImageRatios(
+      posts.filter((post) => post.mediaType === 'image').map((post) => post.mediaUrl)
+    );
+  }, [posts]);
 
   // FlatList requires these to be stable for the lifetime of the list, so they
   // live in refs. The handler picks the active video from the items RN reports
