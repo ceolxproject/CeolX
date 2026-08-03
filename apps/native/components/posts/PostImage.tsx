@@ -1,12 +1,18 @@
 import { Image } from 'react-native';
 
-import { clampFeedRatio, FALLBACK_RATIO, useImageRatio } from '@/hooks/use-image-ratio';
+import {
+  clampFeedRatio,
+  DETAIL_MIN_RATIO,
+  FALLBACK_RATIO,
+  useImageRatio,
+} from '@/hooks/use-image-ratio';
 
 type Props = {
   uri: string;
   /**
-   * Detail-screen mode: render at the image's true ratio with no bounds. The
-   * feed clamps instead so one very tall poster can't swallow the scroll.
+   * Detail-screen mode: render at the image's true ratio, floored only against
+   * the pathological. The feed clamps both ways instead, so one very tall poster
+   * can't swallow the scroll.
    */
   expanded?: boolean;
 };
@@ -21,7 +27,9 @@ export function PostImage({ uri, expanded }: Props) {
   const natural = useImageRatio(uri);
 
   let ratio = FALLBACK_RATIO;
-  if (natural !== null) ratio = expanded ? natural : clampFeedRatio(natural);
+  if (natural !== null) {
+    ratio = expanded ? Math.max(natural, DETAIL_MIN_RATIO) : clampFeedRatio(natural);
+  }
 
   return (
     <Image

@@ -10,6 +10,15 @@ import { Image } from 'react-native';
 export const FEED_MIN_RATIO = 9 / 16;
 export const FEED_MAX_RATIO = 1.91;
 
+/**
+ * Detail-screen floor — roughly 1:3.6. The detail screen scrolls, so it shows
+ * the true ratio and needs no feed bounds; this exists only so one pathological
+ * upload can't turn the screen into an endless strip of a single image. The
+ * tallest thing in production is 9:16 (0.5625), so it is well clear of anything
+ * real and is not meant to shape ordinary posters.
+ */
+export const DETAIL_MIN_RATIO = FEED_MIN_RATIO / 2;
+
 /** Used while the natural ratio resolves, and when it can't be read at all. */
 export const FALLBACK_RATIO = 4 / 5;
 

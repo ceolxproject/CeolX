@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from 'vitest';
 const getSize = vi.hoisted(() => vi.fn());
 vi.mock('react-native', () => ({ Image: { getSize } }));
 
-const { clampFeedRatio, FEED_MAX_RATIO, FEED_MIN_RATIO, prefetchImageRatios } =
+const { clampFeedRatio, DETAIL_MIN_RATIO, FEED_MAX_RATIO, FEED_MIN_RATIO, prefetchImageRatios } =
   await import('../use-image-ratio');
 
 /**
@@ -38,6 +38,21 @@ describe('clampFeedRatio', () => {
 
   it('bounds an image wider than the ceiling', () => {
     expect(clampFeedRatio(5)).toBe(FEED_MAX_RATIO);
+  });
+});
+
+describe('DETAIL_MIN_RATIO', () => {
+  /**
+   * The detail screen scrolls, so this floor is a backstop against the absurd —
+   * not a shaping rule. It must sit clear of every real image, or it starts
+   * cropping the portrait posters the whole uncropped-upload change exists for.
+   */
+  it.each(PRODUCTION_RATIOS)('does not reshape $label', ({ ratio }) => {
+    expect(Math.max(ratio, DETAIL_MIN_RATIO)).toBeCloseTo(ratio, 5);
+  });
+
+  it('catches a strip taller than roughly 1:3.6', () => {
+    expect(Math.max(1 / 8, DETAIL_MIN_RATIO)).toBe(DETAIL_MIN_RATIO);
   });
 });
 
