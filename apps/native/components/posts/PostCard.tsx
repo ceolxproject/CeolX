@@ -71,7 +71,9 @@ type Props = {
   /**
    * Feed viewport flag forwarded to <PostVideo> — off-screen cards freeze to the
    * poster instead of streaming. Left undefined on surfaces without viewport
-   * tracking (profile / venue / artist), where every video plays while mounted.
+   * tracking (profile / venue / artist), which then hold the poster: those lists
+   * mount every card at once, so autoplay there would be one live stream per
+   * video post. Tapping opens the detail screen, which plays.
    */
   activeVideo?: boolean;
 };
@@ -374,7 +376,7 @@ export function PostCard({
           mediaUrl={post.mediaUrl}
           muxStatus={post.muxStatus ?? null}
           muxPlaybackId={post.muxPlaybackId ?? null}
-          active={activeVideo}
+          active={expanded === true || activeVideo === true}
         />
       )}
 

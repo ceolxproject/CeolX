@@ -16,12 +16,15 @@ type Props = {
   /** Mux playback id — lets us build the stream + poster URLs even if mediaUrl is unset. */
   muxPlaybackId: string | null;
   /**
-   * Feed viewport flag. `false` → an off-screen feed card, so freeze back to the
-   * poster (stops + frees the player). `true` or `undefined` → eligible to play.
-   * `undefined` is a surface with no viewport tracking (profile / venue / artist
-   * post lists, post detail). Screen focus is checked on top of this either way.
+   * May this video play? `true` only where something guarantees it is the one
+   * video being watched — the on-screen feed card, or the post detail screen.
+   * Everywhere else passes `false`: profile / venue / artist post lists have no
+   * viewport tracking and mount every card at once, so autoplaying there means
+   * one live HLS stream per video post, all audible together once unmuted.
+   * Required rather than optional — a surface that forgets it is the bug.
+   * Screen focus is checked on top of this either way.
    */
-  active?: boolean;
+  active: boolean;
 };
 
 /**
@@ -96,7 +99,7 @@ export function PostVideo({ mediaUrl, muxStatus, muxPlaybackId, active }: Props)
   // keeps streaming its own audio, so pausing on the detail screen can't stop the
   // sound. Gating on focus leaves exactly one live player at a time.
   const isFocused = useIsFocused();
-  const shouldPlay = isFocused && active !== false;
+  const shouldPlay = isFocused && active;
   const state = deriveVideoState(mediaUrl, muxStatus, muxPlaybackId);
 
   // Resume playing when the card comes back, rather than returning to a video
@@ -123,9 +126,11 @@ export function PostVideo({ mediaUrl, muxStatus, muxPlaybackId, active }: Props)
     );
   }
 
-  // Off-screen, or on a screen that isn't focused: hold the poster frame and keep
-  // no player alive, so nothing streams that nobody is looking at. Deliberately
-  // not pressable — the tap falls through to the card's own navigation.
+  // Not the video being watched — off screen, on an unfocused screen, or in a
+  // list that mounts every card. Hold the poster frame and keep no player alive,
+  // so nothing streams that nobody is looking at. Deliberately not pressable: the
+  // tap falls through to the card's own navigation, which opens the post detail
+  // screen, and that is where it plays.
   if (!shouldPlay) {
     return (
       <View className="mb-3 aspect-[4/5] w-full overflow-hidden rounded-xl bg-black">
