@@ -19,7 +19,24 @@ export default function AboutScreen() {
 
   const appVersion = Constants.expoConfig?.version ?? UNKNOWN;
   const channel = Updates.channel ?? 'development';
-  const bundleSource = getRunningBundleInfo().source === 'ota' ? 'OTA update' : 'embedded';
+  const bundle = getRunningBundleInfo();
+  // The publish time is what makes "did the update land?" answerable from the
+  // phone alone: "OTA update" looks identical across every bundle, so QA had to
+  // attach adb to tell this week's update from last week's. Compare this line
+  // against the publish time in the release task / EAS dashboard.
+  const bundleLabel =
+    bundle.source === 'ota'
+      ? `OTA update${
+          bundle.createdAt
+            ? ` · ${bundle.createdAt.toLocaleString(undefined, {
+                day: 'numeric',
+                month: 'short',
+                hour: '2-digit',
+                minute: '2-digit',
+              })}`
+            : ''
+        }`
+      : 'embedded';
 
   async function handleCheck() {
     if (busy) return;
@@ -104,7 +121,7 @@ export default function AboutScreen() {
               v{appVersion}
             </Text>
             <Text className="mt-1 text-sm text-gray-10 font-inter">
-              {channel} · {bundleSource}
+              {channel} · {bundleLabel}
             </Text>
           </View>
 
