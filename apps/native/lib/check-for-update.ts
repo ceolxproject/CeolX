@@ -1,7 +1,17 @@
 import * as Linking from 'expo-linking';
 import * as Updates from 'expo-updates';
 
-const TIMEOUT_MS = 3000;
+// Cold-start budgets. The check is one small manifest request, so it stays
+// tight — its only job is to answer "is there an update?" before the splash
+// lifts. The fetch is the actual bundle download, and 3s (the old shared
+// budget) was the bug: a few-MB bundle on mobile data routinely takes longer,
+// so the first cold start timed out, staged the download in the background,
+// and only the SECOND cold start ran the new bundle. QA reads that as "OTA
+// doesn't apply when I close and reopen the app." The root layout holds the
+// brand splash until this resolves, so the fetch budget is only ever felt when
+// an update genuinely exists and is downloading — never on the common path.
+const CHECK_TIMEOUT_MS = 5_000;
+const FETCH_TIMEOUT_MS = 15_000;
 const MANUAL_TIMEOUT_MS = 20_000;
 
 export type RunningBundleInfo =
@@ -37,9 +47,12 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
  * swaps in the bundle on the *next* cold launch — iOS keeps the process alive
  * for days, so users could go a week without a published fix.
  *
- * Budget: ~6s total (3s check + 3s fetch). On timeout / no update / any error,
- * falls through and lets the embedded bundle boot; default polling retries next
- * launch.
+ * Budget: 5s check + 15s fetch, worst case ~20s of splash — and only when an
+ * update exists and is still downloading. On timeout / no update / any error,
+ * falls through and boots the current bundle; a timed-out fetch keeps
+ * downloading in the background, so the update is staged and expo-updates
+ * launches it natively on the next cold start. Offline launches fail the check
+ * fast and boot normally — the app must never refuse to open without network.
  *
  * CeolX-specific: a `reloadAsync()` mid cold-start would restart the process
  * while Expo Router is restoring a deep link, dropping it (Asana
@@ -53,9 +66,9 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
 export async function applyPendingUpdate(): Promise<boolean> {
   if (__DEV__ || !Updates.isEnabled) return false;
   try {
-    const check = await withTimeout(Updates.checkForUpdateAsync(), TIMEOUT_MS);
+    const check = await withTimeout(Updates.checkForUpdateAsync(), CHECK_TIMEOUT_MS);
     if (!check.isAvailable) return false;
-    await withTimeout(Updates.fetchUpdateAsync(), TIMEOUT_MS);
+    await withTimeout(Updates.fetchUpdateAsync(), FETCH_TIMEOUT_MS);
     // Don't interrupt a cold-start deep-link launch with a reload.
     const initialUrl = await Linking.getInitialURL();
     if (initialUrl) return false;

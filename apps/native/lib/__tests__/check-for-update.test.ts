@@ -161,6 +161,46 @@ describe('applyPendingUpdate', () => {
     expect(mockReload).not.toHaveBeenCalled();
     expect(result).toBe(false);
   });
+
+  /**
+   * The regression this budget exists for: a few-MB bundle on mobile data takes
+   * longer than the old 3s shared timeout, so the first cold start gave up,
+   * the download staged in the background, and only the SECOND close-and-reopen
+   * ran the new bundle. A download slower than 3s but within the fetch budget
+   * must apply on THIS launch.
+   */
+  it('still reloads when the download takes longer than the old 3s budget', async () => {
+    vi.useFakeTimers();
+    mockCheckForUpdate.mockResolvedValueOnce({ isAvailable: true });
+    mockFetchUpdate.mockImplementationOnce(
+      () => new Promise((resolve) => setTimeout(() => resolve({}), 10_000))
+    );
+    mockGetInitialURL.mockResolvedValueOnce(null);
+    const resultPromise = applyPendingUpdate();
+    await vi.advanceTimersByTimeAsync(10_000);
+    const result = await resultPromise;
+    expect(mockReload).toHaveBeenCalled();
+    expect(result).toBe(true);
+    vi.useRealTimers();
+  });
+
+  it('gives up (staging for next launch) when the download exceeds the fetch budget', async () => {
+    vi.useFakeTimers();
+    mockCheckForUpdate.mockResolvedValueOnce({ isAvailable: true });
+    mockFetchUpdate.mockImplementationOnce(
+      () =>
+        new Promise<never>(() => {
+          // never resolves — the timed-out fetch keeps downloading in the
+          // background and expo-updates applies it natively next cold start.
+        })
+    );
+    const resultPromise = applyPendingUpdate();
+    await vi.advanceTimersByTimeAsync(16_000);
+    const result = await resultPromise;
+    expect(mockReload).not.toHaveBeenCalled();
+    expect(result).toBe(false);
+    vi.useRealTimers();
+  });
 });
 
 describe('getRunningBundleInfo', () => {
