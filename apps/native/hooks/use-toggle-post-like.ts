@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
+import { AnalyticsEvent, track } from '@/lib/analytics';
 import { trpc } from '@/utils/trpc';
 
 /** Minimal shape we patch inside any cached posts query. */
@@ -83,6 +84,11 @@ export function useTogglePostLike() {
           likeCount: result.likeCount,
         }))
       );
+
+      // Tracked here rather than at the tap: `result.liked` is the server's
+      // confirmed direction, so an unlike is distinguishable from a like and a
+      // toggle that failed and rolled back never counts as engagement.
+      track(AnalyticsEvent.POST_LIKED, { post_id: postId, liked: result.liked });
     },
     onSettled: async () => {
       await queryClient.invalidateQueries(postsFilter);

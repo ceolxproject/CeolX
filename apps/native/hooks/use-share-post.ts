@@ -1,8 +1,7 @@
 import { useCallback } from 'react';
-import { Share } from 'react-native';
 
 import { appToast } from '@/components/AppToast';
-import { buildShareContent, shareUrlFor } from '@/utils/share';
+import { shareLink, shareUrlFor } from '@/utils/share';
 
 /**
  * Opens the native Share sheet for a post.
@@ -18,7 +17,7 @@ export function useSharePost() {
   return useCallback(async (postId: string, caption: string) => {
     const url = shareUrlFor(`/post/${postId}`);
     try {
-      await Share.share(buildShareContent(url, caption, 'Check out this post on CeolX'));
+      await shareLink('post', url, caption, 'Check out this post on CeolX');
     } catch {
       appToast.error('Unable to share', 'Please try again.');
     }

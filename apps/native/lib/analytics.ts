@@ -126,6 +126,9 @@ export const AnalyticsEvent = {
   // Creation
   EVENT_CREATED: 'event_created',
   ARTIST_INVITE_SENT: 'artist_invite_sent',
+  // Engagement
+  POST_LIKED: 'post_liked',
+  CONTENT_SHARED: 'content_shared',
   // Booking
   PERFORMANCE_REQUEST_SENT: 'performance_request_sent',
   BOOKING_RESPONDED: 'booking_responded',

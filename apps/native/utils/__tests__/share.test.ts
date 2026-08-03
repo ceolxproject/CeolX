@@ -1,8 +1,18 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+// Mutable so a test can flip platform; shareLink reads Platform.OS at call time.
+const platform = vi.hoisted(() => ({ OS: 'ios' as 'ios' | 'android' }));
+const shareMock = vi.hoisted(() => vi.fn());
+const trackMock = vi.hoisted(() => vi.fn());
+
+vi.mock('react-native', () => ({ Platform: platform, Share: { share: shareMock } }));
 vi.mock('@CeolX/env/native', () => ({ env: { EXPO_PUBLIC_SHARE_BASE_URL: 'https://ceolx.com' } }));
+vi.mock('@/lib/analytics', () => ({
+  track: trackMock,
+  AnalyticsEvent: { CONTENT_SHARED: 'content_shared' },
+}));
 
-const { buildShareContent, shareUrlFor } = await import('../share');
+const { buildShareContent, shareLink, shareUrlFor } = await import('../share');
 
 const URL = 'https://ceolx.com/post/abc';
 const TITLE = 'Check out this post on CeolX';
@@ -44,5 +54,62 @@ describe('buildShareContent', () => {
 
   it('keeps the title for the android chooser', () => {
     expect(buildShareContent(URL, 'caption', TITLE).title).toBe(TITLE);
+  });
+});
+
+describe('shareLink analytics', () => {
+  beforeEach(() => {
+    platform.OS = 'ios';
+    shareMock.mockReset();
+    trackMock.mockReset();
+  });
+
+  it('records the outcome and target on ios', async () => {
+    shareMock.mockResolvedValue({ action: 'sharedAction', activityType: 'com.apple.UIKit.copy' });
+
+    await shareLink('post', URL, 'caption', TITLE);
+
+    expect(trackMock).toHaveBeenCalledWith('content_shared', {
+      type: 'post',
+      completed: true,
+      target: 'com.apple.UIKit.copy',
+    });
+  });
+
+  it('records a dismissal on ios', async () => {
+    shareMock.mockResolvedValue({ action: 'dismissedAction' });
+
+    await shareLink('event', URL, 'caption', TITLE);
+
+    expect(trackMock).toHaveBeenCalledWith('content_shared', {
+      type: 'event',
+      completed: false,
+      target: null,
+    });
+  });
+
+  /**
+   * Android resolves with sharedAction whether the user shared or backed out, so
+   * reporting `completed: true` there would be a confirmation we cannot actually
+   * observe. Null is the honest answer.
+   */
+  it('leaves the outcome unknown on android rather than assuming success', async () => {
+    platform.OS = 'android';
+    shareMock.mockResolvedValue({ action: 'sharedAction' });
+
+    await shareLink('profile', URL, 'caption', TITLE);
+
+    expect(trackMock).toHaveBeenCalledWith('content_shared', {
+      type: 'profile',
+      completed: null,
+      target: null,
+    });
+  });
+
+  it('does not record anything when the share sheet throws', async () => {
+    shareMock.mockRejectedValue(new Error('no sheet'));
+
+    await expect(shareLink('post', URL, 'caption', TITLE)).rejects.toThrow();
+    expect(trackMock).not.toHaveBeenCalled();
   });
 });

@@ -1,8 +1,7 @@
 import { useCallback } from 'react';
-import { Share } from 'react-native';
 
 import { appToast } from '@/components/AppToast';
-import { buildShareContent, shareUrlFor } from '@/utils/share';
+import { shareLink, shareUrlFor } from '@/utils/share';
 
 /**
  * Opens the native Share sheet for an event.
@@ -19,12 +18,11 @@ export function useShareEvent() {
   return useCallback(async (eventId: string, title: string, dateLabel: string) => {
     const url = shareUrlFor(`/event/${eventId}`);
     try {
-      await Share.share(
-        buildShareContent(
-          url,
-          `Check out ${title} on CeolX\n${dateLabel}`,
-          'Check out this event on CeolX'
-        )
+      await shareLink(
+        'event',
+        url,
+        `Check out ${title} on CeolX\n${dateLabel}`,
+        'Check out this event on CeolX'
       );
     } catch {
       appToast.error('Unable to share', 'Please try again.');
