@@ -3,7 +3,11 @@ import { cn } from 'heroui-native';
 import { Image, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 
 import type { EventCategory } from '@CeolX/shared';
-import { EVENT_DESCRIPTION_MAX, EVENT_TITLE_MAX } from '@CeolX/shared/validators';
+import {
+  EVENT_DESCRIPTION_MAX,
+  EVENT_TITLE_MAX,
+  MAX_BYTES_BY_TYPE,
+} from '@CeolX/shared/validators';
 
 import type { ArtistResult } from './ArtistSearchRow';
 import { CategoryPicker } from './CategoryPicker';
@@ -13,6 +17,10 @@ import { InviteArtistPicker } from './InviteArtistPicker';
 
 import { CharacterCount, CharacterLimitNote } from '@/components/CharacterCount';
 import { clampFeedRatio, FALLBACK_RATIO, useImageRatio } from '@/hooks/use-image-ratio';
+
+// Derived so the copy tracks the real cap instead of drifting from it — the
+// previous hardcoded "100kb" was ~100x under the actual limit.
+const COVER_MAX_MB = Math.round(MAX_BYTES_BY_TYPE.event_cover / (1024 * 1024));
 
 type Props = {
   title: string;
@@ -112,7 +120,7 @@ export function BasicDetailsStep({
       <View className="gap-2">
         <FieldLabel
           label="Event Banner/Image"
-          hint="The cover image shown on your event card and detail page. PNG or JPEG, max 100kb."
+          hint={`The cover image shown on your event card and detail page. JPG or PNG up to ${COVER_MAX_MB}MB.`}
         />
         <Pressable onPress={onPickImage}>
           {coverImageUri ? (
@@ -151,9 +159,7 @@ export function BasicDetailsStep({
             </View>
           )}
         </Pressable>
-        <Text className="text-xs text-gray-7 font-urbanist">
-          Image type png or jpeg with a max file size 100kb
-        </Text>
+        <Text className="text-xs text-gray-7 font-urbanist">JPG, PNG up to {COVER_MAX_MB}MB.</Text>
         {errors.coverImageUri && (
           <Text className="text-xs text-error font-urbanist">{errors.coverImageUri}</Text>
         )}

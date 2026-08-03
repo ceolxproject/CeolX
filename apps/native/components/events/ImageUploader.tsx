@@ -4,8 +4,14 @@ import { cn } from 'heroui-native';
 import { useCallback } from 'react';
 import { Image, Pressable, Text, View } from 'react-native';
 
+import { MAX_BYTES_BY_TYPE } from '@CeolX/shared/validators';
+
 import { appToast } from '@/components/AppToast';
 import { clampFeedRatio, useImageRatio } from '@/hooks/use-image-ratio';
+
+// Derived so the copy tracks the real cap instead of drifting from it — the
+// previous hardcoded "100kb" was ~100x under the actual limit.
+const COVER_MAX_MB = Math.round(MAX_BYTES_BY_TYPE.event_cover / (1024 * 1024));
 
 type Props = {
   imageUri: string | null;
@@ -65,9 +71,7 @@ export function ImageUploader({ imageUri, onImagePicked }: Props) {
           </View>
         )}
       </Pressable>
-      <Text className="mt-1 text-xs text-white/40">
-        Image type png or jpeg with a max file size 100kb
-      </Text>
+      <Text className="mt-1 text-xs text-white/40">JPG, PNG up to {COVER_MAX_MB}MB.</Text>
     </View>
   );
 }
