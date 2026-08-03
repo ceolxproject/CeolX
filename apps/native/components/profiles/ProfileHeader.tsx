@@ -151,12 +151,18 @@ export function ProfileHeader({
           )}
         </View>
       ) : (
-        <View className="flex-row items-center gap-2">
+        // self-stretch + px-5 gives this row a definite width to divide up. The
+        // parent is items-center, so without it the row is only as wide as its
+        // content — and a flex-1 Follow button then has no bounded space to fill,
+        // expanding past the row and pushing the share button off the right edge
+        // of the screen. justify-center keeps the fixed-width secondaryCta variant
+        // centred as before.
+        <View className="flex-row items-center justify-center gap-2 self-stretch px-5">
           <Pressable
             className={cn(
               'h-9 rounded-[20px] items-center justify-center',
               isFollowing ? 'bg-[#333335]' : 'bg-[#662FFF]',
-              secondaryCta ? 'w-[109px]' : 'flex-1 mx-5'
+              secondaryCta ? 'w-[109px]' : 'flex-1'
             )}
             onPress={
               onFollowPress ??
