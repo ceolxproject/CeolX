@@ -4,6 +4,10 @@ import { Image, Text, View } from 'react-native';
 
 import { CategoryChip } from '@/components/CategoryChip';
 import { EventCollectionBadge } from '@/components/EventCollectionBadge';
+import { clampFeedRatio, useImageRatio } from '@/hooks/use-image-ratio';
+
+/** Shape of the empty placeholder, and of the hero until the cover resolves. */
+const FALLBACK_HERO_RATIO = 375 / 208;
 
 interface EventHeroImageProps {
   coverImageUrl?: string;
@@ -21,8 +25,13 @@ export function EventHeroImage({
   attendeeCount,
   className,
 }: EventHeroImageProps) {
+  // Cover art is a gig poster as often as it is a photo, so the hero takes the
+  // image's own shape instead of forcing every poster into a 16:9 letterbox.
+  const natural = useImageRatio(coverImageUrl);
+  const ratio = coverImageUrl && natural !== null ? clampFeedRatio(natural) : FALLBACK_HERO_RATIO;
+
   return (
-    <View className={cn('w-full aspect-[375/208] relative', className)}>
+    <View style={{ aspectRatio: ratio }} className={cn('w-full relative', className)}>
       {coverImageUrl ? (
         <Image
           source={{ uri: coverImageUrl }}

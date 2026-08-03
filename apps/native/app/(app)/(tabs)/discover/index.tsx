@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Keyboard,
@@ -38,6 +38,7 @@ import { useLocationOverride } from '@/contexts/location-override-context';
 import { useFeedEvents } from '@/hooks/use-feed-events';
 import { useFeedPosts } from '@/hooks/use-feed-posts';
 import { useGpsRegion } from '@/hooks/use-gps-region';
+import { prefetchImageRatios } from '@/hooks/use-image-ratio';
 import { useMe } from '@/hooks/use-me';
 import { useSearchSuggestions } from '@/hooks/use-search-suggestions';
 import { useVenueFallback } from '@/hooks/use-venue-fallback';
@@ -291,6 +292,12 @@ export default function DiscoverScreen() {
   );
 
   const locationText = effectiveLocation.label;
+
+  // Event cards size themselves to each poster's ratio, so measure a page of
+  // covers as it arrives rather than letting the cards resize under the scroll.
+  useEffect(() => {
+    prefetchImageRatios(events.map((event) => event.coverImageUrl));
+  }, [events]);
 
   const renderEvent = useCallback(
     ({ item }: { item: (typeof events)[number] }) => (

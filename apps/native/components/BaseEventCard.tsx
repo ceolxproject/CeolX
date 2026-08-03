@@ -4,6 +4,7 @@ import type { ReactNode } from 'react';
 import { Image, Pressable, Text, View } from 'react-native';
 
 import { CategoryChip } from '@/components/CategoryChip';
+import { clampFeedRatio, FALLBACK_RATIO, useImageRatio } from '@/hooks/use-image-ratio';
 import { formatEventDate } from '@/utils/format-event-date';
 
 interface BaseEventCardProps {
@@ -44,6 +45,11 @@ export function BaseEventCard({
 }: BaseEventCardProps) {
   const formattedDate = formatEventDate(dateStart, dateEnd);
 
+  // Cover art is usually a gig poster, so the card takes the poster's own shape
+  // — same treatment as the Posts feed, so the two Discover tabs behave alike.
+  const natural = useImageRatio(coverImageUrl);
+  const coverRatio = natural === null ? FALLBACK_RATIO : clampFeedRatio(natural);
+
   return (
     <Pressable
       onPress={onPress}
@@ -52,8 +58,13 @@ export function BaseEventCard({
         className
       )}
     >
-      {/* Cover image */}
-      <View className="h-[208px] relative">
+      {/* Cover image — shown whole at the poster's own ratio. With no cover
+          there is nothing to show, so the placeholder stays short rather than
+          reserving a screenful of empty grey. */}
+      <View
+        style={coverImageUrl ? { aspectRatio: coverRatio } : undefined}
+        className={cn('relative', !coverImageUrl && 'h-[140px]')}
+      >
         {coverImageUrl ? (
           <Image
             source={{ uri: coverImageUrl }}
