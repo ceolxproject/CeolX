@@ -69,9 +69,9 @@ type Props = {
    */
   onDeleted?: () => void;
   /**
-   * Feed viewport flag forwarded to <PostVideo> — the on-screen card autoplays
-   * muted, off-screen cards freeze. Left undefined on surfaces without viewport
-   * tracking (profile / venue / artist), where videos stay tap-to-play.
+   * Feed viewport flag forwarded to <PostVideo> — off-screen cards freeze to the
+   * poster instead of streaming. Left undefined on surfaces without viewport
+   * tracking (profile / venue / artist), where every video plays while mounted.
    */
   activeVideo?: boolean;
 };
@@ -375,7 +375,6 @@ export function PostCard({
           muxStatus={post.muxStatus ?? null}
           muxPlaybackId={post.muxPlaybackId ?? null}
           active={activeVideo}
-          expanded={expanded}
         />
       )}
 
