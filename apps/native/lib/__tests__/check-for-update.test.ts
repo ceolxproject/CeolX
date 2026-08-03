@@ -6,6 +6,8 @@ import {
   applyPendingUpdate,
   checkForUpdateManually,
   getRunningBundleInfo,
+  RESUME_UPDATE_THRESHOLD_MS,
+  shouldApplyOnResume,
 } from '../check-for-update';
 
 // vitest hoists vi.mock above the imports above at runtime, so the mocked
@@ -181,5 +183,34 @@ describe('getRunningBundleInfo', () => {
     (Updates as Record<string, unknown>).createdAt = createdAt;
     const result = getRunningBundleInfo();
     expect(result).toEqual({ source: 'ota', updateId: 'abc-123', createdAt });
+  });
+});
+
+describe('shouldApplyOnResume', () => {
+  const NOW = new Date('2026-08-03T12:00:00Z').getTime();
+
+  it('does not restart when the app never went to the background', () => {
+    expect(shouldApplyOnResume(null, NOW)).toBe(false);
+  });
+
+  /**
+   * The case this guard exists for: verify-email and forgot-password send the
+   * user to their mail app and straight back. Restarting on that round trip
+   * would drop them out of the flow they are standing in.
+   */
+  it('does not restart on a short trip to another app', () => {
+    expect(shouldApplyOnResume(NOW - 30_000, NOW)).toBe(false);
+  });
+
+  it('does not restart just under the threshold', () => {
+    expect(shouldApplyOnResume(NOW - RESUME_UPDATE_THRESHOLD_MS + 1, NOW)).toBe(false);
+  });
+
+  it('restarts once away for the full threshold', () => {
+    expect(shouldApplyOnResume(NOW - RESUME_UPDATE_THRESHOLD_MS, NOW)).toBe(true);
+  });
+
+  it('restarts after a long break', () => {
+    expect(shouldApplyOnResume(NOW - 8 * 60 * 60 * 1000, NOW)).toBe(true);
   });
 });

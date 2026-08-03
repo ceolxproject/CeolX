@@ -34,6 +34,7 @@ import { AppToastProvider } from '@/components/AppToast';
 import { FallbackComponent } from '@/components/sentry-fallback';
 import { AppThemeProvider } from '@/contexts/app-theme-context';
 import { AuthProvider } from '@/contexts/auth-context';
+import { useApplyUpdateOnResume } from '@/hooks/use-update-on-resume';
 import { posthog, trackScreen } from '@/lib/analytics';
 import { applyPendingUpdate } from '@/lib/check-for-update';
 import { configureGoogleSignIn } from '@/lib/google-signin';
@@ -117,6 +118,12 @@ function Layout() {
   useEffect(() => {
     void applyPendingUpdate().finally(() => setUpdateChecked(true));
   }, []);
+
+  // The cold-start check above fires once per JS process, and iOS keeps that
+  // process alive for days — so it never runs again for anyone who doesn't swipe
+  // the app out of the switcher. This picks up an already-downloaded bundle when
+  // they come back after a long enough break.
+  useApplyUpdateOnResume();
 
   // Screen tracking. expo-router has no navigation-state callback PostHog can
   // hook, so the pathname is the signal; record ids are stripped in trackScreen.

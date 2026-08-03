@@ -66,6 +66,28 @@ export async function applyPendingUpdate(): Promise<boolean> {
   }
 }
 
+/**
+ * How long the app must have been backgrounded before a resume is allowed to
+ * restart it. The threshold is the whole safety mechanism, not a tuning knob:
+ * verify-email and forgot-password deliberately send people to their mail app
+ * and back, and event creation is a multi-step form. Restarting on a short
+ * round trip would break the flow the user is standing in. Fifteen minutes is
+ * long enough that the session is realistically over, short enough that
+ * "opened it again after lunch" still picks up the update.
+ */
+export const RESUME_UPDATE_THRESHOLD_MS = 15 * 60 * 1000;
+
+/**
+ * Pure so the threshold is testable without faking AppState. `backgroundedAt`
+ * is null when the app has not been backgrounded since launch — a cold start
+ * that never left the foreground must not qualify, because `applyPendingUpdate`
+ * has already had its turn.
+ */
+export function shouldApplyOnResume(backgroundedAt: number | null, now: number): boolean {
+  if (backgroundedAt === null) return false;
+  return now - backgroundedAt >= RESUME_UPDATE_THRESHOLD_MS;
+}
+
 export type ManualUpdateResult =
   | { status: 'disabled' }
   | { status: 'up_to_date' }
