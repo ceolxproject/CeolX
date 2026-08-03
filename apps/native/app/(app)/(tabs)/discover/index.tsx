@@ -26,6 +26,7 @@ import { UserRole } from '@CeolX/shared/enums';
 
 import { AdStack } from '@/components/ads/AdStack';
 import { DatePickerSheet } from '@/components/DatePickerSheet';
+import { EmptyState } from '@/components/EmptyState';
 import { FeedEventCard } from '@/components/FeedEventCard';
 import { FeedHeader } from '@/components/FeedHeader';
 import { FeedLocationSheet } from '@/components/FeedLocationSheet';
@@ -499,16 +500,20 @@ export default function DiscoverScreen() {
                   ) : null
                 }
                 ListEmptyComponent={
-                  <View className="items-center justify-center pt-16 px-8">
-                    <Ionicons
-                      name="musical-notes-outline"
-                      size={48}
-                      color="rgba(255,255,255,0.2)"
-                    />
-                    <Text className="text-white/40 text-center text-sm font-urbanist mt-4">
-                      No events found. Try adjusting your filters or search.
-                    </Text>
-                  </View>
+                  // Offers Posts rather than switching tabs on the user's behalf: an
+                  // empty Events list is information (wrong location, or filters too
+                  // narrow) and silently moving them hides the cause. Same pattern as
+                  // MapEmptyStateCard's "Browse all upcoming events". The CTA reuses
+                  // handleSegmentChange so it behaves exactly like tapping Posts.
+                  <EmptyState
+                    variant="no-events"
+                    title="No events found"
+                    subtitle="Try adjusting your filters or search."
+                    cta={{
+                      label: 'Browse posts instead',
+                      onPress: () => handleSegmentChange(1),
+                    }}
+                  />
                 }
                 contentContainerStyle={{
                   flexGrow: 1,
