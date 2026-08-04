@@ -25,12 +25,24 @@ export type RateLimitTierName = keyof typeof RATE_LIMIT_TIERS;
 // Cache limiter instances so we don't reconstruct on every request
 const limiterCache = new Map<string, Ratelimit>();
 
+/**
+ * Without both Upstash vars there is no Redis to talk to, so rate limiting is
+ * off and Redis is not a dependency of this deployment. Health checks read the
+ * same signal to avoid reporting a false outage.
+ */
+export function isRedisConfigured(): boolean {
+  return Boolean(process.env['UPSTASH_REDIS_REST_URL'] && process.env['UPSTASH_REDIS_REST_TOKEN']);
+}
+
+/** Liveness probe for the rate limiter's Redis. Throws when unreachable. */
+export async function pingRedis(): Promise<void> {
+  await Redis.fromEnv().ping();
+}
+
 function isRateLimitEnabled(): boolean {
   if (process.env['NODE_ENV'] === 'test') return false;
   if (process.env['RATE_LIMIT_ENABLED'] === 'false') return false;
-  if (!process.env['UPSTASH_REDIS_REST_URL']) return false;
-  if (!process.env['UPSTASH_REDIS_REST_TOKEN']) return false;
-  return true;
+  return isRedisConfigured();
 }
 
 function getLimiter(tierName: string, tier: RateLimitTier): Ratelimit {
