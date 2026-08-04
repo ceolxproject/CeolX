@@ -18,6 +18,7 @@ import { errorHandler } from './middleware/errorHandler';
 import appLinksRoute from './routes/app-links';
 import appRedirectRoute from './routes/app-redirect';
 import eventShareRoute from './routes/event-share';
+import healthRoute from './routes/health';
 import inviteShareRoute from './routes/invite-share';
 import locationRoutes from './routes/location';
 import postShareRoute from './routes/post-share';
@@ -50,14 +51,10 @@ export function buildApp() {
     })
   );
 
-  // Health check — no rate limit, no auth required
-  app.get('/health', (c) =>
-    c.json({
-      status: 'ok',
-      timestamp: new Date().toISOString(),
-      version: '1.0.0',
-    })
-  );
+  // Health checks — no rate limit, no auth required. /health is liveness
+  // (touches nothing), /health/deps is readiness (probes Postgres, Redis,
+  // Typesense). Polled by external uptime monitors at different intervals.
+  app.route('/', healthRoute);
 
   // BetterAuth — sign-up, sign-in, sign-out, email verification, OAuth callbacks
   app.use('/api/auth/*', rateLimiter(RATE_LIMIT_TIERS.authLogin));
