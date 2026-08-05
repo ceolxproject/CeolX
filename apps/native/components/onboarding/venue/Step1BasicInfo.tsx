@@ -60,7 +60,7 @@ export function Step1BasicInfo({
 
       <View className="gap-4">
         <View className="gap-2">
-          <Text className="text-sm font-bold text-white/80">Venue Name</Text>
+          <Text className="text-sm font-bold text-white/80">Venue/Festival Name</Text>
           <AppTextField
             variant="light"
             placeholder="Enter your venue name"

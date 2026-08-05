@@ -303,7 +303,7 @@ export default function EditProfileScreen() {
 
           {/* Display Name / Venue Name */}
           <Text className="text-xs font-semibold text-white/60 uppercase tracking-wide mb-1.5 font-urbanist">
-            {isVenue ? 'Venue Name' : 'Display Name'} *
+            {isVenue ? 'Venue/Festival Name' : 'Display Name'} *
           </Text>
           <AppTextField
             variant="dark"
