@@ -22,6 +22,8 @@ type Check = { status: 'ok' | 'down' | 'skipped'; latencyMs: number };
 type HealthBody = {
   status: string;
   commit: string;
+  timestamp: string;
+  checkedAt?: string;
   checks?: { database: Check; redis: Check; search: Check };
 };
 
@@ -160,6 +162,59 @@ describe('GET /health/deps', () => {
     expect(dbExecute).toHaveBeenCalledTimes(1);
     expect(redisPing).toHaveBeenCalledTimes(1);
     expect(typesenseHealth).toHaveBeenCalledTimes(1);
+  });
+
+  // The memo holds the in-flight promise, not the result. Caching the result
+  // would let every request that arrives mid-probe start its own fan-out, so a
+  // burst of concurrent requests would cost one set of backend calls each.
+  it('shares one fan-out across concurrent requests', async () => {
+    enableRedis();
+    let releaseDb = (): void => {};
+    dbExecute.mockReturnValue(
+      new Promise((resolve) => {
+        releaseDb = () => resolve([{ '?column?': 1 }]);
+      })
+    );
+    const app = await buildApp();
+
+    // Array.from invokes the mapper immediately, so all 50 requests are already
+    // in flight before releaseDb() lets the probe resolve.
+    const inFlight = Array.from({ length: 50 }, async () => app.request('/health/deps'));
+    releaseDb();
+    const responses = await Promise.all(inFlight);
+
+    expect(responses.every((r) => r.status === 200)).toBe(true);
+    expect(dbExecute).toHaveBeenCalledTimes(1);
+    expect(redisPing).toHaveBeenCalledTimes(1);
+    expect(typesenseHealth).toHaveBeenCalledTimes(1);
+  });
+
+  // RATE_LIMIT_ENABLED=false switches the limiter off while the Upstash vars stay
+  // set. Nothing then talks to Redis, so an Upstash outage must not page anyone.
+  it('reports Redis as skipped when rate limiting is disabled by flag', async () => {
+    enableRedis();
+    vi.stubEnv('RATE_LIMIT_ENABLED', 'false');
+    redisPing.mockRejectedValue(new Error('ENOTFOUND'));
+    const app = await buildApp();
+
+    const res = await app.request('/health/deps');
+
+    expect(res.status).toBe(200);
+    expect((await readBody(res)).checks?.redis.status).toBe('skipped');
+    expect(redisPing).not.toHaveBeenCalled();
+  });
+
+  it('re-stamps timestamp on a cache hit while checkedAt stays as probed', async () => {
+    enableRedis();
+    const app = await buildApp();
+
+    const first = await readBody(await app.request('/health/deps'));
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    const second = await readBody(await app.request('/health/deps'));
+
+    expect(second.checkedAt).toBe(first.checkedAt);
+    expect(Date.parse(second.timestamp)).toBeGreaterThanOrEqual(Date.parse(first.timestamp));
+    expect(dbExecute).toHaveBeenCalledTimes(1);
   });
 
   it('never leaks driver error details', async () => {

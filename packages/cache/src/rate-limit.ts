@@ -25,13 +25,24 @@ export type RateLimitTierName = keyof typeof RATE_LIMIT_TIERS;
 // Cache limiter instances so we don't reconstruct on every request
 const limiterCache = new Map<string, Ratelimit>();
 
-/**
- * Without both Upstash vars there is no Redis to talk to, so rate limiting is
- * off and Redis is not a dependency of this deployment. Health checks read the
- * same signal to avoid reporting a false outage.
- */
+/** Both Upstash vars must be present for there to be a Redis to talk to at all. */
 export function isRedisConfigured(): boolean {
   return Boolean(process.env['UPSTASH_REDIS_REST_URL'] && process.env['UPSTASH_REDIS_REST_TOKEN']);
+}
+
+/**
+ * True when the limiter will actually reach for Redis, which is the same thing as
+ * "Redis is a dependency of this deployment". Health checks read this rather than
+ * isRedisConfigured: with RATE_LIMIT_ENABLED=false the vars can still be set while
+ * nothing touches Redis, and an Upstash outage then means nothing to this app.
+ *
+ * Deliberately excludes the NODE_ENV=test bypass below — that switches the limiter
+ * off in tests, but says nothing about whether Redis is a real dependency, and
+ * folding it in here would make the Redis health path untestable.
+ */
+export function isRateLimitActive(): boolean {
+  if (process.env['RATE_LIMIT_ENABLED'] === 'false') return false;
+  return isRedisConfigured();
 }
 
 /** Liveness probe for the rate limiter's Redis. Throws when unreachable. */
@@ -41,8 +52,7 @@ export async function pingRedis(): Promise<void> {
 
 function isRateLimitEnabled(): boolean {
   if (process.env['NODE_ENV'] === 'test') return false;
-  if (process.env['RATE_LIMIT_ENABLED'] === 'false') return false;
-  return isRedisConfigured();
+  return isRateLimitActive();
 }
 
 function getLimiter(tierName: string, tier: RateLimitTier): Ratelimit {

@@ -2,7 +2,7 @@ import { sql } from 'drizzle-orm';
 import { Hono } from 'hono';
 
 import { typesenseClient } from '@CeolX/api/lib/typesense';
-import { isRedisConfigured, pingRedis } from '@CeolX/cache';
+import { isRateLimitActive, pingRedis } from '@CeolX/cache';
 import { db } from '@CeolX/db';
 
 const health = new Hono();
@@ -17,14 +17,14 @@ const health = new Hono();
 const CHECK_TIMEOUT_MS = 3_000;
 
 /**
- * The dependency probe is public and each call costs real money — a Postgres
- * connection, a billed Upstash command, a Typesense query. Memoising the result
- * means a monitor polling every 30s and a hostile loop hammering the URL cost
- * the same.
+ * How long a probe verdict is reused. The endpoint is public and every fan-out
+ * costs real money — a Postgres connection, a billed Upstash command, a Typesense
+ * query — so a monitor polling on a schedule and a hostile loop hammering the URL
+ * cost the same.
  *
- * ponytail: module scope, so the cache is per warm instance — N instances allow
- * N probes per window, not one. That's enough to defuse the cost vector; if it
- * needs to be airtight, require a shared secret header the monitor sends.
+ * The cache is per warm instance, so N instances allow N fan-outs per window
+ * rather than one. That is enough to defuse the cost vector; requiring a shared
+ * secret header from the monitor is the fix if it ever needs to be airtight.
  */
 const CACHE_TTL_MS = 10_000;
 
@@ -32,12 +32,19 @@ type CheckStatus = 'ok' | 'down' | 'skipped';
 type Check = { status: CheckStatus; latencyMs: number };
 type DepsPayload = {
   status: 'ok' | 'degraded' | 'down';
-  timestamp: string;
+  checkedAt: string;
   commit: string;
   checks: { database: Check; redis: Check; search: Check };
 };
+type DepsResult = { payload: DepsPayload; httpStatus: 200 | 503 };
 
-let cached: { at: number; payload: DepsPayload; httpStatus: 200 | 503 } | null = null;
+/**
+ * Holds the in-flight promise, not the resolved value, so requests arriving
+ * during a fan-out await the same probes instead of each starting their own.
+ * Caching the result would leave a concurrency hole: 50 simultaneous requests
+ * would all miss and issue 50 sets of backend calls.
+ */
+let cached: { at: number; result: Promise<DepsResult> } | null = null;
 
 /** Monitors must never be handed a stale 200 by an intermediate cache during an outage. */
 const NO_STORE = { 'Cache-Control': 'no-store' } as const;
@@ -79,6 +86,36 @@ async function probe(fn: () => Promise<unknown>): Promise<Check> {
 }
 
 /**
+ * Probes every backing service in parallel.
+ *
+ * Cannot reject: probe() turns any failure into a `down` check, which is what
+ * makes it safe to cache this promise. A throw introduced here would be cached
+ * for the full TTL and replayed to every caller in that window, so keep any new
+ * work inside probe().
+ */
+async function runProbes(): Promise<DepsResult> {
+  const [database, redis, search] = await Promise.all([
+    probe(() => db.execute(sql`select 1`)),
+    isRateLimitActive()
+      ? probe(pingRedis)
+      : Promise.resolve<Check>({ status: 'skipped', latencyMs: 0 }),
+    probe(() => typesenseClient.health.retrieve()),
+  ]);
+
+  const criticalDown = database.status === 'down' || redis.status === 'down';
+
+  return {
+    payload: {
+      status: criticalDown ? 'down' : search.status === 'down' ? 'degraded' : 'ok',
+      checkedAt: new Date().toISOString(),
+      commit: commitSha(),
+      checks: { database, redis, search },
+    },
+    httpStatus: criticalDown ? 503 : 200,
+  };
+}
+
+/**
  * Liveness — deliberately touches nothing. A 200 here means the function booted,
  * which covers the common outages: bad deploy, dead DNS/cert, and a crash on
  * boot (env validation in app.ts throws at module load). Cheap enough to poll
@@ -99,7 +136,7 @@ health.get('/health', (c) =>
 );
 
 /**
- * Readiness — probes every backing service in parallel.
+ * Readiness.
  *
  * Severity is not uniform, because blast radius isn't either:
  *   - Postgres or Redis down  → the API cannot serve. 503, wake someone.
@@ -109,39 +146,24 @@ health.get('/health', (c) =>
  *
  * Redis is critical because the rate limiter has no fallback: an Upstash error
  * propagates and 500s every rate-limited route (packages/cache/src/rate-limit.ts).
- * That same coupling is why this route can't be rate limited itself — the
- * limiter needs Upstash, so an Upstash outage would 500 the very endpoint meant
- * to report it. The memo above is the cost control instead.
+ * That same coupling is why this route can't be rate limited itself — the limiter
+ * needs Upstash, so an Upstash outage would 500 the very endpoint meant to report
+ * it. The memo is the cost control instead.
  *
- * ponytail: an unconfigured Upstash reports "skipped" (green) even in
- * production, where it means rate limiting is silently off. Make the vars
- * required in @CeolX/env/server if that trade stops being acceptable.
+ * When rate limiting is switched off, Redis reports 'skipped' rather than being
+ * probed — nothing in the app talks to it, so its state can't take the API down.
  */
 health.get('/health/deps', async (c) => {
-  if (cached && Date.now() - cached.at < CACHE_TTL_MS) {
-    return c.json(cached.payload, cached.httpStatus, NO_STORE);
+  if (!cached || Date.now() - cached.at >= CACHE_TTL_MS) {
+    cached = { at: Date.now(), result: runProbes() };
   }
 
-  const [database, redis, search] = await Promise.all([
-    probe(() => db.execute(sql`select 1`)),
-    isRedisConfigured()
-      ? probe(pingRedis)
-      : Promise.resolve<Check>({ status: 'skipped', latencyMs: 0 }),
-    probe(() => typesenseClient.health.retrieve()),
-  ]);
+  const { payload, httpStatus } = await cached.result;
 
-  const criticalDown = database.status === 'down' || redis.status === 'down';
-  const payload: DepsPayload = {
-    status: criticalDown ? 'down' : search.status === 'down' ? 'degraded' : 'ok',
-    timestamp: new Date().toISOString(),
-    commit: commitSha(),
-    checks: { database, redis, search },
-  };
-  const httpStatus = criticalDown ? 503 : 200;
-
-  cached = { at: Date.now(), payload, httpStatus };
-
-  return c.json(payload, httpStatus, NO_STORE);
+  // `timestamp` is when this response was produced, `checkedAt` when the probes
+  // actually ran — up to CACHE_TTL_MS earlier. A monitor asserting response
+  // freshness would fail against a memoised verdict if these were one field.
+  return c.json({ ...payload, timestamp: new Date().toISOString() }, httpStatus, NO_STORE);
 });
 
 export default health;

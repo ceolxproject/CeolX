@@ -6,7 +6,7 @@ vi.mock('@upstash/redis', () => ({
   Redis: { fromEnv: vi.fn(() => ({ ping })) },
 }));
 
-const { isRedisConfigured, pingRedis } = await import('../rate-limit.js');
+const { isRedisConfigured, isRateLimitActive, pingRedis } = await import('../rate-limit.js');
 
 afterEach(() => {
   vi.unstubAllEnvs();
@@ -39,6 +39,33 @@ describe('isRedisConfigured', () => {
   it('is false when neither is set', () => {
     setUpstashEnv();
     expect(isRedisConfigured()).toBe(false);
+  });
+});
+
+describe('isRateLimitActive', () => {
+  it('is true when Redis is configured and the flag is unset', () => {
+    setUpstashEnv('https://test.upstash.io', 'token');
+    expect(isRateLimitActive()).toBe(true);
+  });
+
+  // Health checks read this rather than isRedisConfigured: with the limiter off by
+  // flag, nothing touches Redis, so an Upstash outage must not report as an outage.
+  it('is false when RATE_LIMIT_ENABLED=false even with both vars set', () => {
+    setUpstashEnv('https://test.upstash.io', 'token');
+    vi.stubEnv('RATE_LIMIT_ENABLED', 'false');
+    expect(isRateLimitActive()).toBe(false);
+  });
+
+  it('is false when Redis is not configured', () => {
+    setUpstashEnv();
+    expect(isRateLimitActive()).toBe(false);
+  });
+
+  // Only the literal string disables it — an unset or any other value leaves it on.
+  it('stays true for a non-false flag value', () => {
+    setUpstashEnv('https://test.upstash.io', 'token');
+    vi.stubEnv('RATE_LIMIT_ENABLED', 'true');
+    expect(isRateLimitActive()).toBe(true);
   });
 });
 
