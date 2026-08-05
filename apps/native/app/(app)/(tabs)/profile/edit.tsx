@@ -308,7 +308,7 @@ export default function EditProfileScreen() {
           <AppTextField
             variant="dark"
             containerClassName="mb-4"
-            placeholder={isVenue ? 'Your venue name' : 'Your stage name'}
+            placeholder={isVenue ? 'Your venue/festival name' : 'Your stage name'}
             value={displayName}
             onChangeText={setDisplayName}
             maxLength={isVenue ? 150 : 100}
