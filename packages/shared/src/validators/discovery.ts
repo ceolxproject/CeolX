@@ -25,6 +25,10 @@ export type SuggestInput = z.infer<typeof suggestSchema>;
  *   (matches Typesense `date_start`), shown with a calendar icon.
  * - `artistId` — the artist's user id. Present only on artist rows; when set,
  *   the row shows a button that opens `/(app)/artist/[artistId]` directly.
+ * - `upcomingEventCount` — distinct upcoming events the artist is performing at
+ *   (see `countUpcomingEventsByArtist`). Artist rows only, and always set on
+ *   them — `0` is a real answer the row renders as "No upcoming events", so
+ *   `undefined` means "not an artist row", never "none".
  * - `venueId` — the venue's user id. Present only on venue rows; when set, the
  *   row shows a button that opens `/(app)/venue/[venueId]` directly. This is the
  *   only way to reach a venue's full event list from search — a plain text
@@ -38,6 +42,7 @@ export type Suggestion = {
   dateStart?: number;
   artistId?: string;
   venueId?: string;
+  upcomingEventCount?: number;
 };
 
 /** Grouped suggestion payload returned by `discovery.suggest`. */

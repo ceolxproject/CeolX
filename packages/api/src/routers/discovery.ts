@@ -7,6 +7,7 @@ import { suggestSchema, type Suggestion } from '@CeolX/shared/validators';
 
 import { publicProcedure, router } from '../index';
 import { typesenseClient } from '../lib/typesense';
+import { countUpcomingEventsByArtist } from '../lib/upcoming-events';
 
 // Per-group cap. Keeps the dropdown short and the fan-out queries cheap.
 const GROUP_LIMIT = 5;
@@ -40,6 +41,7 @@ async function suggestArtists(term: string): Promise<Suggestion[]> {
       userId: artistProfiles.userId,
       stageName: artistProfiles.stageName,
       genres: artistProfiles.genres,
+      genre: artistProfiles.genre,
       imageUrl: artistProfiles.profileImageUrl,
     })
     .from(artistProfiles)
@@ -57,14 +59,31 @@ async function suggestArtists(term: string): Promise<Suggestion[]> {
     )
     .limit(GROUP_LIMIT);
 
-  return dedupeByLabel(
+  const suggestions = dedupeByLabel(
     rows.map((r) => ({
       label: r.stageName,
-      sublabel: r.genres?.[0] || undefined,
+      // Falls back to the deprecated `genre` varchar like artists.byId does. The
+      // WHERE above matches on both columns, so without the fallback an artist
+      // found *by* their genre renders with no genre at all — most seeded and
+      // older profiles have `genre` set and `genres[]` still empty.
+      sublabel: r.genres?.[0] || r.genre || undefined,
       imageUrl: r.imageUrl || undefined,
       artistId: r.userId,
     }))
   );
+
+  // Deduped first so this only covers rows that will actually render — one
+  // grouped query for at most GROUP_LIMIT artists, not a per-row lookup.
+  const counts = await countUpcomingEventsByArtist(
+    suggestions.map((s) => s.artistId).filter((id): id is string => id !== undefined)
+  );
+
+  // A miss means the artist has none, which the row renders as "No upcoming
+  // events" — so it resolves to 0, never left undefined.
+  return suggestions.map((s) => ({
+    ...s,
+    upcomingEventCount: s.artistId === undefined ? undefined : (counts.get(s.artistId) ?? 0),
+  }));
 }
 
 // Venue-name matches. No subscription-status filter: the venue visibility gate
