@@ -133,7 +133,25 @@ export function rateLimiter(tier: RateLimitTier): MiddlewareHandler {
 
     const identifier = extractIdentifier(c, tier);
     const limiter = getLimiter(tierName, tier);
-    const { success, limit, remaining, reset } = await limiter.limit(identifier);
+
+    let verdict;
+    try {
+      verdict = await limiter.limit(identifier);
+    } catch (err) {
+      // Fail open. Upstash is a network hop on every rate-limited request, so a
+      // blip here used to reject the request and 500 the whole API — login,
+      // every tRPC procedure, the map's location lookup. Rate limiting protects
+      // against abuse but is not what enforces auth, so serving unthrottled for
+      // a few seconds beats an outage. /health/deps reports Redis down, which is
+      // how this surfaces rather than passing silently.
+      console.error(
+        `[rate-limit] Upstash unreachable on tier ${tierName}, allowing request —`,
+        err instanceof Error ? `${err.name}: ${err.message}` : err
+      );
+      return next();
+    }
+
+    const { success, limit, remaining, reset } = verdict;
 
     const resetSecs = Math.ceil(reset / 1000);
 

@@ -161,6 +161,44 @@ describe('rateLimiter — IP allowlist', () => {
   });
 });
 
+describe('rateLimiter — Upstash unreachable (fails open)', () => {
+  beforeEach(() => {
+    vi.stubEnv('NODE_ENV', 'production');
+    vi.stubEnv('RATE_LIMIT_ENABLED', 'true');
+    vi.stubEnv('UPSTASH_REDIS_REST_URL', 'https://redis.example.com');
+    vi.stubEnv('UPSTASH_REDIS_REST_TOKEN', 'token');
+  });
+
+  // Upstash is a network hop on every rate-limited request. Rejecting here would
+  // 500 login, every tRPC procedure and the map's location lookup — an outage
+  // caused by a service that has nothing to do with serving the response.
+  it('allows the request through instead of erroring', async () => {
+    mockLimit.mockRejectedValue(new Error('ENOTFOUND redis.example.com'));
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    const app = await buildApp('authLogin');
+    const res = await app.request('/', {
+      headers: { 'X-Forwarded-For': '1.2.3.4' },
+    });
+
+    expect(res.status).toBe(200);
+    expect(consoleError).toHaveBeenCalledOnce();
+  });
+
+  it('omits the rate limit headers when no verdict was obtained', async () => {
+    mockLimit.mockRejectedValue(new Error('ETIMEDOUT'));
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    const app = await buildApp('authLogin');
+    const res = await app.request('/', {
+      headers: { 'X-Forwarded-For': '1.2.3.4' },
+    });
+
+    expect(res.headers.get('X-RateLimit-Limit')).toBeNull();
+    expect(res.headers.get('Retry-After')).toBeNull();
+  });
+});
+
 describe('rateLimiter — successful request (within limit)', () => {
   beforeEach(() => {
     vi.stubEnv('NODE_ENV', 'production');
