@@ -22,14 +22,14 @@ function formatEventDate(unixSeconds: number): string {
   });
 }
 
-// Circular 42px avatar. Falls back to the label's initial on a muted disc when
+// Circular 40px avatar. Falls back to the label's initial on a muted disc when
 // the entity has no uploaded image (most events/venues pre-launch).
 function Avatar({ uri, label }: { uri?: string; label: string }) {
   if (uri) {
-    return <Image source={{ uri }} className="size-[42px] rounded-full" />;
+    return <Image source={{ uri }} className="size-[40px] rounded-full" />;
   }
   return (
-    <View className="size-[42px] rounded-full bg-[#ECECEC] items-center justify-center">
+    <View className="size-[40px] rounded-full bg-[#ECECEC] items-center justify-center">
       <Text className="text-[16px] font-bold text-[#8D8D8D] font-urbanist">
         {label.charAt(0).toUpperCase()}
       </Text>
@@ -43,7 +43,7 @@ function Meta({ icon, text }: { icon: keyof typeof Ionicons.glyphMap; text: stri
   return (
     <View className="flex-row items-center gap-1">
       <Ionicons name={icon} size={12} color="#8D8D8D" />
-      <Text className="text-[12px] font-semibold text-[#8D8D8D] font-urbanist" numberOfLines={1}>
+      <Text className="text-[13px] font-semibold text-[#8D8D8D] font-urbanist" numberOfLines={1}>
         {text}
       </Text>
     </View>
@@ -58,65 +58,121 @@ function SuggestionRow({
   onSelect: (label: string) => void;
 }) {
   const isEvent = item.dateStart !== undefined || item.location !== undefined;
-  const { artistId, venueId } = item;
+  const { artistId, venueId, upcomingEventCount } = item;
+  const hasProfile = artistId !== undefined || venueId !== undefined;
 
+  // "Traditional · 8 upcoming events". 0 is a real answer here (the artist exists,
+  // they just have nothing booked), not a missing value. Rendered as two nodes
+  // rather than one string because the profile zone leaves the artist row ~100px
+  // less width than an event row: the genre has to be the part that truncates,
+  // since clipping the count to "1 upcomi…" loses the only thing this line adds.
+  const countLabel =
+    upcomingEventCount === undefined
+      ? undefined
+      : upcomingEventCount === 0
+        ? 'No upcoming events'
+        : `${upcomingEventCount} upcoming event${upcomingEventCount === 1 ? '' : 's'}`;
+
+  // The search zone reads differently per entity: an artist performs at events, a
+  // venue hosts them, and an event row is just its own title.
+  const searchLabel =
+    artistId !== undefined
+      ? `Show events by ${item.label}`
+      : venueId !== undefined
+        ? `Show events at ${item.label}`
+        : `Search for ${item.label}`;
+
+  // Two independent tap targets, not a row with a button inside it: the wrapper is
+  // a plain View so each zone owns its own pressed state. Nesting them meant one
+  // press dimmed the whole row, which is what hid the fact that there are two
+  // destinations. min-h keeps the profile zone at the 48dp tap minimum.
   return (
-    <Pressable
-      // The row runs the name search — the feed now drops the radius filter when
-      // a query is present, so this surfaces ALL of the entity's events (near and
-      // far) on the events page. The trailing icon is a separate profile shortcut.
-      onPress={() => onSelect(item.label)}
-      className="flex-row items-center gap-3 active:opacity-60"
-    >
-      <Avatar uri={item.imageUrl} label={item.label} />
-      <View className="flex-1 gap-1">
-        <Text
-          className="text-[16px] font-bold leading-5 text-[#080808] font-urbanist"
-          numberOfLines={1}
-        >
-          {item.label}
-        </Text>
-        {isEvent ? (
-          <View className="flex-row items-center gap-2">
-            {item.location ? <Meta icon="location-outline" text={item.location} /> : null}
-            {item.dateStart !== undefined ? (
-              <Meta icon="calendar-outline" text={formatEventDate(item.dateStart)} />
-            ) : null}
-          </View>
-        ) : item.sublabel ? (
+    <View className="flex-row min-h-[48px]">
+      <Pressable
+        // Runs the name search — the feed drops the radius filter when a query is
+        // present, so this surfaces ALL of the entity's events, near and far.
+        onPress={() => onSelect(item.label)}
+        accessibilityRole="button"
+        accessibilityLabel={searchLabel}
+        className="flex-1 flex-row items-center gap-3 active:opacity-60"
+      >
+        <Avatar uri={item.imageUrl} label={item.label} />
+        <View className="flex-1 gap-1">
           <Text
-            className="text-[12px] font-semibold text-[#8D8D8D] font-urbanist"
+            className="text-[15px] font-medium leading-5 text-[#080808] font-urbanist"
             numberOfLines={1}
           >
-            {item.sublabel}
+            {item.label}
           </Text>
-        ) : null}
-      </View>
-      {artistId !== undefined || venueId !== undefined ? (
-        <Pressable
-          // Secondary shortcut straight to the profile. The row itself runs the
-          // (radius-free) name search — this is for when you want the profile.
-          // Caption makes that explicit; the icon alone wasn't a strong enough
-          // affordance for first-time users to discover.
-          onPress={() => {
-            if (artistId !== undefined) {
-              router.push({ pathname: '/(app)/artist/[artistId]', params: { artistId } });
-            } else if (venueId !== undefined) {
-              router.push({ pathname: '/(app)/venue/[venueId]', params: { venueId } });
-            }
-          }}
-          hitSlop={8}
-          accessibilityRole="button"
-          accessibilityLabel={`View ${item.label}'s profile`}
-          className="flex-row items-center gap-1 active:opacity-60"
-        >
-          <View className="size-8 rounded-full bg-[#ECECEC] items-center justify-center">
-            <Ionicons name="person-circle-outline" size={20} color="#080808" />
-          </View>
-          <Text className="text-[12px] font-semibold text-[#8D8D8D] font-urbanist">Profile</Text>
-        </Pressable>
+          {isEvent ? (
+            <View className="flex-row items-center gap-2">
+              {item.location ? <Meta icon="location-outline" text={item.location} /> : null}
+              {item.dateStart !== undefined ? (
+                <Meta icon="calendar-outline" text={formatEventDate(item.dateStart)} />
+              ) : null}
+            </View>
+          ) : item.sublabel || countLabel ? (
+            <View className="flex-row items-center">
+              {item.sublabel ? (
+                <Text
+                  className="shrink text-[13px] font-semibold text-[#8D8D8D] font-urbanist"
+                  numberOfLines={1}
+                >
+                  {item.sublabel}
+                </Text>
+              ) : null}
+              {countLabel ? (
+                <Text
+                  className="shrink-0 text-[13px] font-semibold text-[#8D8D8D] font-urbanist"
+                  numberOfLines={1}
+                >
+                  {item.sublabel ? ' · ' : ''}
+                  {countLabel}
+                </Text>
+              ) : null}
+            </View>
+          ) : null}
+        </View>
+      </Pressable>
+
+      {hasProfile ? (
+        <>
+          <View className="w-[0.5px] my-[10px] bg-[#E0E0E0]" />
+          <Pressable
+            // Straight to the profile, labelled in words because the icon alone
+            // never read as a second destination. No hitSlop — it would spill into
+            // the search zone and blur the split the divider is drawing.
+            onPress={() => {
+              if (artistId !== undefined) {
+                router.push({ pathname: '/(app)/artist/[artistId]', params: { artistId } });
+              } else if (venueId !== undefined) {
+                router.push({ pathname: '/(app)/venue/[venueId]', params: { venueId } });
+              }
+            }}
+            accessibilityRole="button"
+            // Reads the entity name, not the visible "Profile" — otherwise every row
+            // in the dropdown announces as the same undifferentiated control.
+            accessibilityLabel={`View ${item.label} profile`}
+            // Vertical only, so the tap target keeps the full 48dp row height while
+            // the pill itself stays inset. Horizontal slop would spill into the
+            // search zone and blur the very split this is drawing.
+            hitSlop={{ top: 6, bottom: 6 }}
+            android_ripple={{ color: '#DDCFFF', borderless: false }}
+            // A filled pill, because a bare glyph at the row's right edge reads as an
+            // iOS disclosure indicator — "tap anywhere on this row" — which is the
+            // opposite of the point. The enclosing shape is what makes it a control.
+            // Its own background also bounds the pressed state to the CTA edge.
+            className="my-[6px] ml-3 flex-row items-center gap-1 rounded-full bg-[#F1ECFF] px-3 active:bg-[#DDCFFF]"
+          >
+            <Text className="text-[13px] font-semibold text-[#662fff] font-urbanist">Profile</Text>
+            {/* "Opens somewhere else" rather than a direction: a chevron here would
+                re-read as row disclosure, and person-* collides with the Profile tab
+                glyph in the bottom nav. */}
+            <Ionicons name="open-outline" size={13} color="#662fff" />
+          </Pressable>
+        </>
       ) : null}
-    </Pressable>
+    </View>
   );
 }
 
