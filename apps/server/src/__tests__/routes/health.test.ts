@@ -117,15 +117,33 @@ describe('GET /health/deps', () => {
     expect(body.checks?.database.status).toBe('down');
   });
 
-  it('returns 503 when Redis is unreachable — the rate limiter has no fallback', async () => {
+  // The limiter fails open, so Upstash being down costs throttling, not uptime.
+  // A 503 here would page someone for an app that is still serving every request.
+  it('returns 200 degraded when Redis is unreachable', async () => {
     enableRedis();
     redisPing.mockRejectedValue(new Error('ENOTFOUND'));
     const app = await buildApp();
 
     const res = await app.request('/health/deps');
+    const body = await readBody(res);
+
+    expect(res.status).toBe(200);
+    expect(body.status).toBe('degraded');
+    expect(body.checks?.redis.status).toBe('down');
+  });
+
+  // Only Postgres can take the API down, so only Postgres escalates.
+  it('returns 503 for Postgres even when the other deps are healthy', async () => {
+    enableRedis();
+    dbExecute.mockRejectedValue(new Error('ECONNREFUSED'));
+    const app = await buildApp();
+
+    const res = await app.request('/health/deps');
+    const body = await readBody(res);
 
     expect(res.status).toBe(503);
-    expect((await readBody(res)).checks?.redis.status).toBe('down');
+    expect(body.checks?.redis.status).toBe('ok');
+    expect(body.checks?.search.status).toBe('ok');
   });
 
   it('returns 200 degraded when only Typesense is unreachable', async () => {

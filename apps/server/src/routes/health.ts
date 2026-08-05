@@ -102,11 +102,12 @@ async function runProbes(): Promise<DepsResult> {
     probe(() => typesenseClient.health.retrieve()),
   ]);
 
-  const criticalDown = database.status === 'down' || redis.status === 'down';
+  const criticalDown = database.status === 'down';
+  const degraded = redis.status === 'down' || search.status === 'down';
 
   return {
     payload: {
-      status: criticalDown ? 'down' : search.status === 'down' ? 'degraded' : 'ok',
+      status: criticalDown ? 'down' : degraded ? 'degraded' : 'ok',
       checkedAt: new Date().toISOString(),
       commit: commitSha(),
       checks: { database, redis, search },
@@ -138,20 +139,24 @@ health.get('/health', (c) =>
 /**
  * Readiness.
  *
- * Severity is not uniform, because blast radius isn't either:
- *   - Postgres or Redis down  → the API cannot serve. 503, wake someone.
- *   - Typesense down          → feed empties and map errors, but auth, bookings,
- *                               profiles and subscriptions all still work. 200
- *                               with status 'degraded', so it never pages at 2am.
+ * Severity is not uniform, because blast radius isn't either. Only Postgres can
+ * take the API down, so only Postgres returns 503:
+ *   - Postgres down  → nothing can be served. 503, wake someone.
+ *   - Redis down     → the limiter fails open (packages/cache/src/rate-limit.ts),
+ *                      so requests still serve, just unthrottled. Worth knowing
+ *                      about, not worth a 2am page.
+ *   - Typesense down → feed empties and map errors, but auth, bookings, profiles
+ *                      and subscriptions all still work.
  *
- * Redis is critical because the rate limiter has no fallback: an Upstash error
- * propagates and 500s every rate-limited route (packages/cache/src/rate-limit.ts).
- * That same coupling is why this route can't be rate limited itself — the limiter
- * needs Upstash, so an Upstash outage would 500 the very endpoint meant to report
- * it. The memo is the cost control instead.
+ * The last two report 200 with status 'degraded'; `checks` names which one it is,
+ * so an alert is still actionable without a third severity level.
+ *
+ * This route can't be rate limited itself — the limiter needs Upstash, so an
+ * Upstash outage would break the endpoint meant to report it. The memo is the
+ * cost control instead.
  *
  * When rate limiting is switched off, Redis reports 'skipped' rather than being
- * probed — nothing in the app talks to it, so its state can't take the API down.
+ * probed — nothing in the app talks to it, so its state is irrelevant.
  */
 health.get('/health/deps', async (c) => {
   if (!cached || Date.now() - cached.at >= CACHE_TTL_MS) {
