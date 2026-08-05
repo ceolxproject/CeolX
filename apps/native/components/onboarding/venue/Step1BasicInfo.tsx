@@ -63,7 +63,7 @@ export function Step1BasicInfo({
           <Text className="text-sm font-bold text-white/80">Venue/Festival Name</Text>
           <AppTextField
             variant="light"
-            placeholder="Enter your venue name"
+            placeholder="Enter your venue/festival name"
             value={venueName}
             onChangeText={setVenueName}
             onBlur={() => handleBlur('venueName')}

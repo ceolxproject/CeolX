@@ -108,12 +108,12 @@ function SuggestionRow({
           hitSlop={8}
           accessibilityRole="button"
           accessibilityLabel={`View ${item.label}'s profile`}
-          className="items-center gap-0.5 active:opacity-60"
+          className="flex-row items-center gap-1 active:opacity-60"
         >
           <View className="size-8 rounded-full bg-[#ECECEC] items-center justify-center">
             <Ionicons name="person-circle-outline" size={20} color="#080808" />
           </View>
-          <Text className="text-[9px] font-semibold text-[#8D8D8D] font-urbanist">Profile</Text>
+          <Text className="text-[12px] font-semibold text-[#8D8D8D] font-urbanist">Profile</Text>
         </Pressable>
       ) : null}
     </Pressable>
