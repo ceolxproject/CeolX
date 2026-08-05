@@ -96,6 +96,8 @@ function SuggestionRow({
         <Pressable
           // Secondary shortcut straight to the profile. The row itself runs the
           // (radius-free) name search — this is for when you want the profile.
+          // Caption makes that explicit; the icon alone wasn't a strong enough
+          // affordance for first-time users to discover.
           onPress={() => {
             if (artistId !== undefined) {
               router.push({ pathname: '/(app)/artist/[artistId]', params: { artistId } });
@@ -106,9 +108,12 @@ function SuggestionRow({
           hitSlop={8}
           accessibilityRole="button"
           accessibilityLabel={`View ${item.label}'s profile`}
-          className="size-8 rounded-full bg-[#ECECEC] items-center justify-center active:opacity-60"
+          className="items-center gap-0.5 active:opacity-60"
         >
-          <Ionicons name="person-circle-outline" size={20} color="#080808" />
+          <View className="size-8 rounded-full bg-[#ECECEC] items-center justify-center">
+            <Ionicons name="person-circle-outline" size={20} color="#080808" />
+          </View>
+          <Text className="text-[9px] font-semibold text-[#8D8D8D] font-urbanist">Profile</Text>
         </Pressable>
       ) : null}
     </Pressable>
