@@ -47,11 +47,38 @@ function Avatar({ uri, label }: { uri?: string; label: string }) {
 
 // A muted meta chip: a 12px icon + a short line. Used for an event's location
 // and date.
-function Meta({ icon, text }: { icon: keyof typeof Ionicons.glyphMap; text: string }) {
+//
+// `flexible` lets the chip give up width and ellipsise when the row is too
+// narrow. Shrink only, never grow: flexShrink is 0 by default in React Native so
+// without it the chip keeps its natural width and runs off the card, but flex-1
+// would be worse — it also grows, pushing the date chip out to the far edge on
+// every row that fits. Set it on the location (arbitrarily long) and leave it off
+// the date, which is short and should never be the part that gets cut.
+function Meta({
+  icon,
+  text,
+  flexible = false,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  text: string;
+  flexible?: boolean;
+}) {
   return (
-    <View className="flex-row items-center gap-1">
+    <View
+      className={
+        flexible ? 'shrink flex-row items-center gap-1' : 'shrink-0 flex-row items-center gap-1'
+      }
+    >
       <Ionicons name={icon} size={12} color="#8D8D8D" />
-      <Text className="text-[13px] font-semibold text-[#8D8D8D] font-urbanist" numberOfLines={1}>
+      <Text
+        className={
+          flexible
+            ? 'shrink text-[13px] font-semibold text-[#8D8D8D] font-urbanist'
+            : 'text-[13px] font-semibold text-[#8D8D8D] font-urbanist'
+        }
+        numberOfLines={1}
+        maxFontSizeMultiplier={1.3}
+      >
         {text}
       </Text>
     </View>
@@ -114,7 +141,9 @@ function SuggestionRow({
           </Text>
           {isEvent ? (
             <View className="flex-row items-center gap-2">
-              {item.location ? <Meta icon="location-outline" text={item.location} /> : null}
+              {item.location ? (
+                <Meta icon="location-outline" text={item.location} flexible />
+              ) : null}
               {item.dateStart !== undefined ? (
                 <Meta icon="calendar-outline" text={formatEventDate(item.dateStart)} />
               ) : null}
