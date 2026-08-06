@@ -1,6 +1,14 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { ActivityIndicator, Image, Pressable, ScrollView, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Image,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 
 import type { Suggestion } from '@CeolX/shared/validators';
 
@@ -61,11 +69,11 @@ function SuggestionRow({
   const { artistId, venueId, upcomingEventCount } = item;
   const hasProfile = artistId !== undefined || venueId !== undefined;
 
-  // "Traditional · 8 upcoming events". 0 is a real answer here (the artist exists,
-  // they just have nothing booked), not a missing value. Rendered as two nodes
-  // rather than one string because the profile zone leaves the artist row ~100px
-  // less width than an event row: the genre has to be the part that truncates,
-  // since clipping the count to "1 upcomi…" loses the only thing this line adds.
+  // The artist sub-line is the count alone — the genre used to lead it, but the
+  // profile pill leaves this column ~100px narrower than an event row and the pair
+  // never fit: one or both ended up ellipsised on every real name. 0 is a real
+  // answer here (the artist exists, they just have nothing booked), not a missing
+  // value. `sublabel` still carries the genre for event rows and the API contract.
   const countLabel =
     upcomingEventCount === undefined
       ? undefined
@@ -111,33 +119,23 @@ function SuggestionRow({
                 <Meta icon="calendar-outline" text={formatEventDate(item.dateStart)} />
               ) : null}
             </View>
-          ) : item.sublabel || countLabel ? (
-            <View className="flex-row items-center">
-              {item.sublabel ? (
-                <Text
-                  className="shrink text-[13px] font-semibold text-[#8D8D8D] font-urbanist"
-                  numberOfLines={1}
-                >
-                  {item.sublabel}
-                </Text>
-              ) : null}
-              {countLabel ? (
-                <Text
-                  className="shrink-0 text-[13px] font-semibold text-[#8D8D8D] font-urbanist"
-                  numberOfLines={1}
-                >
-                  {item.sublabel ? ' · ' : ''}
-                  {countLabel}
-                </Text>
-              ) : null}
-            </View>
+          ) : countLabel ? (
+            <Text
+              className="text-[13px] font-semibold text-[#8D8D8D] font-urbanist"
+              numberOfLines={1}
+              maxFontSizeMultiplier={1.3}
+            >
+              {countLabel}
+            </Text>
           ) : null}
         </View>
       </Pressable>
 
       {hasProfile ? (
         <>
-          <View className="w-[0.5px] my-[10px] bg-[#E0E0E0]" />
+          {/* hairlineWidth, not 0.5px: at density 1 Android rounds 0.5dp to 0 and the
+              divider vanishes entirely. */}
+          <View className="my-[10px] bg-[#E0E0E0]" style={{ width: StyleSheet.hairlineWidth }} />
           <Pressable
             // Straight to the profile, labelled in words because the icon alone
             // never read as a second destination. No hitSlop — it would spill into
@@ -164,7 +162,15 @@ function SuggestionRow({
             // Its own background also bounds the pressed state to the CTA edge.
             className="my-[6px] ml-3 flex-row items-center gap-1 rounded-full bg-[#F1ECFF] px-3 active:bg-[#DDCFFF]"
           >
-            <Text className="text-[13px] font-semibold text-[#662fff] font-urbanist">Profile</Text>
+            {/* Capped tighter than the row's content text: this is chrome, and at
+                200% system text an uncapped label balloons the pill and swallows the
+                column the genre and count live in. */}
+            <Text
+              className="text-[13px] font-semibold text-[#662fff] font-urbanist"
+              maxFontSizeMultiplier={1.2}
+            >
+              Profile
+            </Text>
             {/* "Opens somewhere else" rather than a direction: a chevron here would
                 re-read as row disclosure, and person-* collides with the Profile tab
                 glyph in the bottom nav. */}
