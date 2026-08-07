@@ -175,7 +175,13 @@ function EditEventForm({ event, eventId }: { event: LoadedEvent; eventId: string
             venueId={form.venueId}
             onVenueIdChange={form.setVenueId}
             showManualAddress={showManualAddress}
-            onToggleManualAddress={() => setShowManualAddress(!showManualAddress)}
+            onToggleManualAddress={() => {
+              // Manual address and registered venue are mutually exclusive. Without
+              // clearing venueId the link survives the switch invisibly, and the
+              // event is held at pending_review for a venue the artist backed out of.
+              if (!showManualAddress) form.setVenueId('');
+              setShowManualAddress(!showManualAddress);
+            }}
             errors={form.errors}
             onContinue={form.goNext}
             onBack={form.goBack}

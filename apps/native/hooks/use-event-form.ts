@@ -556,7 +556,10 @@ export function useEventForm(options?: UseEventFormOptions) {
       dateEnd: dateEndISO,
       lat: lat ?? undefined,
       lng: lng ?? undefined,
-      venueId: venueId || undefined,
+      // On edit, an emptied venueId must go as an explicit null — undefined is
+      // dropped and the server reads an absent key as "leave unchanged", so the
+      // stale venue link (and its pending_review hold) would survive the edit.
+      venueId: venueId || (isEditing ? null : undefined),
       venueAddress: venueAddress.trim() || undefined,
       category: category as EventCategory,
       // Cleared ticket & ads fields send `null` (not undefined) so the edit
