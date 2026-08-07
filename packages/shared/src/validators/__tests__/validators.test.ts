@@ -362,6 +362,18 @@ describe('createEventSchema', () => {
     expect(createEventSchema.safeParse(withVenueId).success).toBe(true);
   });
 
+  it('rejects a null venueId with no coordinates — null means "no venue"', () => {
+    const clearedVenue = {
+      title: valid.title,
+      description: valid.description,
+      dateStart: valid.dateStart,
+      coverImage: valid.coverImage,
+      venueId: null,
+      category: valid.category,
+    };
+    expect(createEventSchema.safeParse(clearedVenue).success).toBe(false);
+  });
+
   it('rejects dateEnd before dateStart', () => {
     expect(
       createEventSchema.safeParse({
@@ -410,6 +422,17 @@ describe('updateEventSchema — clearing optional ticket & ads fields', () => {
         adDescription: null,
       });
     }
+  });
+
+  // Same class of bug, different field. An artist who picks a registered venue
+  // and then switches to a free-text address must be able to clear the link —
+  // an `.optional()`-only venueId dropped the null, so the event stayed held at
+  // pending_review for a venue the creator had backed out of, invisible to all
+  // but its own creator.
+  it('accepts null for venueId and preserves it, so the venue link can be cleared', () => {
+    const result = updateEventSchema.safeParse({ id, data: { venueId: null } });
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.data).toEqual({ venueId: null });
   });
 
   it('still accepts real values for those fields', () => {

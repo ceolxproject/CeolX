@@ -920,7 +920,13 @@ export const update = protectedProcedure
     let resolvedCoords: { lat: string; lng: string } | null = null;
     if (updateData.lat !== undefined && updateData.lng !== undefined) {
       resolvedCoords = { lat: updateData.lat.toString(), lng: updateData.lng.toString() };
-    } else if (updateData.venueId !== undefined && updateData.venueId !== event.venueId) {
+      // Clearing the venue (explicit null) leaves the existing pin alone — there is
+      // no venue left to inherit coordinates from.
+    } else if (
+      updateData.venueId !== undefined &&
+      updateData.venueId !== null &&
+      updateData.venueId !== event.venueId
+    ) {
       const venue = await lookupVenueCoords(updateData.venueId);
       if (venue && venue.lat !== null && venue.lng !== null) {
         resolvedCoords = { lat: venue.lat, lng: venue.lng };

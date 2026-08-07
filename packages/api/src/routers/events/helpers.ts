@@ -22,7 +22,9 @@ export type VenueCoordsLookup = (
  * Returns string coordinates ready for the numeric DB columns.
  */
 export async function resolveEventCoordinates(
-  input: { lat?: number; lng?: number; venueId?: string },
+  // venueId is nullable — an explicit null clears the venue link, and the
+  // truthiness check below already treats it the same as absent.
+  input: { lat?: number; lng?: number; venueId?: string | null },
   lookupVenueCoords: VenueCoordsLookup
 ): Promise<{ lat: string; lng: string }> {
   if (input.lat !== undefined && input.lng !== undefined) {

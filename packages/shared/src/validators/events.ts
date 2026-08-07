@@ -28,7 +28,11 @@ const eventBaseShape = {
   dateEnd: z.string().datetime().optional(),
   lat: z.number().min(-90).max(90).optional(),
   lng: z.number().min(-180).max(180).optional(),
-  venueId: z.string().uuid().optional(),
+  // Nullable for the same reason as ticketLink below: switching an event from a
+  // registered venue to a free-text address must be able to clear the link. An
+  // undefined is dropped over the wire and read as "leave unchanged", which left
+  // the event held at pending_review for a venue the creator had backed out of.
+  venueId: z.string().uuid().optional().nullable(),
   venueAddress: z.string().max(255).optional(),
   category: z.enum(EVENT_CATEGORIES),
   // `null` is the explicit "clear this field" signal sent on edit — it must
@@ -71,10 +75,17 @@ export const createEventSchema = z
   // cannot place an event on the map, so it does not satisfy this requirement.
   // isValidCoordinate rejects null-island (0,0) — the value a failed geocode
   // used to leave behind, which produced saved-but-invisible events.
-  .refine((data) => isValidCoordinate(data.lat, data.lng) || data.venueId !== undefined, {
-    message: 'A location pin or a registered venue is required',
-    path: ['lat'],
-  })
+  // venueId is nullable now, and an explicit null means "no registered venue" —
+  // it must not satisfy the location requirement the way a real venue does.
+  .refine(
+    (data) =>
+      isValidCoordinate(data.lat, data.lng) ||
+      (data.venueId !== undefined && data.venueId !== null),
+    {
+      message: 'A location pin or a registered venue is required',
+      path: ['lat'],
+    }
+  )
   .refine((data) => !data.dateEnd || data.dateEnd >= data.dateStart, {
     message: 'End date must be after start date',
     path: ['dateEnd'],
