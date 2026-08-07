@@ -6,8 +6,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { IRELAND_INITIAL_REGION } from '@CeolX/shared';
 
 import { appToast } from '@/components/AppToast';
-import { FeedLocationSheet } from '@/components/FeedLocationSheet';
 import { LocationPermissionScreen } from '@/components/LocationPermissionScreen';
+import { LocationSheet } from '@/components/LocationSheet';
 import { useAuth } from '@/contexts/auth-context';
 import { setBaseLocation } from '@/utils/base-location';
 import type { FeedLocation } from '@/utils/feed-location';
@@ -91,7 +91,7 @@ export default function SetLocationScreen() {
     <View className="flex-1 bg-black">
       <LocationPermissionScreen onDone={handleDone} insets={insets} headerSlot={headerSlot} />
 
-      <FeedLocationSheet
+      <LocationSheet
         visible={manualVisible}
         initialLat={IRELAND_INITIAL_REGION.latitude}
         initialLng={IRELAND_INITIAL_REGION.longitude}

@@ -29,9 +29,9 @@ import { DatePickerSheet } from '@/components/DatePickerSheet';
 import { EmptyState } from '@/components/EmptyState';
 import { FeedEventCard } from '@/components/FeedEventCard';
 import { FeedHeader } from '@/components/FeedHeader';
-import { FeedLocationSheet } from '@/components/FeedLocationSheet';
 import { FilterSheet } from '@/components/FilterSheet';
 import type { FilterSection } from '@/components/FilterSheet';
+import { LocationSheet } from '@/components/LocationSheet';
 import { FeedPostsList } from '@/components/posts/FeedPostsList';
 import { SearchSuggestions } from '@/components/SearchSuggestions';
 import { SegmentToggle } from '@/components/SegmentToggle';
@@ -601,7 +601,7 @@ export default function DiscoverScreen() {
         onClose={() => setDatePickerVisible(false)}
       />
 
-      <FeedLocationSheet
+      <LocationSheet
         visible={locationSheetVisible}
         initialLat={effectiveLocation.lat}
         initialLng={effectiveLocation.lng}

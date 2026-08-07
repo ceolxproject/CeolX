@@ -1,13 +1,14 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Image, Platform, Pressable, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Platform, Pressable, Text, TextInput, View } from 'react-native';
 import MapView, { PROVIDER_GOOGLE } from 'react-native-maps';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { IRELAND_INITIAL_REGION } from '@CeolX/shared';
 
 import { appToast } from '@/components/AppToast';
+import { MapCentrePin } from '@/components/MapCentrePin';
 import { useLocationOverride } from '@/contexts/location-override-context';
 import { useLocationPickerMap } from '@/hooks/use-location-picker-map';
 import { useMe } from '@/hooks/use-me';
@@ -41,6 +42,7 @@ export default function AddLocationScreen() {
     handleSelect,
     clearQuery,
     getCentre,
+    resolveLabelForCentre,
     ZOOM,
   } = useLocationPickerMap(initialLat, initialLng);
 
@@ -54,10 +56,10 @@ export default function AddLocationScreen() {
     if (isSaving) return;
     setIsSaving(true);
     const { lat, lng } = getCentre();
-    // label stays at the picker fallback until the user pans or picks a suggestion,
-    // so saving immediately persists the Ireland centre with a generic label —
-    // acceptable fallback behaviour.
-    const loc = { lat, lng, label };
+    // Resolved against the pin's current position, not the debounced label — panning
+    // and saving straight away would otherwise persist the previous place's address.
+    // Still falls back to the generic label when the user never moved the map.
+    const loc = { lat, lng, label: await resolveLabelForCentre() };
     try {
       await setBaseLocation(loc);
     } catch {
@@ -69,7 +71,7 @@ export default function AddLocationScreen() {
     // temporary search.
     setOverride(loc, 'saved');
     router.back();
-  }, [isSaving, getCentre, label, setOverride, router]);
+  }, [isSaving, getCentre, resolveLabelForCentre, setOverride, router]);
 
   return (
     <View className="flex-1 bg-black" style={{ paddingTop: insets.top }}>
@@ -155,21 +157,7 @@ export default function AddLocationScreen() {
           userInterfaceStyle="dark"
         />
 
-        {/* Fixed centre overlay — non-interactive so map gestures pass through. */}
-        <View pointerEvents="none" className="absolute inset-0 items-center justify-center">
-          {avatarUrl ? (
-            <View className="h-12 w-12 overflow-hidden rounded-full border-2 border-[#6155F5] bg-black">
-              <Image source={{ uri: avatarUrl }} className="h-full w-full" resizeMode="cover" />
-            </View>
-          ) : (
-            <Ionicons
-              name="location-sharp"
-              size={40}
-              color="#6155F5"
-              style={{ marginBottom: 40 }}
-            />
-          )}
-        </View>
+        <MapCentrePin avatarUrl={avatarUrl} color="#6155F5" />
       </View>
 
       {/* Result card */}

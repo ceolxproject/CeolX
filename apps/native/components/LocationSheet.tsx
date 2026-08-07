@@ -4,31 +4,44 @@ import { ActivityIndicator, Modal, Platform, Pressable, Text, TextInput, View } 
 import MapView, { PROVIDER_GOOGLE } from 'react-native-maps';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { MapCentrePin } from '@/components/MapCentrePin';
 import { useLocationPickerMap } from '@/hooks/use-location-picker-map';
 
-export interface FeedLocationSheetProps {
+export interface LocationSheetProps {
   visible: boolean;
-  /** Map centre when the sheet opens — the feed's current effective location. */
+  /** Map centre when the sheet opens. */
   initialLat: number;
   initialLng: number;
+  /**
+   * Address already known for `initialLat/Lng`. Seeds the label so confirming
+   * without panning returns the real address rather than the placeholder.
+   */
+  initialLabel?: string;
   /** User confirmed a location. */
   onConfirm: (loc: { lat: number; lng: number; label: string }) => void;
   onClose: () => void;
-  /** Header title. Defaults to the feed wording; the onboarding host overrides it. */
+  /** Header title. Defaults to the feed wording; other hosts override it. */
   title?: string;
   /** Primary CTA label. Defaults to the feed wording. */
   confirmLabel?: string;
+  searchPlaceholder?: string;
 }
 
-export function FeedLocationSheet({
+/**
+ * Full-screen map location picker: a pin fixed at the centre, moved by panning the
+ * map beneath it. Deliberately has no tap-to-place — see {@link MapCentrePin}.
+ */
+export function LocationSheet({
   visible,
   initialLat,
   initialLng,
+  initialLabel,
   onConfirm,
   onClose,
   title = 'Search events by location',
   confirmLabel = 'Set location · show events here',
-}: FeedLocationSheetProps) {
+  searchPlaceholder = 'Search a town, city or venue…',
+}: LocationSheetProps) {
   const insets = useSafeAreaInsets();
   const {
     mapRef,
@@ -45,20 +58,25 @@ export function FeedLocationSheet({
     clearQuery,
     reset,
     getCentre,
+    resolveLabelForCentre,
     ZOOM,
   } = useLocationPickerMap(initialLat, initialLng);
 
   // Reset the pin + label to the incoming location each time the sheet opens.
   useEffect(() => {
     if (!visible) return;
-    reset(initialLat, initialLng);
-  }, [visible, initialLat, initialLng, reset]);
+    reset(initialLat, initialLng, initialLabel || undefined);
+  }, [visible, initialLat, initialLng, initialLabel, reset]);
 
-  const handleConfirm = useCallback(() => {
+  // Resolve the label against the pin's current position rather than trusting the
+  // debounced one — panning and confirming straight away would otherwise save the
+  // previously shown address against the new coordinates.
+  const handleConfirm = useCallback(async () => {
     const { lat, lng } = getCentre();
-    onConfirm({ lat, lng, label });
+    const resolved = await resolveLabelForCentre();
+    onConfirm({ lat, lng, label: resolved });
     onClose();
-  }, [getCentre, label, onConfirm, onClose]);
+  }, [getCentre, resolveLabelForCentre, onConfirm, onClose]);
 
   return (
     <Modal
@@ -83,7 +101,7 @@ export function FeedLocationSheet({
             <TextInput
               className="flex-1 text-[#1A1A1A] text-[14px]"
               style={{ padding: 0 }}
-              placeholder="Search a town, city or venue…"
+              placeholder={searchPlaceholder}
               placeholderTextColor="#8D8D8D"
               value={query}
               onChangeText={onChangeText}
@@ -106,7 +124,7 @@ export function FeedLocationSheet({
             >
               {hasError ? (
                 <Text className="px-4 py-3 text-[13px] text-[#8D8D8D] font-urbanist">
-                  Couldn't search places. Check your connection.
+                  Couldn&apos;t search places. Check your connection.
                 </Text>
               ) : suggestions.length === 0 ? (
                 <Text className="px-4 py-3 text-[13px] text-[#8D8D8D] font-urbanist">
@@ -146,15 +164,7 @@ export function FeedLocationSheet({
             userInterfaceStyle="dark"
           />
 
-          {/* Fixed centre pin overlay — non-interactive so map gestures pass through. */}
-          <View pointerEvents="none" className="absolute inset-0 items-center justify-center">
-            <Ionicons
-              name="location-sharp"
-              size={40}
-              color="#662FFF"
-              style={{ marginBottom: 40 }}
-            />
-          </View>
+          <MapCentrePin />
 
           {/* Live address label */}
           <View pointerEvents="none" className="absolute top-3 left-4 right-4 items-center">

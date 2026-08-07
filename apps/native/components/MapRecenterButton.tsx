@@ -9,7 +9,7 @@ type MapRecenterButtonProps = {
 
 /**
  * Circular "center on my location" control for the map, styled to match the app's
- * other round icon buttons (cf. the recenter button in FeedLocationSheet) instead
+ * other round icon buttons (cf. the recenter button in LocationSheet) instead
  * of Google's default square native button. Anchored bottom-right.
  */
 export function MapRecenterButton({ onPress, bottom }: MapRecenterButtonProps) {

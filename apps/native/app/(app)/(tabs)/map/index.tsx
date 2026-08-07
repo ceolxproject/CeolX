@@ -16,12 +16,12 @@ import { EVENT_CATEGORIES, IRISH_COUNTIES, filterValidMapEvents } from '@CeolX/s
 
 import { AppHeader } from '@/components/AppHeader';
 import { appToast } from '@/components/AppToast';
-import { FeedLocationSheet } from '@/components/FeedLocationSheet';
 import { FilterSheet } from '@/components/FilterSheet';
 import type { FilterSection } from '@/components/FilterSheet';
 import { LocationBanner } from '@/components/LocationBanner';
 import { LocationIndicator } from '@/components/LocationIndicator';
 import { LocationPermissionScreen } from '@/components/LocationPermissionScreen';
+import { LocationSheet } from '@/components/LocationSheet';
 import type { ClusterObject } from '@/components/MapClusterMarker';
 import { MapClusterMarker } from '@/components/MapClusterMarker';
 import { MapEmptyStateCard } from '@/components/MapEmptyStateCard';
@@ -483,7 +483,7 @@ export default function MapScreen() {
 
       {/* Same picker the Feed uses — opened from the header chip. Seeded at the
           current effective location so the pin starts where the user is looking. */}
-      <FeedLocationSheet
+      <LocationSheet
         visible={locationSheetVisible}
         initialLat={effectiveLocation.lat}
         initialLng={effectiveLocation.lng}
