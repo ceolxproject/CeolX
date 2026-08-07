@@ -32,6 +32,10 @@ export function useLocationPickerMap(initialLat: number, initialLng: number) {
   // without this a pan-then-confirm saves the previous place's address against the
   // new pin — the "address doesn't match the map" bug, one step removed.
   const labelCoordsRef = useRef({ lat: initialLat, lng: initialLng });
+  // Whether the user has actually positioned the map (panned, searched, or used
+  // GPS) since it opened. Callers that open without an existing pin gate their
+  // confirm on this, so an untouched map can't be saved as a real location.
+  const [hasUserMoved, setHasUserMoved] = useState(false);
 
   const search = usePlaceSearch();
   const { commitSelection, clearSearch, dismissDropdown } = search;
@@ -63,12 +67,17 @@ export function useLocationPickerMap(initialLat: number, initialLng: number) {
   const resolveLabelForCentre = useCallback(async (): Promise<string> => {
     const { lat, lng } = centreRef.current;
     const known = labelCoordsRef.current;
-    if (known.lat === lat && known.lng === lng) return label;
+    // The placeholder never counts as resolved, however well its coordinates line
+    // up — otherwise confirming an untouched map persists "Selected location".
+    if (label !== PICKER_FALLBACK_LABEL && known.lat === lat && known.lng === lng) return label;
 
     if (reverseTimer.current) clearTimeout(reverseTimer.current);
     const reqId = ++reverseReqIdRef.current;
     const addr = await reverseGeocode(lat, lng);
-    if (!addr) return PICKER_FALLBACK_LABEL;
+    // Falling back to the placeholder here would persist "Selected location" as a
+    // live event's address whenever this one call fails. Coordinates are ugly but
+    // true, and they still describe the pin.
+    if (!addr) return `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
     if (reqId === reverseReqIdRef.current) {
       labelCoordsRef.current = { lat, lng };
       setLabel(addr);
@@ -81,8 +90,15 @@ export function useLocationPickerMap(initialLat: number, initialLng: number) {
       centreRef.current = { lat: region.latitude, lng: region.longitude };
       if (labelLockedRef.current) {
         labelLockedRef.current = false;
+        // The settled region IS the programmatic target (a picked suggestion, a
+        // recentre, or the initial layout). Keep the label's coordinates in step
+        // with it: the map never settles bit-identically to what we asked for, and
+        // that drift would make a just-picked suggestion look stale on confirm and
+        // get its name re-geocoded away.
+        labelCoordsRef.current = { lat: region.latitude, lng: region.longitude };
         return;
       }
+      setHasUserMoved(true);
       dismissDropdown();
       scheduleReverseGeocode(region.latitude, region.longitude);
     },
@@ -92,6 +108,7 @@ export function useLocationPickerMap(initialLat: number, initialLng: number) {
   const recentreTo = useCallback((lat: number, lng: number, nextLabel: string) => {
     reverseReqIdRef.current++;
     if (reverseTimer.current) clearTimeout(reverseTimer.current);
+    setHasUserMoved(true);
     centreRef.current = { lat, lng };
     labelCoordsRef.current = { lat, lng };
     setLabel(nextLabel);
@@ -120,10 +137,18 @@ export function useLocationPickerMap(initialLat: number, initialLng: number) {
    */
   const reset = useCallback(
     (lat: number, lng: number, nextLabel: string = PICKER_FALLBACK_LABEL) => {
+      // Invalidate anything still in flight from the previous session, the way
+      // recentreTo does — otherwise a late reverse-geocode lands after the reset
+      // and overwrites the freshly seeded label with the old location's address.
+      reverseReqIdRef.current++;
+      if (reverseTimer.current) clearTimeout(reverseTimer.current);
       centreRef.current = { lat, lng };
       labelCoordsRef.current = { lat, lng };
       setLabel(nextLabel);
-      labelLockedRef.current = false;
+      setHasUserMoved(false);
+      // Swallow the map's initial layout settle so it neither re-geocodes over a
+      // label the caller already knows nor counts as the user positioning the map.
+      labelLockedRef.current = true;
       clearSearch();
     },
     [clearSearch]
@@ -142,6 +167,7 @@ export function useLocationPickerMap(initialLat: number, initialLng: number) {
   return {
     mapRef,
     label,
+    hasUserMoved,
     // place search (read-only surface — imperative methods stay internal to the hook)
     query: search.query,
     suggestions: search.suggestions,

@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useCallback, useEffect } from 'react';
+import { cn } from 'heroui-native';
+import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Modal, Platform, Pressable, Text, TextInput, View } from 'react-native';
 import MapView, { PROVIDER_GOOGLE } from 'react-native-maps';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -25,6 +26,12 @@ export interface LocationSheetProps {
   /** Primary CTA label. Defaults to the feed wording. */
   confirmLabel?: string;
   searchPlaceholder?: string;
+  /**
+   * Require the user to position the map before confirming. Set when opening
+   * without a known location — otherwise the caller's fallback centre (e.g. the
+   * middle of Ireland) is confirmable as if the user had chosen it.
+   */
+  requirePositioning?: boolean;
 }
 
 /**
@@ -41,11 +48,13 @@ export function LocationSheet({
   title = 'Search events by location',
   confirmLabel = 'Set location · show events here',
   searchPlaceholder = 'Search a town, city or venue…',
+  requirePositioning = false,
 }: LocationSheetProps) {
   const insets = useSafeAreaInsets();
   const {
     mapRef,
     label,
+    hasUserMoved,
     query,
     suggestions,
     isDropdownVisible,
@@ -68,15 +77,26 @@ export function LocationSheet({
     reset(initialLat, initialLng, initialLabel || undefined);
   }, [visible, initialLat, initialLng, initialLabel, reset]);
 
+  const [isConfirming, setIsConfirming] = useState(false);
+
   // Resolve the label against the pin's current position rather than trusting the
   // debounced one — panning and confirming straight away would otherwise save the
-  // previously shown address against the new coordinates.
+  // previously shown address against the new coordinates. That await is a network
+  // call, so the button guards against a second tap landing mid-flight.
   const handleConfirm = useCallback(async () => {
+    if (isConfirming) return;
+    setIsConfirming(true);
     const { lat, lng } = getCentre();
-    const resolved = await resolveLabelForCentre();
-    onConfirm({ lat, lng, label: resolved });
-    onClose();
-  }, [getCentre, resolveLabelForCentre, onConfirm, onClose]);
+    try {
+      const resolved = await resolveLabelForCentre();
+      onConfirm({ lat, lng, label: resolved });
+      onClose();
+    } finally {
+      setIsConfirming(false);
+    }
+  }, [isConfirming, getCentre, resolveLabelForCentre, onConfirm, onClose]);
+
+  const confirmDisabled = isConfirming || (requirePositioning && !hasUserMoved);
 
   return (
     <Modal
@@ -189,10 +209,15 @@ export function LocationSheet({
         <View className="px-5 pt-3" style={{ paddingBottom: insets.bottom + 12 }}>
           <Pressable
             onPress={handleConfirm}
-            className="h-12 rounded-full bg-[#C8FF2F] items-center justify-center"
+            disabled={confirmDisabled}
+            accessibilityState={{ disabled: confirmDisabled }}
+            className={cn(
+              'h-12 rounded-full items-center justify-center',
+              confirmDisabled ? 'bg-[#C8FF2F]/40' : 'bg-[#C8FF2F]'
+            )}
           >
             <Text className="text-black text-[15px] font-semibold font-urbanist">
-              {confirmLabel}
+              {requirePositioning && !hasUserMoved ? 'Move the map to set a pin' : confirmLabel}
             </Text>
           </Pressable>
           <Pressable

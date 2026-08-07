@@ -108,6 +108,9 @@ export function LocationPicker({
         initialLat={lat ?? IRELAND_CENTER.latitude}
         initialLng={lng ?? IRELAND_CENTER.longitude}
         initialLabel={hasPin ? address : undefined}
+        // With no pin yet the sheet opens on the Ireland fallback centre, which the
+        // user never chose — make them position the map before it can be confirmed.
+        requirePositioning={!hasPin}
         title="Set location"
         confirmLabel="Use this location"
         searchPlaceholder={searchPlaceholder}
