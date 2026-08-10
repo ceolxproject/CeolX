@@ -122,6 +122,11 @@ export const AnalyticsEvent = {
   GUEST_MODE_ENTERED: 'guest_mode_entered',
   // Discovery
   MAP_EMPTY_STATE_SHOWN: 'map_empty_state_shown',
+  // The visible map is empty but events were found just outside it. This is the
+  // case map_empty_state_shown never measured: expansion succeeded, pins were
+  // drawn off-screen, and the user was told nothing.
+  MAP_POINTERS_SHOWN: 'map_pointers_shown',
+  MAP_POINTER_TAPPED: 'map_pointer_tapped',
   SEARCH_PERFORMED: 'search_performed',
   // Creation
   EVENT_CREATED: 'event_created',
