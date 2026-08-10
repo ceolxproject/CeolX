@@ -100,18 +100,18 @@ export function computePointers(
     .map((event) => ({
       event,
       bearingDeg: bearingBetween(region.latitude, region.longitude, event.lat, event.lng),
+      // Whether an event is worth an arrow is measured from what the user is
+      // looking at, never from their home. Capping on the anchor meant browsing
+      // Galway from a Dublin home filtered out every Galway event and the
+      // feature silently did nothing. It also has to apply when there is no
+      // anchor at all — that abroad/IP case is the one the cap exists for.
+      viewportKm: distanceBetween(region.latitude, region.longitude, event.lat, event.lng),
+      // A different question, and only ever a label: how far it is from the
+      // person reading it.
       distanceKm: anchor ? distanceBetween(anchor.lat, anchor.lng, event.lat, event.lng) : null,
-      // With no anchor there is no user distance to rank by, so fall back to
-      // distance from the viewport centre rather than leaving order arbitrary.
-      rankKm: distanceBetween(
-        anchor?.lat ?? region.latitude,
-        anchor?.lng ?? region.longitude,
-        event.lat,
-        event.lng
-      ),
     }))
-    .filter((c) => c.distanceKm === null || c.distanceKm <= MAP_POINTER_MAX_KM)
-    .sort((a, b) => a.rankKm - b.rankKm);
+    .filter((c) => c.viewportKm <= MAP_POINTER_MAX_KM)
+    .sort((a, b) => a.viewportKm - b.viewportKm);
 
   // Nearest-first insertion means each bucket keeps its closest event as the
   // label, and Map preserves insertion order so the slice keeps the nearest

@@ -162,13 +162,38 @@ describe('computePointers', () => {
     expect(distances).toEqual([...distances].sort((a, b) => a - b));
   });
 
-  it('omits distance and skips the cap when there is no anchor', () => {
-    // Paris again: with no trustworthy anchor there is no honest distance to
-    // quote and nothing to measure the cap against, so direction still shows.
-    const pointers = computePointers([event('a', 48.8566, 2.3522)], DUBLIN_REGION, null);
+  it('omits the distance but still applies the cap when there is no anchor', () => {
+    // Drogheda is ~41km from the viewport, so it survives the cap; with no
+    // trustworthy anchor there is simply no honest distance to quote.
+    const near = computePointers([event('a', 53.7179, -6.3561)], DUBLIN_REGION, null);
+    expect(near).toHaveLength(1);
+    expect(near[0]?.distanceKm).toBeNull();
+    expect(near[0]?.compass).toBe('north');
+
+    // Paris is far outside the cap. The abroad/IP case is exactly the one the
+    // cap exists for, so a missing anchor must not be a way to bypass it.
+    const far = computePointers([event('b', 48.8566, 2.3522)], DUBLIN_REGION, null);
+    expect(far).toEqual([]);
+  });
+
+  it('keeps events near the viewport even when they are far from the anchor', () => {
+    // Looking at Galway with home still set to Dublin. The Galway event is ~198km
+    // from home but only ~17km off-screen. Capping on the anchor filtered every
+    // one of them out and the feature silently did nothing.
+    const galwayRegion = {
+      latitude: 53.2707,
+      longitude: -9.0568,
+      latitudeDelta: 0.1,
+      longitudeDelta: 0.1,
+    };
+    const pointers = computePointers(
+      [event('galway', 53.3761, -9.2474)],
+      galwayRegion,
+      DUBLIN_ANCHOR
+    );
 
     expect(pointers).toHaveLength(1);
-    expect(pointers[0]?.distanceKm).toBeNull();
-    expect(pointers[0]?.compass).toBe('south-east');
+    // The label still reports the honest distance from home, well over the cap.
+    expect(pointers[0]?.distanceKm).toBeGreaterThan(150);
   });
 });
