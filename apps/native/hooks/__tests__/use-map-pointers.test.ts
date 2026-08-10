@@ -21,7 +21,12 @@ vi.mock('@/lib/analytics', () => ({
 // @CeolX/shared is deliberately NOT mocked — bearingBetween, distanceBetween and
 // the pointer constants are exactly what these tests exercise.
 
-import { bearingToCompass, computePointers, isOutsideRegion } from '../use-map-pointers';
+import {
+  bearingToCompass,
+  computePointers,
+  isOutsideRegion,
+  resolvePointerAnchor,
+} from '../use-map-pointers';
 
 import type { MapEvent } from '@/components/MapEventMarker';
 
@@ -76,6 +81,34 @@ describe('bearingToCompass', () => {
 
   it('wraps back to north near 360', () => {
     expect(bearingToCompass(359)).toBe('north');
+  });
+});
+
+describe('resolvePointerAnchor', () => {
+  const home = { latitude: 23.0225, longitude: 72.5714, latitudeDelta: 0.5, longitudeDelta: 0.5 };
+
+  it('prefers an explicit pick over a live GPS fix', () => {
+    // Phone in Ahmedabad, user searched Limerick. They named their reference
+    // point, so the gig is 45km away — not 7421km.
+    const anchor = resolvePointerAnchor({ lat: 52.6638, lng: -8.6267 }, 'gps', home);
+    expect(anchor).toEqual({ lat: 52.6638, lng: -8.6267 });
+  });
+
+  it('falls back to the location chain when nothing was picked', () => {
+    expect(resolvePointerAnchor(null, 'gps', home)).toEqual({ lat: 23.0225, lng: 72.5714 });
+    expect(resolvePointerAnchor(null, 'saved', home)).toEqual({ lat: 23.0225, lng: 72.5714 });
+    expect(resolvePointerAnchor(null, 'venue-profile', home)).toEqual({
+      lat: 23.0225,
+      lng: 72.5714,
+    });
+  });
+
+  it('refuses to quote a distance from an approximate location', () => {
+    // IP and the Ireland default are city-level guesses at best; a distance
+    // measured from one would read precise while being tens of km out.
+    expect(resolvePointerAnchor(null, 'ip', home)).toBeNull();
+    expect(resolvePointerAnchor(null, 'default', home)).toBeNull();
+    expect(resolvePointerAnchor(null, 'pending', home)).toBeNull();
   });
 });
 

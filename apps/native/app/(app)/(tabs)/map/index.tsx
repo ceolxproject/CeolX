@@ -267,6 +267,9 @@ export default function MapScreen() {
   const edgePointers = useMapEdgePointers({
     events,
     region: region ?? effectiveInitialRegion,
+    // A searched place or a location-sheet pick is the user naming their
+    // reference point, so distances are measured from it before GPS.
+    override,
     locationSource,
     home: initialRegion,
     enabled: !isLoading && !mapChromeBusy,

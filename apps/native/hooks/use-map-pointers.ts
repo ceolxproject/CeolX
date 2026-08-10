@@ -53,8 +53,27 @@ export function bearingToCompass(bearingDeg: number): string {
   return COMPASS_POINTS[Math.round(bearingDeg / 45) % 8] ?? 'north';
 }
 
-export function resolvePointerAnchor(source: LocationSource, home: Region): PointerAnchor {
-  if (source !== 'gps' && source !== 'saved') return null;
+/**
+ * Where distances are measured from, most deliberate first.
+ *
+ * An explicit pick wins over GPS. Searching "Limerick" or choosing it in the
+ * location sheet IS the user saying that is the place they care about, so
+ * distances should be relative to it — otherwise someone in India looking up
+ * Limerick is told the gig is 7421km away, which is true and useless.
+ *
+ * This is not the case the ticket warned about. That was *free panning*, where
+ * an event could read "5km" while sitting 60km from the user, because they had
+ * merely scrolled past. A search is a statement of intent; a pan is not, which
+ * is why panning never writes the override.
+ */
+export function resolvePointerAnchor(
+  override: { lat: number; lng: number } | null,
+  source: LocationSource,
+  home: Region
+): PointerAnchor {
+  if (override) return { lat: override.lat, lng: override.lng };
+  // venue-profile is the venue's own address — as deliberate as a saved location.
+  if (source !== 'gps' && source !== 'saved' && source !== 'venue-profile') return null;
   return { lat: home.latitude, lng: home.longitude };
 }
 
@@ -167,7 +186,9 @@ type UseMapEdgePointersArgs = {
   events: MapEvent[];
   /** The region the user is actually looking at. */
   region: Region;
-  /** Resolved location chain — supplies the distance anchor. */
+  /** A place the user explicitly picked. Outranks the location chain. */
+  override: { lat: number; lng: number } | null;
+  /** Resolved location chain — the fallback anchor. */
   locationSource: LocationSource;
   home: Region;
   /** False while a sheet, the keyboard, a spinner or a card owns the screen. */
@@ -184,6 +205,7 @@ type UseMapEdgePointersArgs = {
 export function useMapEdgePointers({
   events,
   region,
+  override,
   locationSource,
   home,
   enabled,
@@ -194,8 +216,8 @@ export function useMapEdgePointers({
   // Depends on primitives, not the region object: an unstable `home` identity
   // would churn the anchor and re-run the pointer computation every render.
   const anchor = useMemo(
-    () => resolvePointerAnchor(locationSource, home),
-    [locationSource, home.latitude, home.longitude]
+    () => resolvePointerAnchor(override, locationSource, home),
+    [override, locationSource, home.latitude, home.longitude]
   );
 
   const pointers = useMemo(
