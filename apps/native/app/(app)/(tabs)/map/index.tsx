@@ -150,8 +150,12 @@ export default function MapScreen() {
   // and always restore on blur so it can't get stuck hidden on another tab.
   const { setHidden: setTabBarHidden } = useTabBarVisibility();
   const isOverlapSheetOpen = Boolean(overlapEvents);
-  const emptyStateVisible = !isLoading && expandExhausted && !emptyCardDismissed;
-  const errorToastVisible = !isLoading && isError && !expandExhausted;
+  // A failure outranks "nothing here". Gating the toast on !expandExhausted let a
+  // stale exhausted flag from an earlier sweep swallow a real backend error and
+  // report it as "No events near here" — the exact misdiagnosis the getMap throw
+  // exists to prevent.
+  const errorToastVisible = !isLoading && isError;
+  const emptyStateVisible = !isLoading && !isError && expandExhausted && !emptyCardDismissed;
   // A centered bottom card/toast/sheet shares the recenter button's row — hide
   // the button while one is shown so they never overlap.
   const bottomOverlayBusy = isOverlapSheetOpen || emptyStateVisible || errorToastVisible;
