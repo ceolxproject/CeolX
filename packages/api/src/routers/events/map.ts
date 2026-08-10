@@ -1,3 +1,5 @@
+import { TRPCError } from '@trpc/server';
+
 import { publicProcedure } from '../../index';
 import { typesenseClient } from '../../lib/typesense';
 
@@ -56,6 +58,14 @@ export const getMap = publicProcedure.input(MapQueryInput).query(async ({ input 
     return { events, totalCount: result.found ?? 0 };
   } catch (err) {
     console.error('[events.getMap] Typesense search failed:', err);
-    return { events: [], totalCount: 0 };
+    // Returning an empty result here made an outage indistinguishable from "no
+    // events in this area": the client's radius expansion would walk 5 → 25 →
+    // 100km, get three empty successes, and confidently tell the user there is
+    // nothing near them. Throwing surfaces isError so the error toast shows.
+    throw new TRPCError({
+      code: 'INTERNAL_SERVER_ERROR',
+      message: 'Failed to fetch map events',
+      cause: err,
+    });
   }
 });

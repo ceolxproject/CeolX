@@ -205,6 +205,17 @@ describe('events.getMap', () => {
     expect(result).toEqual({ events: [], totalCount: 0 });
   });
 
+  it('throws when Typesense fails instead of reporting an empty area', async () => {
+    // Swallowing the error here used to make an outage look identical to "no
+    // events near you": the client walked its 5 → 25 → 100km expansion, got
+    // three empty successes, and showed the empty-state card.
+    mockSearch.mockRejectedValueOnce(new Error('connection refused'));
+
+    const caller = anonCaller();
+
+    await expect(caller.events.getMap(DEFAULT_INPUT)).rejects.toThrow();
+  });
+
   it('passes correct polygon filter to Typesense', async () => {
     mockSearch.mockResolvedValueOnce({ hits: [], found: 0 });
 
