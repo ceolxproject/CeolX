@@ -4,6 +4,8 @@ import type { Region } from 'react-native-maps';
 
 import type { BoundingBox } from '@CeolX/shared';
 import {
+  IRELAND_CENTER_LAT,
+  IRELAND_CENTER_LNG,
   MAP_DEBOUNCE_MS,
   MAP_EXPAND_RADIUS_KM,
   MAP_MAX_PINS_PER_FETCH,
@@ -85,16 +87,20 @@ export async function expandSearch(
   return { events: [], exhausted: true };
 }
 
-type UseMapEventsOpts = {
-  centerLat?: number;
-  centerLng?: number;
-};
-
-export function useMapEvents(opts?: UseMapEventsOpts) {
+export function useMapEvents() {
   const queryClient = useQueryClient();
 
   // Initialize with Ireland bbox so the query fires immediately on mount
   const [viewport, setViewport] = useState<BoundingBox & { limit: number }>(IRELAND_BBOX);
+  // Kept alongside the bbox rather than derived from it. regionToBoundingBox
+  // clamps corners to ±90/±180, so at a far zoom-out the box goes lopsided and
+  // its midpoint stops being the map centre — from Dublin at a 80° latitude
+  // delta the midpoint lands near 31°N, off North Africa. The region's own
+  // centre is never clamped, so it is the honest value to sweep around.
+  const [viewportCenter, setViewportCenter] = useState({
+    lat: IRELAND_CENTER_LAT,
+    lng: IRELAND_CENTER_LNG,
+  });
   const [searchQuery, setSearchQuery] = useState('');
   const [filters, setFilters] = useState<MapFilters>({});
   const [expandedEvents, setExpandedEvents] = useState<MapEventResult[] | null>(null);
@@ -118,14 +124,17 @@ export function useMapEvents(opts?: UseMapEventsOpts) {
 
   const primaryEvents = (data?.events ?? []) as MapEventResult[];
 
+  // Expand around whatever the user is currently looking at. Anchoring this to
+  // the resolved GPS/override centre instead meant panning Dublin → an empty
+  // Cork viewport re-searched Dublin and dropped Dublin pins off-screen.
+  const { lat: viewportCenterLat, lng: viewportCenterLng } = viewportCenter;
+  // IRELAND_BBOX seeds `viewport` before the map's first settle; its midpoint
+  // (53.4, -8.3) sits ~50km from IRELAND_CENTER, which is what viewportCenter
+  // starts at. They converge on the first onRegionChangeComplete.
+
   // Silent auto-expand when primary query returns 0 events
   useEffect(() => {
-    if (
-      isLoading ||
-      primaryEvents.length > 0 ||
-      opts?.centerLat === undefined ||
-      opts?.centerLng === undefined
-    ) {
+    if (isLoading || primaryEvents.length > 0) {
       // Reset expansion state when primary query has results or is loading
       if (primaryEvents.length > 0) {
         setExpandedEvents(null);
@@ -137,8 +146,8 @@ export function useMapEvents(opts?: UseMapEventsOpts) {
     expandAbortRef.current = false;
 
     void expandSearch(
-      opts.centerLat,
-      opts.centerLng,
+      viewportCenterLat,
+      viewportCenterLng,
       async (bbox) => {
         const expandQueryOptions = trpc.events.getMap.queryOptions(bbox);
         return queryClient.fetchQuery(expandQueryOptions);
@@ -173,7 +182,7 @@ export function useMapEvents(opts?: UseMapEventsOpts) {
     return () => {
       expandAbortRef.current = true;
     };
-  }, [isLoading, primaryEvents.length, opts?.centerLat, opts?.centerLng, queryClient]);
+  }, [isLoading, primaryEvents.length, viewportCenterLat, viewportCenterLng, queryClient]);
 
   useEffect(() => {
     return () => {
@@ -189,9 +198,12 @@ export function useMapEvents(opts?: UseMapEventsOpts) {
         ...regionToBoundingBox(region, MAP_VIEWPORT_PAD_FACTOR),
         limit: MAP_MAX_PINS_PER_FETCH,
       });
-      // Reset expansion on manual pan
-      setExpandedEvents(null);
-      setExpandExhausted(false);
+      setViewportCenter({ lat: region.latitude, lng: region.longitude });
+      // Deliberately NOT clearing expandedEvents/expandExhausted here. This
+      // callback fires on any gesture — a plain tap included — so clearing made
+      // the off-screen pointers vanish and pop back on every touch while the
+      // 5 → 25 → 100km sweep re-ran. The effect below supersedes them as soon as
+      // fresh results land, which is the only point they are actually stale.
     }, MAP_DEBOUNCE_MS);
   }, []);
 

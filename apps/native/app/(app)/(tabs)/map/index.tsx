@@ -24,6 +24,7 @@ import { LocationPermissionScreen } from '@/components/LocationPermissionScreen'
 import { LocationSheet } from '@/components/LocationSheet';
 import type { ClusterObject } from '@/components/MapClusterMarker';
 import { MapClusterMarker } from '@/components/MapClusterMarker';
+import { MapEdgePointers } from '@/components/MapEdgePointers';
 import { MapEmptyStateCard } from '@/components/MapEmptyStateCard';
 import { MapErrorBoundary } from '@/components/MapErrorBoundary';
 import type { MapEvent } from '@/components/MapEventMarker';
@@ -51,12 +52,17 @@ import {
   zoomToRegion,
 } from '@/hooks/use-map-clusters';
 import { useMapEvents } from '@/hooks/use-map-events';
+import { useMapEdgePointers } from '@/hooks/use-map-pointers';
 import { usePlaceSearch } from '@/hooks/use-place-search';
 import { useVenueFallback } from '@/hooks/use-venue-fallback';
 import { getDeviceLocation } from '@/utils/device-location';
 import { resolveFeedLocation } from '@/utils/feed-location';
 import type { FeedLocation } from '@/utils/feed-location';
 import type { GeocodeResult } from '@/utils/geocode';
+
+// Town/neighbourhood zoom. Tight enough to read pins, wide enough that a pick
+// doesn't land on an empty patch — a venue-level delta usually would.
+const MAP_FOCUS_DELTA = 0.15;
 
 const MAP_FILTER_SECTIONS: FilterSection[] = [
   { key: 'category', label: 'Category', options: EVENT_CATEGORIES, showIcons: true },
@@ -106,21 +112,7 @@ export default function MapScreen() {
     locationSource
   );
   const [locationSheetVisible, setLocationSheetVisible] = useState(false);
-  const mapEventsResult = useMapEvents({
-    // A manual override gives explicit coords immediately; otherwise only pass
-    // coords once the location chain has resolved — prevents expand from firing
-    // with the Ireland default before GPS/IP has a chance to run.
-    centerLat: override
-      ? override.lat
-      : locationSource !== 'pending'
-        ? initialRegion.latitude
-        : undefined,
-    centerLng: override
-      ? override.lng
-      : locationSource !== 'pending'
-        ? initialRegion.longitude
-        : undefined,
-  });
+  const mapEventsResult = useMapEvents();
   const rawEvents = mapEventsResult.events as MapEvent[];
   const events = useMemo(() => {
     const { valid, invalid } = filterValidMapEvents(rawEvents);
@@ -171,6 +163,20 @@ export default function MapScreen() {
   );
 
   const { clusters, supercluster } = useMapClusters(events, region ?? effectiveInitialRegion);
+
+  // Every deliberate camera move (place pick, override, recenter, pointer tap)
+  // lands at the same town-level zoom, so they all go through here.
+  const focusPoint = useCallback((lat: number, lng: number, duration = 600) => {
+    mapRef.current?.animateToRegion(
+      {
+        latitude: lat,
+        longitude: lng,
+        latitudeDelta: MAP_FOCUS_DELTA,
+        longitudeDelta: MAP_FOCUS_DELTA,
+      },
+      duration
+    );
+  }, []);
 
   const handleClusterPress = useCallback(
     (clusterId: number, lat: number, lng: number) => {
@@ -242,31 +248,42 @@ export default function MapScreen() {
     }
   }, [placeSearchError]);
 
+  // Anything that owns the screen — a sheet, the suggestion list, a bottom card.
+  // The recenter button only cares about the bottom row; pointers cover the
+  // edges, so they stand down for all of it.
+  //
+  // Keyed on the dropdown being open, NOT on the box holding text: committing a
+  // place pick leaves the chosen name in the box, and that is precisely when the
+  // user has landed somewhere empty and needs the arrows most.
+  const mapChromeBusy = bottomOverlayBusy || filterSheetVisible || isDropdownVisible;
+
+  // The viewport query is padded (MAP_VIEWPORT_PAD_FACTOR) and empty viewports
+  // silently expand to 100km, so the map often holds events the user cannot
+  // see. Point at them instead of showing a blank map.
+  const edgePointers = useMapEdgePointers({
+    events,
+    region: region ?? effectiveInitialRegion,
+    locationSource,
+    home: initialRegion,
+    enabled: !isLoading && !mapChromeBusy,
+    onFocus: focusPoint,
+  });
+
   const handlePlaceSelect = useCallback(
     (result: GeocodeResult) => {
       if (!mapRef.current) return;
       // Picking a suggestion finishes the search — drop the keyboard so the map
       // result is fully visible (matches the Discover screen's select behaviour).
       Keyboard.dismiss();
-      // Town/neighbourhood-level zoom so nearby events are visible — a tighter
-      // venue-level view would often land on an empty patch. The map settling
-      // triggers onRegionChangeComplete → the viewport query loads events.
-      mapRef.current.animateToRegion(
-        {
-          latitude: result.lat,
-          longitude: result.lng,
-          latitudeDelta: 0.15,
-          longitudeDelta: 0.15,
-        },
-        800
-      );
+      // The map settling triggers onRegionChangeComplete → the viewport query.
+      focusPoint(result.lat, result.lng, 800);
       commitSelection(result.address);
       // Sync this intentional pick to the Feed. Mark it as already-applied so the
       // focus effect doesn't animate to the same spot again on the next focus.
       lastAppliedOverrideRef.current = `${result.lat},${result.lng}`;
       setOverride({ lat: result.lat, lng: result.lng, label: result.address }, 'search');
     },
-    [commitSelection, setOverride]
+    [commitSelection, setOverride, focusPoint]
   );
 
   // Tapping the header chip opens the same picker the Feed uses. A confirm is a
@@ -301,31 +318,15 @@ export default function MapScreen() {
         // load with no override doesn't fight the initialRegion.
         if (lastAppliedOverrideRef.current !== null) {
           lastAppliedOverrideRef.current = null;
-          mapRef.current?.animateToRegion(
-            {
-              latitude: initialRegion.latitude,
-              longitude: initialRegion.longitude,
-              latitudeDelta: 0.15,
-              longitudeDelta: 0.15,
-            },
-            600
-          );
+          focusPoint(initialRegion.latitude, initialRegion.longitude);
         }
         return;
       }
       const key = `${override.lat},${override.lng}`;
       if (lastAppliedOverrideRef.current === key) return;
       lastAppliedOverrideRef.current = key;
-      mapRef.current?.animateToRegion(
-        {
-          latitude: override.lat,
-          longitude: override.lng,
-          latitudeDelta: 0.15,
-          longitudeDelta: 0.15,
-        },
-        600
-      );
-    }, [override, initialRegion])
+      focusPoint(override.lat, override.lng);
+    }, [override, initialRegion, focusPoint])
   );
 
   const handleRegionChangeComplete = useCallback(
@@ -351,11 +352,8 @@ export default function MapScreen() {
       appToast.error('Location unavailable', 'Enable location access to center the map.');
       return;
     }
-    mapRef.current?.animateToRegion(
-      { latitude: loc.lat, longitude: loc.lng, latitudeDelta: 0.15, longitudeDelta: 0.15 },
-      600
-    );
-  }, []);
+    focusPoint(loc.lat, loc.lng);
+  }, [focusPoint]);
 
   if (promptState === 'checking') return null;
   if (promptState === 'show') {
@@ -393,6 +391,10 @@ export default function MapScreen() {
           // Hide Google's square native button — we render our own circular
           // recenter control (MapRecenterButton) for UI consistency.
           showsMyLocationButton={false}
+          // Edge pointers rotate an arrow by a geographic bearing. A rotated map
+          // would make that bearing disagree with what's on screen, so the
+          // gesture is off rather than threading camera heading through the math.
+          rotateEnabled={false}
           userInterfaceStyle={'dark' as const}
         >
           {clusters.map(renderMarker)}
@@ -449,6 +451,10 @@ export default function MapScreen() {
           size="large"
           color="#6155F5"
         />
+      )}
+
+      {edgePointers.visible && (
+        <MapEdgePointers pointers={edgePointers.pointers} onSelect={edgePointers.select} />
       )}
 
       {emptyStateVisible && (
