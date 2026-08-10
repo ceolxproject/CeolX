@@ -16,6 +16,12 @@ const POINTER_HEIGHT = 34;
 /** Breathing room from the screen edge, and between two stacked pills. */
 const EDGE_PADDING = 12;
 const ROW_GAP = 8;
+/**
+ * Slack on the row test. Dropping a pill to `blocker.top + 42` can leave a gap
+ * of 41.99999999999994 in floating point, which a bare `< 42` reads as still
+ * colliding — so it jumps again, wasting an iteration it may need later.
+ */
+const ROW_EPSILON = 0.5;
 /** Stops a due-north or due-east ray dividing by a zero component. */
 const MIN_RAY_COMPONENT = 1e-6;
 
@@ -32,7 +38,15 @@ function estimatePillWidth(label: string): number {
 }
 
 /** The rectangle pointers are pinned to — the screen minus the floating chrome. */
-type EdgeBox = { centerX: number; centerY: number; halfWidth: number; halfHeight: number };
+type EdgeBox = {
+  centerX: number;
+  centerY: number;
+  halfWidth: number;
+  halfHeight: number;
+  /** Range a pill's top may occupy, so a nudge can't hide it behind the chrome. */
+  minTop: number;
+  maxTop: number;
+};
 
 function edgeBox(width: number, height: number, insets: EdgeInsets): EdgeBox {
   // Header + search bar above; tab bar and the recenter button's row below.
@@ -50,6 +64,8 @@ function edgeBox(width: number, height: number, insets: EdgeInsets): EdgeBox {
     centerY: (top + (height - bottom)) / 2,
     halfWidth: centerX - EDGE_PADDING,
     halfHeight: (height - bottom - top) / 2,
+    minTop: top - POINTER_HEIGHT / 2,
+    maxTop: height - bottom - POINTER_HEIGHT / 2,
   };
 }
 
@@ -94,21 +110,29 @@ function layoutPointers(
       Math.min(x - width / 2, screenWidth - EDGE_PADDING - width)
     );
 
-    let top = y - POINTER_HEIGHT / 2;
-    // Nudge down until this pill clears every one already placed. Bounded by the
-    // pointer count, so it always terminates.
-    let guard = 0;
-    while (
-      guard < placed.length &&
-      placed.some(
+    // Search outwards from the ideal row for the first free one — 0, +1, -1,
+    // +2, -2 … Nudging only downwards fails on a short screen: a south-facing
+    // pill already sits on the bottom limit, so it has nowhere below to go and
+    // stays overlapping (96 of 336 arrangements on an iPhone SE). Rows outside
+    // the safe area are skipped, never clamped into it.
+    const rowStep = POINTER_HEIGHT + ROW_GAP;
+    const idealTop = y - POINTER_HEIGHT / 2;
+    let top = Math.min(Math.max(idealTop, box.minTop), box.maxTop);
+
+    for (let step = 0; step <= (placed.length + 1) * 2; step += 1) {
+      const magnitude = Math.ceil(step / 2);
+      const candidate = idealTop + (step % 2 === 1 ? 1 : -1) * magnitude * rowStep;
+      if (candidate < box.minTop || candidate > box.maxTop) continue;
+      const clashes = placed.some(
         (other) =>
-          Math.abs(other.top - top) < POINTER_HEIGHT + ROW_GAP &&
+          Math.abs(other.top - candidate) < rowStep - ROW_EPSILON &&
           left < other.left + other.width &&
           other.left < left + width
-      )
-    ) {
-      top += POINTER_HEIGHT + ROW_GAP;
-      guard += 1;
+      );
+      if (!clashes) {
+        top = candidate;
+        break;
+      }
     }
 
     placed.push({ pointer, left, top, width });
