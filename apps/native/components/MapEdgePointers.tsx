@@ -12,8 +12,11 @@ import {
 } from '@/constants/map-layout';
 import type { MapPointer } from '@/hooks/use-map-pointers';
 
-// Wide enough for the longest realistic label ("3 events · 150km") at 12px.
-const POINTER_WIDTH = 150;
+// The slot reserved for a pill, used for the edge math and the safe gutters —
+// NOT the pill's own width. The pill hugs its label and centres inside this box,
+// so "1 event" and "2 events · 45km from you" both sit on their target point
+// instead of one rattling around inside a fixed-width capsule.
+const POINTER_WIDTH = 210;
 const POINTER_HEIGHT = 34;
 /** Stops a due-north or due-east ray dividing by a zero component. */
 const MIN_RAY_COMPONENT = 1e-6;
@@ -70,17 +73,23 @@ function shortDistance(km: number): string {
   return `${Math.round(km)}km`;
 }
 
-function pointerLabel({ count, distanceKm }: MapPointer): string {
+function pointerLabel({ count, distanceKm, distanceFromUser }: MapPointer): string {
   const noun = count === 1 ? '1 event' : `${count} events`;
   // A bare distance never says WHAT is over there, and a bare count never says
   // how far. The pill is the whole message, so it carries both.
-  return distanceKm === null ? noun : `${noun} · ${shortDistance(distanceKm)}`;
+  if (distanceKm === null) return noun;
+  // "from you" only when it is genuinely from the user. After a search the
+  // distance is from the searched place, and claiming otherwise would mislead.
+  const suffix = distanceFromUser ? ' from you' : '';
+  return `${noun} · ${shortDistance(distanceKm)}${suffix}`;
 }
 
-function pointerA11yLabel({ count, distanceKm, compass }: MapPointer): string {
+function pointerA11yLabel({ count, distanceKm, compass, distanceFromUser }: MapPointer): string {
   const noun = count === 1 ? 'event' : 'events';
   const where =
-    distanceKm === null ? `to the ${compass}` : `${shortDistance(distanceKm)} ${compass}`;
+    distanceKm === null
+      ? `to the ${compass}`
+      : `${shortDistance(distanceKm)} ${compass}${distanceFromUser ? ' of you' : ''}`;
   return `${count} ${noun}, ${where}. Tap to view.`;
 }
 
@@ -111,10 +120,14 @@ export function MapEdgePointers({ pointers, onSelect }: MapEdgePointersProps) {
         <Animated.View
           key={pointer.id}
           entering={FadeIn.duration(220)}
+          // The box is only a slot; centring inside it lets the pill size to its
+          // own label while still landing on the computed point.
           style={{
             position: 'absolute',
             width: POINTER_WIDTH,
             height: POINTER_HEIGHT,
+            alignItems: 'center',
+            justifyContent: 'center',
             ...edgeOffset(pointer.bearingDeg, box),
           }}
         >
@@ -123,15 +136,40 @@ export function MapEdgePointers({ pointers, onSelect }: MapEdgePointersProps) {
             accessibilityRole="button"
             accessibilityLabel={pointerA11yLabel(pointer)}
             hitSlop={8}
-            className="flex-1 flex-row items-center justify-center gap-1.5 rounded-full bg-[rgba(43,43,43,0.95)] px-2.5"
+            // Lime on black, the same pairing as the pin's category caption and
+            // the cluster badge. A dark pill was the one thing on the map not
+            // speaking the app's language, and it sank into a dark map. The white
+            // ring echoes the 2px border on the pin circle so the shape stays
+            // readable over pale terrain as well as dark.
+            className="max-w-full flex-row items-center gap-1.5 rounded-full bg-[#C8FF2F] px-3 py-1.5"
+            style={{
+              borderWidth: 2,
+              borderColor: '#FFFFFF',
+              shadowColor: '#000000',
+              shadowOpacity: 0.35,
+              shadowRadius: 6,
+              shadowOffset: { width: 0, height: 2 },
+              elevation: 5,
+            }}
           >
             <Ionicons
-              name="arrow-up"
+              name="navigate"
               size={14}
-              color="#C8FF2F"
-              style={{ transform: [{ rotate: `${pointer.bearingDeg}deg` }] }}
+              color="#000000"
+              // `navigate` already points north-east at rest, so cancel that
+              // before applying the bearing. Fixed width + centred so a rotated
+              // glyph cannot nudge the label off-centre.
+              style={{
+                width: 14,
+                textAlign: 'center',
+                transform: [{ rotate: `${pointer.bearingDeg - 45}deg` }],
+              }}
             />
-            <Text className="text-white text-[12px] font-semibold" numberOfLines={1}>
+            <Text
+              className="text-black text-[12px]"
+              style={{ fontFamily: 'Urbanist_700Bold' }}
+              numberOfLines={1}
+            >
               {pointerLabel(pointer)}
             </Text>
           </Pressable>

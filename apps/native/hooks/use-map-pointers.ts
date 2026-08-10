@@ -20,7 +20,16 @@ import { AnalyticsEvent, track } from '@/lib/analytics';
  * Ireland-default centre is not, so those resolve to null and pointers show
  * direction without a number they can't stand behind.
  */
-export type PointerAnchor = { lat: number; lng: number } | null;
+export type PointerAnchor = {
+  lat: number;
+  lng: number;
+  /**
+   * True when the anchor is the user's own position, false when it is a place
+   * they searched for. Only the former can be labelled "from you" — after a
+   * search the distance is measured from that place, not from the person.
+   */
+  isUserLocation: boolean;
+} | null;
 
 export type MapPointer = {
   id: string;
@@ -32,6 +41,8 @@ export type MapPointer = {
   count: number;
   /** Kilometres from the anchor, or null when there is no trustworthy anchor. */
   distanceKm: number | null;
+  /** Whether distanceKm may be described as "from you". */
+  distanceFromUser: boolean;
   /** Closest event in this direction — the one tapping the pointer flies to. */
   nearestEvent: MapEvent;
 };
@@ -71,10 +82,12 @@ export function resolvePointerAnchor(
   source: LocationSource,
   home: Region
 ): PointerAnchor {
-  if (override) return { lat: override.lat, lng: override.lng };
+  // A searched place is the reference, but it is not the user — so a distance
+  // measured from it must not be labelled "from you".
+  if (override) return { lat: override.lat, lng: override.lng, isUserLocation: false };
   // venue-profile is the venue's own address — as deliberate as a saved location.
   if (source !== 'gps' && source !== 'saved' && source !== 'venue-profile') return null;
-  return { lat: home.latitude, lng: home.longitude };
+  return { lat: home.latitude, lng: home.longitude, isUserLocation: true };
 }
 
 /**
@@ -173,6 +186,7 @@ export function computePointers(
       compass: bearingToCompass(sectorDeg),
       count: 1,
       distanceKm,
+      distanceFromUser: anchorIsUseful && (anchor?.isUserLocation ?? false),
       nearestEvent: event,
     });
   }

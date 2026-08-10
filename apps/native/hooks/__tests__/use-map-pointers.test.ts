@@ -38,7 +38,7 @@ const DUBLIN_REGION = {
   longitudeDelta: 0.1,
 };
 
-const DUBLIN_ANCHOR = { lat: 53.3498, lng: -6.2603 };
+const DUBLIN_ANCHOR = { lat: 53.3498, lng: -6.2603, isUserLocation: true };
 
 function event(id: string, lat: number, lng: number): MapEvent {
   return {
@@ -91,16 +91,16 @@ describe('resolvePointerAnchor', () => {
     // Phone in Ahmedabad, user searched Limerick. They named their reference
     // point, so the gig is 45km away — not 7421km.
     const anchor = resolvePointerAnchor({ lat: 52.6638, lng: -8.6267 }, 'gps', home);
-    expect(anchor).toEqual({ lat: 52.6638, lng: -8.6267 });
+    // A searched place is the reference but is NOT the user, so its distance
+    // must never be labelled "from you".
+    expect(anchor).toEqual({ lat: 52.6638, lng: -8.6267, isUserLocation: false });
   });
 
   it('falls back to the location chain when nothing was picked', () => {
-    expect(resolvePointerAnchor(null, 'gps', home)).toEqual({ lat: 23.0225, lng: 72.5714 });
-    expect(resolvePointerAnchor(null, 'saved', home)).toEqual({ lat: 23.0225, lng: 72.5714 });
-    expect(resolvePointerAnchor(null, 'venue-profile', home)).toEqual({
-      lat: 23.0225,
-      lng: 72.5714,
-    });
+    const expected = { lat: 23.0225, lng: 72.5714, isUserLocation: true };
+    expect(resolvePointerAnchor(null, 'gps', home)).toEqual(expected);
+    expect(resolvePointerAnchor(null, 'saved', home)).toEqual(expected);
+    expect(resolvePointerAnchor(null, 'venue-profile', home)).toEqual(expected);
   });
 
   it('refuses to quote a distance from an approximate location', () => {
@@ -157,7 +157,7 @@ describe('computePointers', () => {
     const pointers = computePointers(
       [event('gort', 53.0453703, -8.8368878), event('galway', 53.3761, -9.2474)],
       limerick,
-      { lat: 52.6638, lng: -8.6267 }
+      { lat: 52.6638, lng: -8.6267, isUserLocation: true }
     );
 
     expect(pointers.length).toBeGreaterThan(1);
@@ -169,6 +169,21 @@ describe('computePointers', () => {
     for (let i = 1; i < bearings.length; i += 1) {
       expect(bearings[i] - bearings[i - 1]).toBeGreaterThanOrEqual(45);
     }
+  });
+
+  it('only claims a distance is "from you" when it really is', () => {
+    const fromUser = computePointers([event('a', 53.7179, -6.3561)], DUBLIN_REGION, DUBLIN_ANCHOR);
+    expect(fromUser[0]?.distanceFromUser).toBe(true);
+
+    // Same numbers, but the anchor is a place the user searched. The distance is
+    // from Dublin-the-place, not from the person, so the label must not say so.
+    const fromSearch = computePointers([event('a', 53.7179, -6.3561)], DUBLIN_REGION, {
+      lat: 53.3498,
+      lng: -6.2603,
+      isUserLocation: false,
+    });
+    expect(fromSearch[0]?.distanceKm).toBeGreaterThan(0);
+    expect(fromSearch[0]?.distanceFromUser).toBe(false);
   });
 
   it('drops events beyond the 150km cap', () => {
@@ -241,6 +256,7 @@ describe('computePointers', () => {
     const acrossIreland = computePointers([event('a', 53.7179, -6.3561)], DUBLIN_REGION, {
       lat: 51.8985,
       lng: -8.4756,
+      isUserLocation: true,
     });
     expect(acrossIreland[0]?.distanceKm).toBeGreaterThan(150);
 
@@ -249,6 +265,7 @@ describe('computePointers', () => {
     const farFromHome = computePointers([event('a', 53.7179, -6.3561)], DUBLIN_REGION, {
       lat: 23.0225,
       lng: 72.5714,
+      isUserLocation: true,
     });
     expect(farFromHome).toHaveLength(1);
     expect(farFromHome[0]?.distanceKm).toBeNull();
