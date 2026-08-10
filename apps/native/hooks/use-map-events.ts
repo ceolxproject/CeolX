@@ -1,5 +1,5 @@
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Region } from 'react-native-maps';
 
 import type { BoundingBox } from '@CeolX/shared';
@@ -107,14 +107,20 @@ export function useMapEvents() {
   const [expandExhausted, setExpandExhausted] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const expandAbortRef = useRef(false);
 
-  const queryInput = {
-    ...viewport,
-    ...(searchQuery.trim() ? { query: searchQuery.trim() } : {}),
-    ...(filters.category ? { category: filters.category } : {}),
-    ...(filters.county ? { county: filters.county } : {}),
-  };
+  // Shared by the viewport query and the radius sweep. The sweep used to send
+  // the bbox alone, so an expanded result — and the edge pointers built from it
+  // — surfaced events the user had filtered out.
+  const queryFilters = useMemo(
+    () => ({
+      ...(searchQuery.trim() ? { query: searchQuery.trim() } : {}),
+      ...(filters.category ? { category: filters.category } : {}),
+      ...(filters.county ? { county: filters.county } : {}),
+    }),
+    [searchQuery, filters.category, filters.county]
+  );
+
+  const queryInput = { ...viewport, ...queryFilters };
 
   const queryOptions = trpc.events.getMap.queryOptions(queryInput);
   const { data, isLoading, isError } = useQuery({
@@ -143,22 +149,26 @@ export function useMapEvents() {
       return;
     }
 
-    expandAbortRef.current = false;
+    // Per-run token, not a shared ref. A single shared boolean was reset to
+    // false by the next effect run before the previous sweep's awaits resolved,
+    // so an aborted sweep came back to life and wrote its stale results.
+    const abort = { current: false };
 
     void expandSearch(
       viewportCenterLat,
       viewportCenterLng,
       async (bbox) => {
-        const expandQueryOptions = trpc.events.getMap.queryOptions(bbox);
+        const expandQueryOptions = trpc.events.getMap.queryOptions({ ...bbox, ...queryFilters });
         return queryClient.fetchQuery(expandQueryOptions);
       },
-      expandAbortRef
+      abort
     )
       .then((result) => {
-        if (!expandAbortRef.current) {
-          if (result.events.length > 0) {
-            setExpandedEvents(result.events);
-          }
+        if (!abort.current) {
+          // Always supersede, even with nothing found. Only overwriting on a hit
+          // left events from a previous location driving pins and pointers after
+          // panning somewhere genuinely empty.
+          setExpandedEvents(result.events.length > 0 ? result.events : null);
           setExpandExhausted(result.exhausted);
           if (result.exhausted) {
             // Exhausted means the whole 5 → 25 → 100km chain came back empty.
@@ -172,7 +182,7 @@ export function useMapEvents() {
         }
       })
       .catch((err: unknown) => {
-        if (!expandAbortRef.current) {
+        if (!abort.current) {
           console.error('[useMapEvents] expandSearch failed:', err);
           // Don't set expandExhausted — a network error is not "no events exist".
           // The primary query's isError state will drive the error UI instead.
@@ -180,9 +190,16 @@ export function useMapEvents() {
       });
 
     return () => {
-      expandAbortRef.current = true;
+      abort.current = true;
     };
-  }, [isLoading, primaryEvents.length, viewportCenterLat, viewportCenterLng, queryClient]);
+  }, [
+    isLoading,
+    primaryEvents.length,
+    viewportCenterLat,
+    viewportCenterLng,
+    queryFilters,
+    queryClient,
+  ]);
 
   useEffect(() => {
     return () => {
