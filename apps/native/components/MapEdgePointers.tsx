@@ -12,14 +12,24 @@ import {
 } from '@/constants/map-layout';
 import type { MapPointer } from '@/hooks/use-map-pointers';
 
-// The slot reserved for a pill, used for the edge math and the safe gutters —
-// NOT the pill's own width. The pill hugs its label and centres inside this box,
-// so "1 event" and "2 events · 45km from you" both sit on their target point
-// instead of one rattling around inside a fixed-width capsule.
-const POINTER_WIDTH = 210;
 const POINTER_HEIGHT = 34;
+/** Breathing room from the screen edge, and between two stacked pills. */
+const EDGE_PADDING = 12;
+const ROW_GAP = 8;
 /** Stops a due-north or due-east ray dividing by a zero component. */
 const MIN_RAY_COMPONENT = 1e-6;
+
+/**
+ * Rough pixel width of a rendered pill, from its label.
+ *
+ * Deliberately an estimate rather than an onLayout measurement: layout arrives a
+ * frame late, so measuring would show the arrows overlapping and then jump. The
+ * constant covers icon + gap + horizontal padding + border, and it is only ever
+ * used to keep pills on screen and off each other — never to size one.
+ */
+function estimatePillWidth(label: string): number {
+  return 56 + label.length * 6.8;
+}
 
 /** The rectangle pointers are pinned to — the screen minus the floating chrome. */
 type EdgeBox = { centerX: number; centerY: number; halfWidth: number; halfHeight: number };
@@ -32,19 +42,19 @@ function edgeBox(width: number, height: number, insets: EdgeInsets): EdgeBox {
     MAP_SEARCH_BAR_GAP +
     MAP_SEARCH_BAR_HEIGHT +
     12 +
-    POINTER_HEIGHT;
-  const bottom = insets.bottom + TAB_BAR_HEIGHT + 16 + POINTER_HEIGHT;
+    POINTER_HEIGHT / 2;
+  const bottom = insets.bottom + TAB_BAR_HEIGHT + 16 + POINTER_HEIGHT / 2;
   const centerX = width / 2;
   return {
     centerX,
     centerY: (top + (height - bottom)) / 2,
-    halfWidth: centerX - (POINTER_WIDTH / 2 + 12),
+    halfWidth: centerX - EDGE_PADDING,
     halfHeight: (height - bottom - top) / 2,
   };
 }
 
-/** Top-left offset of the pill where the bearing ray leaves the box. */
-function edgeOffset(bearingDeg: number, box: EdgeBox): { left: number; top: number } {
+/** Centre point at which the bearing ray leaves the box. */
+function edgePoint(bearingDeg: number, box: EdgeBox): { x: number; y: number } {
   const radians = (bearingDeg * Math.PI) / 180;
   const sin = Math.sin(radians);
   const cos = Math.cos(radians);
@@ -53,10 +63,58 @@ function edgeOffset(bearingDeg: number, box: EdgeBox): { left: number; top: numb
     box.halfHeight / Math.max(Math.abs(cos), MIN_RAY_COMPONENT),
     box.halfWidth / Math.max(Math.abs(sin), MIN_RAY_COMPONENT)
   );
-  return {
-    left: box.centerX + ray * sin - POINTER_WIDTH / 2,
-    top: box.centerY - ray * cos - POINTER_HEIGHT / 2,
-  };
+  return { x: box.centerX + ray * sin, y: box.centerY - ray * cos };
+}
+
+type Placement = { pointer: MapPointer; left: number; top: number; width: number };
+
+/**
+ * Places each pill on its bearing, then pushes any that collide downwards.
+ *
+ * Sector snapping separates arrows in *adjacent* directions, but not opposite
+ * ones: east and west both leave the box on the vertical mid-line, so they share
+ * a row, and once a label is wide enough ("1 event · 13km from you") the two meet
+ * in the middle of a narrow screen. No fixed pill width fixes that — it just
+ * moves the breaking point to a smaller phone.
+ */
+function layoutPointers(
+  pointers: MapPointer[],
+  box: EdgeBox,
+  screenWidth: number,
+  label: (p: MapPointer) => string
+): Placement[] {
+  const placed: Placement[] = [];
+
+  for (const pointer of pointers) {
+    const { x, y } = edgePoint(pointer.bearingDeg, box);
+    const width = estimatePillWidth(label(pointer));
+    // Centre on the ray, then keep the whole pill on screen.
+    const left = Math.max(
+      EDGE_PADDING,
+      Math.min(x - width / 2, screenWidth - EDGE_PADDING - width)
+    );
+
+    let top = y - POINTER_HEIGHT / 2;
+    // Nudge down until this pill clears every one already placed. Bounded by the
+    // pointer count, so it always terminates.
+    let guard = 0;
+    while (
+      guard < placed.length &&
+      placed.some(
+        (other) =>
+          Math.abs(other.top - top) < POINTER_HEIGHT + ROW_GAP &&
+          left < other.left + other.width &&
+          other.left < left + width
+      )
+    ) {
+      top += POINTER_HEIGHT + ROW_GAP;
+      guard += 1;
+    }
+
+    placed.push({ pointer, left, top, width });
+  }
+
+  return placed;
 }
 
 /**
@@ -116,19 +174,19 @@ export function MapEdgePointers({ pointers, onSelect }: MapEdgePointersProps) {
 
   return (
     <View pointerEvents="box-none" className="absolute inset-0 z-10">
-      {pointers.map((pointer) => (
+      {layoutPointers(pointers, box, width, pointerLabel).map(({ pointer, left, top }) => (
         <Animated.View
           key={pointer.id}
           entering={FadeIn.duration(220)}
-          // The box is only a slot; centring inside it lets the pill size to its
-          // own label while still landing on the computed point.
+          // Positioned by its resolved top-left; the pill still hugs its own
+          // label, so the estimated width is only used for placement.
           style={{
             position: 'absolute',
-            width: POINTER_WIDTH,
+            left,
+            top,
             height: POINTER_HEIGHT,
-            alignItems: 'center',
+            alignItems: 'flex-start',
             justifyContent: 'center',
-            ...edgeOffset(pointer.bearingDeg, box),
           }}
         >
           <Pressable
@@ -141,7 +199,7 @@ export function MapEdgePointers({ pointers, onSelect }: MapEdgePointersProps) {
             // speaking the app's language, and it sank into a dark map. The white
             // ring echoes the 2px border on the pin circle so the shape stays
             // readable over pale terrain as well as dark.
-            className="max-w-full flex-row items-center gap-1.5 rounded-full bg-[#C8FF2F] px-3 py-1.5"
+            className="flex-row items-center gap-1.5 rounded-full bg-[#C8FF2F] px-3 py-1.5"
             style={{
               borderWidth: 2,
               borderColor: '#FFFFFF',
