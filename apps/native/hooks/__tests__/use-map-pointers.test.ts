@@ -193,14 +193,23 @@ describe('computePointers', () => {
     );
 
     expect(pointers).toHaveLength(1);
-    // Home is further from this viewport than the cap, so quoting a distance
-    // from it tells the user nothing — direction and count only.
-    expect(pointers[0]?.distanceKm).toBeNull();
+    // Dublin to Galway is ~186km: past the 150km arrow cap but well inside
+    // Ireland, so the distance from home is still the number that helps the
+    // user decide whether to go.
+    expect(pointers[0]?.distanceKm).toBeGreaterThan(150);
   });
 
-  it('quotes a distance only while the anchor is near the viewport', () => {
+  it('quotes a distance across Ireland but not from another continent', () => {
     const nearHome = computePointers([event('a', 53.7179, -6.3561)], DUBLIN_REGION, DUBLIN_ANCHOR);
     expect(nearHome[0]?.distanceKm).toBeGreaterThan(0);
+
+    // Cork to a Dublin-area event is ~220km — past the arrow cap, but the kind
+    // of cross-country trip a user genuinely weighs up, so the number stays.
+    const acrossIreland = computePointers([event('a', 53.7179, -6.3561)], DUBLIN_REGION, {
+      lat: 51.8985,
+      lng: -8.4756,
+    });
+    expect(acrossIreland[0]?.distanceKm).toBeGreaterThan(150);
 
     // Same viewport and event, but the user is in Ahmedabad. "7421km away" is
     // honest and useless, so it is withheld rather than shown.

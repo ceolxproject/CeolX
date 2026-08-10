@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef } from 'react';
 import type { Region } from 'react-native-maps';
 
 import {
+  MAP_POINTER_ANCHOR_MAX_KM,
   MAP_POINTER_BEARING_BUCKET_DEG,
   MAP_POINTER_MAX_COUNT,
   MAP_POINTER_MAX_KM,
@@ -93,12 +94,12 @@ export function computePointers(
 ): MapPointer[] {
   // A distance is only worth quoting when the user is somewhere near what they
   // are looking at. Browsing Limerick from India rendered "2 events · 7421km" —
-  // strictly honest and of no use to anyone. Past the cap, drop to direction and
+  // strictly honest and of no use to anyone. Past this, drop to direction and
   // count, the same as having no anchor at all.
   const anchorIsUseful =
     anchor !== null &&
     distanceBetween(region.latitude, region.longitude, anchor.lat, anchor.lng) <=
-      MAP_POINTER_MAX_KM;
+      MAP_POINTER_ANCHOR_MAX_KM;
   // Two different origins on purpose. Bearing comes from the viewport centre,
   // because that is where the screen has to travel from. Distance comes from the
   // user, because "45km away" has to mean 45km from the person reading it —

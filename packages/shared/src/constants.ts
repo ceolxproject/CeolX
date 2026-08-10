@@ -18,6 +18,13 @@ export const MAP_EXPAND_RADIUS_KM = [5, 25, 100] as const;
 // Measured from the viewport, not the user, so panning to a distant county still
 // surfaces its events — and so the cap still applies when there is no anchor.
 export const MAP_POINTER_MAX_KM = 150;
+// How far the user may be from the map before quoting a distance stops being
+// trip-planning information and becomes trivia. Island-of-Ireland scale, so a
+// Dublin user browsing Galway (~186km) or Cork (~220km) still gets the number
+// that helps them decide — while someone abroad is not told an event is 7421km
+// away. Deliberately NOT MAP_POINTER_MAX_KM: whether an arrow is worth drawing
+// and whether a distance is worth quoting are different questions.
+export const MAP_POINTER_ANCHOR_MAX_KM = 500;
 export const MAP_POINTER_MAX_COUNT = 3;
 // One sector per compass point, so a group's arrow and its spoken label ("north
 // -east") always agree. Narrower sectors let two arrows resolve to nearly the
