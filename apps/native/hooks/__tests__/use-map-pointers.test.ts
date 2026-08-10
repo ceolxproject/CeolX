@@ -193,7 +193,22 @@ describe('computePointers', () => {
     );
 
     expect(pointers).toHaveLength(1);
-    // The label still reports the honest distance from home, well over the cap.
-    expect(pointers[0]?.distanceKm).toBeGreaterThan(150);
+    // Home is further from this viewport than the cap, so quoting a distance
+    // from it tells the user nothing — direction and count only.
+    expect(pointers[0]?.distanceKm).toBeNull();
+  });
+
+  it('quotes a distance only while the anchor is near the viewport', () => {
+    const nearHome = computePointers([event('a', 53.7179, -6.3561)], DUBLIN_REGION, DUBLIN_ANCHOR);
+    expect(nearHome[0]?.distanceKm).toBeGreaterThan(0);
+
+    // Same viewport and event, but the user is in Ahmedabad. "7421km away" is
+    // honest and useless, so it is withheld rather than shown.
+    const farFromHome = computePointers([event('a', 53.7179, -6.3561)], DUBLIN_REGION, {
+      lat: 23.0225,
+      lng: 72.5714,
+    });
+    expect(farFromHome).toHaveLength(1);
+    expect(farFromHome[0]?.distanceKm).toBeNull();
   });
 });
