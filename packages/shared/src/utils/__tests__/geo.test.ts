@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 
 import {
   isWithinIreland,
+  bearingBetween,
   distanceBetween,
   formatDistance,
   getBoundingBox,
@@ -43,6 +44,31 @@ describe('distanceBetween', () => {
 
   it('returns 0 for same coordinates', () => {
     expect(distanceBetween(53.3498, -6.2603, 53.3498, -6.2603)).toBe(0);
+  });
+});
+
+describe('bearingBetween', () => {
+  it('reports Dublin to Belfast as roughly north', () => {
+    const bearing = bearingBetween(53.3498, -6.2603, 54.5973, -5.9301);
+    expect(bearing).toBeGreaterThan(0);
+    expect(bearing).toBeLessThan(20);
+  });
+
+  it('reports Dublin to Galway as roughly west', () => {
+    const bearing = bearingBetween(53.3498, -6.2603, 53.2707, -9.0568);
+    expect(bearing).toBeGreaterThan(255);
+    expect(bearing).toBeLessThan(285);
+  });
+
+  it('reports Dublin to Cork as roughly south-west', () => {
+    const bearing = bearingBetween(53.3498, -6.2603, 51.8985, -8.4756);
+    expect(bearing).toBeGreaterThan(200);
+    expect(bearing).toBeLessThan(240);
+  });
+
+  it('always returns a value in [0, 360)', () => {
+    expect(bearingBetween(53.3498, -6.2603, 53.4, -6.2603)).toBeGreaterThanOrEqual(0);
+    expect(bearingBetween(53.3498, -6.2603, 53.3, -6.3)).toBeLessThan(360);
   });
 });
 

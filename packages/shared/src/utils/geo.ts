@@ -30,6 +30,24 @@ export function distanceBetween(lat1: number, lng1: number, lat2: number, lng2: 
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
+/**
+ * Initial great-circle bearing from point 1 to point 2, in degrees clockwise
+ * from north (0 = N, 90 = E, 180 = S, 270 = W).
+ *
+ * Spherical rather than reusing getBoundingBox's flat-earth approximation: the
+ * map's edge pointers rotate an on-screen arrow by this value, so a few degrees
+ * of error across the width of Ireland is visible to the user.
+ */
+export function bearingBetween(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const lat1Rad = (lat1 * Math.PI) / 180;
+  const lat2Rad = (lat2 * Math.PI) / 180;
+  const dLng = ((lng2 - lng1) * Math.PI) / 180;
+  const y = Math.sin(dLng) * Math.cos(lat2Rad);
+  const x =
+    Math.cos(lat1Rad) * Math.sin(lat2Rad) - Math.sin(lat1Rad) * Math.cos(lat2Rad) * Math.cos(dLng);
+  return ((Math.atan2(y, x) * 180) / Math.PI + 360) % 360;
+}
+
 /** @deprecated Use distanceBetween instead */
 export function distanceKm(a: LatLng, b: LatLng): number {
   return distanceBetween(a.lat, a.lng, b.lat, b.lng);

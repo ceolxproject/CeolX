@@ -11,6 +11,18 @@ export const MAP_VIEWPORT_PAD_FACTOR = 2;
 // Silent radius expansion for empty map states
 export const MAP_EXPAND_RADIUS_KM = [5, 25, 100] as const;
 
+// Edge pointers — arrows shown at the viewport border when the visible map is
+// empty but events were found just outside it. Beyond MAP_POINTER_MAX_KM an
+// arrow stops being useful advice (users abroad would get one aimed at Ireland
+// from 1000km away), so the empty-state card takes over instead.
+export const MAP_POINTER_MAX_KM = 150;
+export const MAP_POINTER_MAX_COUNT = 3;
+// One sector per compass point, so a group's arrow and its spoken label ("north
+// -east") always agree. Narrower sectors let two arrows resolve to nearly the
+// same spot on the viewport edge and overlap — 20° put two pills ~100px apart
+// with a 92px pill.
+export const MAP_POINTER_BEARING_BUCKET_DEG = 45;
+
 // Ireland geographic centre (fallback when GPS + IP both fail)
 export const IRELAND_CENTER_LAT = 53.1424;
 export const IRELAND_CENTER_LNG = -7.6921;
