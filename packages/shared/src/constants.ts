@@ -12,9 +12,11 @@ export const MAP_VIEWPORT_PAD_FACTOR = 2;
 export const MAP_EXPAND_RADIUS_KM = [5, 25, 100] as const;
 
 // Edge pointers — arrows shown at the viewport border when the visible map is
-// empty but events were found just outside it. Beyond MAP_POINTER_MAX_KM an
-// arrow stops being useful advice (users abroad would get one aimed at Ireland
-// from 1000km away), so the empty-state card takes over instead.
+// empty but events were found just outside it. Beyond MAP_POINTER_MAX_KM of the
+// VIEWPORT an arrow stops being useful advice (a user abroad would get one aimed
+// at Ireland from 1000km away), so the empty-state card takes over instead.
+// Measured from the viewport, not the user, so panning to a distant county still
+// surfaces its events — and so the cap still applies when there is no anchor.
 export const MAP_POINTER_MAX_KM = 150;
 export const MAP_POINTER_MAX_COUNT = 3;
 // One sector per compass point, so a group's arrow and its spoken label ("north
