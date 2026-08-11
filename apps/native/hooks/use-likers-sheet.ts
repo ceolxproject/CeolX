@@ -13,15 +13,23 @@ import { useCallback } from 'react';
  * `use-deleted-posts` keeps its tombstone set there: writing it re-renders only
  * the components that subscribed, with no provider to thread through.
  */
-const LIKERS_SHEET_KEY = ['likersSheetPostId'] as const;
+const LIKERS_SHEET_KEY = ['likersSheetTarget'] as const;
 
 /**
- * Subscribe to the open post id. Only the sheet itself should call this —
+ * The post whose likers are on screen. `likeCount` is carried along because the
+ * sheet's height is derived from it: waiting for the request to land would open
+ * the sheet one row tall and then jump it to full size. The card already knows
+ * the count, so it hands it over.
+ */
+export type LikersSheetTarget = { postId: string; likeCount: number };
+
+/**
+ * Subscribe to the open target. Only the sheet itself should call this —
  * a PostCard that subscribed would re-render every card in the feed each time
  * any sheet opened or closed.
  */
-export function useLikersSheetPostId(): string | null {
-  const { data } = useQuery<string | null>({
+export function useLikersSheetTarget(): LikersSheetTarget | null {
+  const { data } = useQuery<LikersSheetTarget | null>({
     queryKey: LIKERS_SHEET_KEY,
     queryFn: () => null,
     initialData: null,
@@ -36,10 +44,17 @@ export function useLikersSheetControls() {
   const queryClient = useQueryClient();
 
   const open = useCallback(
-    (postId: string) => queryClient.setQueryData(LIKERS_SHEET_KEY, postId),
+    (postId: string, likeCount: number) =>
+      queryClient.setQueryData<LikersSheetTarget | null>(LIKERS_SHEET_KEY, {
+        postId,
+        likeCount,
+      }),
     [queryClient]
   );
-  const close = useCallback(() => queryClient.setQueryData(LIKERS_SHEET_KEY, null), [queryClient]);
+  const close = useCallback(
+    () => queryClient.setQueryData<LikersSheetTarget | null>(LIKERS_SHEET_KEY, null),
+    [queryClient]
+  );
 
   return { open, close };
 }

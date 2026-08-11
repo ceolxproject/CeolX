@@ -286,16 +286,29 @@ export function PostCard({
           that drives it (the share icon top-aligns alongside, no count of its own). */}
       <View className="items-center">
         <LikeButton liked={liked} pending={likePending} onPress={onLikePress} />
-        {likeCount > 0 && (
-          <Pressable
-            onPress={() => openLikersSheet(post.id)}
-            hitSlop={8}
-            accessibilityRole="button"
-            accessibilityLabel={`${likeCount} ${likeCount === 1 ? 'like' : 'likes'}, view who liked this`}
-          >
-            <Text className="mt-0.5 text-xs text-white/60 font-urbanist">{likeCount}</Text>
-          </Pressable>
-        )}
+        {likeCount > 0 &&
+          // Guests can browse the feed but posts.likers is protected — spectators
+          // have no public profile, so the list isn't served to signed-out callers.
+          (currentUserId ? (
+            <Pressable
+              onPress={() => openLikersSheet(post.id, likeCount)}
+              // No top slop: the heart above already claims 11pt below itself, and
+              // this Pressable is the later sibling, so any overlap would win hit
+              // testing and turn taps meant for the heart into sheet opens.
+              hitSlop={{ top: 0, bottom: 10, left: 14, right: 14 }}
+              accessibilityRole="button"
+              accessibilityLabel={`${likeCount} ${likeCount === 1 ? 'like' : 'likes'}, view who liked this`}
+            >
+              <Text className="mt-0.5 text-xs text-white/60 font-urbanist">{likeCount}</Text>
+            </Pressable>
+          ) : (
+            <Text
+              className="mt-0.5 text-xs text-white/60 font-urbanist"
+              accessibilityLabel={`${likeCount} ${likeCount === 1 ? 'like' : 'likes'}`}
+            >
+              {likeCount}
+            </Text>
+          ))}
       </View>
       <Pressable
         onPress={onSharePress}

@@ -20,7 +20,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ProfileTypeTag } from '@/components/profiles';
-import { useLikersSheetControls, useLikersSheetPostId } from '@/hooks/use-likers-sheet';
+import { useLikersSheetControls, useLikersSheetTarget } from '@/hooks/use-likers-sheet';
 import { trpcClient } from '@/utils/trpc';
 
 // A page is roughly three screens of rows, so scrolling stays ahead of the fetch.
@@ -85,7 +85,8 @@ function LikerRow({ liker, onNavigate }: { liker: Liker; onNavigate: (href: stri
  */
 export function PostLikersSheet() {
   const sheetRef = useRef<BottomSheetModal>(null);
-  const postId = useLikersSheetPostId();
+  const target = useLikersSheetTarget();
+  const postId = target?.postId ?? null;
   const { close } = useLikersSheetControls();
   const insets = useSafeAreaInsets();
 
@@ -106,23 +107,27 @@ export function PostLikersSheet() {
     return () => sub.remove();
   }, [postId, close]);
 
-  const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteQuery({
-    queryKey: ['posts.likers', postId],
-    enabled: Boolean(postId),
-    initialPageParam: 0,
-    queryFn: ({ pageParam }) =>
-      trpcClient.posts.likers.query({
-        postId: postId as string,
-        limit: PAGE_SIZE,
-        offset: pageParam,
-      }),
-    getNextPageParam: (last, _pages, lastOffset) =>
-      last.hasNextPage ? lastOffset + PAGE_SIZE : undefined,
-    // useInfiniteQuery refetches EVERY loaded page when it goes stale, so with
-    // the client default of 0 a refocus after scrolling 8 pages deep fires 8
-    // requests at once. Who liked a post doesn't change minute to minute.
-    staleTime: 60_000,
-  });
+  const { data, isLoading, isError, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } =
+    useInfiniteQuery({
+      // tRPC-shaped key so useTogglePostLike's `{ queryKey: [['posts']] }` filter
+      // matches it. A flat key silently escapes that invalidation, leaving the
+      // list stale for staleTime while the count beside it updates.
+      queryKey: [['posts', 'likers'], { postId }],
+      enabled: Boolean(postId),
+      initialPageParam: 0,
+      queryFn: ({ pageParam }) =>
+        trpcClient.posts.likers.query({
+          postId: postId as string,
+          limit: PAGE_SIZE,
+          offset: pageParam,
+        }),
+      getNextPageParam: (last, _pages, lastOffset) =>
+        last.hasNextPage ? lastOffset + PAGE_SIZE : undefined,
+      // useInfiniteQuery refetches EVERY loaded page when it goes stale, so with
+      // the client default of 0 a refocus after scrolling 8 pages deep fires 8
+      // requests at once. Who liked a post doesn't change minute to minute.
+      staleTime: 60_000,
+    });
 
   // A like landing while the sheet is open shifts every row down one, so the
   // same liker can come back on the next offset. Drop repeats or FlatList gets
@@ -134,17 +139,24 @@ export function PostLikersSheet() {
     );
   }, [data]);
 
-  const totalCount = data?.pages[0]?.totalCount ?? 0;
+  // Only page zero carries a count — later pages send null rather than re-running
+  // COUNT for a number nothing reads.
+  const totalCount = data?.pages[0]?.totalCount ?? null;
 
   // Height comes from the like count, NOT from measuring content. Dynamic sizing
   // leaves the list with no fixed container height, so onEndReached fires on a
   // loop and pages in the whole list unprompted — the exact thing paging exists
   // to avoid. A known height also keeps the scroll offset stable as pages land.
+  //
+  // Seeded from the card's own like count so the first frame is already the right
+  // size; deriving it from the response would open the sheet one row tall and
+  // then jump once the request lands.
+  const sizingCount = totalCount ?? target?.likeCount ?? 0;
   const snapPoints = useMemo(() => {
-    const rows = Math.min(Math.max(totalCount, 1), MAX_VISIBLE_ROWS);
+    const rows = Math.min(Math.max(sizingCount, 1), MAX_VISIBLE_ROWS);
     const height = HEADER_HEIGHT + rows * (ROW_HEIGHT + SEPARATOR_HEIGHT) + insets.bottom + 16;
     return [Math.min(height, SCREEN_HEIGHT * 0.75)];
-  }, [totalCount, insets.bottom]);
+  }, [sizingCount, insets.bottom]);
 
   // Dismiss before pushing: leaving the sheet mounted over a new screen traps
   // the backdrop above it. Mirrors SettingsBottomSheet's About handler.
@@ -176,7 +188,7 @@ export function PostLikersSheet() {
     >
       <View className="flex-row items-baseline justify-between px-4 pb-2">
         <Text className="text-xl font-bold text-white font-urbanist">Likes</Text>
-        {data ? (
+        {totalCount !== null ? (
           <Text className="text-[13px] text-[#8a8a8f] font-urbanist">{totalCount} total</Text>
         ) : null}
       </View>
@@ -184,6 +196,20 @@ export function PostLikersSheet() {
       {isLoading ? (
         <View className="py-10 items-center">
           <ActivityIndicator color="#C8FF2F" />
+        </View>
+      ) : isError ? (
+        // Without this a failed request falls through to the empty state and the
+        // sheet claims "No likes yet" on a post that visibly has likes.
+        <View className="py-10 items-center gap-3">
+          <Text className="text-base text-white/60 font-urbanist">Couldn&apos;t load likes</Text>
+          <Pressable
+            onPress={() => void refetch()}
+            className="border border-gray-10 rounded-[20px] h-9 px-4 items-center justify-center active:opacity-70"
+          >
+            <Text className="text-[12px] font-bold text-white uppercase tracking-[0.24px] font-urbanist">
+              Retry
+            </Text>
+          </Pressable>
         </View>
       ) : (
         <BottomSheetFlatList
