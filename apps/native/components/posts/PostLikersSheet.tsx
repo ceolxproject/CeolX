@@ -20,8 +20,12 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ProfileTypeTag } from '@/components/profiles';
-import { useLikersSheetControls, useLikersSheetTarget } from '@/hooks/use-likers-sheet';
-import { trpcClient } from '@/utils/trpc';
+import {
+  type LikersSheetTarget,
+  useLikersSheetControls,
+  useLikersSheetTarget,
+} from '@/hooks/use-likers-sheet';
+import { type RouterOutputs, trpcClient } from '@/utils/trpc';
 
 // A page is roughly three screens of rows, so scrolling stays ahead of the fetch.
 // ponytail: offset paging, matching every other list in the app. It degrades on
@@ -38,12 +42,25 @@ const HEADER_HEIGHT = 68; // grab handle + "Likes / N total"
 // point where it would cover the post it belongs to.
 const MAX_VISIBLE_ROWS = 8;
 
-type Liker = {
-  id: string;
-  displayName: string;
-  profileImageUrl: string | null;
-  profileType: 'artist' | 'venue' | 'user';
-};
+// Derived from the router so a server-side shape change fails the client
+// typecheck instead of drifting silently.
+type Liker = RouterOutputs['posts']['likers']['likers'][number];
+
+function RetryBlock({ onRetry }: { onRetry: () => void }) {
+  return (
+    <View className="py-8 items-center gap-3">
+      <Text className="text-base text-white/60 font-urbanist">Couldn&apos;t load likes</Text>
+      <Pressable
+        onPress={onRetry}
+        className="border border-gray-10 rounded-[20px] h-9 px-4 items-center justify-center active:opacity-70"
+      >
+        <Text className="text-[12px] font-bold text-white uppercase tracking-[0.24px] font-urbanist">
+          Retry
+        </Text>
+      </Pressable>
+    </View>
+  );
+}
 
 function LikerRow({ liker, onNavigate }: { liker: Liker; onNavigate: (href: string) => void }) {
   // Spectators have no public profile, so their row is inert — same rule the
@@ -86,26 +103,35 @@ function LikerRow({ liker, onNavigate }: { liker: Liker; onNavigate: (href: stri
 export function PostLikersSheet() {
   const sheetRef = useRef<BottomSheetModal>(null);
   const target = useLikersSheetTarget();
-  const postId = target?.postId ?? null;
   const { close } = useLikersSheetControls();
   const insets = useSafeAreaInsets();
 
+  // Closing nulls the target immediately, but the sheet takes an animation frame
+  // or two to slide away. Rendering from the last target keeps the list on screen
+  // for that window — reading the live one would re-key the query to a disabled
+  // state and flash "No likes yet" at one-row height on the way out.
+  const lastTarget = useRef<LikersSheetTarget | null>(null);
+  if (target) lastTarget.current = target;
+  const shown = target ?? lastTarget.current;
+  const postId = shown?.postId ?? null;
+
+  const openPostId = target?.postId ?? null;
   useEffect(() => {
-    if (postId) sheetRef.current?.present();
+    if (openPostId) sheetRef.current?.present();
     else sheetRef.current?.dismiss();
-  }, [postId]);
+  }, [openPostId]);
 
   // Android hardware back: @gorhom/bottom-sheet doesn't hook into it, so an
   // unhandled press falls through to the navigator instead of closing the sheet.
   // Same guard SettingsBottomSheet needs.
   useEffect(() => {
-    if (!postId) return;
+    if (!openPostId) return;
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
       close();
       return true;
     });
     return () => sub.remove();
-  }, [postId, close]);
+  }, [openPostId, close]);
 
   const { data, isLoading, isError, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } =
     useInfiniteQuery({
@@ -123,15 +149,21 @@ export function PostLikersSheet() {
         }),
       getNextPageParam: (last, _pages, lastOffset) =>
         last.hasNextPage ? lastOffset + PAGE_SIZE : undefined,
-      // useInfiniteQuery refetches EVERY loaded page when it goes stale, so with
-      // the client default of 0 a refocus after scrolling 8 pages deep fires 8
-      // requests at once. Who liked a post doesn't change minute to minute.
+      // useInfiniteQuery refetches EVERY loaded page at once when it refetches,
+      // so 8 pages deep is 8 requests. This bounds the passive triggers (mount,
+      // refocus) only — the tRPC-shaped key above deliberately sits inside
+      // useTogglePostLike's invalidation, and an explicit invalidate ignores
+      // staleTime. That fan-out is the price of the list staying truthful when
+      // someone likes the post while it's open.
       staleTime: 60_000,
     });
 
   // A like landing while the sheet is open shifts every row down one, so the
   // same liker can come back on the next offset. Drop repeats or FlatList gets
   // duplicate keys — the same guard use-feed-posts applies to ranked pages.
+  // The mirror case (a row shifting the other way and being skipped entirely) is
+  // invisible here and inherent to offset paging: the list can finish a few short
+  // of the header's total. A keyset cursor is the real fix; see PAGE_SIZE.
   const likers = useMemo(() => {
     const seen = new Set<string>();
     return (data?.pages ?? []).flatMap((page) =>
@@ -151,7 +183,7 @@ export function PostLikersSheet() {
   // Seeded from the card's own like count so the first frame is already the right
   // size; deriving it from the response would open the sheet one row tall and
   // then jump once the request lands.
-  const sizingCount = totalCount ?? target?.likeCount ?? 0;
+  const sizingCount = totalCount ?? shown?.likeCount ?? 0;
   const snapPoints = useMemo(() => {
     const rows = Math.min(Math.max(sizingCount, 1), MAX_VISIBLE_ROWS);
     const height = HEADER_HEIGHT + rows * (ROW_HEIGHT + SEPARATOR_HEIGHT) + insets.bottom + 16;
@@ -197,20 +229,12 @@ export function PostLikersSheet() {
         <View className="py-10 items-center">
           <ActivityIndicator color="#C8FF2F" />
         </View>
-      ) : isError ? (
-        // Without this a failed request falls through to the empty state and the
-        // sheet claims "No likes yet" on a post that visibly has likes.
-        <View className="py-10 items-center gap-3">
-          <Text className="text-base text-white/60 font-urbanist">Couldn&apos;t load likes</Text>
-          <Pressable
-            onPress={() => void refetch()}
-            className="border border-gray-10 rounded-[20px] h-9 px-4 items-center justify-center active:opacity-70"
-          >
-            <Text className="text-[12px] font-bold text-white uppercase tracking-[0.24px] font-urbanist">
-              Retry
-            </Text>
-          </Pressable>
-        </View>
+      ) : isError && likers.length === 0 ? (
+        // Only when there's nothing to show. Gating on isError alone would let a
+        // failed fetchNextPage throw away every row already loaded — and without
+        // any error branch the empty state claims "No likes yet" on a post that
+        // visibly has likes.
+        <RetryBlock onRetry={() => void refetch()} />
       ) : (
         <BottomSheetFlatList
           data={likers}
@@ -235,6 +259,10 @@ export function PostLikersSheet() {
               <View className="py-4 items-center">
                 <ActivityIndicator color="#C8FF2F" />
               </View>
+            ) : isError ? (
+              // A page failed mid-scroll — the rows above stay put and the retry
+              // moves to the footer where the failure actually happened.
+              <RetryBlock onRetry={() => void fetchNextPage()} />
             ) : null
           }
           ListEmptyComponent={

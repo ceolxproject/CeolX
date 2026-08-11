@@ -18,6 +18,7 @@ import { PostImage } from './PostImage';
 import { PostVideo } from './PostVideo';
 
 import { useDeletePost } from '@/hooks/use-delete-post';
+import { useGuestGate } from '@/hooks/use-guest-gate';
 import { useLikeHandler } from '@/hooks/use-like-handler';
 import { useLikersSheetControls } from '@/hooks/use-likers-sheet';
 import { useProfileFollowHandler } from '@/hooks/use-profile-follow-handler';
@@ -188,6 +189,7 @@ export function PostCard({
 
   const { onLikePress, isPending: likePending } = useLikeHandler(post.id);
   const { open: openLikersSheet } = useLikersSheetControls();
+  const { guard: guardGuest } = useGuestGate();
   const deletePost = useDeletePost();
   const sharePost = useSharePost();
   const segments = useSegments();
@@ -286,29 +288,27 @@ export function PostCard({
           that drives it (the share icon top-aligns alongside, no count of its own). */}
       <View className="items-center">
         <LikeButton liked={liked} pending={likePending} onPress={onLikePress} />
-        {likeCount > 0 &&
-          // Guests can browse the feed but posts.likers is protected — spectators
-          // have no public profile, so the list isn't served to signed-out callers.
-          (currentUserId ? (
-            <Pressable
-              onPress={() => openLikersSheet(post.id, likeCount)}
-              // No top slop: the heart above already claims 11pt below itself, and
-              // this Pressable is the later sibling, so any overlap would win hit
-              // testing and turn taps meant for the heart into sheet opens.
-              hitSlop={{ top: 0, bottom: 10, left: 14, right: 14 }}
-              accessibilityRole="button"
-              accessibilityLabel={`${likeCount} ${likeCount === 1 ? 'like' : 'likes'}, view who liked this`}
-            >
-              <Text className="mt-0.5 text-xs text-white/60 font-urbanist">{likeCount}</Text>
-            </Pressable>
-          ) : (
-            <Text
-              className="mt-0.5 text-xs text-white/60 font-urbanist"
-              accessibilityLabel={`${likeCount} ${likeCount === 1 ? 'like' : 'likes'}`}
-            >
-              {likeCount}
-            </Text>
-          ))}
+        {likeCount > 0 && (
+          <Pressable
+            // posts.likers is protected — spectators have no public profile, so
+            // the list isn't served to signed-out callers. Route guests through
+            // the same nudge the heart uses rather than leaving a dead tap.
+            onPress={guardGuest(
+              () => openLikersSheet(post.id, likeCount),
+              'Sign in to see who liked this'
+            )}
+            // No top slop, so this frame starts exactly where the heart glyph
+            // ends and never bites into it. It does shadow the lower half of the
+            // heart's 11pt bottom slop — later sibling wins hit testing — but
+            // that band is where this number is drawn, so those taps belong here
+            // anyway. Do not add top slop: it would reach the glyph.
+            hitSlop={{ top: 0, bottom: 10, left: 14, right: 14 }}
+            accessibilityRole="button"
+            accessibilityLabel={`${likeCount} ${likeCount === 1 ? 'like' : 'likes'}, view who liked this`}
+          >
+            <Text className="mt-0.5 text-xs text-white/60 font-urbanist">{likeCount}</Text>
+          </Pressable>
+        )}
       </View>
       <Pressable
         onPress={onSharePress}
