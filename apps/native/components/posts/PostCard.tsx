@@ -19,6 +19,7 @@ import { PostVideo } from './PostVideo';
 
 import { useDeletePost } from '@/hooks/use-delete-post';
 import { useLikeHandler } from '@/hooks/use-like-handler';
+import { useLikersSheetControls } from '@/hooks/use-likers-sheet';
 import { useProfileFollowHandler } from '@/hooks/use-profile-follow-handler';
 import { useSharePost } from '@/hooks/use-share-post';
 import { splitCaptionLinks } from '@/utils/linkify';
@@ -186,6 +187,7 @@ export function PostCard({
   const likeCount = post.likeCount ?? 0;
 
   const { onLikePress, isPending: likePending } = useLikeHandler(post.id);
+  const { open: openLikersSheet } = useLikersSheetControls();
   const deletePost = useDeletePost();
   const sharePost = useSharePost();
   const segments = useSegments();
@@ -285,12 +287,14 @@ export function PostCard({
       <View className="items-center">
         <LikeButton liked={liked} pending={likePending} onPress={onLikePress} />
         {likeCount > 0 && (
-          <Text
-            className="mt-0.5 text-xs text-white/60 font-urbanist"
-            accessibilityLabel={`${likeCount} ${likeCount === 1 ? 'like' : 'likes'}`}
+          <Pressable
+            onPress={() => openLikersSheet(post.id)}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel={`${likeCount} ${likeCount === 1 ? 'like' : 'likes'}, view who liked this`}
           >
-            {likeCount}
-          </Text>
+            <Text className="mt-0.5 text-xs text-white/60 font-urbanist">{likeCount}</Text>
+          </Pressable>
         )}
       </View>
       <Pressable

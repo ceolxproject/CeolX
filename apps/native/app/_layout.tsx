@@ -31,6 +31,7 @@ import { Uniwind } from 'uniwind';
 Uniwind.setTheme('dark');
 
 import { AppToastProvider } from '@/components/AppToast';
+import { PostLikersSheet } from '@/components/posts/PostLikersSheet';
 import { FallbackComponent } from '@/components/sentry-fallback';
 import { AppThemeProvider } from '@/contexts/app-theme-context';
 import { AuthProvider } from '@/contexts/auth-context';
@@ -151,6 +152,8 @@ function Layout() {
                   <AuthProvider>
                     <BottomSheetModalProvider>
                       <RootStack />
+                      {/* Mounted once here, not per PostCard — see use-likers-sheet. */}
+                      <PostLikersSheet />
                       <AppToastProvider />
                     </BottomSheetModalProvider>
                   </AuthProvider>
