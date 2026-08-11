@@ -285,8 +285,10 @@ export function PostCard({
   const actionsRow = (
     <View className={`flex-row items-start gap-4 ${hasMedia ? 'mb-2' : ''}`}>
       {/* Like count sits directly beneath the heart so it stays tied to the action
-          that drives it (the share icon top-aligns alongside, no count of its own). */}
-      <View className="items-center">
+          that drives it (the share icon top-aligns alongside, no count of its own).
+          items-start, not items-center: "247 likes" is wider than the 24pt glyph,
+          and centring would push the heart right out of line with the caption. */}
+      <View className="items-start">
         <LikeButton liked={liked} pending={likePending} onPress={onLikePress} />
         {likeCount > 0 && (
           <Pressable
@@ -306,7 +308,11 @@ export function PostCard({
             accessibilityRole="button"
             accessibilityLabel={`${likeCount} ${likeCount === 1 ? 'like' : 'likes'}, view who liked this`}
           >
-            <Text className="mt-0.5 text-xs text-white/60 font-urbanist">{likeCount}</Text>
+            {/* The word carries the affordance — a bare number under a heart
+                reads as a counter, not as a way into the list of people. */}
+            <Text className="mt-0.5 text-xs text-white/80 font-urbanist">
+              {likeCount} {likeCount === 1 ? 'like' : 'likes'}
+            </Text>
           </Pressable>
         )}
       </View>
