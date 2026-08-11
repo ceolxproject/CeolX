@@ -13,6 +13,7 @@ const {
   mockUpdateReturning,
   mockUpdateWhereNoReturn,
   mockDeleteWhere,
+  mockDeleteReturning,
   mockSelectChain,
   mockTransaction,
   mockRetrieveUploadStatus,
@@ -29,7 +30,10 @@ const {
   const mockInsertValues = vi.fn(() => ({ returning: mockInsertReturning }));
   const mockUpdateReturning = vi.fn();
   const mockUpdateWhereNoReturn = vi.fn(() => Promise.resolve());
-  const mockDeleteWhere = vi.fn(() => Promise.resolve());
+  // toggleLike's unlike path reads back the deleted rows to tell a real unlike
+  // apart from a lost race, so `where` must return a `.returning()`-able object.
+  const mockDeleteReturning = vi.fn();
+  const mockDeleteWhere = vi.fn(() => ({ returning: mockDeleteReturning }));
   const mockSelectChain = vi.fn();
   const mockInsertValuesNoReturn = vi.fn(() => Promise.resolve());
 
@@ -60,6 +64,7 @@ const {
     mockUpdateReturning,
     mockUpdateWhereNoReturn,
     mockDeleteWhere,
+    mockDeleteReturning,
     mockSelectChain,
     mockTransaction,
     mockRetrieveUploadStatus,
@@ -112,7 +117,7 @@ vi.mock('@CeolX/db/schema/social', () => ({
     createdAt: 'created_at',
     likeCount: 'like_count',
   },
-  postLikes: { id: 'id', postId: 'post_id', userId: 'user_id' },
+  postLikes: { id: 'id', postId: 'post_id', userId: 'user_id', createdAt: 'created_at' },
   follows: { followerId: 'follower_id', followeeId: 'followee_id' },
 }));
 vi.mock('../services/mux', () => ({
@@ -161,6 +166,8 @@ beforeEach(() => {
   vi.clearAllMocks();
   // Default: select chain resolves to empty array (for hydrateAuthors lookups).
   mockSelectChain.mockResolvedValue([]);
+  // Default: the unlike delete actually removed the row.
+  mockDeleteReturning.mockResolvedValue([{ id: 'like-1' }]);
   // Default: Mux asset still transcoding when the post is created.
   mockRetrieveUploadStatus.mockResolvedValue({
     status: 'pending',
@@ -485,6 +492,75 @@ describe('posts.toggleLike', () => {
     const caller = authedCaller('user-1', 'spectator' as UserRole);
     await expect(
       caller.toggleLike({ postId: '550e8400-e29b-41d4-a716-446655440001' })
+    ).rejects.toMatchObject({ code: 'NOT_FOUND' });
+  });
+
+  it('does not decrement when a concurrent unlike already removed the row', async () => {
+    mockPostsFindFirst.mockResolvedValueOnce({
+      id: 'post-1',
+      createdBy: 'user-other',
+      deletedAt: null,
+      likeCount: 3,
+    });
+    mockPostLikesFindFirst.mockResolvedValueOnce({
+      id: 'like-1',
+      postId: 'post-1',
+      userId: 'user-1',
+    });
+    mockDeleteReturning.mockResolvedValueOnce([]); // lost the race
+
+    const caller = authedCaller('user-1', 'spectator' as UserRole);
+    const result = await caller.toggleLike({ postId: '550e8400-e29b-41d4-a716-446655440001' });
+
+    expect(result).toEqual({ liked: false, likeCount: 3 });
+    expect(mockUpdateReturning).not.toHaveBeenCalled();
+  });
+});
+
+describe('posts.likers', () => {
+  const POST_ID = '550e8400-e29b-41d4-a716-446655440001';
+
+  // The chain mock is shared, so every db.select() in the procedure pulls the
+  // next queued value: like rows → count → hydrateAuthors' users/artists/venues.
+  function queueLikers(userIds: string[], total: number) {
+    mockSelectChain
+      .mockResolvedValueOnce(userIds.map((userId) => ({ userId })))
+      .mockResolvedValueOnce([{ count: total }])
+      .mockResolvedValueOnce(userIds.map((id) => ({ id, name: `User ${id}`, image: null })))
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([]);
+  }
+
+  it('is public and returns hydrated likers newest-first', async () => {
+    mockPostsFindFirst.mockResolvedValueOnce({ id: 'post-1', deletedAt: null });
+    queueLikers(['user-a', 'user-b'], 2);
+
+    const result = await anonCaller().likers({ postId: POST_ID, limit: 20, offset: 0 });
+
+    expect(result.totalCount).toBe(2);
+    expect(result.hasNextPage).toBe(false);
+    expect(result.likers.map((l) => l.id)).toEqual(['user-a', 'user-b']);
+    expect(result.likers[0]?.displayName).toBe('User user-a');
+  });
+
+  it('flags a next page when the extra row comes back', async () => {
+    mockPostsFindFirst.mockResolvedValueOnce({ id: 'post-1', deletedAt: null });
+    queueLikers(['user-a', 'user-b'], 2);
+
+    const result = await anonCaller().likers({ postId: POST_ID, limit: 1, offset: 0 });
+
+    expect(result.hasNextPage).toBe(true);
+    expect(result.likers).toHaveLength(1);
+  });
+
+  it('returns 404 for a soft-deleted post', async () => {
+    mockPostsFindFirst.mockResolvedValueOnce({ id: 'post-1', deletedAt: new Date() });
+    // Only the two selects that run before the guard — queueing the
+    // hydrateAuthors values too would leave them unconsumed for the next test.
+    mockSelectChain.mockResolvedValueOnce([]).mockResolvedValueOnce([{ count: 0 }]);
+
+    await expect(
+      anonCaller().likers({ postId: POST_ID, limit: 20, offset: 0 })
     ).rejects.toMatchObject({ code: 'NOT_FOUND' });
   });
 });
