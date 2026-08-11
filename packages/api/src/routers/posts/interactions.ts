@@ -4,10 +4,11 @@ import { and, desc, eq, isNull, sql } from 'drizzle-orm';
 import { db } from '@CeolX/db';
 import { events } from '@CeolX/db/schema/events';
 import { postLikes, posts } from '@CeolX/db/schema/social';
+import { EventStatus } from '@CeolX/shared';
 import { postLikersQuerySchema, togglePostLikeSchema } from '@CeolX/shared/validators';
 
 import { protectedProcedure } from '../../index';
-import { promoVisible } from '../../services/promo-post';
+import { isPromoEventExpired } from '../../services/promo-post';
 
 import { hydrateAuthors } from './hydrate';
 
@@ -60,7 +61,21 @@ export const toggleLike = protectedProcedure
         return { liked: false, likeCount: updated?.likeCount ?? 0 };
       }
 
-      await tx.insert(postLikes).values({ postId, userId });
+      // Mirror of the unlike race: two concurrent likes both miss `existing`,
+      // and the loser would hit post_likes_post_user_idx and 500. Skip the row
+      // it lost, and skip the increment the winner already made.
+      const inserted = await tx
+        .insert(postLikes)
+        .values({ postId, userId })
+        .onConflictDoNothing()
+        .returning({ id: postLikes.id });
+      if (inserted.length === 0) {
+        const [current] = await tx
+          .select({ likeCount: posts.likeCount })
+          .from(posts)
+          .where(eq(posts.id, postId));
+        return { liked: true, likeCount: current?.likeCount ?? 0 };
+      }
       const [updated] = await tx
         .update(posts)
         .set({ likeCount: sql`${posts.likeCount} + 1` })
@@ -79,8 +94,12 @@ export const toggleLike = protectedProcedure
  * callers would expose identities the rest of the app never does. `getFollowers`
  * is protected for the same reason.
  *
- * Scoped to a single post, so `post_likes_post_user_idx` already covers the
- * lookup — no new index, and the feed query is untouched.
+ * `post_likes_post_user_idx` serves the `post_id =` filter, but NOT the
+ * `created_at DESC, id DESC` sort — Postgres scans the post's like rows and
+ * sorts them on every page. Fine while posts have hundreds of likes; a post in
+ * the tens of thousands wants a `(post_id, created_at DESC, id DESC)` index,
+ * which is also the point at which offset paging should become a keyset cursor.
+ * The feed query is untouched either way.
  *
  * `totalCount` is a real COUNT rather than `posts.like_count`: it's the number
  * backing *this* list, so a drifted counter can't render "5 likes" above six
@@ -89,60 +108,80 @@ export const toggleLike = protectedProcedure
  * on the schema is about the feed, which fans out across many posts; one post is
  * a plain index scan.
  */
-export const likers = protectedProcedure.input(postLikersQuerySchema).query(async ({ input }) => {
-  const { postId, limit, offset } = input;
+export const likers = protectedProcedure
+  .input(postLikersQuerySchema)
+  .query(async ({ input, ctx }) => {
+    const { postId, limit, offset } = input;
 
-  const [likeRows, countRows, visibleRows] = await Promise.all([
-    db
-      .select({ userId: postLikes.userId })
-      .from(postLikes)
-      .where(eq(postLikes.postId, postId))
-      // id breaks ties: bulk likes can share a created_at to the microsecond, and
-      // an unstable sort makes OFFSET paging skip rows between pages.
-      .orderBy(desc(postLikes.createdAt), desc(postLikes.id))
-      .limit(limit + 1)
-      .offset(offset),
-    offset === 0
-      ? db
-          .select({ count: sql<number>`count(*)::int` })
-          .from(postLikes)
-          .where(eq(postLikes.postId, postId))
-      : Promise.resolve(null),
-    // Same visibility rule every other public post read applies — a promo post
-    // whose event ended 404s from byId, so its likers must 404 too.
-    db
-      .select({ id: posts.id })
-      .from(posts)
-      .leftJoin(events, eq(events.id, posts.eventId))
-      .where(and(eq(posts.id, postId), isNull(posts.deletedAt), promoVisible()))
-      .limit(1),
-  ]);
+    const [likeRows, countRows, postRows] = await Promise.all([
+      db
+        .select({ userId: postLikes.userId })
+        .from(postLikes)
+        .where(eq(postLikes.postId, postId))
+        // id breaks ties: bulk likes can share a created_at to the microsecond,
+        // and an unstable sort makes OFFSET paging skip rows between pages.
+        .orderBy(desc(postLikes.createdAt), desc(postLikes.id))
+        .limit(limit + 1)
+        .offset(offset),
+      offset === 0
+        ? db
+            .select({ count: sql<number>`count(*)::int` })
+            .from(postLikes)
+            .where(eq(postLikes.postId, postId))
+        : Promise.resolve(null),
+      db
+        .select({
+          createdBy: posts.createdBy,
+          eventId: posts.eventId,
+          eventStatus: events.status,
+          eventDateStart: events.dateStart,
+          eventDateEnd: events.dateEnd,
+        })
+        .from(posts)
+        .leftJoin(events, eq(events.id, posts.eventId))
+        .where(and(eq(posts.id, postId), isNull(posts.deletedAt)))
+        .limit(1),
+    ]);
 
-  if (visibleRows.length === 0) {
-    throw new TRPCError({ code: 'NOT_FOUND', message: 'Post not found' });
-  }
+    // Promo-post visibility, evaluated the way `byUser` does rather than `byId`:
+    // expiry is waived for the creator, because their own ended promo posts stay
+    // on their profile (crud.ts `promoVisible(isOwner)`). A non-ACTIVE event is
+    // hidden from everyone, owner included.
+    const post = postRows[0];
+    if (!post) {
+      throw new TRPCError({ code: 'NOT_FOUND', message: 'Post not found' });
+    }
+    if (post.eventId) {
+      const isOwner = post.createdBy === ctx.userId;
+      const expired =
+        post.eventDateStart !== null &&
+        isPromoEventExpired({ dateStart: post.eventDateStart, dateEnd: post.eventDateEnd });
+      if (post.eventStatus !== EventStatus.ACTIVE || (expired && !isOwner)) {
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Post not found' });
+      }
+    }
 
-  const hasNextPage = likeRows.length > limit;
-  const page = hasNextPage ? likeRows.slice(0, limit) : likeRows;
+    const hasNextPage = likeRows.length > limit;
+    const page = hasNextPage ? likeRows.slice(0, limit) : likeRows;
 
-  // Same batched author resolution the feed uses (artist → venue → user), so a
-  // page of likers costs a fixed number of queries regardless of page size.
-  // No viewerId: the sheet renders no follow CTA, and passing one buys an extra
-  // `follows` query per page. `isFollowedByMe` is dropped rather than returned
-  // as a hardcoded false nobody can distinguish from a real answer.
-  const authors = await hydrateAuthors(page.map((r) => r.userId));
+    // Same batched author resolution the feed uses (artist → venue → user), so a
+    // page of likers costs a fixed number of queries regardless of page size.
+    // No viewerId: the sheet renders no follow CTA, and passing one buys an extra
+    // `follows` query per page. `isFollowedByMe` is dropped rather than returned
+    // as a hardcoded false nobody can distinguish from a real answer.
+    const authors = await hydrateAuthors(page.map((r) => r.userId));
 
-  return {
-    likers: page.map((r) => {
-      const author = authors.get(r.userId);
-      return {
-        id: r.userId,
-        displayName: author?.displayName ?? 'Unknown',
-        profileImageUrl: author?.profileImageUrl ?? null,
-        profileType: author?.profileType ?? ('user' as const),
-      };
-    }),
-    totalCount: countRows ? (countRows[0]?.count ?? 0) : null,
-    hasNextPage,
-  };
-});
+    return {
+      likers: page.map((r) => {
+        const author = authors.get(r.userId);
+        return {
+          id: r.userId,
+          displayName: author?.displayName ?? 'Unknown',
+          profileImageUrl: author?.profileImageUrl ?? null,
+          profileType: author?.profileType ?? ('user' as const),
+        };
+      }),
+      totalCount: countRows ? (countRows[0]?.count ?? 0) : null,
+      hasNextPage,
+    };
+  });

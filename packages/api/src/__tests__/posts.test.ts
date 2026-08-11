@@ -14,6 +14,7 @@ const {
   mockUpdateWhereNoReturn,
   mockDeleteWhere,
   mockDeleteReturning,
+  mockLikeInsertReturning,
   mockSelectChain,
   mockTransaction,
   mockRetrieveUploadStatus,
@@ -33,9 +34,13 @@ const {
   // toggleLike's unlike path reads back the deleted rows to tell a real unlike
   // apart from a lost race, so `where` must return a `.returning()`-able object.
   const mockDeleteReturning = vi.fn();
+  // The like path is now an upsert: .values().onConflictDoNothing().returning()
+  const mockLikeInsertReturning = vi.fn();
   const mockDeleteWhere = vi.fn(() => ({ returning: mockDeleteReturning }));
   const mockSelectChain = vi.fn();
-  const mockInsertValuesNoReturn = vi.fn(() => Promise.resolve());
+  const mockInsertValuesNoReturn = vi.fn(() => ({
+    onConflictDoNothing: vi.fn(() => ({ returning: mockLikeInsertReturning })),
+  }));
 
   const mockTransaction = vi.fn((cb: (tx: unknown) => Promise<unknown>) => {
     // Tx gets the same api shape as db
@@ -72,6 +77,7 @@ const {
     mockUpdateWhereNoReturn,
     mockDeleteWhere,
     mockDeleteReturning,
+    mockLikeInsertReturning,
     mockSelectChain,
     mockTransaction,
     mockRetrieveUploadStatus,
@@ -173,8 +179,10 @@ beforeEach(() => {
   vi.clearAllMocks();
   // Default: select chain resolves to empty array (for hydrateAuthors lookups).
   mockSelectChain.mockResolvedValue([]);
-  // Default: the unlike delete actually removed the row.
+  // Default: the unlike delete actually removed the row, and the like insert won
+  // its race (no conflict).
   mockDeleteReturning.mockResolvedValue([{ id: 'like-1' }]);
+  mockLikeInsertReturning.mockResolvedValue([{ id: 'like-1' }]);
   // Default: Mux asset still transcoding when the post is created.
   mockRetrieveUploadStatus.mockResolvedValue({
     status: 'pending',
@@ -502,6 +510,24 @@ describe('posts.toggleLike', () => {
     ).rejects.toMatchObject({ code: 'NOT_FOUND' });
   });
 
+  it('does not double-increment when a concurrent like already inserted the row', async () => {
+    mockPostsFindFirst.mockResolvedValueOnce({
+      id: 'post-1',
+      createdBy: 'user-other',
+      deletedAt: null,
+      likeCount: 3,
+    });
+    mockPostLikesFindFirst.mockResolvedValueOnce(null); // not yet liked
+    mockLikeInsertReturning.mockResolvedValueOnce([]); // lost the race, no row inserted
+    mockSelectChain.mockResolvedValueOnce([{ likeCount: 4 }]);
+
+    const caller = authedCaller('user-1', 'spectator' as UserRole);
+    const result = await caller.toggleLike({ postId: '550e8400-e29b-41d4-a716-446655440001' });
+
+    expect(result).toEqual({ liked: true, likeCount: 4 });
+    expect(mockUpdateReturning).not.toHaveBeenCalled();
+  });
+
   it('does not decrement when a concurrent unlike already removed the row', async () => {
     mockPostsFindFirst.mockResolvedValueOnce({
       id: 'post-1',
@@ -534,12 +560,28 @@ describe('posts.likers', () => {
   // On page zero: like rows → count → visibility guard → hydrateAuthors'
   // users/artists/venues. hydrateAuthors runs three selects, not four: no
   // viewerId is passed, so the `follows` lookup is skipped.
-  function queuePageZero(userIds: string[], total: number, visible = true) {
+  const NON_PROMO = {
+    createdBy: 'someone-else',
+    eventId: null,
+    eventStatus: null,
+    eventDateStart: null,
+    eventDateEnd: null,
+  };
+
+  // `guardPasses` must match reality: when the guard throws, hydrateAuthors never
+  // runs, and queueing its values anyway leaves them for the NEXT test to consume
+  // (mockResolvedValueOnce survives clearAllMocks).
+  function queuePageZero(
+    userIds: string[],
+    total: number,
+    postRow: Record<string, unknown> | null = NON_PROMO,
+    guardPasses = true
+  ) {
     mockSelectChain
       .mockResolvedValueOnce(userIds.map((userId) => ({ userId })))
       .mockResolvedValueOnce([{ count: total }])
-      .mockResolvedValueOnce(visible ? [{ id: 'post-1' }] : []);
-    if (!visible) return;
+      .mockResolvedValueOnce(postRow ? [postRow] : []);
+    if (!postRow || !guardPasses) return;
     mockSelectChain
       .mockResolvedValueOnce(userIds.map((id) => ({ id, name: `User ${id}`, image: null })))
       .mockResolvedValueOnce([])
@@ -589,13 +631,44 @@ describe('posts.likers', () => {
     expect(result.likers.map((l) => l.id)).toEqual(['user-c']);
   });
 
-  it('returns 404 when the post fails the visibility guard', async () => {
-    // Guard select comes back empty — soft-deleted, or a promo post whose event
-    // has ended. Nothing past the guard runs, so nothing further is queued.
-    queuePageZero([], 0, false);
+  it('returns 404 for a soft-deleted post', async () => {
+    // Guard select comes back empty. Nothing past it runs, so nothing more queued.
+    queuePageZero([], 0, null);
 
     await expect(
       authedCaller().likers({ postId: POST_ID, limit: 20, offset: 0 })
+    ).rejects.toMatchObject({ code: 'NOT_FOUND' });
+  });
+
+  const endedPromo = (createdBy: string) => ({
+    createdBy,
+    eventId: 'event-1',
+    eventStatus: 'active',
+    eventDateStart: new Date('2020-01-01T00:00:00Z'),
+    eventDateEnd: null,
+  });
+
+  it('404s an ended promo post for anyone but its creator', async () => {
+    queuePageZero(['user-a'], 1, endedPromo('someone-else'), false);
+
+    await expect(
+      authedCaller('user-1').likers({ postId: POST_ID, limit: 20, offset: 0 })
+    ).rejects.toMatchObject({ code: 'NOT_FOUND' });
+  });
+
+  it('still serves an ended promo post to its creator, matching byUser', async () => {
+    queuePageZero(['user-a'], 1, endedPromo('user-1'));
+
+    const result = await authedCaller('user-1').likers({ postId: POST_ID, limit: 20, offset: 0 });
+
+    expect(result.likers.map((l) => l.id)).toEqual(['user-a']);
+  });
+
+  it('404s a promo post whose event is no longer active, creator included', async () => {
+    queuePageZero(['user-a'], 1, { ...endedPromo('user-1'), eventStatus: 'removed' }, false);
+
+    await expect(
+      authedCaller('user-1').likers({ postId: POST_ID, limit: 20, offset: 0 })
     ).rejects.toMatchObject({ code: 'NOT_FOUND' });
   });
 });
