@@ -81,6 +81,12 @@ export const togglePostLikeSchema = z.object({
   postId: z.string().uuid(),
 });
 
+export const postLikersQuerySchema = z.object({
+  postId: z.string().uuid(),
+  limit: z.number().int().min(1).max(50).default(20),
+  offset: z.number().int().min(0).default(0),
+});
+
 // presignPostImageSchema was retired in M10-T1 — clients call the generic
 // presignUploadSchema with `{ type: 'post_image', contentType }`.
 
@@ -91,3 +97,4 @@ export type PostByIdInput = z.infer<typeof postByIdSchema>;
 export type PostFeedQueryInput = z.infer<typeof postFeedQuerySchema>;
 export type UserPostsQueryInput = z.infer<typeof userPostsQuerySchema>;
 export type TogglePostLikeInput = z.infer<typeof togglePostLikeSchema>;
+export type PostLikersQueryInput = z.infer<typeof postLikersQuerySchema>;
