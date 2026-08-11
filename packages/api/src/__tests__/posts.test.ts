@@ -43,6 +43,13 @@ const {
       query: {
         postLikes: { findFirst: mockPostLikesFindFirst },
       },
+      // The unlike path re-reads like_count inside the transaction when its
+      // DELETE removed nothing, so tx needs a select chain too.
+      select: vi.fn(() => ({
+        from: vi.fn(() => ({
+          where: vi.fn(() => mockSelectChain() as Promise<unknown>),
+        })),
+      })),
       insert: vi.fn(() => ({ values: mockInsertValuesNoReturn })),
       update: vi.fn(() => ({
         set: vi.fn(() => ({
@@ -508,11 +515,14 @@ describe('posts.toggleLike', () => {
       userId: 'user-1',
     });
     mockDeleteReturning.mockResolvedValueOnce([]); // lost the race
+    // The winner already decremented, so the re-read sees 2 — not the 3 that was
+    // loaded before the transaction opened.
+    mockSelectChain.mockResolvedValueOnce([{ likeCount: 2 }]);
 
     const caller = authedCaller('user-1', 'spectator' as UserRole);
     const result = await caller.toggleLike({ postId: '550e8400-e29b-41d4-a716-446655440001' });
 
-    expect(result).toEqual({ liked: false, likeCount: 3 });
+    expect(result).toEqual({ liked: false, likeCount: 2 });
     expect(mockUpdateReturning).not.toHaveBeenCalled();
   });
 });
@@ -520,47 +530,72 @@ describe('posts.toggleLike', () => {
 describe('posts.likers', () => {
   const POST_ID = '550e8400-e29b-41d4-a716-446655440001';
 
-  // The chain mock is shared, so every db.select() in the procedure pulls the
-  // next queued value: like rows → count → hydrateAuthors' users/artists/venues.
-  function queueLikers(userIds: string[], total: number) {
+  // The chain mock is shared, so every db.select() pulls the next queued value.
+  // On page zero: like rows → count → visibility guard → hydrateAuthors'
+  // users/artists/venues. hydrateAuthors runs three selects, not four: no
+  // viewerId is passed, so the `follows` lookup is skipped.
+  function queuePageZero(userIds: string[], total: number, visible = true) {
     mockSelectChain
       .mockResolvedValueOnce(userIds.map((userId) => ({ userId })))
       .mockResolvedValueOnce([{ count: total }])
+      .mockResolvedValueOnce(visible ? [{ id: 'post-1' }] : []);
+    if (!visible) return;
+    mockSelectChain
       .mockResolvedValueOnce(userIds.map((id) => ({ id, name: `User ${id}`, image: null })))
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([]);
   }
 
-  it('is public and returns hydrated likers newest-first', async () => {
-    mockPostsFindFirst.mockResolvedValueOnce({ id: 'post-1', deletedAt: null });
-    queueLikers(['user-a', 'user-b'], 2);
+  it('requires a session — spectators have no public profile to expose', async () => {
+    await expect(
+      anonCaller().likers({ postId: POST_ID, limit: 20, offset: 0 })
+    ).rejects.toMatchObject({ code: 'UNAUTHORIZED' });
+  });
 
-    const result = await anonCaller().likers({ postId: POST_ID, limit: 20, offset: 0 });
+  it('returns hydrated likers newest-first', async () => {
+    queuePageZero(['user-a', 'user-b'], 2);
+
+    const result = await authedCaller().likers({ postId: POST_ID, limit: 20, offset: 0 });
 
     expect(result.totalCount).toBe(2);
     expect(result.hasNextPage).toBe(false);
     expect(result.likers.map((l) => l.id)).toEqual(['user-a', 'user-b']);
     expect(result.likers[0]?.displayName).toBe('User user-a');
+    // isFollowedByMe is deliberately not returned — nothing renders it.
+    expect(result.likers[0]).not.toHaveProperty('isFollowedByMe');
   });
 
   it('flags a next page when the extra row comes back', async () => {
-    mockPostsFindFirst.mockResolvedValueOnce({ id: 'post-1', deletedAt: null });
-    queueLikers(['user-a', 'user-b'], 2);
+    queuePageZero(['user-a', 'user-b'], 2);
 
-    const result = await anonCaller().likers({ postId: POST_ID, limit: 1, offset: 0 });
+    const result = await authedCaller().likers({ postId: POST_ID, limit: 1, offset: 0 });
 
     expect(result.hasNextPage).toBe(true);
     expect(result.likers).toHaveLength(1);
   });
 
-  it('returns 404 for a soft-deleted post', async () => {
-    mockPostsFindFirst.mockResolvedValueOnce({ id: 'post-1', deletedAt: new Date() });
-    // Only the two selects that run before the guard — queueing the
-    // hydrateAuthors values too would leave them unconsumed for the next test.
-    mockSelectChain.mockResolvedValueOnce([]).mockResolvedValueOnce([{ count: 0 }]);
+  it('skips the count past the first page', async () => {
+    // No count select is queued: offset > 0 must not run one.
+    mockSelectChain
+      .mockResolvedValueOnce([{ userId: 'user-c' }])
+      .mockResolvedValueOnce([{ id: 'post-1' }])
+      .mockResolvedValueOnce([{ id: 'user-c', name: 'User user-c', image: null }])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([]);
+
+    const result = await authedCaller().likers({ postId: POST_ID, limit: 20, offset: 20 });
+
+    expect(result.totalCount).toBeNull();
+    expect(result.likers.map((l) => l.id)).toEqual(['user-c']);
+  });
+
+  it('returns 404 when the post fails the visibility guard', async () => {
+    // Guard select comes back empty — soft-deleted, or a promo post whose event
+    // has ended. Nothing past the guard runs, so nothing further is queued.
+    queuePageZero([], 0, false);
 
     await expect(
-      anonCaller().likers({ postId: POST_ID, limit: 20, offset: 0 })
+      authedCaller().likers({ postId: POST_ID, limit: 20, offset: 0 })
     ).rejects.toMatchObject({ code: 'NOT_FOUND' });
   });
 });

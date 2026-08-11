@@ -1,11 +1,13 @@
 import { TRPCError } from '@trpc/server';
-import { and, desc, eq, sql } from 'drizzle-orm';
+import { and, desc, eq, isNull, sql } from 'drizzle-orm';
 
 import { db } from '@CeolX/db';
+import { events } from '@CeolX/db/schema/events';
 import { postLikes, posts } from '@CeolX/db/schema/social';
 import { postLikersQuerySchema, togglePostLikeSchema } from '@CeolX/shared/validators';
 
-import { protectedProcedure, publicProcedure } from '../../index';
+import { protectedProcedure } from '../../index';
+import { promoVisible } from '../../services/promo-post';
 
 import { hydrateAuthors } from './hydrate';
 
@@ -40,8 +42,15 @@ export const toggleLike = protectedProcedure
         // Two concurrent unlikes both read the same row; the second delete
         // removes nothing. Decrementing anyway drops like_count below the real
         // row count — visible once the likers list sits next to the number.
+        // Re-read rather than echoing the pre-transaction `post`: the request
+        // that won the race has already decremented, so the row we loaded before
+        // the transaction is one too high.
         if (deleted.length === 0) {
-          return { liked: false, likeCount: post.likeCount ?? 0 };
+          const [current] = await tx
+            .select({ likeCount: posts.likeCount })
+            .from(posts)
+            .where(eq(posts.id, postId));
+          return { liked: false, likeCount: current?.likeCount ?? 0 };
         }
         const [updated] = await tx
           .update(posts)
@@ -64,35 +73,52 @@ export const toggleLike = protectedProcedure
 /**
  * Who liked a post — newest first, paginated.
  *
- * Public, because guests ("Skip sign-in") browse the feed and can open this from
- * a post's like count. Scoped to a single post, so `post_likes_post_user_idx`
- * already covers the lookup — no new index, and the feed query is untouched.
+ * Protected, NOT public. This is the only read that resolves display names for
+ * arbitrary users rather than post creators, and Spectators have no public
+ * profile by product rule — serving their name and avatar to unauthenticated
+ * callers would expose identities the rest of the app never does. `getFollowers`
+ * is protected for the same reason.
+ *
+ * Scoped to a single post, so `post_likes_post_user_idx` already covers the
+ * lookup — no new index, and the feed query is untouched.
  *
  * `totalCount` is a real COUNT rather than `posts.like_count`: it's the number
  * backing *this* list, so a drifted counter can't render "5 likes" above six
- * rows. The don't-COUNT-post_likes rule on the schema is about the feed, which
- * fans out across many posts; one post is a plain index scan.
+ * rows. It's null past the first page — the client only ever displays page
+ * zero's, so re-counting per page is pure work. The don't-COUNT-post_likes rule
+ * on the schema is about the feed, which fans out across many posts; one post is
+ * a plain index scan.
  */
-export const likers = publicProcedure.input(postLikersQuerySchema).query(async ({ input, ctx }) => {
+export const likers = protectedProcedure.input(postLikersQuerySchema).query(async ({ input }) => {
   const { postId, limit, offset } = input;
-  const viewerId = ctx.session?.user?.id ?? null;
 
-  const [likeRows, countRows, post] = await Promise.all([
+  const [likeRows, countRows, visibleRows] = await Promise.all([
     db
       .select({ userId: postLikes.userId })
       .from(postLikes)
       .where(eq(postLikes.postId, postId))
-      .orderBy(desc(postLikes.createdAt))
+      // id breaks ties: bulk likes can share a created_at to the microsecond, and
+      // an unstable sort makes OFFSET paging skip rows between pages.
+      .orderBy(desc(postLikes.createdAt), desc(postLikes.id))
       .limit(limit + 1)
       .offset(offset),
+    offset === 0
+      ? db
+          .select({ count: sql<number>`count(*)::int` })
+          .from(postLikes)
+          .where(eq(postLikes.postId, postId))
+      : Promise.resolve(null),
+    // Same visibility rule every other public post read applies — a promo post
+    // whose event ended 404s from byId, so its likers must 404 too.
     db
-      .select({ count: sql<number>`count(*)::int` })
-      .from(postLikes)
-      .where(eq(postLikes.postId, postId)),
-    db.query.posts.findFirst({ where: eq(posts.id, postId) }),
+      .select({ id: posts.id })
+      .from(posts)
+      .leftJoin(events, eq(events.id, posts.eventId))
+      .where(and(eq(posts.id, postId), isNull(posts.deletedAt), promoVisible()))
+      .limit(1),
   ]);
 
-  if (!post || post.deletedAt) {
+  if (visibleRows.length === 0) {
     throw new TRPCError({ code: 'NOT_FOUND', message: 'Post not found' });
   }
 
@@ -101,23 +127,22 @@ export const likers = publicProcedure.input(postLikersQuerySchema).query(async (
 
   // Same batched author resolution the feed uses (artist → venue → user), so a
   // page of likers costs a fixed number of queries regardless of page size.
-  const authors = await hydrateAuthors(
-    page.map((r) => r.userId),
-    viewerId
-  );
+  // No viewerId: the sheet renders no follow CTA, and passing one buys an extra
+  // `follows` query per page. `isFollowedByMe` is dropped rather than returned
+  // as a hardcoded false nobody can distinguish from a real answer.
+  const authors = await hydrateAuthors(page.map((r) => r.userId));
 
   return {
-    likers: page.map(
-      (r) =>
-        authors.get(r.userId) ?? {
-          id: r.userId,
-          displayName: 'Unknown',
-          profileImageUrl: null,
-          profileType: 'user' as const,
-          isFollowedByMe: false,
-        }
-    ),
-    totalCount: countRows[0]?.count ?? 0,
+    likers: page.map((r) => {
+      const author = authors.get(r.userId);
+      return {
+        id: r.userId,
+        displayName: author?.displayName ?? 'Unknown',
+        profileImageUrl: author?.profileImageUrl ?? null,
+        profileType: author?.profileType ?? ('user' as const),
+      };
+    }),
+    totalCount: countRows ? (countRows[0]?.count ?? 0) : null,
     hasNextPage,
   };
 });
