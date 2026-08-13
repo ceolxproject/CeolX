@@ -407,12 +407,12 @@ export const NOTIFICATION_TRIGGERS: Record<NotificationTrigger, TriggerDefinitio
     persona: 'venue',
     routeTemplate: '/(app)/(tabs)/discover/event/{eventId}',
     push: {
-      title: 'New event at your venue',
-      body: '{artistName} created "{eventTitle}" at your venue on {date}.',
+      title: 'New event at your venue/festival',
+      body: '{artistName} created "{eventTitle}" at your venue/festival on {date}.',
     },
     inApp: {
-      title: 'New event at your venue',
-      body: '{artistName} scheduled "{eventTitle}" at your venue on {date}.',
+      title: 'New event at your venue/festival',
+      body: '{artistName} scheduled "{eventTitle}" at your venue/festival on {date}.',
     },
     email: null,
   },
@@ -549,7 +549,7 @@ export const NOTIFICATION_TRIGGERS: Record<NotificationTrigger, TriggerDefinitio
     },
     inApp: {
       title: 'Event cancelled',
-      body: '"{eventTitle}" hosted at your venue was deleted by the organiser.',
+      body: '"{eventTitle}" hosted at your venue/festival was deleted by the organiser.',
     },
     email: null,
   },
