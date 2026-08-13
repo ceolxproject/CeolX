@@ -24,14 +24,17 @@ export function VenueActivationEmail({
   activationUrl,
 }: VenueActivationEmailProps) {
   return (
-    <EmailLayout preview={`Activate ${venueName} on CeolX — complete your Venue subscription`}>
-      <Text style={heading}>Activate your Venue profile</Text>
+    <EmailLayout
+      preview={`Activate ${venueName} on CeolX — complete your Venue/Festival subscription`}
+    >
+      <Text style={heading}>Activate your Venue/Festival profile</Text>
 
       <Text style={bodyText}>Hi {userName || 'there'},</Text>
 
       <Text style={bodyText}>
         Welcome to CeolX. To make <strong>{venueName}</strong> visible to artists, complete your
-        Venue subscription on the web. Tap the button below to set up your subscription and go live.
+        Venue/Festival subscription on the web. Tap the button below to set up your subscription and
+        go live.
       </Text>
 
       <Section style={buttonSection}>
