@@ -34,7 +34,7 @@ export function Step2ProfileDetails({
 
       <View className="gap-4">
         <View className="gap-2">
-          <Text className="text-sm font-bold text-white/80">Venue Location</Text>
+          <Text className="text-sm font-bold text-white/80">Venue/Festival Location</Text>
           <LocationPicker
             lat={lat}
             lng={lng}
@@ -55,7 +55,7 @@ export function Step2ProfileDetails({
           </View>
           <TextInput
             className={`rounded-lg bg-white px-4 py-4 text-base text-black ${errors.bio ? 'border border-error' : ''}`}
-            placeholder="Tell artists about your venue..."
+            placeholder="Tell artists about your venue/festival..."
             placeholderTextColor="rgba(141,141,141,0.8)"
             value={bio}
             onChangeText={setBio}

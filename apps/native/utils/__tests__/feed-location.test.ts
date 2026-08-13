@@ -21,7 +21,9 @@ describe('resolveFeedLocation', () => {
   it('falls back to a source label when no place label is available', () => {
     expect(resolveFeedLocation(null, region, null, 'gps').label).toBe('Current Location');
     expect(resolveFeedLocation(null, region, null, 'ip').label).toBe('Approximate Location');
-    expect(resolveFeedLocation(null, region, null, 'venue-profile').label).toBe('Your venue');
+    expect(resolveFeedLocation(null, region, null, 'venue-profile').label).toBe(
+      'Your venue/festival'
+    );
     expect(resolveFeedLocation(null, region, null, 'default').label).toBe('Ireland');
     expect(resolveFeedLocation(null, region, null, 'pending').label).toBe('Ireland');
   });

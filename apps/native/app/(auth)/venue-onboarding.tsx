@@ -72,7 +72,7 @@ export default function VenueOnboardingScreen() {
         </ScrollView>
         <StepNavButtons
           showBack={currentStep > 1}
-          primaryLabel={currentStep === 3 ? 'Create Venue Profile' : 'Next'}
+          primaryLabel={currentStep === 3 ? 'Create Profile' : 'Next'}
           isPending={isPending}
           onBack={goBack}
           onPrimary={goNext}

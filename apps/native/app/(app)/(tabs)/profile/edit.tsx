@@ -143,7 +143,10 @@ export default function EditProfileScreen() {
 
   const handleSave = async () => {
     if (!displayName.trim()) {
-      appToast.warning('Required', `${isVenue ? 'Venue name' : 'Display name'} is required.`);
+      appToast.warning(
+        'Required',
+        `${isVenue ? 'Venue/festival name' : 'Display name'} is required.`
+      );
       return;
     }
 
@@ -320,7 +323,9 @@ export default function EditProfileScreen() {
           </Text>
           <TextInput
             className="bg-[#1C1C1E] rounded-lg px-4 py-3 text-base font-medium text-white mb-1 min-h-[100px]"
-            placeholder={isVenue ? 'Tell people about your venue' : 'Tell people about yourself'}
+            placeholder={
+              isVenue ? 'Tell people about your venue/festival' : 'Tell people about yourself'
+            }
             placeholderTextColor="#8d8d8d"
             multiline
             numberOfLines={4}
@@ -369,7 +374,7 @@ export default function EditProfileScreen() {
           {isVenue && (
             <>
               <Text className="text-xs font-semibold text-white/60 uppercase tracking-wide mb-1.5 font-urbanist">
-                Venue Location
+                Venue/Festival Location
               </Text>
               <View className="mb-4">
                 <LocationPicker
@@ -424,7 +429,7 @@ export default function EditProfileScreen() {
                 icon="globe-outline"
                 value={website}
                 onChange={setWebsite}
-                placeholder="https://yourvenue.com"
+                placeholder="https://yourwebsite.com"
                 error={errors['socialLinks.WEBSITE']}
               />
               <SocialLinkInput

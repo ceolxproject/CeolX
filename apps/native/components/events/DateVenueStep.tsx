@@ -119,7 +119,7 @@ export function DateVenueStep({
         onVenueAddressChange(myVenueAddress);
         appToast.warning(
           'Could not locate address',
-          "Your venue address was set but we couldn't find it on the map. You can adjust the pin manually."
+          "Your venue/festival address was set but we couldn't find it on the map. You can adjust the pin manually."
         );
       }
     } catch (err) {
@@ -129,7 +129,7 @@ export function DateVenueStep({
       onVenueAddressChange(myVenueAddress);
       appToast.warning(
         'Could not locate address',
-        "Your venue address was set but we couldn't find it on the map. You can adjust the pin manually."
+        "Your venue/festival address was set but we couldn't find it on the map. You can adjust the pin manually."
       );
     } finally {
       setIsPreFilling(false);
@@ -223,7 +223,7 @@ export function DateVenueStep({
               label={isVenue ? 'Event Location' : 'Choose Venue'}
               hint={
                 isVenue
-                  ? 'Defaults to your venue address — change it only if this event is somewhere else.'
+                  ? 'Defaults to your venue/festival address — change it only if this event is somewhere else.'
                   : 'Where the event happens. Pick a registered venue or tap “Enter manually” to drop a pin on the map.'
               }
             />
@@ -271,7 +271,7 @@ export function DateVenueStep({
                 >
                   <Ionicons name="refresh" size={14} color="#6C63FF" />
                   <Text className="text-sm text-[#6C63FF] font-urbanist">
-                    Reset to my venue location
+                    Reset to my venue/festival location
                   </Text>
                 </Pressable>
               )}
@@ -284,7 +284,7 @@ export function DateVenueStep({
                 <View className="flex-row items-center gap-2">
                   <Ionicons name="business" size={14} color="#6C63FF" />
                   <Text className="text-xs text-[#6C63FF] font-urbanist tracking-wide">
-                    Using your venue location
+                    Using your venue/festival location
                   </Text>
                 </View>
                 {isPreFilling ? (
