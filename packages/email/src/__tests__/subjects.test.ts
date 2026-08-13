@@ -22,7 +22,7 @@ describe('subjectFor', () => {
         venueName: 'The Hut',
         activationUrl: 'https://ceolx.com/subscribe',
       })
-    ).toBe('Activate your CeolX Venue subscription');
+    ).toBe('Activate your CeolX Venue/Festival subscription');
   });
 
   it('returns the matrix A-06/V-06 subject for payment-confirmation', () => {

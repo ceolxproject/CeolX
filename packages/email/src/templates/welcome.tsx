@@ -47,8 +47,8 @@ export function WelcomeEmail({ userName, ctaUrl, isVenue }: WelcomeEmailProps) {
       {isVenue ? (
         <Text style={bodyText}>
           You're using CeolX during our introductory free access period. Subscription plans for
-          venues will be introduced in a future update, and we'll let you know before anything
-          changes.
+          venues and festivals will be introduced in a future update, and we'll let you know before
+          anything changes.
         </Text>
       ) : null}
 
