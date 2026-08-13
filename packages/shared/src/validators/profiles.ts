@@ -74,7 +74,7 @@ const platformUrl = (label: string, example: string, allowed: readonly string[])
 const websiteUrlField = z
   .string()
   .url('Invalid URL')
-  .refine(isRealDomain, 'Enter a valid link (e.g. yourvenue.com)')
+  .refine(isRealDomain, 'Enter a valid link (e.g. yourwebsite.com)')
   .or(z.literal(''))
   .optional();
 
@@ -104,17 +104,17 @@ export const venueLinksSchema = z.object({
 // Per-step schemas power the multi-step wizard UI in apps/native.
 // The merged createVenueOnboardingSchema is the server contract — its shape must stay equivalent to the prior flat schema (asserted in validators.test.ts).
 export const venueOnboardingStep1Schema = z.object({
-  venueName: z.string().min(1, 'Venue name is required').max(VENUE_NAME_MAX).trim(),
+  venueName: z.string().min(1, 'Venue/festival name is required').max(VENUE_NAME_MAX).trim(),
   contactEmail: z.string().email('Invalid email address').optional(),
   profileImageUrl: z.string().url().optional(),
 });
 
 export const venueOnboardingStep2Schema = z.object({
-  address: z.string().min(1, 'Venue location is required').max(255).trim(),
+  address: z.string().min(1, 'Venue/festival location is required').max(255).trim(),
   // lat/lng come from the map pin and are mandatory — the map screen, event
   // creation and navigation all rely on coordinates, not the address text.
-  lat: z.number({ message: 'Pin your venue on the map' }).min(-90).max(90),
-  lng: z.number({ message: 'Pin your venue on the map' }).min(-180).max(180),
+  lat: z.number({ message: 'Pin your venue/festival on the map' }).min(-90).max(90),
+  lng: z.number({ message: 'Pin your venue/festival on the map' }).min(-180).max(180),
   bio: bioField('Description'),
 });
 
@@ -234,7 +234,7 @@ export const updateArtistProfileSchema = z.object({
 });
 
 export const venueProfileSchema = z.object({
-  venueName: z.string().min(1, 'Venue name is required').max(VENUE_NAME_MAX).trim(),
+  venueName: z.string().min(1, 'Venue/festival name is required').max(VENUE_NAME_MAX).trim(),
   address: z.string().min(1, 'Address is required').max(300).trim(),
   bio: bioField('Description'),
   profileImageUrl: z.string().url().optional(),

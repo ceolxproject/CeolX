@@ -196,7 +196,7 @@ describe('buildNotification — inApp surface diverges from push', () => {
     );
     expect(toVenue.persona).toBe('venue');
     expect(toVenue.body).toBe(
-      '"Friday Night Trad" hosted at your venue was deleted by the organiser.'
+      '"Friday Night Trad" hosted at your venue/festival was deleted by the organiser.'
     );
   });
 
