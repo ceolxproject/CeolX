@@ -26,11 +26,13 @@ export default function SignInScreen() {
   const [password, setPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorState, setErrorState] = useState<ErrorState>(null);
+  const [resendError, setResendError] = useState<string | null>(null);
   const { signInWithGoogle, signInWithApple } = useSocialAuth();
   const { continueAsGuest } = useAuth();
 
   const handleSignIn = async () => {
     setErrorState(null);
+    setResendError(null);
     setIsSubmitting(true);
 
     // Canonicalize before sending so login matches the lowercased email stored
@@ -70,7 +72,17 @@ export default function SignInScreen() {
 
   const handleResendVerification = async () => {
     if (errorState?.type !== 'unverified') return;
-    await authClient.sendVerificationEmail({ email: errorState.email });
+    setResendError(null);
+
+    // Don't navigate on failure — the verify-email screen only says "check your
+    // inbox", so a silent error reads as success and the user waits for mail
+    // that was never sent (Postmark suppresses an address after a hard bounce).
+    const { error } = await authClient.sendVerificationEmail({ email: errorState.email });
+    if (error) {
+      setResendError("Couldn't send the email. Please try again or contact support.");
+      return;
+    }
+
     router.push('/(auth)/verify-email');
   };
 
@@ -128,6 +140,9 @@ export default function SignInScreen() {
                     Resend verification email →
                   </Text>
                 </Pressable>
+                {resendError ? (
+                  <Text className="text-error text-sm font-inter font-medium">{resendError}</Text>
+                ) : null}
               </View>
             ) : errorState?.type === 'generic' ? (
               <View className="bg-error/15 rounded-lg p-3 mb-4">
