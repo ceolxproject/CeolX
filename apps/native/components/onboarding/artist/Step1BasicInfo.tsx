@@ -94,7 +94,7 @@ export function Step1BasicInfo({
             <Ionicons name="lock-closed" size={16} color="#8d8d8d" />
           </View>
           <Text className="text-xs font-semibold text-gray-10">
-            Your account email — venues/businesses contact you here. It can't be changed.
+            Your account email — venues and festivals contact you here. It can't be changed.
           </Text>
         </View>
       </View>

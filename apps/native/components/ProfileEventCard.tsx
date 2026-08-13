@@ -67,7 +67,7 @@ export function ProfileEventCard({
             )}
           >
             <Text className="text-[10px] font-semibold text-white font-urbanist capitalize">
-              {status === EventStatus.PENDING_REVIEW ? 'Awaiting venue' : status}
+              {status === EventStatus.PENDING_REVIEW ? 'Awaiting approval' : status}
             </Text>
           </View>
         ) : undefined

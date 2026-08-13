@@ -21,28 +21,28 @@ export function VenueLinksSection({ values, errors, onChange }: VenueLinksSectio
       <Text className="text-sm font-bold text-white/80">Links (optional)</Text>
       <SocialInput
         icon="globe-outline"
-        placeholder="https://yourvenue.ie"
+        placeholder="https://yourwebsite.ie"
         value={values.WEBSITE}
         onChangeText={(v) => onChange('WEBSITE', v)}
         error={errors['venueLinks.WEBSITE']}
       />
       <SocialInput
         icon="logo-instagram"
-        placeholder="https://instagram.com/yourvenue"
+        placeholder="https://instagram.com/yourhandle"
         value={values.INSTAGRAM}
         onChangeText={(v) => onChange('INSTAGRAM', v)}
         error={errors['venueLinks.INSTAGRAM']}
       />
       <SocialInput
         icon="logo-facebook"
-        placeholder="https://facebook.com/yourvenue"
+        placeholder="https://facebook.com/yourpage"
         value={values.FACEBOOK}
         onChangeText={(v) => onChange('FACEBOOK', v)}
         error={errors['venueLinks.FACEBOOK']}
       />
       <SocialInput
         icon="logo-twitter"
-        placeholder="https://x.com/yourvenue"
+        placeholder="https://x.com/yourhandle"
         value={values.TWITTER}
         onChangeText={(v) => onChange('TWITTER', v)}
         error={errors['venueLinks.TWITTER']}

@@ -20,7 +20,7 @@ export function useRequestToPerform() {
     trpc.bookings.requestToPerform.mutationOptions({
       onSuccess: (_data, variables) => {
         track(AnalyticsEvent.PERFORMANCE_REQUEST_SENT, { event_id: variables.eventId });
-        appToast.success('Request Sent!', 'The venue will review your request.');
+        appToast.success('Request Sent!', 'The venue/festival will review your request.');
         refreshRequestState();
       },
       onError: (error) => {

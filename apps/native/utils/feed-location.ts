@@ -10,7 +10,7 @@ function sourceLabel(source: LocationSource): string {
     case 'ip':
       return 'Approximate Location';
     case 'venue-profile':
-      return 'Your venue';
+      return 'Your venue/festival';
     case 'default':
     case 'pending':
       return 'Ireland';

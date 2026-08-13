@@ -309,7 +309,7 @@ export function useVenueOnboarding(): UseVenueOnboardingReturn {
       if (!permission.granted) {
         setImageError(
           permission.canAskAgain
-            ? 'Photo library access is required to upload a venue picture.'
+            ? 'Photo library access is required to upload a venue/festival picture.'
             : 'Photo access is disabled. Enable it in Settings > CeolX.'
         );
         return;
@@ -393,7 +393,7 @@ export function useVenueOnboarding(): UseVenueOnboardingReturn {
         old ? { ...old, onboardingComplete: true } : old
       );
       void queryClient.invalidateQueries({ queryKey: trpc.users.me.queryKey() });
-      appToast.success('Venue profile created', 'Welcome to CeolX!');
+      appToast.success('Venue/festival profile created', 'Welcome to CeolX!');
       router.replace('/(app)/(tabs)/map');
     } catch (err: unknown) {
       // If the server says the profile already exists, the user has finished
@@ -410,7 +410,7 @@ export function useVenueOnboarding(): UseVenueOnboardingReturn {
       }
       setSubmitError(
         getTRPCErrorMessage(err, {
-          FORBIDDEN: "Your account isn't set up as a venue. Please contact support.",
+          FORBIDDEN: "Your account isn't set up as a venue/festival. Please contact support.",
         })
       );
     }

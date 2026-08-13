@@ -43,13 +43,13 @@ export function Step1BasicInfo({
   return (
     <View className="gap-7">
       <Text style={{ fontSize: 28, fontWeight: '700', color: '#fff', lineHeight: 36 }}>
-        About your venue
+        About your venue/festival
       </Text>
 
       <View className="items-center">
         <ProfilePicture
           uri={profileImageUri}
-          label="Upload Venue Picture / Logo"
+          label="Upload Venue/Festival Picture / Logo"
           onPress={handlePickImage}
           onRemove={handleRemoveImage}
         />
