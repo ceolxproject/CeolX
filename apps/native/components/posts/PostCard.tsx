@@ -78,6 +78,11 @@ type Props = {
    * video post. Tapping opens the detail screen, which plays.
    */
   activeVideo?: boolean;
+  /**
+   * Card is near the active one, so its video should start buffering now rather
+   * than when it arrives. Forwarded to <PostVideo>, which mounts a paused player.
+   */
+  preloadVideo?: boolean;
 };
 
 const CAPTION_PREVIEW_LIMIT = 120;
@@ -179,6 +184,7 @@ export function PostCard({
   expanded,
   onDeleted,
   activeVideo,
+  preloadVideo,
 }: Props) {
   const isOwner = currentUserId === post.createdBy;
   // Like state is derived straight from props. useTogglePostLike patches the
@@ -400,6 +406,7 @@ export function PostCard({
           muxStatus={post.muxStatus ?? null}
           muxPlaybackId={post.muxPlaybackId ?? null}
           active={expanded === true || activeVideo === true}
+          preload={preloadVideo === true}
         />
       )}
 

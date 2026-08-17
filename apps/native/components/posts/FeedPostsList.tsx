@@ -27,7 +27,25 @@ type Props = {
 
 // A card counts as "on screen" once 60% of it is visible. Below that we don't
 // want to hand it the autoplay baton — half-scrolled videos shouldn't fire.
+//
+// Do not lower this to make videos start sooner. Because `viewableItems` is
+// ascending by index and the handler below takes the FIRST viewable video, a
+// lower threshold keeps the *outgoing* card viewable for longer, so it holds the
+// baton for longer and the next card starts later. Startup latency is solved by
+// the preload window instead — see PRELOAD_AHEAD.
 const VIEWABILITY_CONFIG = { itemVisiblePercentThreshold: 60 };
+
+// How many cards either side of the active one get to buffer early. expo-video
+// starts fetching the moment a player is handed a source, without waiting to be
+// attached to a view, so a card that preloads has its manifest and first
+// segments in hand before it ever reaches the screen — which is what actually
+// removes the wait, rather than trying to make a cold start run faster.
+//
+// Mux's own reference feed preloads 5 ahead; that is a demo on office wifi. This
+// audience is on Irish mobile data, and the feed is mixed media, so a window of
+// 2 often contains fewer than 2 videos. Raise it only with a data cost in mind.
+const PRELOAD_AHEAD = 2;
+const PRELOAD_BEHIND = 1;
 
 /**
  * The discover Posts feed. Unlike <PostsList> (a plain map used inside other
@@ -50,8 +68,13 @@ export function FeedPostsList({
   onScroll,
   contentPaddingTop = 16,
 }: Props) {
-  // The post id whose video should currently autoplay. `null` = no video on screen.
-  const [activeVideoId, setActiveVideoId] = useState<string | null>(null);
+  // Which video plays, and where the user is in the list. Kept as one object so a
+  // single viewability callback can't leave the two disagreeing for a frame.
+  // `activeId` null = no video on screen; `anchor` null = nothing measured yet.
+  const [videoWindow, setVideoWindow] = useState<{
+    activeId: string | null;
+    anchor: number | null;
+  }>({ activeId: null, anchor: null });
 
   // Cards size themselves to each poster's own ratio, which needs the image's
   // natural dimensions. Measure a page of them as it arrives so the card is the
@@ -78,14 +101,30 @@ export function FeedPostsList({
       const item = token.item as PostCardPost;
       return token.isViewable && item.mediaType === 'video';
     });
-    setActiveVideoId(firstVideo ? (firstVideo.item as PostCardPost).id : null);
+    // Anchor the preload window on the topmost visible card, video or not — it's
+    // where the user actually is, and the feed is mixed media.
+    const firstVisible = viewableItems.find((token) => token.isViewable);
+    setVideoWindow({
+      activeId: firstVideo ? (firstVideo.item as PostCardPost).id : null,
+      anchor: firstVisible?.index ?? null,
+    });
   }).current;
 
   const renderItem = useCallback(
-    ({ item }: { item: PostCardPost }) => (
-      <PostCard post={item} currentUserId={currentUserId} activeVideo={item.id === activeVideoId} />
-    ),
-    [currentUserId, activeVideoId]
+    ({ item, index }: { item: PostCardPost; index: number }) => {
+      const { activeId, anchor } = videoWindow;
+      const preloadVideo =
+        anchor !== null && index >= anchor - PRELOAD_BEHIND && index <= anchor + PRELOAD_AHEAD;
+      return (
+        <PostCard
+          post={item}
+          currentUserId={currentUserId}
+          activeVideo={item.id === activeId}
+          preloadVideo={preloadVideo}
+        />
+      );
+    },
+    [currentUserId, videoWindow]
   );
 
   if (isLoading) {
@@ -116,9 +155,9 @@ export function FeedPostsList({
       renderItem={renderItem}
       onScroll={onScroll}
       scrollEventThrottle={16}
-      // Re-render rows when the active video changes so the right card flips
-      // between poster and autoplay.
-      extraData={activeVideoId}
+      // Re-render rows when the active video or the preload window moves, so the
+      // right cards flip between poster, buffering and autoplay.
+      extraData={videoWindow}
       viewabilityConfig={VIEWABILITY_CONFIG}
       onViewableItemsChanged={onViewableItemsChanged}
       style={{ flex: 1, backgroundColor: '#080808' }}

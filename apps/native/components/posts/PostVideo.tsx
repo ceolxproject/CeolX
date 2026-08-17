@@ -25,30 +25,56 @@ type Props = {
    * Screen focus is checked on top of this either way.
    */
   active: boolean;
+  /**
+   * Near the on-screen card, so buffer now and play later. Mounts a player
+   * (which is what starts the fetch) but leaves it paused, so preloading never
+   * adds a second audible stream. Surfaces without viewport tracking omit it.
+   */
+  preload?: boolean;
 };
 
 /**
- * Mounts the actual expo-video player. Lives in its own component so the
- * `useVideoPlayer` hook only ever runs with a real URL, and so no player instance
- * exists for cards that aren't on screen. `muted` and `paused` are applied live
- * (via effects) so toggling either one doesn't remount and re-buffer.
+ * Mounts the actual expo-video player.
+ *
+ * Rendered for the playing card AND for cards inside the preload window, because
+ * expo-video begins buffering the moment a player is handed a source — it does
+ * not wait to be attached to a visible view. That is the whole latency fix: by
+ * the time a card scrolls in, its manifest and first segments are already there.
+ * A preloaded card is mounted `paused`, so exactly one player is ever audible.
+ *
+ * `muted` and `paused` are applied live (via effects) so toggling either one
+ * doesn't remount and re-buffer.
  */
 function ReadyVideo({
   streamUri,
+  poster,
   muted,
   paused,
 }: {
   streamUri: string;
+  poster: string | null;
   muted: boolean;
   paused: boolean;
 }) {
   const player = useVideoPlayer(streamUri, (p) => {
-    // Starts itself and repeats forever — a feed video behaves like Instagram or
-    // TikTok, not like a media file waiting on a play button.
+    // Repeats forever — a feed video behaves like Instagram or TikTok, not like a
+    // media file waiting on a play button. Playback itself is left to the effect
+    // below so a preloaded (paused) card never starts by accident.
     p.loop = true;
     p.muted = muted;
-    p.play();
+    // Start on the first segment instead of filling the default buffer (iOS waits
+    // to minimise stalling, Android holds 2s before playing).
+    p.bufferOptions = { waitsToMinimizeStalling: false, minBufferForPlayback: 0.5 };
   });
+
+  // Keyed on the source: `useVideoPlayer` rebuilds the player when `streamUri`
+  // changes, so a card still on screen when its URL changes gets a fresh, empty
+  // player. Without the reset the poster would stay hidden and the black frame
+  // this exists to prevent would come straight back.
+  const [hasFirstFrame, setHasFirstFrame] = useState(false);
+  useEffect(() => {
+    setHasFirstFrame(false);
+  }, [streamUri]);
 
   useEffect(() => {
     player.muted = muted;
@@ -73,7 +99,19 @@ function ReadyVideo({
         // speaker badge is the only chrome.
         nativeControls={false}
         contentFit="cover"
+        onFirstFrameRender={() => setHasFirstFrame(true)}
       />
+
+      {/* Covers the player until there is something to show — the buffering gap
+          for a card that scrolled in faster than its preload, and the whole time
+          for a preloaded card that is not playing yet.
+
+          inset-0, not h-full/w-full: percentage sizing on an absolutely
+          positioned child doesn't reliably resolve against an aspect-ratio
+          parent, and a 0x0 poster is an invisible one. */}
+      {poster && !hasFirstFrame && (
+        <Image source={{ uri: poster }} className="absolute inset-0" resizeMode="cover" />
+      )}
     </View>
   );
 }
@@ -87,7 +125,7 @@ function VideoFrame({ children }: { children: React.ReactNode }) {
   );
 }
 
-export function PostVideo({ mediaUrl, muxStatus, muxPlaybackId, active }: Props) {
+export function PostVideo({ mediaUrl, muxStatus, muxPlaybackId, active, preload }: Props) {
   // Mute is app-wide (see use-video-muted) so the feed card and the post detail
   // screen can't disagree about it. Pause stays local: only one player is ever
   // alive, so there is no second instance to keep in step.
@@ -100,6 +138,9 @@ export function PostVideo({ mediaUrl, muxStatus, muxPlaybackId, active }: Props)
   // sound. Gating on focus leaves exactly one live player at a time.
   const isFocused = useIsFocused();
   const shouldPlay = isFocused && active;
+  // Hold a source — and therefore buffer — for the playing card and for the ones
+  // about to arrive. Only `shouldPlay` actually plays.
+  const shouldLoad = shouldPlay || (isFocused && preload === true);
   const state = deriveVideoState(mediaUrl, muxStatus, muxPlaybackId);
 
   // Resume playing when the card comes back, rather than returning to a video
@@ -126,17 +167,28 @@ export function PostVideo({ mediaUrl, muxStatus, muxPlaybackId, active }: Props)
     );
   }
 
-  // Not the video being watched — off screen, on an unfocused screen, or in a
-  // list that mounts every card. Hold the poster frame and keep no player alive,
-  // so nothing streams that nobody is looking at. Deliberately not pressable: the
-  // tap falls through to the card's own navigation, which opens the post detail
-  // screen, and that is where it plays.
-  if (!shouldPlay) {
+  // Far from the viewport, on an unfocused screen, or in a list with no viewport
+  // tracking at all. Hold the poster and keep no player alive, so nothing streams
+  // that nobody is going to look at. Deliberately not pressable: the tap falls
+  // through to the card's own navigation, which opens the post detail screen, and
+  // that is where it plays.
+  if (!shouldLoad) {
     return (
       <View className="mb-3 aspect-[4/5] w-full overflow-hidden rounded-xl bg-black">
         {state.poster && (
           <Image source={{ uri: state.poster }} className="h-full w-full" resizeMode="cover" />
         )}
+      </View>
+    );
+  }
+
+  // Buffering ahead of its turn: the player is alive and filling, but paused and
+  // still showing the poster. No controls — this card isn't the one being
+  // watched, so a tap belongs to the card's navigation, as above.
+  if (!shouldPlay) {
+    return (
+      <View className="mb-3 w-full">
+        <ReadyVideo streamUri={state.streamUri} poster={state.poster} muted={muted} paused />
       </View>
     );
   }
@@ -148,7 +200,7 @@ export function PostVideo({ mediaUrl, muxStatus, muxPlaybackId, active }: Props)
       accessibilityRole="button"
       accessibilityLabel={paused ? 'Play video' : 'Pause video'}
     >
-      <ReadyVideo streamUri={state.streamUri} muted={muted} paused={paused} />
+      <ReadyVideo streamUri={state.streamUri} poster={state.poster} muted={muted} paused={paused} />
 
       {/* Both controls stay visible the whole time. Tapping the video body also
           pauses (the gesture people already use), but it's an invisible target —
