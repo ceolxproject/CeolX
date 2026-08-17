@@ -677,68 +677,112 @@ Additional: "Resend Email" endpoint for Venue activation — rate-limited to max
 
 ## M8 — Venue Subscription & Payments
 
-**Weeks 10–11 · 4 tasks**
+**Weeks 10–11 · 6 tasks**
+
+**Decisions**: `M8-Venue-Subscription/M8-T0-Subscription-Decisions.md` — client-signed 17/08/2026. That document is the source of truth for every rule below; this page is a milestone overview only.
+
+**Pricing**: €19.99/month or €199/year, following a **6-month free trial** with the card collected up front. **Only Venue pays** — Artist and Spectator are free (reverses MoM 3rd Apr 2026 §2.2). There are no Lite/Pro tiers.
+
+**Build order**: T1 → T3 → T6 → T4 → T2 → T5, all unblocked. One gate remains (T0 O-08): every production venue is `inactive`, so deploying the restored visibility gate darkens every venue at once — answer that before the deploy.
 
 ---
 
-### M8-T1 · ceolx.com/subscribe Page (React + Stripe)
+### M8-T0 · Subscription Decisions (living reference)
 
-**What**: The web-based subscription checkout page — entirely outside the mobile app (Apple App Store compliance).
-
-| Sub-task           | Details                                                                |
-| ------------------ | ---------------------------------------------------------------------- |
-| `/subscribe` route | In React admin app (TanStack Router)                                   |
-| Auth gate          | User must log in with CeolX credentials before seeing checkout         |
-| Plan display       | Lite / Pro subscription options (pricing TBD by client — Open Item #2) |
-| Stripe Checkout    | Hosted Stripe checkout page redirect                                   |
-| Success page       | "Your venue profile is now active! Return to the CeolX app."           |
-| Cancel page        | "Subscription cancelled. You can try again anytime."                   |
-| Deep link back     | Expo deep link returns user to app after successful payment            |
+**What**: Single source of truth for all 14 client decisions, the five subscription states, and the per-surface visibility matrix. Task docs cite it and restate nothing.
 
 ---
 
-### M8-T2 · Stripe Webhook Handler + Subscription Status Management
+### M8-T1 · Stripe Foundation, Activation Token & Checkout
 
-**What**: Backend listens to Stripe events to keep subscription status in sync.
+**What**: Everything needed to take a venue from `inactive` to `trialing`. Stops before consuming the result — the webhook is the only writer.
 
-| Sub-task                        | Details                                          |
-| ------------------------------- | ------------------------------------------------ |
-| Webhook endpoint                | `POST /api/webhooks/stripe` on Hono API          |
-| `checkout.session.completed`    | Set `subscription_status = active`               |
-| `invoice.payment_failed`        | Notify Venue via push + email                    |
-| `customer.subscription.deleted` | Set `subscription_status = inactive`             |
-| Signature verification          | Verify Stripe webhook signature on every request |
-| Audit log                       | Log all webhook events to DB                     |
-
----
-
-### M8-T3 · In-App Venue Pending Activation UI
-
-**What**: What the Venue sees in the app before and after subscribing — no external URL shown.
-
-| Sub-task              | Details                                                                         |
-| --------------------- | ------------------------------------------------------------------------------- |
-| Inactive state banner | "Your profile is not yet visible to artists. Check your email to activate."     |
-| Resend Email button   | Calls activation email endpoint (rate-limited) — no URL shown in app            |
-| Activation detected   | Poll on app foreground OR WebSocket push → dismiss banner, unlock full Venue UI |
-| Activation toast      | "Your venue profile is now live!"                                               |
-| Venue profile gate    | Profile hidden from all other users until `subscription_status = active`        |
+| Sub-task         | Details                                                                                                                  |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| Stripe SDK       | Not installed anywhere today; add to `packages/api` with server-side env vars                                            |
+| Schema migration | `trialing` status, trial end date, plan interval, nullable Stripe ids, chargeback block; drop `venue_profiles.is_active` |
+| Visibility gate  | Restore `isProfileVisibleToViewer` as a three-way state (visible / on hold / absent)                                     |
+| Activation token | One-time, hashed, 30–60 min expiry, invalidated by a newer link or by payment                                            |
+| Checkout Session | Trial days from config, `client_reference_id`, metadata, prefilled email, existing customer reuse                        |
+| Activation page  | `ceolx.ie/activate` on the **marketing site** — outside this repo, ownership unconfirmed (O-05)                          |
 
 ---
 
-### M8-T4 · ceolx.com/account — Venue Subscription Management Portal
+### M8-T2 · In-App Venue Subscription States
 
-**What**: Self-service web portal for Venues to manage their subscription, view invoices, update payment method, and cancel. Sent via email only — never linked from inside the app.
+**What**: What the venue sees in the app about its own subscription. Read-only; no payment URL anywhere (Apple Rule 3.1.1 / Google Play).
 
-| Sub-task               | Details                                                                               |
-| ---------------------- | ------------------------------------------------------------------------------------- |
-| `/account` route       | In React admin app (TanStack Router) — requires CeolX login before access             |
-| Stripe Customer Portal | `stripe.billingPortal.sessions.create(...)` → redirect to hosted portal               |
-| Portal features        | Current plan, billing history, update payment method, cancel subscription             |
-| Cancellation webhook   | `customer.subscription.deleted` → M8-T2 handler sets `subscription_status = inactive` |
-| Email link             | "Manage my subscription" link added to Postmark payment confirmation email            |
-| No in-app URL          | Portal URL is never surfaced inside the mobile app (Apple compliance)                 |
-| `stripe_customer_id`   | Add column to `venue_profiles` table (M1-T2)                                          |
+| Sub-task         | Details                                                                                                                                      |
+| ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| Activation state | **Activate Profile** → "check your inbox" + **Resend Email** + **Refresh Status**                                                            |
+| Trial state      | Normal app, trial end date surfaced calmly                                                                                                   |
+| Past-due state   | Grace window: banner only. After it expires: holding block over the live map, with own content, profile edit and fix-payment still reachable |
+| Blocked creation | Unpaid venue cannot create events or posts                                                                                                   |
+| Status refresh   | Button + app-foreground check. **No interval polling** — activation happens on another device                                                |
+| Cleanup          | Delete `FreeAccessNotice` and its six call sites                                                                                             |
+
+---
+
+### M8-T3 · Stripe Webhook & Subscription State Machine
+
+**What**: The only writer of subscription state. Replaces the `not implemented` stub in `apps/server/src/routes/webhooks.ts`.
+
+| Sub-task              | Details                                                                                            |
+| --------------------- | -------------------------------------------------------------------------------------------------- |
+| Signature check       | Raw body → `constructEvent`; invalid → 400, nothing written                                        |
+| Re-fetch, not payload | `subscriptions.retrieve(id)` on every event — idempotent and order-independent, so no dedupe table |
+| Events                | `customer.subscription.*` (one handler), `trial_will_end`, `charge.dispute.created`                |
+| Status mapping        | One explicit Stripe → CeolX map; unmapped status fails loudly and changes nothing                  |
+| Grace period          | 7 days, configurable, evaluated at read time — never a job that mutates status                     |
+| Account deletion      | `account.anonymize` must cancel in Stripe; today it does not touch Stripe                          |
+| Removal               | Delete the dead `venue.subscription-retry` job                                                     |
+
+---
+
+### M8-T4 · Manage Subscription (emailed Portal link)
+
+**What**: Billing management. **We build no billing screens** — the Stripe Customer Portal does all of it.
+
+| Sub-task           | Details                                                                                                      |
+| ------------------ | ------------------------------------------------------------------------------------------------------------ |
+| Portal session     | Fresh session per request, emailed. Never stored, never reused                                               |
+| No `/account` page | Dropped — it duplicated Portal functionality and reintroduced the web-login problem                          |
+| Portal config      | Cancel at period end; upgrade immediate with proration; **downgrade scheduled** via `schedule_at_period_end` |
+| Reactivation       | One click in the Portal inside the paid period, no new trial                                                 |
+
+---
+
+### M8-T5 · Unpaid-Venue Content Visibility
+
+**What**: The largest task in M8. Applies the per-surface matrix — there is no single visibility flag.
+
+| Sub-task               | Details                                                                       |
+| ---------------------- | ----------------------------------------------------------------------------- |
+| Venue profile          | Hidden, rendered as **"on hold"** — never a neutral "unavailable"             |
+| Venue's own events     | Off map and feed; saved events show a **"TBC by venue"** placeholder          |
+| Artist events          | **Stay visible**, including those linked to the venue; the artist is notified |
+| Venue posts            | **Stay visible** — they still add volume to a thin feed                       |
+| Artist venue picker    | **Listed**, badged, **unselectable**, with a manual-address fallback          |
+| Feed ads               | Excluded                                                                      |
+| Creator-dependent gate | Post-filter after Typesense; **do not** index subscription state              |
+| Collections            | Hidden with their events                                                      |
+| Spectator search       | Hidden — but still listed in the artist picker. Deliberate asymmetry          |
+| Bookings               | Untouched. Pending invitations stay actionable                                |
+
+---
+
+### M8-T6 · Subscription Emails & Reminders
+
+**What**: Every subscription email, plus scheduling. Short by design — most billing email stays Stripe's.
+
+| Sub-task            | Details                                                    |
+| ------------------- | ---------------------------------------------------------- |
+| Activation email    | Exists; needs the token URL and newest-link wording        |
+| Reminders           | 24 h, 3 days, 7 days — each no-ops unless still `inactive` |
+| Trial ending        | 7 days before the first charge, with amount and date       |
+| Manage subscription | Carries a freshly created Portal link                      |
+| Not ours            | Payment failure, card expiry and 3-D Secure stay Stripe's  |
+| Unblocks            | M7-T4 PR3, parked on M8                                    |
 
 ---
 

@@ -87,10 +87,19 @@ Tracks completed tasks per milestone. Each entry links to its PR.
 
 ## M8 — Venue Subscription & Payments
 
-- [ ] M8-T1 · Stripe Subscription Web Flow
-- [ ] M8-T2 · Subscription Status In-App
-- [ ] M8-T3 · Subscription Lifecycle & Cancellation
-- [ ] M8-T4 · Subscription Management Web
+Decisions live in `M8-Venue-Subscription/M8-T0-Subscription-Decisions.md` (client-signed 17/08/2026). Read it before touching any M8 task. Build order: **T1 → T3 → T6 → T4 → T2 → T5** — all six unblocked.
+
+⚠️ **One gate remains (T0 O-08).** Every venue in production is `inactive`, so deploying T1's restored visibility gate makes every venue go dark and lose event/post creation — while the app has been promising them advance notice. Answer O-08 before that deploy, not before the code.
+
+- [ ] M8-T0 · Subscription Decisions — 🟢 living reference, client-signed
+- [ ] M8-T1 · Stripe Foundation, Activation Token & Checkout
+- [ ] M8-T2 · In-App Venue Subscription States
+- [ ] M8-T3 · Stripe Webhook & Subscription State Machine
+- [ ] M8-T4 · Manage Subscription (emailed Portal link)
+- [ ] M8-T5 · Unpaid-Venue Content Visibility
+- [ ] M8-T6 · Subscription Emails & Reminders
+
+> Artist subscriptions are cancelled as a requirement — Artist and Spectator are free (T0 D-01). The old M8-T5 (Artist Stripe checkout) is deleted.
 
 ## M9 — Super Admin Dashboard
 
