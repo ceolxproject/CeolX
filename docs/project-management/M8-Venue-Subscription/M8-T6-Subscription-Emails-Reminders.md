@@ -93,4 +93,4 @@ Sean's activation email is the **only** route into the paid flow (D-16), so a bo
 
 ## Notes
 
-Copy for every new template comes from the client (D-46). The amount and date in the trial-ending email must be read from Stripe at send time, not stored at sign-up — six months is long enough for pricing to change.
+Interim copy for every new template is ours, kept in one module (D-46); final wording comes from the client later. The amount and date in the trial-ending email must be read from Stripe at send time, not stored at sign-up — six months is long enough for pricing to change.
