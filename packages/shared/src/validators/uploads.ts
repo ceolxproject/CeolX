@@ -49,6 +49,21 @@ export const MAX_BYTES_BY_TYPE: Record<UploadType, number> = {
 export const MAX_VIDEO_BYTES = 100 * 1024 * 1024;
 
 /**
+ * Post videos are also capped by length, not just weight. Feed clips are served
+ * as a fixed-resolution progressive MP4 (Mux static rendition) rather than
+ * adaptive HLS, because that removes the manifest round-trips that dominate
+ * time-to-first-frame. The trade is no adaptive bitrate: a long clip on a weak
+ * connection stalls instead of dropping quality. A short cap keeps that trade
+ * safe — the same reason short-form feeds bound clip length.
+ */
+export const MAX_VIDEO_DURATION_SECONDS = 60;
+
+/** Matching "too long" copy for the pick-time guard. */
+export function videoTooLongMessage(maxSeconds: number): string {
+  return `This video is too long. Please choose a video under ${maxSeconds} seconds.`;
+}
+
+/**
  * A friendly, actionable "too large" message for a picked media asset. Shared
  * by the pick-time guard (MediaPickerField) and the upload-time guards so the
  * user always sees the same clear copy instead of a raw upload/network error.
