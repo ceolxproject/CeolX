@@ -58,18 +58,20 @@ Fans discovering events. No public profile → nobody can follow them → no "ne
 
 ## 2 · Artist
 
-Paid persona. Subscription lifecycle mirrors Venue but at a lower tier (MoM 3rd Apr 2026). All booking triggers apply in both directions (Artist-initiated requests and Venue-initiated invitations).
+**Free persona (updated 17/08/2026).** Artist no longer pays — see `M8-Venue-Subscription/M8-T0-Subscription-Decisions.md` D-01/D-03. Rows A-03 through A-08 below are **withdrawn**; there is no Artist subscription and therefore no Artist billing email. All booking triggers apply in both directions (Artist-initiated requests and Venue-initiated invitations).
+
+One **new** Artist trigger arrives from M8-T5: an artist whose event is linked to a venue must be told when that venue's profile goes on hold, so the artist chases the venue. Added as A-20 below.
 
 | #    | Trigger                                                                | Push | In-App | Email | Route                     | Source        |
 | ---- | ---------------------------------------------------------------------- | ---- | ------ | ----- | ------------------------- | ------------- |
 | A-01 | Sign-up — email verification                                           | —    | —      | ✅    | `/verify-email?token=…`   | M2-T1         |
 | A-02 | Password reset                                                         | —    | —      | ✅    | `/reset-password?token=…` | M2-T3         |
-| A-03 | Artist persona selected — activation email (Stripe subscribe link)     | —    | —      | ✅    | `ceolx.com/subscribe`     | M8-T5 / M2-T4 |
-| A-04 | Activation email resent (user-initiated from in-app pending screen)    | —    | —      | ✅    | `ceolx.com/subscribe`     | M8-T2         |
-| A-05 | Subscription activated (Stripe `invoice.payment_succeeded`, first run) | ✅   | ✅     | ✅    | `/profile`                | M8-T5 / M8-T2 |
-| A-06 | Subscription renewed (recurring `invoice.payment_succeeded`)           | ✅   | ✅     | ✅    | `/profile`                | M8-T3         |
-| A-07 | Payment failed (`invoice.payment_failed` → `past_due`)                 | —    | —      | ✅    | `ceolx.com/account`       | M8-T3 R2.1    |
-| A-08 | Subscription cancelled (`customer.subscription.deleted`)               | —    | —      | ✅    | `ceolx.com/account`       | M8-T3 R3.1    |
+| A-03 | ~~Artist activation email~~ — **withdrawn 17/08/2026, Artist is free** | —    | —      | —     | —                         | —             |
+| A-04 | ~~Artist activation resend~~ — **withdrawn**                           | —    | —      | —     | —                         | —             |
+| A-05 | ~~Artist subscription activated~~ — **withdrawn**                      | —    | —      | —     | —                         | —             |
+| A-06 | ~~Artist subscription renewed~~ — **withdrawn**                        | —    | —      | —     | —                         | —             |
+| A-07 | ~~Artist payment failed~~ — **withdrawn**                              | —    | —      | —     | —                         | —             |
+| A-08 | ~~Artist subscription cancelled~~ — **withdrawn**                      | —    | —      | —     | —                         | —             |
 | A-09 | Booking invitation received — Venue invited Artist to an event         | ✅   | ✅     | ✅    | `/bookings/:id`           | M5-T1         |
 | A-10 | Booking accepted — Artist's application to a Venue event was accepted  | ✅   | ✅     | ✅    | `/bookings/:id`           | M5-T2         |
 | A-11 | Booking rejected — Venue declined the Artist's application             | ✅   | ✅     | ✅    | `/bookings/:id`           | M5-T2         |
@@ -81,6 +83,7 @@ Paid persona. Subscription lifecycle mirrors Venue but at a lower tier (MoM 3rd 
 | A-17 | New follower on Artist profile                                         | ⏳   | ⏳     | —     | `/profile/followers`      | M6-T3         |
 | A-18 | GDPR — account deletion complete                                       | —    | —      | ✅    | —                         | M11-T1        |
 | A-19 | GDPR — data export ready                                               | —    | —      | ✅    | `ceolx.com/export/:token` | M11-T1        |
+| A-20 | Linked venue's profile went on hold — your event stays visible         | ✅   | ✅     | —     | `/events/:id`             | M8-T5         |
 
 **Artist V1 summary:** 9 push + 9 in-app + 16 email. Every booking state change now produces an email fallback alongside push/in-app.
 
@@ -205,18 +208,19 @@ These were the open questions flagged in rev 1. All resolved by Priya pending Pr
 
 Useful when scheduling M7 work against other milestone progress.
 
-| Trigger group                                     | Blocked until                                 |
-| ------------------------------------------------- | --------------------------------------------- |
-| Auth emails (S-01/02, A-01/02, V-01/02)           | M2-T1 / M2-T3 complete                        |
-| Persona activation emails (A-03/04, V-03/04)      | M2-T4 + M8-T2 complete                        |
-| Subscription lifecycle (A-05 → A-08, V-05 → V-08) | M8-T1, M8-T3, M8-T5 complete                  |
-| Booking notifications (A-09 → A-12, V-09 → V-13)  | M5-T1, M5-T2, M5-T3 complete                  |
-| Collaborator notifications (A-13, A-14)           | M4-T1 complete                                |
-| Event moderation (A-15/16, V-14/15)               | M4-T3 + M9-T2 complete                        |
-| Follow notifications (S-03–05, A-17, V-16)        | M6-T3 complete **and** V2 release decision    |
-| Saved-event notifications (U-01 → U-04)           | NEW task M4-T5 complete + M1-T13 QStash ready |
-| GDPR emails (S-06/07/08, A-18/19, V-17/18)        | M11-T1 complete                               |
-| Admin email (X-01)                                | M9-T1 complete                                |
+| Trigger group                                    | Blocked until                                 |
+| ------------------------------------------------ | --------------------------------------------- |
+| Auth emails (S-01/02, A-01/02, V-01/02)          | M2-T1 / M2-T3 complete                        |
+| Persona activation emails (V-03/04)              | M2-T4 + M8-T1 + M8-T6 complete                |
+| Subscription lifecycle (V-05 → V-08)             | M8-T1, M8-T3, M8-T6 complete                  |
+| Venue-on-hold notice to linked artists (A-20)    | M8-T5 complete                                |
+| Booking notifications (A-09 → A-12, V-09 → V-13) | M5-T1, M5-T2, M5-T3 complete                  |
+| Collaborator notifications (A-13, A-14)          | M4-T1 complete                                |
+| Event moderation (A-15/16, V-14/15)              | M4-T3 + M9-T2 complete                        |
+| Follow notifications (S-03–05, A-17, V-16)       | M6-T3 complete **and** V2 release decision    |
+| Saved-event notifications (U-01 → U-04)          | NEW task M4-T5 complete + M1-T13 QStash ready |
+| GDPR emails (S-06/07/08, A-18/19, V-17/18)       | M11-T1 complete                               |
+| Admin email (X-01)                               | M9-T1 complete                                |
 
 ---
 
