@@ -1,10 +1,16 @@
 import { Ionicons } from '@expo/vector-icons';
 import { launchImageLibraryAsync, requestMediaLibraryPermissionsAsync } from 'expo-image-picker';
 import { useVideoPlayer, VideoView } from 'expo-video';
-import { useCallback } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Image, Pressable, Text, View } from 'react-native';
 
-import { MAX_BYTES_BY_TYPE, MAX_VIDEO_BYTES, mediaTooLargeMessage } from '@CeolX/shared/validators';
+import {
+  MAX_BYTES_BY_TYPE,
+  MAX_VIDEO_BYTES,
+  MAX_VIDEO_DURATION_SECONDS,
+  mediaTooLargeMessage,
+  videoTooLongMessage,
+} from '@CeolX/shared/validators';
 
 import { appToast } from '@/components/AppToast';
 import { clampFeedRatio, useImageRatio } from '@/hooks/use-image-ratio';
@@ -14,25 +20,50 @@ const IMAGE_MAX_MB = Math.round(MAX_BYTES_BY_TYPE.post_image / MB);
 const VIDEO_MAX_MB = Math.round(MAX_VIDEO_BYTES / MB);
 
 /**
- * Muted, looping preview of the picked video. Isolated in its own component so
- * the `useVideoPlayer` hook only runs once a video is actually selected. Shows
- * the real footage (not a blank placeholder) and uses `cover` so the creator
- * sees the same reels-style crop the post will display.
+ * Looping preview of the picked video. Isolated in its own component so the
+ * `useVideoPlayer` hook only runs once a video is actually selected. Shows the
+ * real footage (not a blank placeholder) and uses `cover` so the creator sees
+ * the same reels-style crop the post will display.
+ *
+ * Plays with sound by default: the creator is reviewing their own clip before
+ * publishing and needs to hear what they are about to post. The badge mutes it
+ * — local to this preview, it has no bearing on how the post plays in the feed
+ * (that is the app-wide toggle in use-video-muted).
  */
 function LocalVideoPreview({ uri }: { uri: string }) {
+  const [muted, setMuted] = useState(false);
+
   const player = useVideoPlayer(uri, (p) => {
     p.loop = true;
-    p.muted = true;
+    p.muted = false;
     p.play();
   });
 
+  useEffect(() => {
+    player.muted = muted;
+  }, [muted, player]);
+
   return (
-    <VideoView
-      player={player}
-      style={{ width: '100%', height: '100%' }}
-      nativeControls={false}
-      contentFit="cover"
-    />
+    <View className="h-full w-full">
+      <VideoView
+        player={player}
+        style={{ width: '100%', height: '100%' }}
+        nativeControls={false}
+        contentFit="cover"
+      />
+
+      {/* Nested Pressable — the responder system hands the touch to the child, so
+          tapping the badge doesn't re-open the picker behind it. */}
+      <Pressable
+        onPress={() => setMuted((prev) => !prev)}
+        hitSlop={8}
+        className="absolute bottom-2 left-2 h-9 w-9 items-center justify-center rounded-full bg-black/55"
+        accessibilityRole="button"
+        accessibilityLabel={muted ? 'Unmute preview' : 'Mute preview'}
+      >
+        <Ionicons name={muted ? 'volume-mute' : 'volume-high'} size={18} color="#FFFFFF" />
+      </Pressable>
+    </View>
   );
 }
 
@@ -122,6 +153,19 @@ export function MediaPickerField({
           return;
         }
 
+        // Same fast-feedback rule as the size guard above. The picker reports
+        // duration in ms and omits it for images (and occasionally for a video
+        // it can't probe) — an unknown duration is let through rather than
+        // blocking a valid pick on a missing field.
+        if (
+          kind === 'video' &&
+          asset.duration &&
+          asset.duration > MAX_VIDEO_DURATION_SECONDS * 1000
+        ) {
+          appToast.error('Video too long', videoTooLongMessage(MAX_VIDEO_DURATION_SECONDS));
+          return;
+        }
+
         onPick({
           uri: asset.uri,
           mimeType: asset.mimeType,
@@ -198,7 +242,8 @@ export function MediaPickerField({
       </Pressable>
 
       <Text className="mt-2 text-xs font-semibold text-[#8D8D8D] font-urbanist">
-        JPG, PNG up to {IMAGE_MAX_MB}MB · MP4, MOV up to {VIDEO_MAX_MB}MB.
+        JPG, PNG up to {IMAGE_MAX_MB}MB · MP4, MOV up to {VIDEO_MAX_MB}MB and{' '}
+        {MAX_VIDEO_DURATION_SECONDS}s.
       </Text>
     </View>
   );
