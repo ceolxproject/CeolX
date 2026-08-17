@@ -1,8 +1,14 @@
 # CeolX Subscriptions — Design Spec
 
+> ⛔ **SUPERSEDED 17/08/2026** by `docs/project-management/M8-Venue-Subscription/M8-T0-Subscription-Decisions.md`.
+> Kept as a record of the June design session. Do not build from it.
+> Materially changed since: Artist is now free, there is a 6-month free trial, checkout is reached
+> through a one-time emailed token rather than a web login, and an unpaid venue's content follows a
+> per-surface matrix rather than a single visibility flag.
+
 **Date:** 2026-06-15
 **Author:** Priya Yadav (with Claude)
-**Status:** Approved design — ready for implementation plan
+**Status:** Superseded — see above
 **Asana refs:** M8 (subscriptions), 1215188774672224 (activation email disabled), 1215489113550392 (visibility gate disabled)
 
 ---

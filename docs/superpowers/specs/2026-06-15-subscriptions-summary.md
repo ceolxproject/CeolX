@@ -1,7 +1,10 @@
 # CeolX Subscriptions — Summary for Approval
 
-**Date:** 2026-06-15 · **Prepared by:** Priya Yadav · **Status:** Awaiting senior sign-off
-**Full design:** `docs/superpowers/specs/2026-06-15-subscriptions-design.md`
+> ⛔ **SUPERSEDED 17/08/2026** by `docs/project-management/M8-Venue-Subscription/M8-T0-Subscription-Decisions.md`,
+> which carries Sean's signed answers. Kept as a record of what was put to the client. Do not build from it.
+
+**Date:** 2026-06-15 · **Prepared by:** Priya Yadav · **Status:** Superseded — see above
+**Full design:** `docs/superpowers/specs/2026-06-15-subscriptions-design.md` (also superseded)
 
 ---
 
