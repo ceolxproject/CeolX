@@ -23,6 +23,19 @@ type Props = {
   onScroll?: ReturnType<typeof useAnimatedScrollHandler>;
   /** Top padding so the feed clears the parent's absolute (collapsing) header. */
   contentPaddingTop?: number;
+  /** Hide each card's author row — profile surfaces already name the author. */
+  hideAuthorHeader?: boolean;
+  /**
+   * Rendered above the posts, inside the list's own scroll. Profile / artist /
+   * venue pass their whole header here so this list can BE the scroll container:
+   * a FlatList nested in a ScrollView never receives the scroll events
+   * viewability is computed from, which is what autoplay depends on.
+   */
+  ListHeaderComponent?: React.ReactElement | null;
+  /** Fills the list behind the rows, so a header's panel colour can run on. */
+  contentBackgroundColor?: string;
+  /** Horizontal padding around each row. */
+  contentPaddingHorizontal?: number;
 };
 
 // A card counts as "on screen" once 60% of it is visible. Below that we don't
@@ -48,10 +61,14 @@ const PRELOAD_AHEAD = 2;
 const PRELOAD_BEHIND = 1;
 
 /**
- * The discover Posts feed. Unlike <PostsList> (a plain map used inside other
- * screens' ScrollViews), this is a real FlatList so we can use
- * onViewableItemsChanged to drive reels-style autoplay: exactly one video plays
- * at a time, and only while it's on screen.
+ * A posts list that autoplays. Being a real FlatList is the whole point: only
+ * FlatList reports which rows are on screen (`onViewableItemsChanged`), which is
+ * what picks the one video allowed to play.
+ *
+ * That means this must own the scrolling. A list nested inside a ScrollView of
+ * the same orientation never gets those events, so any surface wanting autoplay
+ * passes its header through `ListHeaderComponent` rather than wrapping this in a
+ * ScrollView. <PostsList> remains for surfaces that don't need playback.
  */
 export function FeedPostsList({
   posts,
@@ -67,6 +84,10 @@ export function FeedPostsList({
   emptyMessage = 'No posts yet.',
   onScroll,
   contentPaddingTop = 16,
+  hideAuthorHeader,
+  ListHeaderComponent,
+  contentBackgroundColor,
+  contentPaddingHorizontal = 20,
 }: Props) {
   // Which video plays, and where the user is in the list. Kept as one object so a
   // single viewability callback can't leave the two disagreeing for a frame.
@@ -110,21 +131,33 @@ export function FeedPostsList({
     });
   }).current;
 
+  // Row padding and panel colour live on the row, not on contentContainerStyle,
+  // so a full-bleed ListHeaderComponent (a profile header) isn't inset or
+  // painted with the list's panel colour.
+  const rowStyle = {
+    paddingHorizontal: contentPaddingHorizontal,
+    backgroundColor: contentBackgroundColor,
+  };
+
   const renderItem = useCallback(
     ({ item, index }: { item: PostCardPost; index: number }) => {
       const { activeId, anchor } = videoWindow;
       const preloadVideo =
         anchor !== null && index >= anchor - PRELOAD_BEHIND && index <= anchor + PRELOAD_AHEAD;
       return (
-        <PostCard
-          post={item}
-          currentUserId={currentUserId}
-          activeVideo={item.id === activeId}
-          preloadVideo={preloadVideo}
-        />
+        <View style={rowStyle}>
+          <PostCard
+            post={item}
+            currentUserId={currentUserId}
+            activeVideo={item.id === activeId}
+            preloadVideo={preloadVideo}
+            hideAuthorHeader={hideAuthorHeader}
+          />
+        </View>
       );
     },
-    [currentUserId, videoWindow]
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [currentUserId, videoWindow, hideAuthorHeader, contentPaddingHorizontal, contentBackgroundColor]
   );
 
   if (isLoading) {
@@ -160,10 +193,10 @@ export function FeedPostsList({
       extraData={videoWindow}
       viewabilityConfig={VIEWABILITY_CONFIG}
       onViewableItemsChanged={onViewableItemsChanged}
+      ListHeaderComponent={ListHeaderComponent}
       style={{ flex: 1, backgroundColor: '#080808' }}
       contentContainerStyle={{
-        paddingHorizontal: 20,
-        paddingTop: contentPaddingTop,
+        paddingTop: ListHeaderComponent ? 0 : contentPaddingTop,
         paddingBottom: 32,
         flexGrow: 1,
       }}
@@ -180,10 +213,15 @@ export function FeedPostsList({
         />
       }
       ListFooterComponent={
-        isFetchingNextPage ? <ActivityIndicator color="#C8FF2F" className="my-4" /> : null
+        <View style={{ backgroundColor: contentBackgroundColor, flexGrow: 1 }}>
+          {isFetchingNextPage ? <ActivityIndicator color="#C8FF2F" className="my-4" /> : null}
+        </View>
       }
       ListEmptyComponent={
-        <View className="py-16 items-center px-5">
+        <View
+          className="py-16 items-center px-5"
+          style={{ backgroundColor: contentBackgroundColor }}
+        >
           <Text className="text-base text-white/60 text-center font-urbanist">{emptyMessage}</Text>
         </View>
       }
