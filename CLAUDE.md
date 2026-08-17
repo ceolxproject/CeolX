@@ -43,12 +43,12 @@ CeolX is a **location-aware Irish music discovery platform** built for **Chongie
 
 There are **4 personas**. One account supports **one active persona at a time** (Option A role switching — see below).
 
-| Persona                  | Description                                                                   | Paid?                                     |
-| ------------------------ | ----------------------------------------------------------------------------- | ----------------------------------------- |
-| **Spectator** (End User) | Music fans discovering events. No public profile. Anonymous consumer.         | Free                                      |
-| **Musician / Artist**    | Promotes performances, gets booked by venues. Public profile.                 | Paid subscription (lower tier than Venue) |
-| **Venue / Business**     | Pubs, cultural hubs, event promoters. Lists gigs, recruits artists, runs ads. | Paid subscription                         |
-| **Super Admin**          | Single internal CeolX admin. Web dashboard only. One account only.            | N/A                                       |
+| Persona                  | Description                                                                   | Paid?                                      |
+| ------------------------ | ----------------------------------------------------------------------------- | ------------------------------------------ |
+| **Spectator** (End User) | Music fans discovering events. No public profile. Anonymous consumer.         | Free                                       |
+| **Musician / Artist**    | Promotes performances, gets booked by venues. Public profile.                 | **Free** (updated 17/08/2026)              |
+| **Venue / Business**     | Pubs, cultural hubs, event promoters. Lists gigs, recruits artists, runs ads. | Paid — €19.99/mo or €199/yr, 6-month trial |
+| **Super Admin**          | Single internal CeolX admin. Web dashboard only. One account only.            | N/A                                        |
 
 ---
 
@@ -108,27 +108,33 @@ draft → active → archived
 
 ---
 
-## Subscriptions (Web-based Stripe — Finalised, updated 08/04/2026)
+## Subscriptions (Web-based Stripe — updated 17/08/2026)
 
-**Both Artist and Venue require paid subscriptions.** Artist pricing is lower than Venue. Neither is free in V1 (MoM 3rd Apr 2026, Section 2.2).
+> **Source of truth: `docs/project-management/M8-Venue-Subscription/M8-T0-Subscription-Decisions.md`.**
+> Read it before any subscription work. The summary below exists for orientation only — where it
+> disagrees with T0, T0 wins.
 
-**Not in-app**. Apple Rule 3.1.1 prohibits third-party payment processors for in-app digital purchases. Solution: subscription via web for both roles.
+**Only Venue accounts pay.** Artist and Spectator are free, permanently. This reverses MoM 3rd Apr 2026 §2.2 (which required Artist subscriptions) — Sean signed the reversal in the _CeolX Pricing Structure_ document on 17/08/2026. "Business" and "Festival" are client-facing names for the existing `venue` role; there is no new persona.
+
+**Pricing:** €19.99/month or €199/year, after a **6-month free trial** with the card collected up front. No Lite/Pro tiers.
+
+**Not in-app**. Apple Rule 3.1.1 and Google Play both prohibit third-party processors for in-app digital purchases, and a "Buy now" button opening a browser only clears review in some countries. CeolX has global access, so the flow is email-link only — no price, URL, or checkout button appears anywhere in the app.
 
 ### Venue Flow
 
 1. User selects Venue/Business persona at sign-up
 2. `venue_profiles.subscription_status = inactive`. Profile not visible.
-3. **Postmark** sends activation email with Stripe subscription link (`ceolx.com/subscribe`)
-4. In-app shows: _"Your profile is not yet visible to artists. Check your email to activate."_ + **Resend Email** button
-5. **No external URL is shown inside the app** — this avoids App Store rejection
-6. Venue opens email → clicks link → `ceolx.com/subscribe` (hosted in React admin app)
-7. Logs in with CeolX credentials → completes Stripe checkout
-8. Stripe webhook → Hono backend → `subscription_status = active`
-9. App activates Venue persona (next refresh or WebSocket push)
+3. Venue taps **Activate Profile** → backend issues a one-time token (30–60 min, single use, invalidated by a newer link) and **Postmark** emails it
+4. In-app shows the activation state + **Resend Email** and **Refresh Status**. No external URL.
+5. Venue opens the link → `ceolx.ie/activate?token=…` on the **marketing site** (not the admin app)
+6. The token identifies the account — **no web login**. Google/Apple sign-up users have no password, so a login page would strand them.
+7. Stripe Checkout, plan chosen there (monthly or annual)
+8. Stripe webhook → Hono backend → `trialing`, profile visible
+9. Trial ends → first charge → `active`
 
-### Artist Flow
+**Billing management** is the Stripe Customer Portal, reached by an emailed link. We build no billing screens.
 
-Same web-based pattern as Venue. Different Stripe price ID (lower tier). `artist_profiles.subscription_status` follows the same lifecycle: `inactive → active → past_due → cancelled`. Artist profile not visible until subscription is active.
+**Unpaid venue content** follows a per-surface matrix, not a single visibility flag — the venue's profile and own events hide, but its posts and artist-created events at that venue stay visible. See T0 Section 9; getting this wrong in one query is the main risk in M8.
 
 ### Revenue
 
@@ -341,9 +347,9 @@ packages/
 - `is_gig_opportunity` is deprecated — no longer written; any event can receive artist performance requests (M5)
 - **Collaborators/artists are optional on event creation** — the direct "Collaborator" field was removed (Asana 1215188774775403, 31/05/2026). Venues link artists only via **Invite Artist** (pending → artist accepts). No auto-confirmed direct collaborator.
 - **Artist must specify a venue** (registered profile or free-text address) when creating an event
-- **Both Artist and Venue require paid subscriptions** — Artist pricing lower than Venue (MoM 3rd Apr 2026)
-- Artist profile is not visible until subscription is active
-- Venue profile is not visible until subscription is active
+- **Only Venue requires a paid subscription** — €19.99/mo or €199/yr after a 6-month free trial. Artist and Spectator are free (17/08/2026, reverses MoM 3rd Apr 2026 §2.2). See `M8-T0-Subscription-Decisions.md`
+- Artist profile visibility has **nothing** to do with billing — `artist_profiles.is_active` means "persona switched away", not "subscribed"
+- Venue profile is visible while `trialing`, `active` or inside the 7-day past-due grace window
 - All events soft-deleted — no hard deletes ever
 - Recurring events not supported in V1
 - Live streaming not in V1
