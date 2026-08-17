@@ -4,7 +4,7 @@ import { ActivityIndicator, RefreshControl, ScrollView, View } from 'react-nativ
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppHeader } from '@/components/AppHeader';
-import { PostsList } from '@/components/posts/PostsList';
+import { FeedPostsList } from '@/components/posts/FeedPostsList';
 import {
   EventsTab,
   ProfileHeader,
@@ -24,20 +24,33 @@ type ProfileTab = 'events' | 'posts';
 const TAB_LABELS: Record<ProfileTab, string> = { events: 'Events', posts: 'Posts' };
 const TABS: ProfileTab[] = ['events', 'posts'];
 
-function PostsTab({ userId }: { userId: string }) {
-  const { posts, isLoading, isFetchingNextPage, hasNextPage, loadMore } = useUserPosts(userId);
+/** The rounded panel the tab content sits on — shared by both tab branches. */
+const PANEL_BG = 'rgba(141,141,141,0.3)';
+
+/**
+ * Posts tab. Rendered as the screen's own scroll container (header passed in)
+ * rather than inside the ScrollView the other tab uses — a FlatList nested in a
+ * ScrollView never reports which rows are on screen, and that report is what
+ * drives autoplay.
+ */
+function PostsTab({ userId, header }: { userId: string; header: React.ReactElement }) {
+  const { posts, isLoading, isFetchingNextPage, hasNextPage, loadMore, refresh } =
+    useUserPosts(userId);
   const { data: me } = useMe();
   return (
-    <PostsList
+    <FeedPostsList
       posts={posts}
       isLoading={isLoading}
       isFetchingNextPage={isFetchingNextPage}
       hasNextPage={hasNextPage}
       currentUserId={me?.id ?? null}
       onLoadMore={loadMore}
+      refreshing={false}
+      onRefresh={refresh}
       hideAuthorHeader
+      ListHeaderComponent={header}
+      contentBackgroundColor={PANEL_BG}
       emptyMessage="No posts yet"
-      emptySubtitle="Posts from this profile will appear here."
     />
   );
 }
@@ -72,17 +85,6 @@ export default function VenueProfileScreen() {
     return <ProfileNotFoundState entityName="Venue" />;
   }
 
-  const renderTabContent = () => {
-    switch (activeTab) {
-      case 'events':
-        return (
-          <EventsTab upcomingEvents={profile.upcomingEvents} pastEvents={profile.pastEvents} />
-        );
-      case 'posts':
-        return <PostsTab userId={profile.userId} />;
-    }
-  };
-
   // Share is offered on this public profile only once the venue has claimed a
   // handle (a const so the truthy check narrows null away inside the closure).
   const shareUsername = profile.username;
@@ -90,62 +92,78 @@ export default function VenueProfileScreen() {
     ? () => shareProfile(shareUsername, profile.displayName)
     : undefined;
 
+  // Shared by both branches below: the Posts tab hands this to the list as its
+  // ListHeaderComponent (so the list owns the scroll and can drive autoplay),
+  // while the Events tab keeps the plain ScrollView.
+  const header = (
+    <>
+      <ProfileHeader
+        displayName={profile.displayName}
+        subtitle={profile.address}
+        subtitleIcon="location-outline"
+        secondarySubtitle={profile.bio}
+        profileImageUrl={profile.profileImageUrl}
+        followerCount={profile.followerCount}
+        followingCount={profile.followingCount}
+        isOwner={false}
+        isFollowing={isFollowing}
+        socialLinks={profile.socialLinks}
+        contactEmail={profile.contactEmail}
+        onFollowPress={onFollowPress}
+        onFollowersPress={guard(() =>
+          router.push({
+            pathname: '/(app)/(tabs)/profile/followers',
+            params: { userId: profile.userId, name: profile.displayName },
+          })
+        )}
+        onFollowingPress={guard(() =>
+          router.push({
+            pathname: '/(app)/(tabs)/profile/following',
+            params: { userId: profile.userId, name: profile.displayName },
+          })
+        )}
+        secondaryCta={
+          me?.currentRole === 'artist'
+            ? {
+                label: 'Share Interest',
+                onPress: () => shareInterest(profile.userId),
+              }
+            : undefined
+        }
+        onSharePress={onSharePress}
+      />
+
+      <View className="bg-[rgba(141,141,141,0.3)] rounded-t-[20px] mt-2 pt-4">
+        <SegmentControl
+          tabs={TABS}
+          labels={TAB_LABELS}
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+        />
+        <View className="mt-4" />
+      </View>
+    </>
+  );
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#080808' }}>
       <AppHeader leading="back" showBell />
-      <ScrollView
-        contentContainerStyle={{ flexGrow: 1 }}
-        refreshControl={
-          <RefreshControl refreshing={false} onRefresh={refetch} tintColor="#C8FF2F" />
-        }
-        showsVerticalScrollIndicator={false}
-      >
-        <ProfileHeader
-          displayName={profile.displayName}
-          subtitle={profile.address}
-          subtitleIcon="location-outline"
-          secondarySubtitle={profile.bio}
-          profileImageUrl={profile.profileImageUrl}
-          followerCount={profile.followerCount}
-          followingCount={profile.followingCount}
-          isOwner={false}
-          isFollowing={isFollowing}
-          socialLinks={profile.socialLinks}
-          contactEmail={profile.contactEmail}
-          onFollowPress={onFollowPress}
-          onFollowersPress={guard(() =>
-            router.push({
-              pathname: '/(app)/(tabs)/profile/followers',
-              params: { userId: profile.userId, name: profile.displayName },
-            })
-          )}
-          onFollowingPress={guard(() =>
-            router.push({
-              pathname: '/(app)/(tabs)/profile/following',
-              params: { userId: profile.userId, name: profile.displayName },
-            })
-          )}
-          secondaryCta={
-            me?.currentRole === 'artist'
-              ? {
-                  label: 'Share Interest',
-                  onPress: () => shareInterest(profile.userId),
-                }
-              : undefined
+      {activeTab === 'posts' ? (
+        <PostsTab userId={profile.userId} header={header} />
+      ) : (
+        <ScrollView
+          contentContainerStyle={{ flexGrow: 1 }}
+          refreshControl={
+            <RefreshControl refreshing={false} onRefresh={refetch} tintColor="#C8FF2F" />
           }
-          onSharePress={onSharePress}
-        />
-
-        <View className="bg-[rgba(141,141,141,0.3)] rounded-t-[20px] mt-2 pt-4 flex-1">
-          <SegmentControl
-            tabs={TABS}
-            labels={TAB_LABELS}
-            activeTab={activeTab}
-            onTabChange={setActiveTab}
-          />
-          <View className="mt-4 flex-1">{renderTabContent()}</View>
-        </View>
-      </ScrollView>
+          showsVerticalScrollIndicator={false}
+        >
+          {header}
+          <View className="bg-[rgba(141,141,141,0.3)] flex-1">
+            <EventsTab upcomingEvents={profile.upcomingEvents} pastEvents={profile.pastEvents} />
+          </View>
+        </ScrollView>
+      )}
     </SafeAreaView>
   );
 }

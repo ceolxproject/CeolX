@@ -22,7 +22,7 @@ import { appToast } from '@/components/AppToast';
 import { ConfirmedBookingCard } from '@/components/bookings/ConfirmedBookingCard';
 import { EmptyState } from '@/components/EmptyState';
 import { FreeAccessBadge } from '@/components/FreeAccessNotice';
-import { PostsList } from '@/components/posts/PostsList';
+import { FeedPostsList } from '@/components/posts/FeedPostsList';
 import { ProfileEventCard } from '@/components/ProfileEventCard';
 import { SegmentControl, ShareProfileButton } from '@/components/profiles';
 import { EmptyRequests } from '@/components/requests/EmptyRequests';
@@ -50,6 +50,9 @@ const SEGMENT_LABELS: Record<SegmentTab, string> = {
   posts: 'Posts',
   bookings: 'Collaboration',
 };
+
+/** The rounded panel the tab content sits on — shared by both tab branches. */
+const PANEL_BG = 'rgba(141,141,141,0.3)';
 
 // ─── Profile Header ───────────────────────────────────────────────────────────
 
@@ -473,19 +476,28 @@ function CollaborationTab({ currentRole }: { currentRole: string }) {
 
 // ─── Posts Tab ────────────────────────────────────────────────────────────────
 
-function PostsTab() {
-  const { posts, isLoading, isFetchingNextPage, hasNextPage, loadMore } = useMyPosts();
+/**
+ * Posts tab. Owns the screen's scroll (header passed in) instead of sitting
+ * inside the ScrollView the other tabs use — a FlatList nested in a ScrollView
+ * never reports which rows are on screen, and that report is what drives
+ * autoplay. Same reason as the artist and venue screens.
+ */
+function PostsTab({ header }: { header: React.ReactElement }) {
+  const { posts, isLoading, isFetchingNextPage, hasNextPage, loadMore, refresh } = useMyPosts();
   const { data: me } = useMe();
   return (
-    <PostsList
+    <FeedPostsList
       posts={posts}
       isLoading={isLoading}
       isFetchingNextPage={isFetchingNextPage}
       hasNextPage={hasNextPage}
       currentUserId={me?.id ?? null}
       onLoadMore={loadMore}
+      refreshing={false}
+      onRefresh={refresh}
+      ListHeaderComponent={header}
+      contentBackgroundColor={PANEL_BG}
       emptyMessage="You haven't posted anything yet"
-      emptySubtitle="Share your first post to get started."
     />
   );
 }
@@ -680,12 +692,43 @@ function CreatorProfile({
     switch (activeTab) {
       case 'events':
         return <MyEventsTab />;
-      case 'posts':
-        return <PostsTab />;
       case 'bookings':
         return <CollaborationTab currentRole={currentRole} />;
+      // 'posts' never reaches here — it owns the scroll container instead, see
+      // the branch in the return below.
+      default:
+        return null;
     }
   };
+
+  // Shared by both branches below: the Posts tab hands this to the list as its
+  // ListHeaderComponent (so the list owns the scroll and can drive autoplay),
+  // every other tab keeps the plain ScrollView.
+  const profileHeader = (
+    <>
+      <ProfileHeader
+        me={{
+          name: me?.name ?? null,
+          image: me?.image ?? null,
+          venueAddress: me?.venueAddress ?? null,
+        }}
+        currentRole={currentRole}
+        artistProfile={me?.artistProfile}
+        venueProfile={me?.venueProfile}
+        onSettingsPress={() => settingsRef.current?.present()}
+      />
+      {/* Rounded background behind segment + content */}
+      <View className="bg-[rgba(141,141,141,0.3)] rounded-t-[20px] mt-2 pt-4">
+        <SegmentControl
+          tabs={tabs}
+          labels={SEGMENT_LABELS}
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+        />
+        <View className="mt-4" />
+      </View>
+    </>
+  );
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#080808' }} edges={['top']}>
@@ -704,35 +747,20 @@ function CreatorProfile({
           },
         ]}
       />
-      <ScrollView
-        contentContainerStyle={{ flexGrow: 1 }}
-        refreshControl={
-          <RefreshControl refreshing={false} onRefresh={handleRefresh} tintColor="#C8FF2F" />
-        }
-        showsVerticalScrollIndicator={false}
-      >
-        <ProfileHeader
-          me={{
-            name: me?.name ?? null,
-            image: me?.image ?? null,
-            venueAddress: me?.venueAddress ?? null,
-          }}
-          currentRole={currentRole}
-          artistProfile={me?.artistProfile}
-          venueProfile={me?.venueProfile}
-          onSettingsPress={() => settingsRef.current?.present()}
-        />
-        {/* Rounded background behind segment + content */}
-        <View className="bg-[rgba(141,141,141,0.3)] rounded-t-[20px] mt-2 pt-4 flex-1">
-          <SegmentControl
-            tabs={tabs}
-            labels={SEGMENT_LABELS}
-            activeTab={activeTab}
-            onTabChange={setActiveTab}
-          />
-          <View className="mt-4 flex-1">{renderTabContent()}</View>
-        </View>
-      </ScrollView>
+      {activeTab === 'posts' ? (
+        <PostsTab header={profileHeader} />
+      ) : (
+        <ScrollView
+          contentContainerStyle={{ flexGrow: 1 }}
+          refreshControl={
+            <RefreshControl refreshing={false} onRefresh={handleRefresh} tintColor="#C8FF2F" />
+          }
+          showsVerticalScrollIndicator={false}
+        >
+          {profileHeader}
+          <View className="bg-[rgba(141,141,141,0.3)] flex-1">{renderTabContent()}</View>
+        </ScrollView>
+      )}
 
       <SettingsBottomSheet
         ref={settingsRef}
