@@ -1,458 +1,107 @@
-# M8-T2 · Subscription Status Polling & In-App Pending State
+# M8-T2 · In-App Venue Subscription States
 
-| Field          | Value                                                                                                      |
-| -------------- | ---------------------------------------------------------------------------------------------------------- |
-| **Milestone**  | M8 — Venue Subscription & Payments                                                                         |
-| **Status**     | 🔲 To Do                                                                                                   |
-| **Depends on** | M8-T1 (Stripe checkout + webhook handler), M2-T4 (venue persona system), M7-T3 (Postmark activation email) |
-| **PRD Ref**    | Section 7.2 (Venue Subscription), Section 4.3 (Persona Switching)                                          |
+| Field          | Value                                                                                                       |
+| -------------- | ----------------------------------------------------------------------------------------------------------- |
+| **Milestone**  | M8 — Venue Subscription & Payments                                                                          |
+| **Status**     | 🔲 To Do                                                                                                    |
+| **Decisions**  | `M8-T0-Subscription-Decisions.md` — **read first.** This task implements D-15, D-16, D-28, D-46, D-57, V-14 |
+| **Depends on** | M8-T1 (activation request + token), M8-T3 (status written by webhook)                                       |
+| **Blocked by** | Nothing. O-02 and O-07 closed 17/08/2026 (D-57, D-46)                                                       |
 
 ---
 
 ## Description
 
-Once a Venue user selects the Venue persona but hasn't completed Stripe payment, the mobile app shows a persistent pending activation state. The app polls the backend every 30 seconds to detect when the Stripe webhook activates the subscription. This task covers the in-app banner/screen, the polling logic, rate-limited email resend, and the transition from pending to activated state.
+Everything a venue sees in `apps/native` about its own subscription. Read-only — the app never writes subscription state and never links to payment (D-16).
 
 ---
 
-## Affected Apps / Packages
+## Affected apps / packages
 
-| App / Package | Role                                                                                                      |
-| ------------- | --------------------------------------------------------------------------------------------------------- |
-| `apps/api`    | `GET /api/v1/users/me` (returns subscription_status), `POST /api/v1/venues/me/resend-activation` endpoint |
-| `apps/mobile` | Pending activation screen/banner, polling logic, rate-limited resend button, subscription status check    |
-
----
-
-## API Endpoints
-
-### GET /api/v1/users/me
-
-Fetch current user profile including Venue subscription status.
-
-**Response (2xx):**
-
-```json
-{
-  "id": "user-uuid",
-  "email": "user@example.com",
-  "currentRole": "venue",
-  "venueProfile": {
-    "id": "venue-uuid",
-    "name": "The Brazen Head",
-    "subscriptionStatus": "inactive",
-    "isActive": false,
-    "createdAt": "2026-03-23T10:00:00Z"
-  }
-}
-```
-
-### POST /api/v1/venues/me/resend-activation
-
-Resend Postmark venue activation email. Rate-limited: max 3 per hour per Venue.
-
-**Request Body:**
-
-```json
-{}
-```
-
-**Response (2xx):**
-
-```json
-{
-  "success": true,
-  "message": "Activation email sent. Check your inbox."
-}
-```
-
-**Error Responses:**
-
-- `401 Unauthorized`: Not authenticated or not a Venue user
-- `429 Too Many Requests`: Rate limit exceeded (max 3 per 15 minutes)
-- `500 Internal Server Error`: Email send failed
+| App / package  | Role                                                          |
+| -------------- | ------------------------------------------------------------- |
+| `apps/native`  | State screens, banners, blocked create actions                |
+| `packages/api` | `users.me` already returns `venueProfiles.subscriptionStatus` |
 
 ---
 
-## Database Schema Additions
+## Scope
 
-### venue_profiles table (add columns)
+### 1 · The four states the venue can be in
 
-```sql
-ALTER TABLE venue_profiles ADD COLUMN subscription_status TEXT DEFAULT 'inactive';
--- enum: inactive | active | past_due | cancelled
+| Status      | What the venue sees                                                                                                                                                             |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `inactive`  | Activation state: **Activate Profile**, then "check your inbox", with **Resend Email** and **Refresh Status**. No price, no URL, no checkout button                             |
+| `trialing`  | Normal app. Trial end date surfaced somewhere calm — the first charge is up to 6 months after sign-up and easy to forget (D-30 covers the email; this is the in-app equivalent) |
+| `active`    | Normal app. No subscription messaging at all                                                                                                                                    |
+| `past_due`  | Graduated per D-57 — see §3                                                                                                                                                     |
+| `cancelled` | Same as `inactive`, minus the trial (D-42)                                                                                                                                      |
 
-ALTER TABLE venue_profiles ADD COLUMN stripe_customer_id TEXT UNIQUE NULL;
-ALTER TABLE venue_profiles ADD COLUMN stripe_subscription_id TEXT UNIQUE NULL;
+### 2 · Status refresh
 
-CREATE INDEX idx_venue_profiles_subscription_status ON venue_profiles(subscription_status);
-```
+**Refresh Status** button plus a check on app foreground. Do **not** add the 30-second poll the previous version of this task specified — activation happens on a different device entirely (the venue is on a laptop reading email), so a tight poll burns battery and rate limit for a transition that arrives minutes later at best. The existing `use-update-on-resume` hook already covers the foreground case.
 
-### venue_subscriptions table (create)
+Resend is rate-limited server-side in M8-T1. The button needs a visible cooldown so the user is not told "too many requests" by surprise.
 
-```sql
-CREATE TABLE venue_subscriptions (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  venue_profile_id UUID NOT NULL REFERENCES venue_profiles(id) ON DELETE CASCADE,
-  stripe_customer_id TEXT NOT NULL,
-  stripe_subscription_id TEXT NOT NULL UNIQUE,
-  status TEXT NOT NULL DEFAULT 'active',
-  -- enum: active | past_due | cancelled
-  current_period_start TIMESTAMP,
-  current_period_end TIMESTAMP,
-  created_at TIMESTAMP DEFAULT now(),
-  updated_at TIMESTAMP DEFAULT now(),
-  INDEX(venue_profile_id),
-  INDEX(stripe_customer_id)
-);
-```
+### 3 · Past-due state
 
----
+Two phases, per D-57.
 
-## Requirements
+**Inside the 7-day grace window** — full use of the app, banner only. The grace period exists to absorb an expired card; freezing during it would defeat the purpose.
 
-### Pending Activation UI
+**After the window expires** — a **holding block over the live map**: the map renders behind it, the account is frozen for normal use, and the block explains what is wrong and how to fix it. Still reachable through it: their own content, profile editing, and fix-payment. T&C wording covers ad removal (D-44).
 
-- R1.1: When Venue persona is active and `subscription_status = 'inactive'`, show persistent banner or full-screen state
-- R1.2: Banner/screen heading: _"Activate Your Venue Profile"_
-- R1.3: Body text: _"Your profile is not yet visible to artists. Complete your subscription to get started."_
-- R1.4: Visual style: yellow/warning tone (not error red); non-blocking, allows navigation
-- R1.5: Include two CTAs:
-  - **"Check Email"** button (links to email app or shows instructions)
-  - **"Resend Email"** button (calls `POST /api/v1/venues/me/resend-activation`)
-- R1.6: No external URL (`ceolx.com/subscribe`, Stripe, payment links) shown or linked inside the app
-- R1.7: Footer: _"If you didn't receive the email, check your spam folder or contact support"_
+The map must be genuinely rendered behind the block rather than a screenshot or placeholder — that visual is the whole point of the treatment Sean asked for.
 
-### Subscription Status Polling
+### 4 · Blocked create actions
 
-- R2.1: When Venue persona is active and `subscription_status = 'inactive'`, poll `GET /api/v1/users/me` every 30 seconds
-- R2.2: Polling starts on Venue persona activation; stops when `subscription_status = 'active'` OR user navigates away from pending screen
-- R2.3: On successful poll response: check `venueProfile.subscriptionStatus`
-  - If `'active'`: dismiss pending state, refresh profile data, show confirmation toast: _"Profile activated! You're ready to accept bookings."_
-  - If still `'inactive'`: no UI change; continue polling
-- R2.4: On poll error (network fail, 401, etc.): log error, continue polling (don't fail)
-- R2.5: Clear polling interval on unmount or role switch
+V-14: an unpaid venue cannot create events or posts. Disable the create actions with a message explaining an active subscription is needed. Nothing is created in a hidden state waiting to go live.
 
-### Rate-Limited Email Resend
+Applies when status is not in `('trialing','active','past_due')` — during grace they can still create, since they are still visible and still paying customers who had a card expire.
 
-- R3.1: `POST /api/v1/venues/me/resend-activation` applies Layer 2 Redis rate limit (M1-T7 pattern) — key: `rl:resend-activation:{userId}`, TTL: 900s (15 min)
-- R3.2: If count > 3, return `429 Too Many Requests`: _"Too many resend requests. Please wait before trying again."_
-- R3.3: If count <= 3: send Postmark email (same template as M2-T4), return success
-- R3.4: Show toast: _"Activation email sent. Check your inbox."_
-- R3.5: Disable "Resend Email" button for 5 seconds post-click (UX smoothness)
+### 5 · Remove the interim free-access messaging
 
-### Subscription Status Persistence
+`apps/native/components/FreeAccessNotice.tsx` carries an explicit instruction to delete itself and its call sites when subscriptions ship. Six call sites:
 
-- R4.1: `subscription_status` is the source of truth: fetched from DB on every `GET /api/v1/users/me` request
-- R4.2: Mobile app never caches subscription status longer than the polling interval (30s)
-- R4.3: On fresh app launch, first request to `GET /api/v1/users/me` determines initial state
-- R4.4: No hard refresh required — smooth polling detection is sufficient for V1
+- `app/(app)/create/post.tsx:269`
+- `components/onboarding/venue/Step3SocialMedia.tsx:27`
+- `app/(app)/events/create.tsx:152` (via `showFreeAccessNotice`)
+- `components/events/TicketAdsStep.tsx:37,57,216`
 
-### Profile Visibility Gating
+Delete the component and the `showFreeAccessNotice` prop threading, not just the call sites.
 
-- R5.1: When `subscription_status = 'inactive'`, Venue profile is not visible to other users/Artists (set by `is_active = false`)
-- R5.2: Venue can create events, but events remain `pending_review` until profile is activated
-- R5.3: Once `subscription_status = 'active'`, set `is_active = true`; profile appears on map/search; events auto-activate from pending (if approved)
-- R5.4: Switching away from Venue persona: `is_active = false` but `subscription_status` unchanged (subscription persists if Venue re-activated later)
+### 6 · Copy
+
+Per D-46, interim copy is ours — Sean confirmed "TBC by venue" is fine for now and cheap to change later. Write neutral strings, keep **all** of them in one module so a reword is one edit, and never state or imply non-payment. Do not reuse the previous version's placeholder strings; they promise things the current flow does not do.
 
 ---
 
-## Acceptance Criteria
+## Acceptance criteria
 
-- [ ] Venue with `subscription_status = 'inactive'` sees pending activation banner/screen
-- [ ] No payment URL or external link visible inside the app
-- [ ] "Resend Email" button calls `POST /api/v1/venues/me/resend-activation` and shows success toast
-- [ ] Rate limit on Resend Email works (4th attempt within 15 minutes returns error message) via Redis Layer 2 counter
-- [ ] Polling detects `subscription_status = 'active'` within ~30 seconds of webhook firing
-- [ ] Pending state dismissed on activation; confirmation toast shown
-- [ ] Polling stops after activation or role switch
-- [ ] `GET /api/v1/users/me` returns correct `subscription_status` and `isActive` flag
-- [ ] Venue profile hidden on map until activation
-- [ ] Switching away from Venue does not cancel subscription (billing persists)
-- [ ] Full-screen pending state only shown in Venue persona, not in Spectator/Artist
+- [ ] `inactive` venue sees the activation state; tapping **Activate Profile** requests a link and switches to "check your inbox"
+- [ ] **Resend Email** works, shows a cooldown, and never surfaces a raw 429
+- [ ] **Refresh Status** picks up an activation completed on another device
+- [ ] App foreground re-checks status via the existing resume hook; no interval poll anywhere
+- [ ] `trialing` venue uses the app normally and can see when the trial ends
+- [ ] `active` venue sees no subscription messaging
+- [ ] `cancelled` venue sees the activation state with no trial promised
+- [ ] Create event and create post are blocked when unpaid, with a clear reason, and available during grace
+- [ ] `FreeAccessNotice` and all six call sites removed, including the `showFreeAccessNotice` prop
+- [ ] No price, payment URL, or checkout button anywhere in `apps/native` (D-16)
+- [ ] Every unpaid-state string lives in one module and none implies non-payment (D-46)
+- [ ] Inside grace: banner only, app fully usable
+- [ ] After grace: holding block over a live-rendered map; own content, profile edit and fix-payment still reachable
 
 ---
 
 ## Dependencies
 
-- **Upstream**: M8-T1 (Stripe checkout + webhook handler), M2-T4 (venue persona system), M7-T3 (Postmark), M2-T1 (authentication)
-- **Downstream**: M8-T3 (lifecycle/cancellation handler), M8-T4 (subscription management portal)
-- **External services**: None (internal polling only)
+- **Upstream**: M8-T1, M8-T3
+- **Downstream**: M8-T5 (shares the on-hold copy)
+- **Blocked by**: nothing
 
 ---
 
-## Technical Notes
+## Notes
 
-### Hono Backend — Subscription Status Endpoint
-
-```typescript
-// apps/server/routes/v1/users.ts
-import { Hono } from 'hono';
-import { db } from '@/db';
-import { users, venueProfiles } from '@/db/schema';
-import { eq } from 'drizzle-orm';
-
-const router = new Hono();
-
-router.get('/users/me', async (c) => {
-  const userId = c.get('user')?.id;
-  if (!userId) return c.json({ error: 'Unauthorized' }, 401);
-
-  try {
-    const user = await db.query.users.findFirst({
-      where: eq(users.id, userId),
-    });
-
-    let venueProfile = null;
-    if (user.currentRole === 'venue') {
-      venueProfile = await db.query.venueProfiles.findFirst({
-        where: eq(venueProfiles.userId, userId),
-      });
-    }
-
-    return c.json({
-      id: user.id,
-      email: user.email,
-      currentRole: user.currentRole,
-      venueProfile: venueProfile
-        ? {
-            id: venueProfile.id,
-            name: venueProfile.name,
-            subscriptionStatus: venueProfile.subscriptionStatus,
-            isActive: venueProfile.isActive,
-            createdAt: venueProfile.createdAt,
-          }
-        : null,
-    });
-  } catch (error) {
-    console.error('User fetch error:', error);
-    return c.json({ error: 'Failed to fetch user' }, 500);
-  }
-});
-```
-
-### Resend Activation Email Endpoint
-
-```typescript
-// apps/server/routes/v1/venues.ts
-import { Hono } from 'hono';
-import { db } from '@/db';
-import { venueProfiles } from '@/db/schema';
-import { eq } from 'drizzle-orm';
-import { redis } from '@CeolX/cache';
-import { sendEmail } from '@/services/email';
-
-const router = new Hono();
-
-router.post('/venues/me/resend-activation', async (c) => {
-  const userId = c.get('user')?.id;
-  if (!userId) return c.json({ error: 'Unauthorized' }, 401);
-
-  try {
-    // Layer 2 rate limit (M1-T7 pattern) — raw Redis incr/expire
-    const rlKey = `rl:resend-activation:${userId}`;
-    const count = await redis.incr(rlKey);
-    if (count === 1) await redis.expire(rlKey, 900); // 15 min TTL on first increment
-    if (count > 3) {
-      return c.json(
-        {
-          error: 'RATE_LIMITED',
-          message: 'Too many resend requests. Please wait before trying again.',
-        },
-        429
-      );
-    }
-
-    // Get Venue profile
-    const venue = await db.query.venueProfiles.findFirst({
-      where: eq(venueProfiles.userId, userId),
-    });
-
-    if (!venue) {
-      return c.json({ error: 'Venue profile not found' }, 400);
-    }
-
-    // Get user email
-    const user = await db.query.users.findFirst({
-      where: eq(users.id, userId),
-    });
-
-    // Send email
-    await sendEmail({
-      to: user.email,
-      templateAlias: 'venue-activation',
-      templateModel: {
-        venueName: venue.name,
-        ActivationLink: 'https://ceolx.com/subscribe',
-      },
-    });
-
-    return c.json({
-      success: true,
-      message: 'Activation email sent. Check your inbox.',
-    });
-  } catch (error) {
-    console.error('Resend activation error:', error);
-    return c.json({ error: 'Failed to send email' }, 500);
-  }
-});
-
-export default router;
-```
-
-### React Native Polling Hook
-
-```typescript
-// apps/native/hooks/useSubscriptionPolling.ts
-import { useEffect, useRef } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useRole } from '@/context/RoleContext';
-
-export function useSubscriptionPolling() {
-  const { currentRole } = useRole();
-  const queryClient = useQueryClient();
-  const pollInterval = useRef<NodeJS.Timeout | null>(null);
-
-  const { data: user } = useQuery({
-    queryKey: ['user', 'me'],
-    queryFn: () => fetch(`${API_URL}/api/v1/users/me`).then((r) => r.json()),
-  });
-
-  useEffect(() => {
-    const venueProfile = user?.venueProfile;
-
-    // Start polling if Venue is inactive
-    if (currentRole === 'venue' && venueProfile?.subscriptionStatus === 'inactive') {
-      pollInterval.current = setInterval(() => {
-        queryClient.invalidateQueries({ queryKey: ['user', 'me'] });
-      }, 30000); // Poll every 30s
-    } else {
-      // Stop polling if activated or role changed
-      if (pollInterval.current) {
-        clearInterval(pollInterval.current);
-        pollInterval.current = null;
-      }
-    }
-
-    // Detect activation
-    if (venueProfile?.subscriptionStatus === 'active' && pollInterval.current) {
-      clearInterval(pollInterval.current);
-      Toast.show({
-        type: 'success',
-        text1: 'Profile activated!',
-        text2: "You're ready to accept bookings.",
-        duration: 3000,
-      });
-      // Dismiss pending screen automatically
-    }
-
-    return () => {
-      if (pollInterval.current) clearInterval(pollInterval.current);
-    };
-  }, [currentRole, user?.venueProfile?.subscriptionStatus]);
-
-  return { subscriptionStatus: user?.venueProfile?.subscriptionStatus };
-}
-```
-
-### Pending Activation Screen Component
-
-```typescript
-// apps/native/screens/PendingActivationScreen.tsx
-import { View, Text, TouchableOpacity } from 'react-native';
-import { useState } from 'react';
-import { useMutation } from '@tanstack/react-query';
-import { useSubscriptionPolling } from '@/hooks/useSubscriptionPolling';
-import * as Linking from 'expo-linking';
-
-export function PendingActivationScreen() {
-  const { subscriptionStatus } = useSubscriptionPolling();
-  const [resendLoading, setResendLoading] = useState(false);
-
-  const { mutate: resendEmail } = useMutation({
-    mutationFn: () =>
-      fetch(`${API_URL}/api/v1/venues/me/resend-activation`, {
-        method: 'POST',
-      }).then((r) => r.json()),
-    onSuccess: () => {
-      Toast.show({
-        type: 'success',
-        text1: 'Email sent',
-        text2: 'Check your inbox',
-        duration: 2000,
-      });
-      setResendLoading(false);
-    },
-    onError: (error: any) => {
-      if (error.response?.status === 429) {
-        Toast.show({
-          type: 'error',
-          text1: 'Too many requests',
-          text2: 'Please wait 1 hour before resending',
-        });
-      }
-      setResendLoading(false);
-    },
-  });
-
-  if (subscriptionStatus === 'active') {
-    // Should not reach here; parent component should dismiss this screen
-    return null;
-  }
-
-  return (
-    <View style={styles.container}>
-      <Text style={styles.heading}>Activate Your Venue Profile</Text>
-      <Text style={styles.body}>
-        Your profile is not yet visible to artists. Complete your subscription to get started.
-      </Text>
-
-      <TouchableOpacity onPress={() => Linking.openURL('message://')} style={styles.button}>
-        <Text>Check Email</Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity
-        onPress={() => {
-          setResendLoading(true);
-          resendEmail();
-        }}
-        disabled={resendLoading}
-        style={[styles.button, styles.secondaryButton]}
-      >
-        <Text>{resendLoading ? 'Sending...' : 'Resend Email'}</Text>
-      </TouchableOpacity>
-
-      <Text style={styles.footer}>
-        If you didn't receive the email, check your spam folder or contact support.
-      </Text>
-    </View>
-  );
-}
-```
-
-### Common Gotchas
-
-**Gotcha 1: Polling continues after user navigates away**
-
-- Issue: Interval keeps running; drains battery, creates redundant requests
-- Fix: Clear `setInterval` in useEffect cleanup on component unmount
-
-**Gotcha 2: Rate limit window**
-
-- Issue: Redis key TTL is only set on the first `incr` (when count === 1). If `expire` fails, the key never expires.
-- Fix: Wrap `redis.incr` + `redis.expire` in a pipeline/transaction, or accept the rare edge case — a failed `expire` call means the key never resets, locking users out permanently. Use a try/catch around the `expire` call and log failures.
-
-**Gotcha 3: Email resend sends to wrong address**
-
-- Issue: Resend uses hardcoded email instead of current user's email
-- Fix: Fetch user email from `GET /api/v1/users/me` before resending
-
-**Gotcha 4: Subscription status not refreshed after webhook**
-
-- Issue: App still shows pending; webhook fired but app didn't re-query
-- Fix: Ensure polling interval is actually triggering queries; check React Query cache invalidation
-
-**Gotcha 5: Pending screen shown in Spectator/Artist role accidentally**
-
-- Issue: Profile check doesn't filter by `currentRole === 'venue'`
-- Fix: Guard: `if (currentRole !== 'venue') return null` in component
+The previous version of this task specified a 30-second poll of `GET /api/v1/users/me`, a `pending_review` holding state for venue-created events, and profile visibility driven by `is_active`. All three are gone: the poll for the reason in §2, `pending_review` because V-14 blocks creation outright rather than queuing it, and `is_active` because D-14 removes the column.
