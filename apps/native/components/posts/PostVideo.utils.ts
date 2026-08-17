@@ -9,6 +9,24 @@ export const posterUrl = (playbackId: string) =>
   `https://image.mux.com/${playbackId}/thumbnail.jpg`;
 
 /**
+ * Cap the renditions Mux offers. The card is a phone-width 4:5 frame, so
+ * anything above 720p is pixels nobody can see — and a shorter ladder measurably
+ * shortens startup, because the first segment the player commits to is smaller.
+ * It cuts the Mux delivery bill at the same time.
+ *
+ * Applied here rather than in `streamUrl` because the row's `mediaUrl` (written
+ * by the Mux webhook) is the preferred source — capping only the playbackId
+ * fallback would miss almost every post.
+ *
+ * https://www.mux.com/docs/guides/modify-playback-behavior
+ */
+const MAX_RESOLUTION = '720p';
+export const cappedStreamUri = (uri: string) =>
+  uri.includes('.m3u8')
+    ? `${uri}${uri.includes('?') ? '&' : '?'}max_resolution=${MAX_RESOLUTION}`
+    : uri;
+
+/**
  * What the card should actually render. `mediaUrl` from the row is preferred as
  * the stream source; `muxPlaybackId` is the fallback used to (re)build both the
  * stream and the poster.
@@ -51,7 +69,7 @@ export function deriveVideoState(
     if (!streamUri) return { kind: 'processing' };
     return {
       kind: 'ready',
-      streamUri,
+      streamUri: cappedStreamUri(streamUri),
       poster: muxPlaybackId ? posterUrl(muxPlaybackId) : null,
     };
   }
