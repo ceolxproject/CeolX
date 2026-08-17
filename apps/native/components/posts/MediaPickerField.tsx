@@ -25,17 +25,16 @@ const VIDEO_MAX_MB = Math.round(MAX_VIDEO_BYTES / MB);
  * real footage (not a blank placeholder) and uses `cover` so the creator sees
  * the same reels-style crop the post will display.
  *
- * Plays with sound by default: the creator is reviewing their own clip before
- * publishing and needs to hear what they are about to post. The badge mutes it
- * — local to this preview, it has no bearing on how the post plays in the feed
- * (that is the app-wide toggle in use-video-muted).
+ * Mute is owned by the parent, not held here: the speaker badge has to render
+ * above the uploading overlay to stay reachable, and that overlay is a sibling
+ * of this component.
  */
-function LocalVideoPreview({ uri }: { uri: string }) {
-  const [muted, setMuted] = useState(false);
-
+function LocalVideoPreview({ uri, muted }: { uri: string; muted: boolean }) {
   const player = useVideoPlayer(uri, (p) => {
     p.loop = true;
-    p.muted = false;
+    // Seed from the current value, not a hard-coded `false` — a re-render that
+    // rebuilds the player must not undo the creator's mute.
+    p.muted = muted;
     p.play();
   });
 
@@ -44,26 +43,12 @@ function LocalVideoPreview({ uri }: { uri: string }) {
   }, [muted, player]);
 
   return (
-    <View className="h-full w-full">
-      <VideoView
-        player={player}
-        style={{ width: '100%', height: '100%' }}
-        nativeControls={false}
-        contentFit="cover"
-      />
-
-      {/* Nested Pressable — the responder system hands the touch to the child, so
-          tapping the badge doesn't re-open the picker behind it. */}
-      <Pressable
-        onPress={() => setMuted((prev) => !prev)}
-        hitSlop={8}
-        className="absolute bottom-2 left-2 h-9 w-9 items-center justify-center rounded-full bg-black/55"
-        accessibilityRole="button"
-        accessibilityLabel={muted ? 'Unmute preview' : 'Mute preview'}
-      >
-        <Ionicons name={muted ? 'volume-mute' : 'volume-high'} size={18} color="#FFFFFF" />
-      </Pressable>
-    </View>
+    <VideoView
+      player={player}
+      style={{ width: '100%', height: '100%' }}
+      nativeControls={false}
+      contentFit="cover"
+    />
   );
 }
 
@@ -119,6 +104,15 @@ export function MediaPickerField({
   // creator approved was not the poster that got published.
   const natural = useImageRatio(mediaKind === 'image' ? mediaUri : null);
   const imageRatio = natural === null ? null : clampFeedRatio(natural);
+
+  // A just-picked clip plays with sound — the creator is reviewing their own work
+  // before publishing and needs to hear it. An existing video opened for editing
+  // does not: nothing was picked, so audio nobody asked for would just start.
+  // `readOnly` is that distinction (see the prop docs), and it arrives a render
+  // late while the post loads, so the default is derived rather than seeded into
+  // state; `null` means "creator hasn't decided", not "unmuted".
+  const [mutedOverride, setMutedOverride] = useState<boolean | null>(null);
+  const previewMuted = mutedOverride ?? readOnly === true;
 
   const handlePick = useCallback(async () => {
     if (readOnly) return;
@@ -199,7 +193,7 @@ export function MediaPickerField({
         {mediaUri ? (
           <>
             {mediaKind === 'video' ? (
-              <LocalVideoPreview uri={mediaUri} />
+              <LocalVideoPreview uri={mediaUri} muted={previewMuted} />
             ) : (
               <Image source={{ uri: mediaUri }} className="h-full w-full" resizeMode="cover" />
             )}
@@ -210,6 +204,24 @@ export function MediaPickerField({
                   Uploading… {typeof progress === 'number' ? `${Math.round(progress * 100)}%` : ''}
                 </Text>
               </View>
+            )}
+            {/* After the uploading overlay, deliberately: the clip keeps looping
+                audibly through a long upload, so muting has to stay reachable.
+                Nested Pressable, so the tap doesn't re-open the picker behind it. */}
+            {mediaKind === 'video' && (
+              <Pressable
+                onPress={() => setMutedOverride(!previewMuted)}
+                hitSlop={8}
+                className="absolute bottom-2 left-2 h-9 w-9 items-center justify-center rounded-full bg-black/55"
+                accessibilityRole="button"
+                accessibilityLabel={previewMuted ? 'Unmute preview' : 'Mute preview'}
+              >
+                <Ionicons
+                  name={previewMuted ? 'volume-mute' : 'volume-high'}
+                  size={18}
+                  color="#FFFFFF"
+                />
+              </Pressable>
             )}
             {!isUploading && !readOnly && onRemove && (
               <Pressable

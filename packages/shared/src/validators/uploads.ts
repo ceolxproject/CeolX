@@ -49,12 +49,15 @@ export const MAX_BYTES_BY_TYPE: Record<UploadType, number> = {
 export const MAX_VIDEO_BYTES = 100 * 1024 * 1024;
 
 /**
- * Post videos are also capped by length, not just weight. Feed clips are served
- * as a fixed-resolution progressive MP4 (Mux static rendition) rather than
- * adaptive HLS, because that removes the manifest round-trips that dominate
- * time-to-first-frame. The trade is no adaptive bitrate: a long clip on a weak
- * connection stalls instead of dropping quality. A short cap keeps that trade
- * safe — the same reason short-form feeds bound clip length.
+ * Post videos are capped by length as well as weight — a product rule, the same
+ * bound short-form feeds all apply. It also keeps the feed's preload window
+ * affordable: the further a clip runs, the more a buffered-ahead video costs a
+ * viewer on mobile data.
+ *
+ * Enforced at pick time in MediaPickerField and nowhere else. The picker omits
+ * duration for some assets, and Mux only reports it after transcoding, so treat
+ * this as fast feedback for the creator rather than a guarantee — unlike
+ * MAX_VIDEO_BYTES, which the upload path re-checks.
  */
 export const MAX_VIDEO_DURATION_SECONDS = 60;
 

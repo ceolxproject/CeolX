@@ -5,6 +5,7 @@ import {
   IMAGE_MIME_TYPES,
   MAX_BYTES_BY_TYPE,
   MAX_VIDEO_BYTES,
+  MAX_VIDEO_DURATION_SECONDS,
   UPLOAD_TYPES,
   createMuxUploadSchema,
   deleteMuxAssetSchema,
@@ -12,6 +13,7 @@ import {
   muxUploadStatusSchema,
   presignDeleteSchema,
   presignUploadSchema,
+  videoTooLongMessage,
 } from '../uploads.js';
 
 describe('UPLOAD_TYPES', () => {
@@ -35,6 +37,20 @@ describe('MAX_BYTES_BY_TYPE', () => {
 describe('MAX_VIDEO_BYTES', () => {
   it('caps post videos at 100MB (matches the picker copy)', () => {
     expect(MAX_VIDEO_BYTES).toBe(100 * 1024 * 1024);
+  });
+});
+
+describe('MAX_VIDEO_DURATION_SECONDS', () => {
+  it('caps post videos at 60s (matches the picker copy)', () => {
+    expect(MAX_VIDEO_DURATION_SECONDS).toBe(60);
+  });
+});
+
+describe('videoTooLongMessage', () => {
+  it('produces a friendly, actionable message', () => {
+    expect(videoTooLongMessage(MAX_VIDEO_DURATION_SECONDS)).toBe(
+      'This video is too long. Please choose a video under 60 seconds.'
+    );
   });
 });
 
