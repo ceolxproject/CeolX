@@ -3,7 +3,7 @@ import { eq } from 'drizzle-orm';
 
 import { db } from '@CeolX/db';
 import { venueProfiles } from '@CeolX/db/schema/users';
-import { UserRole as UserRoleEnum } from '@CeolX/shared';
+import { UserRole as UserRoleEnum, VENUE_PUBLISH_BLOCKED_MESSAGE } from '@CeolX/shared';
 
 import { onHoldVenueIds } from '../services/venue-gate';
 
@@ -39,7 +39,7 @@ export async function assertVenueMayPublish(
   if (onHold.has(profile.id)) {
     throw new TRPCError({
       code: 'FORBIDDEN',
-      message: 'An active subscription is needed to publish. Check your email to reactivate.',
+      message: VENUE_PUBLISH_BLOCKED_MESSAGE,
     });
   }
 }

@@ -157,3 +157,20 @@ export const ACTIVATION_RETURN_PATHS = {
   complete: '/activate/complete',
   cancelled: '/activate/cancelled',
 } as const;
+
+/**
+ * Why an unpaid venue's publish button is dim (V-14, D-46).
+ *
+ * Shared because it is asserted on both sides of the wire: the client renders it next to
+ * the disabled control, and `assertVenueMayPublish` throws it as the `FORBIDDEN` message
+ * for anyone who reaches the procedure anyway. It lived as two identical literals until
+ * 18/08/2026 and had already been edited on one side only.
+ *
+ * It does **not** say "check your email". A venue looking at this notice is, by
+ * definition, someone the activation email did not reach — it expired, went to spam, or
+ * was never opened. Pointing them back at it is a dead end. The profile is the one place
+ * that can always mint a fresh link, so that is where the copy sends them, and the client
+ * makes the notice tappable so it is one tap rather than a hunt.
+ */
+export const VENUE_PUBLISH_BLOCKED_MESSAGE =
+  'An active subscription is needed to publish. Open your profile to activate.';

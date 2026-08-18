@@ -1,6 +1,8 @@
 import { TRPCError } from '@trpc/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { VENUE_PUBLISH_BLOCKED_MESSAGE } from '@CeolX/shared';
+
 const { mockSelectLimit, mockOnHoldVenueIds } = vi.hoisted(() => ({
   mockSelectLimit: vi.fn(),
   mockOnHoldVenueIds: vi.fn(),
@@ -73,9 +75,21 @@ describe('assertVenueMayPublish (V-14)', () => {
       await assertVenueMayPublish('user-1', 'venue');
       expect.unreachable('expected a FORBIDDEN error');
     } catch (err) {
-      // A venue told only "forbidden" has no idea what to do next.
-      expect((err as TRPCError).message).toMatch(/subscription/i);
-      expect((err as TRPCError).message).toMatch(/email/i);
+      // The client renders this exact sentence next to the disabled button. It was a
+      // second identical literal here until 18/08/2026, and had already been edited on
+      // one side only.
+      expect((err as TRPCError).message).toBe(VENUE_PUBLISH_BLOCKED_MESSAGE);
     }
+  });
+
+  it('sends the venue to their profile, never back to their inbox', () => {
+    // A venue told only "forbidden" has no idea what to do next, so the copy has to name
+    // the cause and somewhere to act. It must NOT name the inbox: anyone reading this is
+    // by definition someone the activation email failed to reach — it expired after 45
+    // minutes (D-17), went to spam, or was never opened — so "check your email" is a dead
+    // end. The profile can always mint a fresh link.
+    expect(VENUE_PUBLISH_BLOCKED_MESSAGE).toMatch(/subscription/i);
+    expect(VENUE_PUBLISH_BLOCKED_MESSAGE).toMatch(/profile/i);
+    expect(VENUE_PUBLISH_BLOCKED_MESSAGE).not.toMatch(/email|inbox/i);
   });
 });
