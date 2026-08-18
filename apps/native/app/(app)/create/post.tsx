@@ -290,7 +290,7 @@ export default function CreatePostScreen() {
           {/* V-14: an unpaid venue cannot publish. The server refuses it too
               (assertVenueMayPublish) — this explains why the button is dim, because
               a disabled control with no reason reads as a bug. */}
-          {publishBlocked ? <VenuePublishBlockedNotice /> : null}
+          {publishBlocked ? <VenuePublishBlockedNotice surface="post" /> : null}
 
           <Pressable
             onPress={handlePublish}

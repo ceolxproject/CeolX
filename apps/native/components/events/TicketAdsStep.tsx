@@ -222,7 +222,7 @@ export function TicketAdsStep({
 
       {publishBlocked ? (
         <View className="mb-3">
-          <VenuePublishBlockedNotice />
+          <VenuePublishBlockedNotice surface="event" />
         </View>
       ) : null}
 

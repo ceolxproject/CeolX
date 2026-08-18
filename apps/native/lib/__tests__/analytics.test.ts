@@ -12,7 +12,7 @@ vi.mock('@CeolX/env/native', () => ({
   env: { EXPO_PUBLIC_POSTHOG_KEY: undefined, EXPO_PUBLIC_POSTHOG_HOST: 'https://eu.i.posthog.com' },
 }));
 
-const { collapseRoute } = await import('../analytics');
+const { collapseRoute, AnalyticsEvent } = await import('../analytics');
 
 describe('collapseRoute', () => {
   it('leaves static routes untouched', () => {
@@ -45,5 +45,50 @@ describe('collapseRoute', () => {
 
   it('never returns an empty string', () => {
     expect(collapseRoute('/')).toBe('/');
+  });
+});
+
+describe('AnalyticsEvent registry', () => {
+  it('has no duplicate event names', () => {
+    // Two keys sharing a string silently merges two funnels into one number, and the
+    // mistake is invisible in the dashboard — the chart still renders.
+    const names = Object.values(AnalyticsEvent);
+    expect(new Set(names).size).toBe(names.length);
+  });
+
+  it('names every event in snake_case', () => {
+    // PostHog treats names as opaque, so a stray camelCase entry just becomes a second
+    // series next to the one everyone reads.
+    for (const name of Object.values(AnalyticsEvent)) {
+      expect(name).toMatch(/^[a-z][a-z0-9]*(_[a-z0-9]+)*$/);
+    }
+  });
+});
+
+describe('venue activation funnel (M8)', () => {
+  it('registers the three client-side funnel steps', () => {
+    // The funnel this PR exists to measure: shown → asked → blocked.
+    expect(AnalyticsEvent.VENUE_ACTIVATION_PROMPT_SHOWN).toBe('venue_activation_prompt_shown');
+    expect(AnalyticsEvent.VENUE_ACTIVATION_EMAIL_REQUESTED).toBe(
+      'venue_activation_email_requested'
+    );
+    expect(AnalyticsEvent.VENUE_PUBLISH_BLOCKED).toBe('venue_publish_blocked');
+  });
+
+  it('registers no client-side conversion event', () => {
+    // Conversion happens in a browser, usually on another device, so the app never sees
+    // it. An undeduped client event would inflate it by however many times the profile
+    // screen is opened; Stripe is the source for the paid step.
+    const names: string[] = Object.values(AnalyticsEvent);
+    expect(names).not.toContain('venue_activation_completed');
+    expect(names.filter((n) => n.includes('subscription_started'))).toEqual([]);
+  });
+
+  it('carries no price or plan in an event name', () => {
+    // D-16: no price surfaces anywhere in the app, and that includes analytics payload
+    // keys someone might later mirror into copy.
+    for (const name of Object.values(AnalyticsEvent)) {
+      expect(name).not.toMatch(/price|19\.99|199|eur/i);
+    }
   });
 });

@@ -1,11 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useMutation } from '@tanstack/react-query';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 
 import { PUBLISH_BLOCKED_MESSAGE as BLOCKED_MESSAGE } from './venue-subscription-state.utils';
 
 import { appToast } from '@/components/AppToast';
+import { AnalyticsEvent, track } from '@/lib/analytics';
 import { trpc } from '@/utils/trpc';
 
 // Re-exported so existing importers keep working after the pure logic moved out into a
@@ -99,9 +100,29 @@ export function VenueActivationPrompt({
   // "check your inbox" copy instead of inviting another tap the server will refuse.
   const [sent, setSent] = useState(() => resendCooldownUntil > Date.now());
 
+  // Funnel entry. Fired on mount rather than on render, so re-renders from the cooldown
+  // ticking every second do not each count as another impression.
+  //
+  // Deliberately not deduped across mounts: "how many times did we have to show this
+  // before they acted" is the useful number, and PostHog can collapse to unique users
+  // when the question is reach instead. `sent` is carried so a prompt that is already
+  // waiting on an email is distinguishable from a first sighting.
+  const promptSeen = useRef(false);
+  useEffect(() => {
+    if (promptSeen.current) return;
+    promptSeen.current = true;
+    track(AnalyticsEvent.VENUE_ACTIVATION_PROMPT_SHOWN, { already_requested: sent });
+    // `sent` is read once at mount on purpose — this is an impression, not a subscription
+    // to its later changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const requestActivation = useMutation(
     trpc.venues.requestActivation.mutationOptions({
       onSuccess: ({ sentTo }) => {
+        // On success only. A rate-limited tap sends nothing, so counting it here would
+        // overstate how many links the venue actually received.
+        track(AnalyticsEvent.VENUE_ACTIVATION_EMAIL_REQUESTED, { resend: sent });
         setSent(true);
         start();
         appToast.success(`Activation email sent to ${sentTo}`);
@@ -226,7 +247,20 @@ export function VenuePastDueBanner() {
   );
 }
 
-export function VenuePublishBlockedNotice() {
+/**
+ * @param surface Which create flow was blocked, so the two are separable in the funnel.
+ */
+export function VenuePublishBlockedNotice({ surface }: { surface: 'post' | 'event' }) {
+  // Fired here rather than at each call site: this component is the single point where
+  // a venue is actually told publishing is blocked, so wiring it once cannot drift out
+  // of step with the screens that render it.
+  const reported = useRef(false);
+  useEffect(() => {
+    if (reported.current) return;
+    reported.current = true;
+    track(AnalyticsEvent.VENUE_PUBLISH_BLOCKED, { surface });
+  }, [surface]);
+
   return (
     <View className="flex-row items-start gap-2 rounded-xl bg-[#333335] px-3 py-2.5">
       <Ionicons

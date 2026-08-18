@@ -137,6 +137,16 @@ export const AnalyticsEvent = {
   // Booking
   PERFORMANCE_REQUEST_SENT: 'performance_request_sent',
   BOOKING_RESPONDED: 'booking_responded',
+  // Venue activation funnel (M8). The only funnel on the platform with revenue
+  // attached, so it is measured despite the general preference for fewer events.
+  //
+  // Conversion itself is NOT here: the venue completes Stripe Checkout in a browser,
+  // usually on another device, so the app never observes it. The paid step is measured
+  // server-side from Stripe's own data. What these three give us is where the drop-off
+  // sits on our side — shown, asked, and blocked.
+  VENUE_ACTIVATION_PROMPT_SHOWN: 'venue_activation_prompt_shown',
+  VENUE_ACTIVATION_EMAIL_REQUESTED: 'venue_activation_email_requested',
+  VENUE_PUBLISH_BLOCKED: 'venue_publish_blocked',
 } as const;
 
 // Deliberately NOT events:
@@ -148,13 +158,12 @@ export const AnalyticsEvent = {
 //   screen tracking cannot give us, but capturing it means threading a param
 //   through every navigation call site. Left out rather than half-done; revisit
 //   if "which surface drives event views" becomes a live question.
-// - subscription_notice_shown / activation_email_resent — the UI now EXISTS and these
-//   are still not wired. VenueActivationPrompt renders the notice and owns a literal
-//   "Resend email" button (components/subscription/VenueSubscriptionState.tsx), so the
-//   hooks are there for the taking: the prompt's mount and the mutation's onSuccess.
-//   Deliberately not added in the same change as the gate fixes — but this is the only
-//   funnel on the platform with revenue attached, and it currently has zero
-//   instrumentation, so it should not stay unwired for long.
+// - venue_activation_completed — the venue pays in a browser, typically on a different
+//   device, so the app never sees it happen. Emitting it when the client first notices
+//   `trialing` would need per-account dedupe to survive remounts and app restarts, and
+//   an undeduped event would inflate conversion by however many times the profile screen
+//   is opened. Conversion is read from Stripe server-side instead; the three events above
+//   cover our side of the funnel.
 
 export type AnalyticsEventName = (typeof AnalyticsEvent)[keyof typeof AnalyticsEvent];
 
