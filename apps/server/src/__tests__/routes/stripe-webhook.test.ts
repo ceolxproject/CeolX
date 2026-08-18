@@ -20,9 +20,7 @@ vi.mock('@CeolX/db', () => ({ db: {} }));
 vi.mock('@CeolX/db/schema/social', () => ({ posts: {} }));
 vi.mock('../../jobs/handlers/index.js', () => ({ routeJob: vi.fn() }));
 vi.mock('../../jobs/verify.js', () => ({ verifyQStashSignature: vi.fn() }));
-vi.mock('../../services/subscription-scheduler.js', () => ({
-  scheduleTrialEndingReminder: vi.fn(),
-}));
+vi.mock('../../services/subscription-scheduler.js', () => ({}));
 vi.mock('../../lib/postmark-webhook.js', () => ({
   logPostmarkEvent: vi.fn(),
   parsePostmarkEvent: vi.fn(),
@@ -113,7 +111,7 @@ describe('POST /api/webhooks/stripe — dispatch', () => {
     // a trial end date is first seen (D-30).
     expect(mockHandleEvent).toHaveBeenCalledWith(
       SUB_EVENT,
-      expect.objectContaining({ scheduleTrialEnding: expect.any(Function) as unknown })
+      expect.objectContaining({ notifyLinkedArtist: expect.any(Function) as unknown })
     );
   });
 

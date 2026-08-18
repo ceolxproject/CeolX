@@ -28,6 +28,8 @@ vi.mock('@CeolX/db', () => ({
   },
 }));
 
+import { ACTIVATION_RETURN_PATHS } from '@CeolX/shared';
+
 import activateRoute from '../../routes/activate.js';
 
 function buildApp() {
@@ -206,5 +208,41 @@ describe('GET /activate — guard outcomes surface as pages, not JSON', () => {
     expect(res.status).toBe(400);
     expect(await res.text()).toMatch(/could not find that venue/i);
     expect(mockBuildCheckout).not.toHaveBeenCalled();
+  });
+});
+
+describe('Stripe return paths resolve (contract with packages/api)', () => {
+  // The bug this replaces: `success_url` was a string literal in the API package and
+  // the routes were registered here, with nothing connecting them. Both sides now
+  // read ACTIVATION_RETURN_PATHS, and these requests prove the paths are served —
+  // the previous tests only asserted which string got handed to Stripe, which is
+  // true of a 404 as well.
+  it.each(Object.entries(ACTIVATION_RETURN_PATHS))(
+    '%s (%s) is registered and renders a readable page',
+    async (_name, path) => {
+      const res = await buildApp().request(path);
+
+      expect(res.status).toBe(200);
+      expect(res.headers.get('content-type')).toMatch(/text\/html/);
+      // A JSON envelope here means the request fell through to app.notFound.
+      expect(await res.text()).not.toContain('"statusCode"');
+    }
+  );
+
+  it('states nothing about subscription status — the webhook may not have landed', async () => {
+    const res = await buildApp().request(ACTIVATION_RETURN_PATHS.complete);
+    const body = await res.text();
+
+    // D-22: the webhook is the only writer. Claiming "you're active" here would be
+    // a guess, and wrong whenever Stripe is a few seconds behind the browser.
+    expect(body).not.toMatch(/your profile is (now )?live/i);
+    expect(body).not.toMatch(/subscription is active/i);
+  });
+
+  it('tells a cancelling venue their card was not charged', async () => {
+    const res = await buildApp().request(ACTIVATION_RETURN_PATHS.cancelled);
+    const body = await res.text();
+
+    expect(body).toMatch(/not been charged/i);
   });
 });

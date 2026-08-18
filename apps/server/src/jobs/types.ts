@@ -45,6 +45,7 @@ export const accountCleanupSchema = z.object({
 export const accountFlagInactiveSchema = z.object({});
 
 export const accountAnonymizeSweepSchema = z.object({});
+export const subscriptionTrialEndingSweepSchema = z.object({});
 
 export const ipAnonymizeSchema = z.object({
   olderThanDays: z.number().int().positive().default(30),
@@ -117,6 +118,7 @@ export type JobType =
   | 'notification.batch'
   | 'subscription.activation-reminder'
   | 'subscription.trial-ending'
+  | 'subscription.trial-ending-sweep'
   | 'data-export.process'
   | 'data-export.notify';
 
@@ -131,6 +133,7 @@ export const jobPayloadSchemas = {
   'notification.batch': notificationBatchSchema,
   'subscription.activation-reminder': subscriptionActivationReminderSchema,
   'subscription.trial-ending': subscriptionTrialEndingSchema,
+  'subscription.trial-ending-sweep': subscriptionTrialEndingSweepSchema,
   'data-export.process': dataExportProcessSchema,
   'data-export.notify': dataExportNotifySchema,
 } as const;

@@ -1,9 +1,10 @@
-import { and, eq, isNotNull, lte } from 'drizzle-orm';
+import { and, eq, inArray, isNotNull, lte } from 'drizzle-orm';
 
 import { cancelSubscriptionForUser } from '@CeolX/api/services/subscription-sync';
 import { db } from '@CeolX/db';
 import { session, user } from '@CeolX/db/schema/auth';
 import { deviceTokens } from '@CeolX/db/schema/notifications';
+import { activationTokens, venueSubscriptions } from '@CeolX/db/schema/subscriptions';
 import { artistProfiles, profileSocialLinks, venueProfiles } from '@CeolX/db/schema/users';
 import { sendAccountDeletedEmail } from '@CeolX/email';
 import { SubscriptionStatus } from '@CeolX/shared';
@@ -48,6 +49,14 @@ async function applyAnonymization(
   // transaction, which is the other reason it sits out here.
   await cancelSubscriptionForUser(userId);
   const now = new Date();
+
+  // Read outside the transaction so the erasure block stays a pure sequence of writes.
+  // Almost always empty (only venue accounts have one) or a single row.
+  const venueRows = await db
+    .select({ id: venueProfiles.id })
+    .from(venueProfiles)
+    .where(eq(venueProfiles.userId, userId));
+  const venueIds = venueRows.map((v) => v.id);
 
   await db.transaction(async (tx) => {
     await tx
@@ -105,12 +114,31 @@ async function applyAnonymization(
         // untouched here would keep a deleted venue publicly visible if it happened
         // to be mid-trial. The Stripe subscription itself is cancelled by M8-T3.
         subscriptionStatus: SubscriptionStatus.CANCELLED,
+        stripeCustomerId: null,
       })
       .where(eq(venueProfiles.userId, userId));
 
     await tx.delete(profileSocialLinks).where(eq(profileSocialLinks.userId, userId));
     await tx.delete(deviceTokens).where(eq(deviceTokens.userId, userId));
     await tx.delete(session).where(eq(session.userId, userId));
+
+    // Activation tokens (M8-T2). The FK cascades on user DELETE, but erasure
+    // anonymises the row in place and never deletes it, so the cascade never fires —
+    // a live credential for a "deleted" account would otherwise sit there until it
+    // expired, and any unopened activation email would still work.
+    await tx.delete(activationTokens).where(eq(activationTokens.userId, userId));
+
+    // The Stripe ids are pointers to personal data we do not hold ourselves: Stripe
+    // keeps the billing name and address against that customer. Leaving them behind
+    // means the "anonymised" row still identifies the person to anyone with Stripe
+    // access, which is not erasure. The billing row itself is kept — it is financial
+    // record-keeping, not personal data, once the identifiers are gone.
+    if (venueIds.length > 0) {
+      await tx
+        .update(venueSubscriptions)
+        .set({ stripeCustomerId: null, stripeSubscriptionId: null, updatedAt: new Date() })
+        .where(inArray(venueSubscriptions.venueId, venueIds));
+    }
   });
 
   await sendDeletionConfirmation(userId, contact);

@@ -6,6 +6,7 @@ import { resolveActivationToken } from '@CeolX/api/services/activation-token';
 import { db } from '@CeolX/db';
 import { user } from '@CeolX/db/schema/auth';
 import { venueProfiles } from '@CeolX/db/schema/users';
+import { ACTIVATION_RETURN_PATHS } from '@CeolX/shared';
 import { activateQuerySchema } from '@CeolX/shared/validators';
 
 /**
@@ -219,5 +220,40 @@ activateRoute.get('/activate', async (c) => {
     );
   }
 });
+
+/**
+ * Where Stripe sends the venue back to after Checkout.
+ *
+ * These exist because `success_url` and `cancel_url` have to resolve to something a
+ * person can read. Stripe 303s the browser here; with no route the request falls
+ * through to `app.notFound`, so the last thing a venue sees after paying is the
+ * API's JSON error envelope.
+ *
+ * Neither page reports subscription state. The webhook is the only writer (D-22)
+ * and may not have landed by the time the browser arrives, so anything asserted
+ * here about being active could be false a second later. The app is the honest
+ * place to check.
+ */
+activateRoute.get(ACTIVATION_RETURN_PATHS.complete, (c) =>
+  page(
+    c,
+    200,
+    'Payment received',
+    'Thanks — your CeolX subscription is being set up.',
+    'Open CeolX and refresh your profile. It can take a moment to appear.'
+  )
+);
+
+// The token is only consumed once payment succeeds, so a cancelled checkout leaves
+// the original link usable until it expires on its own.
+activateRoute.get(ACTIVATION_RETURN_PATHS.cancelled, (c) =>
+  page(
+    c,
+    200,
+    'Checkout cancelled',
+    'No payment was taken and your card has not been charged.',
+    'Your activation link still works — reopen it, or tap Activate Profile in CeolX for a new one.'
+  )
+);
 
 export default activateRoute;

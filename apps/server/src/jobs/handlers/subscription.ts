@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm';
+import { and, eq, gt, isNull, lte } from 'drizzle-orm';
 
 import { buildActivationLinks } from '@CeolX/api/services/activation-links';
 import { getPriceSummaries } from '@CeolX/api/services/stripe';
@@ -167,4 +167,63 @@ export async function handleSubscriptionTrialEnding(
     // at the app keeps this email free of a URL that could go stale in six months.
     manageUrl: `${env.BETTER_AUTH_URL.replace(/\/$/, '')}/r?to=/profile`,
   });
+}
+
+/** How far ahead of the first charge the warning goes out (D-30). */
+const TRIAL_WARNING_LEAD_DAYS = 7;
+
+/**
+ * Daily sweep that sends the trial-ending warning (D-30).
+ *
+ * This replaces a QStash job delayed until 7 days before the charge. For the default
+ * 183-day trial that delay is ~176 days, and `handleAccountAnonymizeSweep` records
+ * that a *30-day* delay already exceeded the plan cap and failed silently
+ * (Asana 1215276188230541). The failure mode there was a missed deletion; here it
+ * would be a €199 charge with no warning, which is the chargeback D-30 exists to
+ * prevent — so the same cron-sweep remedy applies.
+ *
+ * Idempotent by `trialEndingSentAt`. A venue whose trial date moves gets the marker
+ * cleared in `subscription-sync`, so they are warned again against the new date.
+ */
+export async function handleSubscriptionTrialEndingSweep(
+  _payload: JobPayload<'subscription.trial-ending-sweep'>
+): Promise<void> {
+  const now = new Date();
+  const cutoff = new Date(now.getTime() + TRIAL_WARNING_LEAD_DAYS * 24 * 60 * 60 * 1000);
+
+  const due = await db
+    .select({ venueId: venueSubscriptions.venueId })
+    .from(venueSubscriptions)
+    .innerJoin(venueProfiles, eq(venueProfiles.id, venueSubscriptions.venueId))
+    .where(
+      and(
+        eq(venueProfiles.subscriptionStatus, SubscriptionStatus.TRIALING),
+        isNull(venueSubscriptions.trialEndingSentAt),
+        // Inside the warning window but not already past — a lapsed date means the
+        // charge has happened and the warning would only confuse.
+        lte(venueSubscriptions.trialEndsAt, cutoff),
+        gt(venueSubscriptions.trialEndsAt, now),
+        eq(venueSubscriptions.cancelAtPeriodEnd, false),
+        eq(venueSubscriptions.billingBlocked, false)
+      )
+    );
+
+  if (due.length === 0) return;
+
+  for (const { venueId } of due) {
+    try {
+      // Delegates to the single-venue handler, which re-reads state and re-reads the
+      // price from Stripe before sending. Nothing about the amount is trusted here.
+      await handleSubscriptionTrialEnding({ venueId });
+
+      await db
+        .update(venueSubscriptions)
+        .set({ trialEndingSentAt: new Date(), updatedAt: new Date() })
+        .where(eq(venueSubscriptions.venueId, venueId));
+    } catch (err) {
+      // One venue's failure must not strand the rest of the batch. The marker is only
+      // stamped on success, so tomorrow's run retries this venue.
+      console.error(`[subscription] trial-ending sweep failed for venue ${venueId}:`, err);
+    }
+  }
 }

@@ -87,7 +87,9 @@ export function buildApp() {
   // one-time token in the URL is the credential, because a venue who signed up with
   // Google or Apple has no password to log in with (D-19). IP-keyed rate limit —
   // there is no user to key on before the token is resolved.
-  app.use('/activate', rateLimiter(RATE_LIMIT_TIERS.locationLookup));
+  // Its own tier, not locationLookup: that one allows 60/min because it fires on
+  // every map open, which is not a budget a credential endpoint should inherit.
+  app.use('/activate', rateLimiter(RATE_LIMIT_TIERS.credentialRedeem));
   app.route('/', activateRoute);
 
   // App Links / Universal Links ownership files + the shared-post and

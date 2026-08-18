@@ -6,14 +6,17 @@ import { verifyAndUnwrap } from '@CeolX/api/services/mux';
 import { constructWebhookEvent } from '@CeolX/api/services/stripe';
 import { handleStripeSubscriptionEvent } from '@CeolX/api/services/subscription-sync';
 import { db } from '@CeolX/db';
+import { user } from '@CeolX/db/schema/auth';
 import { posts } from '@CeolX/db/schema/social';
+import { venueProfiles } from '@CeolX/db/schema/users';
+import { sendPaymentConfirmationEmail } from '@CeolX/email';
+import { env } from '@CeolX/env/server';
 import { NotificationTrigger } from '@CeolX/shared';
 
 import { routeJob } from '../jobs/handlers/index.js';
 import { verifyQStashSignature } from '../jobs/verify.js';
 import { logPostmarkEvent, parsePostmarkEvent } from '../lib/postmark-webhook.js';
 import { dispatchNotification } from '../services/notifications-dispatcher.js';
-import { scheduleTrialEndingReminder } from '../services/subscription-scheduler.js';
 
 const webhooksRoutes = new Hono<{ Variables: { rawBody: string } }>();
 
@@ -54,10 +57,45 @@ webhooksRoutes.post('/stripe', async (c) => {
 
   try {
     await handleStripeSubscriptionEvent(event, {
-      scheduleTrialEnding: scheduleTrialEndingReminder,
       // A-20: an artist whose event names this venue gets told the profile went on
       // hold. Their event stays visible (V-06); this is what puts the pressure on
       // the venue rather than on us.
+      // D-64: confirm a real charge to the venue. Figures come from the invoice
+      // Stripe just settled, so the email cannot disagree with the statement.
+      confirmPayment: async ({ venueId, amount, interval, nextBillingDate, invoiceUrl }) => {
+        const [row] = await db
+          .select({
+            venueName: venueProfiles.venueName,
+            email: user.email,
+            name: user.name,
+          })
+          .from(venueProfiles)
+          .innerJoin(user, eq(user.id, venueProfiles.userId))
+          .where(eq(venueProfiles.id, venueId))
+          .limit(1);
+
+        if (!row?.email) return;
+
+        await sendPaymentConfirmationEmail({
+          to: row.email,
+          userName: row.name ?? '',
+          amount,
+          planName: interval === 'annual' ? 'Annual' : 'Monthly',
+          nextBillingDate: nextBillingDate
+            ? new Intl.DateTimeFormat('en-IE', {
+                day: 'numeric',
+                month: 'long',
+                year: 'numeric',
+                timeZone: 'Europe/Dublin',
+              }).format(nextBillingDate)
+            : 'the end of your current period',
+          // Points at the app, not a Portal URL: Portal links are minted on demand and
+          // emailed separately (D-45), and one baked in here would be stale by the time
+          // an annual subscriber opened it.
+          manageUrl: `${env.BETTER_AUTH_URL.replace(/\/$/, '')}/r?to=/profile`,
+          ...(invoiceUrl ? { invoiceUrl } : {}),
+        });
+      },
       notifyLinkedArtist: async ({ artistUserId, eventId, eventTitle, venueName }) => {
         await dispatchNotification({
           trigger: NotificationTrigger.VENUE_ON_HOLD_TO_LINKED_ARTIST,

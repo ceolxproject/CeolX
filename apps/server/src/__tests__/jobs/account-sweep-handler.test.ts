@@ -7,6 +7,8 @@
 const mockSendAccountDeleted = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
 vi.mock('@CeolX/email', () => ({ sendAccountDeletedEmail: mockSendAccountDeleted }));
 
+// The sweep's due-user read awaits .where() directly; the per-user erasure then
+// reads venue ids the same way. One mock serves both — see account-handler.test.ts.
 const mockSelectWhere = vi.hoisted(() => vi.fn());
 const mockSelectFrom = vi.hoisted(() => vi.fn(() => ({ where: mockSelectWhere })));
 const mockSelect = vi.hoisted(() => vi.fn(() => ({ from: mockSelectFrom })));
@@ -40,6 +42,16 @@ vi.mock('@CeolX/db/schema/auth', () => ({
   session: { userId: 'user_id' },
 }));
 
+vi.mock('@CeolX/db/schema/subscriptions', () => ({
+  activationTokens: { userId: 'user_id' },
+  venueSubscriptions: {
+    venueId: 'venue_id',
+    stripeCustomerId: 'stripe_customer_id',
+    stripeSubscriptionId: 'stripe_subscription_id',
+    updatedAt: 'updated_at',
+  },
+}));
+
 vi.mock('@CeolX/db/schema/users', () => ({
   artistProfiles: { userId: 'user_id' },
   venueProfiles: { userId: 'user_id' },
@@ -60,6 +72,7 @@ vi.mock('@CeolX/api/services/subscription-sync', () => ({
 }));
 
 vi.mock('drizzle-orm', () => ({
+  inArray: (col: unknown, vals: unknown) => ({ kind: 'inArray', col, vals }),
   // These four are stubbed with inspectable shapes: the assertions below read the
   // composed predicate rather than executing it.
   and: (...args: unknown[]) => ({ kind: 'and', args }),
@@ -78,6 +91,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { handleAccountAnonymizeSweep } from '../../jobs/handlers/account.js';
 
 beforeEach(() => {
+  // Default for reads past the due-user query — each erasure also looks up the
+  // user's venue ids to strip Stripe identifiers. Tests override the first call
+  // with mockResolvedValueOnce, which takes precedence over this.
+  mockSelectWhere.mockResolvedValue([]);
   mockCancelSubscription.mockResolvedValue(true);
 });
 

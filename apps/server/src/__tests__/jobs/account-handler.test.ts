@@ -4,7 +4,13 @@ const mockSendAccountDeleted = vi.hoisted(() => vi.fn().mockResolvedValue(undefi
 vi.mock('@CeolX/email', () => ({ sendAccountDeletedEmail: mockSendAccountDeleted }));
 
 const mockSelectLimit = vi.hoisted(() => vi.fn());
-const mockSelectWhere = vi.hoisted(() => vi.fn(() => ({ limit: mockSelectLimit })));
+// Two shapes off .where(): the guard read chains .limit(1), while the venue-id read
+// (added for GDPR erasure of Stripe identifiers) awaits .where() directly. Drizzle
+// builders are thenable, so return the promise with .limit attached.
+const mockSelectVenueRows = vi.hoisted(() => vi.fn());
+const mockSelectWhere = vi.hoisted(() =>
+  vi.fn(() => Object.assign(mockSelectVenueRows() as Promise<unknown>, { limit: mockSelectLimit }))
+);
 const mockSelectFrom = vi.hoisted(() => vi.fn(() => ({ where: mockSelectWhere })));
 const mockSelect = vi.hoisted(() => vi.fn(() => ({ from: mockSelectFrom })));
 
@@ -31,6 +37,16 @@ vi.mock('@CeolX/db/schema/auth', () => ({
   session: { userId: 'user_id' },
 }));
 
+vi.mock('@CeolX/db/schema/subscriptions', () => ({
+  activationTokens: { userId: 'user_id' },
+  venueSubscriptions: {
+    venueId: 'venue_id',
+    stripeCustomerId: 'stripe_customer_id',
+    stripeSubscriptionId: 'stripe_subscription_id',
+    updatedAt: 'updated_at',
+  },
+}));
+
 vi.mock('@CeolX/db/schema/users', () => ({
   artistProfiles: { userId: 'user_id' },
   venueProfiles: { userId: 'user_id' },
@@ -51,6 +67,7 @@ vi.mock('@CeolX/api/services/subscription-sync', () => ({
 }));
 
 vi.mock('drizzle-orm', () => ({
+  inArray: (col: unknown, vals: unknown) => ({ kind: 'inArray', col, vals }),
   eq: (col: unknown, val: unknown) => ({ col, val }),
   // No-op stub, required only because the handler now reaches
   // @CeolX/api/services/subscription-sync (to cancel billing before erasure,
@@ -68,6 +85,7 @@ const PAYLOAD = {
 };
 
 beforeEach(() => {
+  mockSelectVenueRows.mockResolvedValue([]);
   mockCancelSubscription.mockResolvedValue(true);
 });
 
@@ -217,7 +235,7 @@ describe('handleAccountAnonymize — anonymisation path', () => {
     expect(venueSet).not.toHaveProperty('isActive');
   });
 
-  it('hard-deletes profile social links, device tokens, and active sessions', async () => {
+  it('hard-deletes social links, device tokens, sessions and activation tokens', async () => {
     mockSelectLimit.mockResolvedValueOnce([
       {
         isAnonymized: false,
@@ -229,8 +247,52 @@ describe('handleAccountAnonymize — anonymisation path', () => {
 
     await handleAccountAnonymize(PAYLOAD);
 
-    // Three deletes: profile_social_links, device_tokens, session
-    expect(mockTxDelete).toHaveBeenCalledTimes(3);
+    // profile_social_links, device_tokens, session, activation_tokens.
+    expect(mockTxDelete).toHaveBeenCalledTimes(4);
+    // The activation token FK cascades on user DELETE, but erasure anonymises in
+    // place and never deletes the row, so the cascade never fires. Without an
+    // explicit delete, a live credential outlives the "deleted" account and any
+    // unopened activation email still works.
+    const tables = mockTxDelete.mock.calls.map((c) => (c as unknown[])[0]);
+    expect(tables).toContainEqual(expect.objectContaining({ userId: 'user_id' }));
+  });
+
+  it('strips the Stripe identifiers off a deleted venue (GDPR)', async () => {
+    mockSelectLimit.mockResolvedValueOnce([
+      {
+        isAnonymized: false,
+        deletionScheduledFor: new Date('2026-05-28'),
+        email: 'real@example.com',
+        name: 'Aoife',
+      },
+    ]);
+    mockSelectVenueRows.mockResolvedValue([{ id: 'venue-1' }]);
+
+    await handleAccountAnonymize(PAYLOAD);
+
+    // Stripe holds the billing name and address against that customer, so leaving
+    // the id behind means the anonymised row still identifies the person.
+    const writes = mockTxUpdateSet.mock.calls.map((c) => (c as unknown[])[0]);
+    expect(writes).toContainEqual(
+      expect.objectContaining({ stripeCustomerId: null, stripeSubscriptionId: null })
+    );
+  });
+
+  it('skips the billing write entirely for a non-venue account', async () => {
+    mockSelectLimit.mockResolvedValueOnce([
+      {
+        isAnonymized: false,
+        deletionScheduledFor: new Date('2026-05-28'),
+        email: 'real@example.com',
+        name: 'Aoife',
+      },
+    ]);
+    mockSelectVenueRows.mockResolvedValue([]);
+
+    await handleAccountAnonymize(PAYLOAD);
+
+    const writes = mockTxUpdateSet.mock.calls.map((c) => (c as unknown[])[0]);
+    expect(writes).not.toContainEqual(expect.objectContaining({ stripeSubscriptionId: null }));
   });
 });
 

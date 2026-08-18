@@ -15,6 +15,7 @@ import { handleNotificationBatch, handleNotificationPush } from './notification.
 import {
   handleSubscriptionActivationReminder,
   handleSubscriptionTrialEnding,
+  handleSubscriptionTrialEndingSweep,
 } from './subscription.js';
 
 // ---------------------------------------------------------------------------
@@ -43,6 +44,10 @@ const handlers: Record<JobType, (payload: unknown) => Promise<void>> = {
     ),
   'subscription.trial-ending': (p) =>
     handleSubscriptionTrialEnding(jobPayloadSchemas['subscription.trial-ending'].parse(p)),
+  'subscription.trial-ending-sweep': (p) =>
+    handleSubscriptionTrialEndingSweep(
+      jobPayloadSchemas['subscription.trial-ending-sweep'].parse(p)
+    ),
   'data-export.process': (p) =>
     handleDataExportProcess(jobPayloadSchemas['data-export.process'].parse(p)),
   'data-export.notify': (p) =>
