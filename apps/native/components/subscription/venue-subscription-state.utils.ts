@@ -64,10 +64,23 @@ export function venueStateFor({
   // handling (D-62). Silence is the lesser wrong; a control that errors is worse.
   if (status === 'active') return 'none' as const;
 
-  // Only prompt to activate when the venue is genuinely hidden. `cancelled` and
-  // `inactive` both mean "no live subscription" and share one recovery flow; the single
+  // Two different truths, so two different states.
+  //
+  // `activate` — the venue is genuinely hidden, so "your profile isn't live yet" is
+  // accurate. This is a new venue that never completed payment setup.
+  //
+  // `activate_grace` — the venue has no subscription but IS still visible, because the
+  // gate is off or it is grandfathered through the cutover (O-08). Telling this venue
+  // its profile is not live would be **false**: it signed up before subscriptions
+  // existed and its profile works today. It still needs prompting, because it loses
+  // access when the gate turns on — but the copy has to say "keep it live", not
+  // "it isn't live". Returning `none` here (the previous behaviour) was worse still:
+  // the venue was told nothing at all and would have been hidden without warning.
+  //
+  // `cancelled` and `inactive` share one recovery flow either way; the single
   // difference (no second free trial, D-42) is enforced server-side.
   if (onHold) return 'activate' as const;
+  if (status === 'inactive' || status === 'cancelled') return 'activate_grace' as const;
 
   return 'none' as const;
 }

@@ -37,7 +37,13 @@ export function useVenueSubscription() {
     status,
     trialEndsAt: me?.venueProfile?.trialEndsAt ?? null,
     onHold,
-    /** Which subscription surface to render: activate | trial | past_due | none. */
+    /**
+     * Which surface to render: activate | activate_grace | trial | past_due | none.
+     *
+     * `activate` and `activate_grace` are both "no subscription", but only the first
+     * means the profile is actually hidden — the copy differs because for a grandfathered
+     * venue the profile is live and saying otherwise would be false.
+     */
     state: venueStateFor({ status, onHold }),
     /** V-14 — resolved server-side, mirroring `assertVenueMayPublish`. */
     mayPublish: me?.venueProfile?.mayPublish ?? true,

@@ -153,7 +153,14 @@ function ProfileHeader({
             around the same thing with explicit pixels (max-w-[292px]). */}
         {isVenue && subscription.state === 'activate' ? (
           <View className="self-stretch mt-2">
-            <VenueActivationPrompt />
+            <VenueActivationPrompt variant="hidden" />
+          </View>
+        ) : null}
+        {/* Grandfathered: profile is live, but unsubscribed. Different copy, same action —
+            saying "isn't live yet" to a venue whose profile works would be false. */}
+        {isVenue && subscription.state === 'activate_grace' ? (
+          <View className="self-stretch mt-2">
+            <VenueActivationPrompt variant="grandfathered" />
           </View>
         ) : null}
         {isVenue && subscription.state === 'trial' ? (

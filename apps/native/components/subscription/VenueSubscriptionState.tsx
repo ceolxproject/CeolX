@@ -79,7 +79,21 @@ function useCooldown(seconds: number) {
  * Deliberately has no price and no link. The button asks the server to email a
  * secure link; everything after that happens outside the app (D-16, D-60).
  */
-export function VenueActivationPrompt() {
+/**
+ * @param variant `hidden` — the profile is genuinely not live yet (a new venue that never
+ * completed payment setup). `grandfathered` — the profile **is** live and working, but has
+ * no subscription and will be hidden when the gate turns on (O-08).
+ *
+ * The distinction is not cosmetic. A venue that signed up before subscriptions existed
+ * has a working profile today; telling it "your profile isn't live yet" is simply false,
+ * and would read as us having broken something. It still needs prompting — it loses access
+ * at cutover — but the ask is "keep it live", not "make it live".
+ */
+export function VenueActivationPrompt({
+  variant = 'hidden',
+}: {
+  variant?: 'hidden' | 'grandfathered';
+}) {
   const { remaining, start } = useCooldown(RESEND_COOLDOWN_SECONDS);
   // Seeded from the shared deadline so returning to this screen mid-cooldown keeps the
   // "check your inbox" copy instead of inviting another tap the server will refuse.
@@ -112,14 +126,18 @@ export function VenueActivationPrompt() {
       <View className="flex-row items-start gap-2">
         <Ionicons name="lock-closed-outline" size={16} color="#C8FF2F" style={{ marginTop: 1 }} />
         <Text className="shrink text-sm font-bold text-white font-urbanist">
-          Your profile isn&apos;t live yet
+          {variant === 'grandfathered'
+            ? 'Action needed to keep your profile live'
+            : "Your profile isn't live yet"}
         </Text>
       </View>
 
       <Text className="text-xs leading-[18px] text-white/60 font-urbanist">
         {sent
           ? 'Check your inbox to finish setting up your subscription. The link works for a limited time — if it expires, request a new one.'
-          : 'Artists can’t find you until your subscription is set up. We’ll email you a secure link to finish.'}
+          : variant === 'grandfathered'
+            ? 'Your profile is live and artists can find you. Set up your subscription to keep it that way — we’ll email you a secure link.'
+            : 'Artists can’t find you until your subscription is set up. We’ll email you a secure link to finish.'}
       </Text>
 
       <Pressable
