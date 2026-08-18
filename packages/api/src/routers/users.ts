@@ -3,6 +3,7 @@ import { z } from 'zod';
 
 import { db } from '@CeolX/db';
 import { user } from '@CeolX/db/schema/auth';
+import { venueSubscriptions } from '@CeolX/db/schema/subscriptions';
 import { artistProfiles, venueProfiles } from '@CeolX/db/schema/users';
 import { UserRole } from '@CeolX/shared';
 import { updateAccountSchema } from '@CeolX/shared/validators';
@@ -84,6 +85,7 @@ export const usersRouter = router({
       coverImageUrl: string | null;
       contactEmail: string | null;
       subscriptionStatus: string;
+      trialEndsAt: string | null;
       followerCount: number;
       followingCount: number;
       socialLinks: Record<string, string>;
@@ -135,8 +137,12 @@ export const usersRouter = router({
           coverImageUrl: venueProfiles.coverImageUrl,
           contactEmail: venueProfiles.contactEmail,
           subscriptionStatus: venueProfiles.subscriptionStatus,
+          // Surfaced so the venue can see when the first charge lands. The trial
+          // runs six months, so without this the date exists only in an email.
+          trialEndsAt: venueSubscriptions.trialEndsAt,
         })
         .from(venueProfiles)
+        .leftJoin(venueSubscriptions, eq(venueSubscriptions.venueId, venueProfiles.id))
         .where(eq(venueProfiles.userId, userId))
         .limit(1);
       onboardingComplete = !!profile;
@@ -152,6 +158,8 @@ export const usersRouter = router({
           // numeric columns come back as strings — expose as numbers for the map
           lat: profile.lat ? Number(profile.lat) : null,
           lng: profile.lng ? Number(profile.lng) : null,
+          // Serialised for the wire — the declared type is a string.
+          trialEndsAt: profile.trialEndsAt?.toISOString() ?? null,
           followerCount,
           followingCount,
           socialLinks: socialLinksRecord,

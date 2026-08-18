@@ -22,6 +22,7 @@ vi.mock('@CeolX/db/schema/auth', () => ({
 }));
 vi.mock('@CeolX/db/schema/users', () => ({
   artistProfiles: {
+    id: 'id',
     userId: 'user_id',
     stageName: 'stage_name',
     bio: 'bio',
@@ -29,11 +30,13 @@ vi.mock('@CeolX/db/schema/users', () => ({
     isActive: 'is_active',
   },
   venueProfiles: {
+    id: 'id',
     userId: 'user_id',
     venueName: 'venue_name',
     bio: 'bio',
     profileImageUrl: 'profile_image_url',
-    isActive: 'is_active',
+    // is_active was dropped in M8-T1 (D-14) — visibility comes from
+    // subscription_status via venueVisibilityFor().
     subscriptionStatus: 'subscription_status',
   },
 }));
@@ -97,23 +100,80 @@ describe('profiles.getByUsername', () => {
     expect(res.userId).toBe('u1');
   });
 
-  it('returns a venue even when inactive/unsubscribed (gate currently disabled)', async () => {
+  // Rewritten in M8-T1. This previously asserted that an unsubscribed venue
+  // resolved normally "gate currently disabled". The gate now exists, so the
+  // behaviour is pinned at both switch positions — and critically, an unpaid venue
+  // resolves to `on_hold` rather than 404-ing, because a handle that exists must
+  // not read as a missing page (D-52).
+  it('resolves an unsubscribed venue while the gate is off', async () => {
     mockSelectLimit
       .mockResolvedValueOnce([{ id: 'v1', currentRole: 'venue' }])
       .mockResolvedValueOnce([
         {
+          id: 'vp1',
           userId: 'v1',
           displayName: 'The Cobblestone',
           bio: null,
           image: null,
-          isActive: false,
           subscriptionStatus: 'inactive',
         },
       ]);
 
     const res = await createCaller(anon()).profiles.getByUsername({ username: 'thecobblestone' });
 
-    expect(res).toEqual({ role: 'venue', userId: 'v1' });
+    expect(res).toEqual({ role: 'venue', userId: 'v1', visibility: 'visible' });
+  });
+
+  it('resolves an unsubscribed venue as on_hold when the gate is on, never 404', async () => {
+    vi.stubEnv('VENUE_GATE_ENABLED', 'true');
+    vi.resetModules();
+    const { profilesRouter: gatedRouter } = await import('../routers/profiles');
+    const gated = router({ profiles: gatedRouter });
+
+    mockSelectLimit
+      .mockResolvedValueOnce([{ id: 'v1', currentRole: 'venue' }])
+      .mockResolvedValueOnce([
+        {
+          id: 'vp1',
+          userId: 'v1',
+          displayName: 'The Cobblestone',
+          bio: null,
+          image: null,
+          subscriptionStatus: 'inactive',
+        },
+      ]);
+
+    const res = await t
+      .createCallerFactory(gated)(anon() as unknown as Context)
+      .profiles.getByUsername({ username: 'thecobblestone' });
+
+    expect(res).toEqual({ role: 'venue', userId: 'v1', visibility: 'on_hold' });
+  });
+
+  it('keeps a trialing venue fully visible with the gate on (D-28)', async () => {
+    vi.stubEnv('VENUE_GATE_ENABLED', 'true');
+    vi.resetModules();
+    const { profilesRouter: gatedRouter } = await import('../routers/profiles');
+    const gated = router({ profiles: gatedRouter });
+
+    mockSelectLimit
+      .mockResolvedValueOnce([{ id: 'v1', currentRole: 'venue' }])
+      .mockResolvedValueOnce([
+        {
+          id: 'vp1',
+          userId: 'v1',
+          displayName: 'The Cobblestone',
+          bio: null,
+          image: null,
+          subscriptionStatus: 'trialing',
+        },
+      ]);
+
+    const res = await t
+      .createCallerFactory(gated)(anon() as unknown as Context)
+      .profiles.getByUsername({ username: 'thecobblestone' });
+
+    expect(res).toEqual({ role: 'venue', userId: 'v1', visibility: 'visible' });
   });
 
   it('404s an unknown handle', async () => {

@@ -9,6 +9,7 @@ export default defineConfig({
       'packages/auth/vitest.config.ts',
       'packages/cache/vitest.config.ts',
       'packages/email/vitest.config.ts',
+      'packages/shared/vitest.config.ts',
     ],
   },
 });

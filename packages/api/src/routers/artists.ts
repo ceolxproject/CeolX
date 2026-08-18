@@ -7,6 +7,7 @@ import { user } from '@CeolX/db/schema/auth';
 import { collections, eventCollaborators, events } from '@CeolX/db/schema/events';
 import { follows } from '@CeolX/db/schema/social';
 import { artistProfiles } from '@CeolX/db/schema/users';
+import { ProfileVisibility } from '@CeolX/shared';
 import { updateArtistProfileSchema } from '@CeolX/shared/validators';
 
 import { artistProcedure, protectedProcedure, publicProcedure, router } from '../index';
@@ -16,7 +17,7 @@ import { isEventNotFinished } from '../lib/event-window';
 import {
   getFollowerCounts,
   getSocialLinksRecord,
-  isProfileVisibleToViewer,
+  resolveProfileVisibility,
   upsertSocialLinks,
 } from './_profile-helpers';
 
@@ -79,7 +80,15 @@ export const artistsRouter = router({
     // Inactive profiles return 404 unless the requester is the profile owner.
     // Shared predicate so the /u/<username> share link uses the identical rule.
     const isOwner = ctx.session?.user?.id === profile.userId;
-    if (!isProfileVisibleToViewer('artist', profile, ctx.session?.user?.id, profile.userId)) {
+    const visibility = await resolveProfileVisibility(
+      'artist',
+      profile,
+      ctx.session?.user?.id,
+      profile.userId
+    );
+    if (visibility !== ProfileVisibility.VISIBLE) {
+      // Artists have no on-hold state — `is_active` here means the persona was
+      // switched away, which is genuine absence, not a lapsed subscription.
       throw new TRPCError({ code: 'NOT_FOUND', message: 'Artist not found' });
     }
 

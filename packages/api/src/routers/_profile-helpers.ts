@@ -2,7 +2,15 @@ import { and, eq, ne, sql } from 'drizzle-orm';
 
 import { db } from '@CeolX/db';
 import { follows } from '@CeolX/db/schema/social';
+import { venueSubscriptions } from '@CeolX/db/schema/subscriptions';
 import { artistProfiles, profileSocialLinks, venueProfiles } from '@CeolX/db/schema/users';
+import { env } from '@CeolX/env/server';
+import {
+  ProfileVisibility,
+  SubscriptionStatus,
+  venueVisibilityFor,
+  type VenueSubscriptionStatus,
+} from '@CeolX/shared';
 
 /**
  * Get follower and following counts for a user.
@@ -55,26 +63,76 @@ export async function getFollowerCounts(userId: string) {
 }
 
 /**
- * Public-visibility predicate shared by artists.byId, venues.byId and
- * profiles.getByUsername, so "is this profile public?" lives in ONE place and
- * the shareable ceolx.com/u/<username> link can never diverge from what the
- * profile screens show.
+ * Is the venue subscription gate live? (M8-T0 O-08.)
  *
- * The owner always sees their own profile. Artist profiles are gated on
- * `is_active`. Venue subscription gating is intentionally disabled until
- * subscriptions ship (Asana 1215489113550392) — restore it HERE (return
- * `subscriptionStatus === 'active' && isActive` for non-owners) and every
- * caller, including the shared link, is covered at once.
+ * Defaults to false. Every venue in production still sits at
+ * `subscription_status = 'inactive'`, because nothing has ever written that
+ * column to anything else — the Stripe webhook is the only intended writer.
+ * Switching this on before existing venues are back-filled would hide every
+ * venue on the platform at once and block them from creating events or posts,
+ * while the app has been promising them advance notice.
+ *
+ * So the gate ships dark: the code is wired and tested in both positions, and
+ * turning it on is a config change plus a back-fill, not a deploy.
  */
-export function isProfileVisibleToViewer(
+function isVenueGateEnabled(): boolean {
+  return env.VENUE_GATE_ENABLED === 'true';
+}
+
+/**
+ * End of the past-due grace window for a venue, or null when not applicable.
+ *
+ * Read lazily and only for `past_due`, which is rare — the common statuses need
+ * no query at all, so the hot profile path keeps its current shape rather than
+ * gaining a join it would almost never use.
+ */
+async function graceWindowEndFor(venueId: string): Promise<Date | null> {
+  const [row] = await db
+    .select({ pastDueSince: venueSubscriptions.pastDueSince })
+    .from(venueSubscriptions)
+    .where(eq(venueSubscriptions.venueId, venueId))
+    .limit(1);
+
+  if (!row?.pastDueSince) return null;
+  return new Date(row.pastDueSince.getTime() + env.STRIPE_GRACE_DAYS * 24 * 60 * 60 * 1000);
+}
+
+/**
+ * Public-visibility predicate shared by artists.byId, venues.byId,
+ * profiles.getByUsername and the /u/<username> share page, so "is this profile
+ * public?" lives in ONE place and those surfaces cannot diverge.
+ *
+ * Returns a three-way state, not a boolean (M8-T0 D-52). "On hold" has to stay
+ * distinguishable from "does not exist": an unpaid venue must read as the venue's
+ * own lapse, never as CeolX being broken. Collapsing the two into `false` is
+ * precisely the bug D-52 exists to prevent, and it is what the previous version
+ * of this function did.
+ *
+ * Artist profiles have no on-hold state — `is_active` there means "persona
+ * switched away" (an unrelated concept from billing, and default true), so an
+ * inactive artist is genuinely absent.
+ */
+export async function resolveProfileVisibility(
   role: 'artist' | 'venue',
-  profile: { isActive: boolean | null; subscriptionStatus?: string | null },
+  profile: { id: string; isActive?: boolean | null; subscriptionStatus?: string | null },
   viewerId: string | undefined,
   ownerId: string
-): boolean {
-  if (viewerId && viewerId === ownerId) return true;
-  if (role === 'artist') return profile.isActive === true;
-  return true; // venue: gate disabled — see note above
+): Promise<ProfileVisibility> {
+  // The owner always sees their own profile — they need to reach it to fix payment.
+  if (viewerId && viewerId === ownerId) return ProfileVisibility.VISIBLE;
+
+  if (role === 'artist') {
+    return profile.isActive === true ? ProfileVisibility.VISIBLE : ProfileVisibility.NOT_FOUND;
+  }
+
+  if (!isVenueGateEnabled()) return ProfileVisibility.VISIBLE;
+
+  const status = (profile.subscriptionStatus ??
+    SubscriptionStatus.INACTIVE) as VenueSubscriptionStatus;
+  const graceEndsAt =
+    status === SubscriptionStatus.PAST_DUE ? await graceWindowEndFor(profile.id) : null;
+
+  return venueVisibilityFor({ status, graceEndsAt });
 }
 
 /**
