@@ -31,7 +31,7 @@ import { SettingsBottomSheet } from '@/components/SettingsBottomSheet';
 import {
   VenueActivationPrompt,
   VenuePastDueBanner,
-  VenueTrialNotice,
+  VenueTrialBadge,
 } from '@/components/subscription/VenueSubscriptionState';
 import { useAuth } from '@/contexts/auth-context';
 import { useArchiveEvent } from '@/hooks/use-archive-event';
@@ -145,33 +145,11 @@ function ProfileHeader({
       {/* Name + details */}
       <View className="items-center gap-1.5 mb-3">
         <Text className="text-xl font-bold text-white font-urbanist">{displayName}</Text>
-        {/* M8: the venue's own subscription surface. Replaces the interim
-            free-access badge. Never shows a price or a payment link (D-16).
-            `self-stretch`, not `w-full`: the parent is `items-center`, which leaves this
-            View content-sized, so a percentage width resolves against sibling width and
-            squeezed the card to roughly display-name width. Every neighbour here works
-            around the same thing with explicit pixels (max-w-[292px]). */}
-        {isVenue && subscription.state === 'activate' ? (
-          <View className="self-stretch mt-2">
-            <VenueActivationPrompt variant="hidden" />
-          </View>
-        ) : null}
-        {/* Grandfathered: profile is live, but unsubscribed. Different copy, same action —
-            saying "isn't live yet" to a venue whose profile works would be false. */}
-        {isVenue && subscription.state === 'activate_grace' ? (
-          <View className="self-stretch mt-2">
-            <VenueActivationPrompt variant="grandfathered" />
-          </View>
-        ) : null}
+        {/* A badge, not a card — nothing is required of a trialing venue, so the detail
+            sits one tap away and the identity block keeps its shape. No wrapper: this is
+            content-sized and the parent centres it. */}
         {isVenue && subscription.state === 'trial' ? (
-          <View className="self-stretch mt-2">
-            <VenueTrialNotice trialEndsAt={subscription.trialEndsAt} />
-          </View>
-        ) : null}
-        {isVenue && subscription.state === 'past_due' ? (
-          <View className="self-stretch mt-2">
-            <VenuePastDueBanner />
-          </View>
+          <VenueTrialBadge trialEndsAt={subscription.trialEndsAt} />
         ) : null}
         {isVenue && (venueProfile?.address ?? me.venueAddress) && (
           <View className="flex-row items-start justify-center gap-1 max-w-[292px]">
@@ -197,6 +175,32 @@ function ProfileHeader({
           </Text>
         )}
       </View>
+
+      {/* M8: the venue's own subscription surface, below the identity block rather than
+          inside it — a full-width card between the venue name and its address split the
+          one group on this screen that has to read as a unit. Never shows a price or a
+          payment link (D-16).
+
+          `w-full` here, not on a child of the `items-center` column above: that parent
+          leaves children content-sized, so a percentage width resolved against sibling
+          width and squeezed the card to roughly display-name width. */}
+      {isVenue && subscription.state === 'activate' ? (
+        <View className="w-full px-5 mb-3">
+          <VenueActivationPrompt variant="hidden" />
+        </View>
+      ) : null}
+      {/* Grandfathered: profile is live, but unsubscribed. Different copy, same action —
+          saying "isn't live yet" to a venue whose profile works would be false. */}
+      {isVenue && subscription.state === 'activate_grace' ? (
+        <View className="w-full px-5 mb-3">
+          <VenueActivationPrompt variant="grandfathered" />
+        </View>
+      ) : null}
+      {isVenue && subscription.state === 'past_due' ? (
+        <View className="w-full px-5 mb-3">
+          <VenuePastDueBanner />
+        </View>
+      ) : null}
 
       {/* Edit Profile + Gear */}
       <View className="flex-row items-center gap-2">
@@ -703,6 +707,9 @@ function CreatorProfile({
 
   const myEvents = useMyEvents();
   const { totalCount: savedCount } = useSavedEvents();
+  // Shares the `users.me` cache entry with the header — this is only here for its
+  // `refetch`, which pull-to-refresh needs.
+  const { refetch: refetchMe } = useMe();
 
   // Dismiss the Settings sheet on blur so it can't get stuck open when the
   // user navigates away and back (Asana bug-bash: settings popup persists).
@@ -712,9 +719,12 @@ function CreatorProfile({
     }, [])
   );
 
+  // Refreshes `users.me` alongside the events list. It used to reload only the events, so
+  // pulling down on the profile — the obvious gesture for "has my activation landed yet" —
+  // left the subscription card exactly as it was.
   const handleRefresh = useCallback(async () => {
-    await myEvents.refresh();
-  }, [myEvents]);
+    await Promise.all([myEvents.refresh(), refetchMe()]);
+  }, [myEvents, refetchMe]);
 
   const handleSignOut = useCallback(async () => {
     settingsRef.current?.dismiss();

@@ -1,13 +1,16 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useMutation } from '@tanstack/react-query';
-import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, Text, View } from 'react-native';
+import { router } from 'expo-router';
+import { useEffect, useRef } from 'react';
+import { ActivityIndicator, Alert, Pressable, Text, View } from 'react-native';
 
-import { PUBLISH_BLOCKED_MESSAGE as BLOCKED_MESSAGE } from './venue-subscription-state.utils';
+import {
+  ACTIVATION_POLL_MS,
+  PUBLISH_BLOCKED_MESSAGE as BLOCKED_MESSAGE,
+} from './venue-subscription-state.utils';
 
-import { appToast } from '@/components/AppToast';
+import { useActivationEmail } from '@/hooks/use-activation-email';
+import { useMe } from '@/hooks/use-me';
 import { AnalyticsEvent, track } from '@/lib/analytics';
-import { trpc } from '@/utils/trpc';
 
 // Re-exported so existing importers keep working after the pure logic moved out into a
 // module the node test environment can load.
@@ -25,62 +28,18 @@ export {
  * compliant on both stores in every country without a special entitlement, so
  * "Activate Profile" sends an email and says so — it never opens anything.
  *
- * Cooldowns are enforced server-side; the button reflects them so the venue is not
- * surprised by a rate-limit error.
+ * Weight follows urgency, not uniformity. A state the venue must act on gets a card with
+ * a button; a state that needs nothing from them gets a badge with the detail one tap
+ * away. Rendering every state as a full-width card put a paragraph of billing prose in
+ * the middle of a healthy venue's profile header, above their own address.
  */
-
-/** Seconds the resend button stays disabled, matching the server's cooldown. */
-const RESEND_COOLDOWN_SECONDS = 60;
-
-/**
- * Cooldown deadline, module-scoped so it survives the component unmounting.
- *
- * Navigating away from the profile tab and back used to reset the countdown and the
- * "check your inbox" copy, so the button read "Activate profile" again with no cooldown
- * while the server was still refusing. The server is authoritative either way; this
- * keeps the UI honest between mounts.
- */
-let resendCooldownUntil = 0;
-
-/**
- * Seconds left on the resend cooldown.
- *
- * Tracks an absolute deadline and derives the remaining time from it. The previous
- * version decremented a counter and depended on that counter, so the effect tore down
- * and recreated the interval on every tick — restarting the 1000ms window each time and
- * accumulating drift — and, because JS timers suspend when the app is backgrounded, it
- * still read "Resend in 43s" minutes after the server's cooldown had expired.
- */
-function useCooldown(seconds: number) {
-  const [remaining, setRemaining] = useState(() =>
-    Math.max(0, Math.ceil((resendCooldownUntil - Date.now()) / 1000))
-  );
-
-  useEffect(() => {
-    // One interval for the component's lifetime. It only reads the clock, so a
-    // suspended timer self-corrects on the next tick instead of drifting.
-    const timer = setInterval(() => {
-      setRemaining(Math.max(0, Math.ceil((resendCooldownUntil - Date.now()) / 1000)));
-    }, 1000);
-    return () => clearInterval(timer);
-  }, []);
-
-  return {
-    remaining,
-    start: () => {
-      resendCooldownUntil = Date.now() + seconds * 1000;
-      setRemaining(seconds);
-    },
-  };
-}
 
 /**
  * `inactive` / `cancelled` — the venue has no live subscription.
  *
  * Deliberately has no price and no link. The button asks the server to email a
  * secure link; everything after that happens outside the app (D-16, D-60).
- */
-/**
+ *
  * @param variant `hidden` — the profile is genuinely not live yet (a new venue that never
  * completed payment setup). `grandfathered` — the profile **is** live and working, but has
  * no subscription and will be hidden when the gate turns on (O-08).
@@ -95,10 +54,22 @@ export function VenueActivationPrompt({
 }: {
   variant?: 'hidden' | 'grandfathered';
 }) {
-  const { remaining, start } = useCooldown(RESEND_COOLDOWN_SECONDS);
-  // Seeded from the shared deadline so returning to this screen mid-cooldown keeps the
-  // "check your inbox" copy instead of inviting another tap the server will refuse.
-  const [sent, setSent] = useState(() => resendCooldownUntil > Date.now());
+  const activation = useActivationEmail({ source: 'profile' });
+
+  // Poll `users.me` while this prompt is on screen, so the card gives way to the trial
+  // badge on its own once the webhook lands.
+  //
+  // Payment happens in a browser, usually on a laptop (D-16), so the app gets no signal at
+  // all — and the three things a venue would try instead did not work: the profile tab
+  // stays mounted so switching tabs refetches nothing, pull-to-refresh only reloaded the
+  // events list, and `staleTime` is 0 but a refetch still needs a *trigger*. The only one
+  // that worked was backgrounding the app and coming back, which nobody thinks to do.
+  //
+  // Scoped tightly by where it lives: this component only renders for a venue with no live
+  // subscription, so the poll starts when the wait starts and stops the moment the state
+  // changes and this unmounts. Shares the `users.me` cache entry, so it costs one small
+  // request per interval and nothing else re-fetches.
+  useMe({ refetchInterval: ACTIVATION_POLL_MS });
 
   // Funnel entry. Fired on mount rather than on render, so re-renders from the cooldown
   // ticking every second do not each count as another impression.
@@ -111,36 +82,14 @@ export function VenueActivationPrompt({
   useEffect(() => {
     if (promptSeen.current) return;
     promptSeen.current = true;
-    track(AnalyticsEvent.VENUE_ACTIVATION_PROMPT_SHOWN, { already_requested: sent });
+    track(AnalyticsEvent.VENUE_ACTIVATION_PROMPT_SHOWN, {
+      already_requested: activation.sent,
+      source: 'profile',
+    });
     // `sent` is read once at mount on purpose — this is an impression, not a subscription
     // to its later changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  const requestActivation = useMutation(
-    trpc.venues.requestActivation.mutationOptions({
-      onSuccess: ({ sentTo }) => {
-        // On success only. A rate-limited tap sends nothing, so counting it here would
-        // overstate how many links the venue actually received.
-        track(AnalyticsEvent.VENUE_ACTIVATION_EMAIL_REQUESTED, { resend: sent });
-        setSent(true);
-        start();
-        appToast.success(`Activation email sent to ${sentTo}`);
-      },
-      onError: (err) => {
-        // TOO_MANY_REQUESTS is expected if they tapped twice — reflect the cooldown
-        // rather than presenting it as a failure.
-        if (err.data?.code === 'TOO_MANY_REQUESTS') {
-          start();
-          appToast.info('Email already sent — please check your inbox.');
-          return;
-        }
-        appToast.error(err.message || 'Could not send the activation email');
-      },
-    })
-  );
-
-  const disabled = requestActivation.isPending || remaining > 0;
 
   return (
     <View className="rounded-xl bg-[#333335] px-4 py-3.5 gap-2.5">
@@ -154,7 +103,7 @@ export function VenueActivationPrompt({
       </View>
 
       <Text className="text-xs leading-[18px] text-white/60 font-urbanist">
-        {sent
+        {activation.sent
           ? 'Check your inbox to finish setting up your subscription. The link works for a limited time — if it expires, request a new one.'
           : variant === 'grandfathered'
             ? 'Your profile is live and artists can find you. Set up your subscription to keep it that way — we’ll email you a secure link.'
@@ -162,23 +111,27 @@ export function VenueActivationPrompt({
       </Text>
 
       <Pressable
-        disabled={disabled}
-        onPress={() => requestActivation.mutate()}
+        disabled={activation.disabled}
+        onPress={activation.request}
         accessibilityRole="button"
-        accessibilityState={{ disabled }}
+        accessibilityState={{ disabled: activation.disabled }}
         className={`mt-0.5 self-start rounded-full px-4 py-2 ${
-          disabled ? 'bg-white/10' : 'bg-[#C8FF2F]'
+          activation.disabled ? 'bg-white/10' : 'bg-[#C8FF2F]'
         }`}
       >
-        {requestActivation.isPending ? (
+        {activation.isPending ? (
           <ActivityIndicator size="small" color="#000" />
         ) : (
           <Text
             className={`text-xs font-bold uppercase tracking-[0.5px] font-urbanist ${
-              disabled ? 'text-white/40' : 'text-black'
+              activation.disabled ? 'text-white/40' : 'text-black'
             }`}
           >
-            {remaining > 0 ? `Resend in ${remaining}s` : sent ? 'Resend email' : 'Activate profile'}
+            {activation.remaining > 0
+              ? `Resend in ${activation.remaining}s`
+              : activation.sent
+                ? 'Resend email'
+                : 'Activate profile'}
           </Text>
         )}
       </Pressable>
@@ -186,54 +139,70 @@ export function VenueActivationPrompt({
   );
 }
 
-interface TrialNoticeProps {
+interface TrialBadgeProps {
   /** ISO trial end date, when known. */
   trialEndsAt?: string | null;
 }
 
 /**
- * `trialing` — fully visible, so this is information rather than a warning.
+ * `trialing` — a badge, not a card.
  *
- * Surfaces the end date because the trial runs six months and the first charge is
- * otherwise a surprise. The emailed warning seven days out (D-30) is the real
+ * The venue is fully visible and owes us nothing until the first charge, so this is the
+ * one subscription state with no action attached. It was a full-width card carrying two
+ * sentences, which pushed the venue's address and stats down the header and read as a
+ * warning on a profile where nothing was wrong. The end date still matters — six months
+ * is long enough for the first charge to be a surprise — so it moves one tap away
+ * instead of disappearing. The emailed warning seven days out (D-30) remains the real
  * safeguard; this is its in-app counterpart.
+ *
+ * `Alert.alert` rather than a bottom sheet on purpose: two sentences, no interaction, and
+ * the platform dialog is already this app's idiom for exactly that (it is what the badge
+ * this replaces used, and what a dozen other screens use).
  */
-export function VenueTrialNotice({ trialEndsAt }: TrialNoticeProps) {
+export function VenueTrialBadge({ trialEndsAt }: TrialBadgeProps) {
   // Renders without a date rather than returning null.
   //
   // `users.me` LEFT JOINs venue_subscriptions, so `trialEndsAt` is null whenever the
   // billing row is absent — which is every seeded venue, because seed.ts inserts them
-  // as `trialing` with no subscription row. Returning null meant the trial notice
+  // as `trialing` with no subscription row. Returning null meant the trial state
   // silently never appeared on any dev or staging database, while `venueStateFor` still
-  // said 'trial' so nothing else filled the gap and the wrapper kept its spacing.
+  // said 'trial' so nothing else filled the gap.
   const ends = trialEndsAt ? new Date(trialEndsAt) : null;
   const formatted =
     ends && !Number.isNaN(ends.getTime())
       ? ends.toLocaleDateString('en-IE', { day: 'numeric', month: 'long', year: 'numeric' })
       : null;
 
+  const detail = formatted
+    ? `Your free trial runs until ${formatted}. We'll email you before the first payment — there's nothing you need to do until then.`
+    : "You're on a free trial. We'll email you before the first payment — there's nothing you need to do until then.";
+
   return (
-    <View className="flex-row items-start gap-2 rounded-xl bg-[#333335] px-3 py-2.5">
-      <Ionicons
-        name="time-outline"
-        size={16}
-        color="rgba(255,255,255,0.6)"
-        style={{ marginTop: 1 }}
-      />
-      <Text className="shrink text-xs leading-[18px] text-white/60 font-urbanist">
-        You&apos;re on a free trial until {formatted}. We&apos;ll email you before the first payment
-        — no action needed until then.
+    <Pressable
+      onPress={() => Alert.alert('Free trial', detail)}
+      hitSlop={8}
+      accessibilityRole="button"
+      accessibilityLabel={`Trial period. ${detail}`}
+      className="flex-row items-center gap-1 rounded-[6px] border border-green-4 px-1.5 py-px active:opacity-60"
+    >
+      <Text className="text-[10px] font-bold uppercase tracking-[0.2px] text-green-10 font-urbanist">
+        Trial period
       </Text>
-    </View>
+      <Ionicons name="information-circle-outline" size={11} color="#C8FF2F" />
+    </Pressable>
   );
 }
 
 /**
  * `past_due`, still inside the grace window (D-57 phase one).
  *
- * A banner, not a block. The grace period exists precisely to absorb the card that
- * merely expired, so freezing the account here would defeat its purpose — that was
- * the argument put to the client and accepted.
+ * A banner, not a block, and deliberately not a badge either — this is the one
+ * informational state with money at stake, so it stays at full weight while the trial
+ * notice steps back.
+ *
+ * The grace period exists precisely to absorb the card that merely expired, so freezing
+ * the account here would defeat its purpose — that was the argument put to the client and
+ * accepted.
  */
 export function VenuePastDueBanner() {
   return (
@@ -248,6 +217,19 @@ export function VenuePastDueBanner() {
 }
 
 /**
+ * Why the publish button is dim, and a way out of it.
+ *
+ * Tappable, because the dead end it replaces was worse than the block itself. The copy
+ * used to read "check your email to reactivate" — but a venue reading this notice is by
+ * definition someone the email did not reach: it expired after 45 minutes (D-17), went to
+ * spam, or was never opened. Sending them back to an inbox that has nothing useful in it
+ * leaves them stuck with no way to progress. The profile can always mint a fresh link, so
+ * this navigates straight there instead of describing where to go.
+ *
+ * `replace`, not `push`: the venue cannot publish, so there is nothing to come back to,
+ * and leaving the composer on the stack invites them to return to a screen that still
+ * refuses them.
+ *
  * @param surface Which create flow was blocked, so the two are separable in the funnel.
  */
 export function VenuePublishBlockedNotice({ surface }: { surface: 'post' | 'event' }) {
@@ -262,16 +244,18 @@ export function VenuePublishBlockedNotice({ surface }: { surface: 'post' | 'even
   }, [surface]);
 
   return (
-    <View className="flex-row items-start gap-2 rounded-xl bg-[#333335] px-3 py-2.5">
-      <Ionicons
-        name="lock-closed-outline"
-        size={16}
-        color="rgba(255,255,255,0.6)"
-        style={{ marginTop: 1 }}
-      />
+    <Pressable
+      onPress={() => router.replace('/(app)/(tabs)/profile')}
+      accessibilityRole="button"
+      accessibilityLabel={`${BLOCKED_MESSAGE} Opens your profile.`}
+      className="flex-row items-center gap-2 rounded-xl bg-[#333335] px-3 py-2.5 active:opacity-60"
+    >
+      <Ionicons name="lock-closed-outline" size={16} color="rgba(255,255,255,0.6)" />
       <Text className="shrink text-xs leading-[18px] text-white/60 font-urbanist">
         {BLOCKED_MESSAGE}
       </Text>
-    </View>
+      {/* The affordance. Without it the row reads as static text and nobody taps it. */}
+      <Ionicons name="chevron-forward" size={16} color="#C8FF2F" />
+    </Pressable>
   );
 }
