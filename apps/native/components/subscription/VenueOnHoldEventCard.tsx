@@ -14,9 +14,13 @@ interface VenueOnHoldEventCardProps {
  * as CeolX losing their plans. The client asked for a "TBC by venue" marker so the
  * absence attributes to the venue instead (D-52).
  *
- * Deliberately not pressable. The server withholds the event's detail, so
- * navigating in would show an empty screen — and the point of this card is to
- * explain, not to lead somewhere.
+ * Deliberately not pressable. `events.byId` withholds the promotional detail for an
+ * on-hold venue — description, ticket link and ad copy — so the detail screen would
+ * only repeat what this card already says. The card is the explanation, not a route.
+ *
+ * The withholding is real, not cosmetic: an earlier version of this note claimed the
+ * server withheld the detail when in fact `byId` had no gate at all, so the same event
+ * opened in full via deep link, share URL or search.
  */
 export function VenueOnHoldEventCard({ title, dateStart }: VenueOnHoldEventCardProps) {
   const date = new Date(dateStart);

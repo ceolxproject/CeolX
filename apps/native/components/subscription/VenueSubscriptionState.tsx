@@ -1,10 +1,20 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useMutation } from '@tanstack/react-query';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, Text, View } from 'react-native';
+
+import { PUBLISH_BLOCKED_MESSAGE as BLOCKED_MESSAGE } from './venue-subscription-state.utils';
 
 import { appToast } from '@/components/AppToast';
 import { trpc } from '@/utils/trpc';
+
+// Re-exported so existing importers keep working after the pure logic moved out into a
+// module the node test environment can load.
+export {
+  PUBLISH_BLOCKED_MESSAGE,
+  venueStateFor,
+  type VenueSubscriptionStatusValue,
+} from './venue-subscription-state.utils';
 
 /**
  * Venue subscription states in the app (M8-T0 D-15, D-16, D-57).
@@ -18,40 +28,49 @@ import { trpc } from '@/utils/trpc';
  * surprised by a rate-limit error.
  */
 
-/** Mirrors `venue_profiles.subscription_status`. */
-export type VenueSubscriptionStatusValue =
-  | 'inactive'
-  | 'trialing'
-  | 'active'
-  | 'past_due'
-  | 'cancelled';
-
 /** Seconds the resend button stays disabled, matching the server's cooldown. */
 const RESEND_COOLDOWN_SECONDS = 60;
 
+/**
+ * Cooldown deadline, module-scoped so it survives the component unmounting.
+ *
+ * Navigating away from the profile tab and back used to reset the countdown and the
+ * "check your inbox" copy, so the button read "Activate profile" again with no cooldown
+ * while the server was still refusing. The server is authoritative either way; this
+ * keeps the UI honest between mounts.
+ */
+let resendCooldownUntil = 0;
+
+/**
+ * Seconds left on the resend cooldown.
+ *
+ * Tracks an absolute deadline and derives the remaining time from it. The previous
+ * version decremented a counter and depended on that counter, so the effect tore down
+ * and recreated the interval on every tick — restarting the 1000ms window each time and
+ * accumulating drift — and, because JS timers suspend when the app is backgrounded, it
+ * still read "Resend in 43s" minutes after the server's cooldown had expired.
+ */
 function useCooldown(seconds: number) {
-  const [remaining, setRemaining] = useState(0);
-  const timer = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [remaining, setRemaining] = useState(() =>
+    Math.max(0, Math.ceil((resendCooldownUntil - Date.now()) / 1000))
+  );
 
   useEffect(() => {
-    if (remaining <= 0) {
-      if (timer.current) clearInterval(timer.current);
-      timer.current = null;
-      return;
-    }
-    timer.current = setInterval(() => setRemaining((r) => Math.max(0, r - 1)), 1000);
-    return () => {
-      if (timer.current) clearInterval(timer.current);
-    };
-  }, [remaining]);
+    // One interval for the component's lifetime. It only reads the clock, so a
+    // suspended timer self-corrects on the next tick instead of drifting.
+    const timer = setInterval(() => {
+      setRemaining(Math.max(0, Math.ceil((resendCooldownUntil - Date.now()) / 1000)));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
 
-  return { remaining, start: () => setRemaining(seconds) };
-}
-
-interface ActivationPromptProps {
-  /** True once an email has been sent this session, so copy shifts to "check inbox". */
-  hasRequested?: boolean;
-  onRequested?: () => void;
+  return {
+    remaining,
+    start: () => {
+      resendCooldownUntil = Date.now() + seconds * 1000;
+      setRemaining(seconds);
+    },
+  };
 }
 
 /**
@@ -60,16 +79,17 @@ interface ActivationPromptProps {
  * Deliberately has no price and no link. The button asks the server to email a
  * secure link; everything after that happens outside the app (D-16, D-60).
  */
-export function VenueActivationPrompt({ hasRequested, onRequested }: ActivationPromptProps) {
+export function VenueActivationPrompt() {
   const { remaining, start } = useCooldown(RESEND_COOLDOWN_SECONDS);
-  const [sent, setSent] = useState(hasRequested ?? false);
+  // Seeded from the shared deadline so returning to this screen mid-cooldown keeps the
+  // "check your inbox" copy instead of inviting another tap the server will refuse.
+  const [sent, setSent] = useState(() => resendCooldownUntil > Date.now());
 
   const requestActivation = useMutation(
     trpc.venues.requestActivation.mutationOptions({
       onSuccess: ({ sentTo }) => {
         setSent(true);
         start();
-        onRequested?.();
         appToast.success(`Activation email sent to ${sentTo}`);
       },
       onError: (err) => {
@@ -140,16 +160,18 @@ interface TrialNoticeProps {
  * safeguard; this is its in-app counterpart.
  */
 export function VenueTrialNotice({ trialEndsAt }: TrialNoticeProps) {
-  if (!trialEndsAt) return null;
-
-  const ends = new Date(trialEndsAt);
-  if (Number.isNaN(ends.getTime())) return null;
-
-  const formatted = ends.toLocaleDateString('en-IE', {
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-  });
+  // Renders without a date rather than returning null.
+  //
+  // `users.me` LEFT JOINs venue_subscriptions, so `trialEndsAt` is null whenever the
+  // billing row is absent — which is every seeded venue, because seed.ts inserts them
+  // as `trialing` with no subscription row. Returning null meant the trial notice
+  // silently never appeared on any dev or staging database, while `venueStateFor` still
+  // said 'trial' so nothing else filled the gap and the wrapper kept its spacing.
+  const ends = trialEndsAt ? new Date(trialEndsAt) : null;
+  const formatted =
+    ends && !Number.isNaN(ends.getTime())
+      ? ends.toLocaleDateString('en-IE', { day: 'numeric', month: 'long', year: 'numeric' })
+      : null;
 
   return (
     <View className="flex-row items-start gap-2 rounded-xl bg-[#333335] px-3 py-2.5">
@@ -186,16 +208,6 @@ export function VenuePastDueBanner() {
   );
 }
 
-/**
- * Copy for the disabled create actions (V-14).
- *
- * Creating public content is part of the paid service. The server refuses it too
- * (`assertVenueMayPublish`) — this only explains why the button is dim, because a
- * disabled control with no reason reads as a bug.
- */
-export const PUBLISH_BLOCKED_MESSAGE =
-  'An active subscription is needed to publish. Check your email to reactivate.';
-
 export function VenuePublishBlockedNotice() {
   return (
     <View className="flex-row items-start gap-2 rounded-xl bg-[#333335] px-3 py-2.5">
@@ -206,38 +218,8 @@ export function VenuePublishBlockedNotice() {
         style={{ marginTop: 1 }}
       />
       <Text className="shrink text-xs leading-[18px] text-white/60 font-urbanist">
-        {PUBLISH_BLOCKED_MESSAGE}
+        {BLOCKED_MESSAGE}
       </Text>
     </View>
   );
-}
-
-/** Which surface a venue's own subscription status should show. */
-export function venueStateFor(status: VenueSubscriptionStatusValue | null | undefined) {
-  switch (status) {
-    case 'trialing':
-      return 'trial' as const;
-    case 'active':
-      return 'none' as const;
-    case 'past_due':
-      return 'past_due' as const;
-    // `cancelled` is treated the same as `inactive`: both mean "no live
-    // subscription", and both are recoverable by the same activation flow. The one
-    // difference — no second free trial (D-42) — is enforced server-side, so the
-    // app needs no separate state for it.
-    case 'inactive':
-    case 'cancelled':
-    default:
-      return 'activate' as const;
-  }
-}
-
-/**
- * Can this venue publish? (V-14.)
- *
- * A venue inside the grace window still can: they are visible and still a paying
- * customer whose card expired. Mirrors the server-side rule exactly.
- */
-export function venueMayPublish(status: VenueSubscriptionStatusValue | null | undefined): boolean {
-  return status === 'trialing' || status === 'active' || status === 'past_due';
 }

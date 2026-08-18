@@ -146,19 +146,23 @@ function ProfileHeader({
       <View className="items-center gap-1.5 mb-3">
         <Text className="text-xl font-bold text-white font-urbanist">{displayName}</Text>
         {/* M8: the venue's own subscription surface. Replaces the interim
-            free-access badge. Never shows a price or a payment link (D-16). */}
-        {isVenue && subscription.isResolved && subscription.state === 'activate' ? (
-          <View className="w-full mt-2">
+            free-access badge. Never shows a price or a payment link (D-16).
+            `self-stretch`, not `w-full`: the parent is `items-center`, which leaves this
+            View content-sized, so a percentage width resolves against sibling width and
+            squeezed the card to roughly display-name width. Every neighbour here works
+            around the same thing with explicit pixels (max-w-[292px]). */}
+        {isVenue && subscription.state === 'activate' ? (
+          <View className="self-stretch mt-2">
             <VenueActivationPrompt />
           </View>
         ) : null}
         {isVenue && subscription.state === 'trial' ? (
-          <View className="w-full mt-2">
+          <View className="self-stretch mt-2">
             <VenueTrialNotice trialEndsAt={subscription.trialEndsAt} />
           </View>
         ) : null}
         {isVenue && subscription.state === 'past_due' ? (
-          <View className="w-full mt-2">
+          <View className="self-stretch mt-2">
             <VenuePastDueBanner />
           </View>
         ) : null}
