@@ -1,6 +1,7 @@
 import { eq } from 'drizzle-orm';
 import { Hono } from 'hono';
 
+import { onHoldVenueIds } from '@CeolX/api/services/venue-gate';
 import { db } from '@CeolX/db';
 import { user } from '@CeolX/db/schema/auth';
 import { artistProfiles, venueProfiles } from '@CeolX/db/schema/users';
@@ -93,17 +94,25 @@ profileShare.get('/u/:username', async (c) => {
         displayName: venueProfiles.venueName,
         bio: venueProfiles.bio,
         image: venueProfiles.profileImageUrl,
+        id: venueProfiles.id,
+        subscriptionStatus: venueProfiles.subscriptionStatus,
       })
       .from(venueProfiles)
       .where(eq(venueProfiles.userId, account.id))
       .limit(1);
 
-    // Anonymous viewer: venue visibility gate is disabled repo-wide today.
     if (!profile) return notFound();
 
+    // V-02: an on-hold venue is NOT a 404 here. This page is what someone sees when
+    // they follow a shared link, and a not-found page reads as CeolX losing the
+    // venue — exactly the impression D-52 exists to prevent. The venue's own content
+    // is withheld and the page says the profile is on hold instead.
+    const onHold = await onHoldVenueIds([profile.id]);
+    const venueOnHold = onHold.has(profile.id);
+
     displayName = profile.displayName;
-    bio = profile.bio;
-    image = profile.image;
+    bio = venueOnHold ? 'This profile is currently on hold.' : profile.bio;
+    image = venueOnHold ? null : profile.image;
     deepLinkPath = `venue/${profile.userId}`;
   } else {
     // spectator / admin have no shareable public profile

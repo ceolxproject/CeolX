@@ -84,3 +84,32 @@ describe('GET /.well-known/assetlinks.json', () => {
     expect(body[0]?.target.sha256_cert_fingerprints).toEqual(['AA:BB:CC']);
   });
 });
+
+describe('deep-link scope must never capture /activate (M8-T0 D-16, D-60)', () => {
+  // The venue activation link has to open in a BROWSER so the venue can reach
+  // Stripe Checkout. If it were ever captured as a universal/app link it would open
+  // the app instead and silently break the only route into billing — and it would
+  // fail quietly, because the email would still appear to work. The comments in
+  // app-links.ts and app.config.js say so; this makes it fail the build instead.
+  it('the iOS AASA components do not match /activate', async () => {
+    // afterEach clears the Team ID, and without one the AASA serves an empty
+    // `details` array — which would make every assertion below vacuously true.
+    mockEnv.APPLE_OAUTH_TEAM_ID = 'TEAMID1234';
+
+    const body = (await (
+      await buildApp().request('/.well-known/apple-app-site-association')
+    ).json()) as { applinks: { details: { components?: { '/': string }[] }[] } };
+
+    const globs = body.applinks.details.flatMap((d) => (d.components ?? []).map((c) => c['/']));
+    expect(globs.length).toBeGreaterThan(0);
+    expect(globs).not.toContain('/activate');
+    expect(globs).not.toContain('/activate/*');
+    // A bare wildcard would capture everything, /activate included.
+    expect(globs).not.toContain('/*');
+
+    for (const glob of globs) {
+      const prefix = glob.replace(/\*$/, '');
+      expect('/activate'.startsWith(prefix)).toBe(false);
+    }
+  });
+});

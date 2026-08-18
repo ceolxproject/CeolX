@@ -37,6 +37,13 @@ const PROD_ANDROID_SHA256 =
 // Shared-link path scopes, kept identical on both platforms. Each shareable web
 // route (apps/native/hooks/use-share-*.ts) needs its prefix listed here AND in
 // the matching app.config.js intentFilters + admin vercel.json rewrite.
+//
+// ⚠️ NEVER add '/activate' — and never widen this to '/*'. That route is the venue
+// subscription flow (M8), and its whole purpose is to open in a BROWSER so the
+// venue can reach Stripe. Listing it here would make the activation email open the
+// app instead, silently breaking the only route into billing (M8-T0 D-16, D-60) —
+// and it would fail quietly, because the email would still look like it worked.
+// Asserted in __tests__/routes/app-links.test.ts.
 const LINK_PATH_GLOBS = ['/post/*', '/event/*', '/u/*'];
 
 // Both files are fetched by Google/Apple verification crawlers on a tight

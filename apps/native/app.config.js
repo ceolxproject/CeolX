@@ -204,6 +204,10 @@ export default (_) => ({
         action: 'VIEW',
         autoVerify: true,
         data: [
+          // ⚠️ NEVER add '/activate' here, and never use a bare host with no
+          // pathPrefix. That route must open in a browser so the venue can reach
+          // Stripe Checkout; capturing it would send the activation email into the
+          // app and silently break the only route into billing (M8-T0 D-16, D-60).
           { scheme: 'https', host: SHARE_HOST, pathPrefix: '/post' },
           { scheme: 'https', host: SHARE_HOST, pathPrefix: '/event' },
           { scheme: 'https', host: SHARE_HOST, pathPrefix: '/u' },
