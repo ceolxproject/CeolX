@@ -148,11 +148,13 @@ export const AnalyticsEvent = {
 //   screen tracking cannot give us, but capturing it means threading a param
 //   through every navigation call site. Left out rather than half-done; revisit
 //   if "which surface drives event views" becomes a live question.
-// - subscription_notice_shown / activation_email_resent — no such UI exists.
-//   Venue subscriptions shipped in M8 — this note predates them and the interim
-//   free-access notice it referenced has been removed
-//   (M8-T1/T2), so there is no paywall notice and no resend button to hook.
-//   These land with M8 alongside the conversion events.
+// - subscription_notice_shown / activation_email_resent — the UI now EXISTS and these
+//   are still not wired. VenueActivationPrompt renders the notice and owns a literal
+//   "Resend email" button (components/subscription/VenueSubscriptionState.tsx), so the
+//   hooks are there for the taking: the prompt's mount and the mutation's onSuccess.
+//   Deliberately not added in the same change as the gate fixes — but this is the only
+//   funnel on the platform with revenue attached, and it currently has zero
+//   instrumentation, so it should not stay unwired for long.
 
 export type AnalyticsEventName = (typeof AnalyticsEvent)[keyof typeof AnalyticsEvent];
 

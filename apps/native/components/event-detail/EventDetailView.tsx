@@ -102,7 +102,7 @@ export function EventDetailView({
         title: event.title,
         startDate: start,
         endDate: end,
-        notes: event.description.slice(0, 200),
+        notes: (event.description ?? '').slice(0, 200),
         location: event.venueAddress ?? `${event.lat},${event.lng}`,
       });
       appToast.success('Added to calendar');
@@ -248,8 +248,16 @@ export function EventDetailView({
             )}
           </View>
 
-          {/* Description */}
-          <DescriptionSection description={event.description} />
+          {/* Description, or the reason it is missing (M8 V-03) */}
+          {event.venueOnHold ? (
+            <View className="mt-4 rounded-xl bg-[#333335] px-3 py-2.5">
+              <Text className="text-xs leading-[18px] text-white/60 font-urbanist">
+                Details are being confirmed by the venue.
+              </Text>
+            </View>
+          ) : (
+            <DescriptionSection description={event.description ?? ''} />
+          )}
         </View>
 
         {/* Offers — only this event's own ad, if it has one */}

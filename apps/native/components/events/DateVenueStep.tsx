@@ -394,15 +394,26 @@ export function DateVenueStep({
                               </View>
                             ) : null}
                           </View>
+                          {/* The address stays visible for an on-hold venue: the artist is
+                              being asked to retype it, so hiding it makes the exit
+                              impossible. The instruction sits underneath on its own line
+                              and wraps — it previously replaced the address inside a
+                              numberOfLines={1} Text, so it rendered clipped as
+                              "…on hold — add the addre…" and pointed "below" at a button
+                              that is actually above the picker. */}
                           <Text
                             className="text-xs text-gray-7 font-urbanist mt-0.5"
                             numberOfLines={1}
                             ellipsizeMode="tail"
                           >
-                            {v.onHold
-                              ? "This venue's profile is on hold — add the address manually below instead."
-                              : v.address}
+                            {v.address}
                           </Text>
+                          {v.onHold ? (
+                            <Text className="text-xs text-gray-7 font-urbanist mt-1">
+                              This venue&apos;s profile is on hold, so it can&apos;t be selected.
+                              Use ENTER MANUALLY above to type the address.
+                            </Text>
+                          ) : null}
                         </Pressable>
                       ))
                     )}

@@ -3,37 +3,18 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { mergePaginatedEvents } from './merge-paginated-events';
 
-import { trpc } from '@/utils/trpc';
+import { trpc, type RouterOutputs } from '@/utils/trpc';
 
 const PAGE_SIZE = 20;
 
 /**
- * Hand-maintained mirror of the `events.getSavedEvents` row shape.
+ * Inferred from the router, not hand-maintained.
  *
- * ⚠️ It is a structural SUBSET, so TypeScript will not warn if the server drops a
- * field this omits — the compiler only checks what is declared here. Keep it in
- * step with packages/api/src/routers/events/saved.ts by hand, or better, infer it
- * from the router's output type.
+ * The previous version was a hand-written structural SUBSET, so a server-side rename
+ * kept compiling and every on-hold saved event silently reverted to a normal tappable
+ * card — the exact regression its own comment warned about, with no compiler help.
  */
-type SavedEvent = {
-  id: string;
-  title: string;
-  coverImage: string | null;
-  dateStart: string;
-  dateEnd: string | null;
-  category: string;
-  status: string;
-  venueAddress: string | null;
-  savedAt: string;
-  creatorName: string;
-  collectionName: string | null;
-  /**
-   * The event's venue is on hold, so its detail is withheld (M8-T0 V-03). The
-   * screen renders the "TBC by venue" card instead of dropping the row — the user
-   * saved this deliberately and a silent disappearance reads as our bug.
-   */
-  venueOnHold: boolean;
-};
+type SavedEvent = RouterOutputs['events']['getSavedEvents']['events'][number];
 
 export function useSavedEvents(includeArchived = false) {
   const queryClient = useQueryClient();
@@ -53,7 +34,8 @@ export function useSavedEvents(includeArchived = false) {
 
   useEffect(() => {
     if (!data || isFetching) return;
-    const newEvents = data.events as SavedEvent[];
+    // No cast needed now that SavedEvent is inferred from the router output.
+    const newEvents = data.events;
     // Always reflect the freshest first page so in-place edits (a replaced
     // cover image, an edited title) appear once the events cache is
     // invalidated, rather than staying stale until an app restart.

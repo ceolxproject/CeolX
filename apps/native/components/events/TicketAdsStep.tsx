@@ -14,6 +14,7 @@ import { AD_DESCRIPTION_MAX, AD_TITLE_MAX } from '@CeolX/shared/validators';
 import { FieldLabel } from './FieldLabel';
 
 import { CharacterCount, CharacterLimitNote } from '@/components/CharacterCount';
+import { VenuePublishBlockedNotice } from '@/components/subscription/VenueSubscriptionState';
 
 type Props = {
   ticketPrice: string;
@@ -32,7 +33,15 @@ type Props = {
   isPending: boolean;
   isEditing: boolean;
   isVenue?: boolean;
-  /** Shows the free-access notice. Set only from create.tsx — not on edit. */
+  /**
+   * Venue is on hold, so a NEW event cannot be published (V-14). Set only from
+   * create.tsx — editing an existing event stays allowed for a lapsed venue.
+   *
+   * The notice matters as much as the disabled button: a dim control with no reason
+   * reads as a bug, and before this the screen had no subscription awareness at all —
+   * a venue filled all three steps and then took a raw FORBIDDEN from the server.
+   */
+  publishBlocked?: boolean;
 };
 
 export function TicketAdsStep({
@@ -52,6 +61,7 @@ export function TicketAdsStep({
   isPending,
   isEditing,
   isVenue,
+  publishBlocked = false,
 }: Props) {
   return (
     <ScrollView
@@ -210,6 +220,12 @@ export function TicketAdsStep({
 
       {/* ── Gig Opportunity & Collaborators deferred to M5/M6 ── */}
 
+      {publishBlocked ? (
+        <View className="mb-3">
+          <VenuePublishBlockedNotice />
+        </View>
+      ) : null}
+
       {/* ── Buttons ── */}
       <View className="mt-2 flex-row gap-3">
         <Pressable
@@ -223,10 +239,10 @@ export function TicketAdsStep({
         <Pressable
           className={cn(
             'flex-1 items-center justify-center rounded-lg bg-[#6C63FF] py-3',
-            isPending && 'opacity-50'
+            (isPending || publishBlocked) && 'opacity-50'
           )}
           onPress={onSubmit}
-          disabled={isPending}
+          disabled={isPending || publishBlocked}
         >
           {isPending ? (
             <ActivityIndicator size="small" color="#fff" />

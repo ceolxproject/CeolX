@@ -19,7 +19,10 @@ import { AppHeader } from '@/components/AppHeader';
 import { appToast } from '@/components/AppToast';
 import { CharacterCount, CharacterLimitNote } from '@/components/CharacterCount';
 import { MediaPickerField } from '@/components/posts/MediaPickerField';
-import { VenuePublishBlockedNotice } from '@/components/subscription/VenueSubscriptionState';
+import {
+  PUBLISH_BLOCKED_MESSAGE,
+  VenuePublishBlockedNotice,
+} from '@/components/subscription/VenueSubscriptionState';
 import { useCreatePost } from '@/hooks/use-create-post';
 import { useMe } from '@/hooks/use-me';
 import { useMediaDelete, keyFromCdnUrl } from '@/hooks/use-media-delete';
@@ -106,9 +109,25 @@ export default function CreatePostScreen() {
   const handleRemoveMedia = () => setMedia(null);
 
   const busy = isPublishing || createPost.isPending || updatePost.isPending;
-  const disabled = caption.trim().length === 0 || isUploading || busy;
+
+  // A blocked venue cannot create a new post (V-14). Editing an existing one stays
+  // allowed — a lapsed venue keeps view, edit and fix-payment.
+  const publishBlocked = isVenue && !isEditing && !subscription.mayPublish;
+
+  const disabled = caption.trim().length === 0 || isUploading || busy || publishBlocked;
 
   const handlePublish = async () => {
+    // Checked before anything is uploaded, not just reflected in `disabled`.
+    //
+    // `disabled` previously ignored this entirely, so the notice below explained a
+    // dimming that never happened — and because media is uploaded to S3/Mux before the
+    // mutation runs, a blocked venue burned their data allowance, orphaned the upload,
+    // and got a generic failure toast from the server's FORBIDDEN.
+    if (publishBlocked) {
+      appToast.error(PUBLISH_BLOCKED_MESSAGE);
+      return;
+    }
+
     setIsPublishing(true);
     try {
       if (isEditing && editId) {
@@ -271,7 +290,7 @@ export default function CreatePostScreen() {
           {/* V-14: an unpaid venue cannot publish. The server refuses it too
               (assertVenueMayPublish) — this explains why the button is dim, because
               a disabled control with no reason reads as a bug. */}
-          {isVenue && !isEditing && !subscription.mayPublish ? <VenuePublishBlockedNotice /> : null}
+          {publishBlocked ? <VenuePublishBlockedNotice /> : null}
 
           <Pressable
             onPress={handlePublish}

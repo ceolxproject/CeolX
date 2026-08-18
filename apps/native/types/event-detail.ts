@@ -33,7 +33,14 @@ export interface RelatedEvent {
 export interface EventDetailData {
   id: string;
   title: string;
-  description: string;
+  /**
+   * Null when the creating venue's subscription is on hold (M8 V-03) — the server
+   * withholds the promotional detail rather than 404-ing the event, so the screen can
+   * say the venue is on hold instead of implying CeolX lost it (D-52).
+   */
+  description: string | null;
+  /** Creating venue is on hold, so this event's detail is deliberately incomplete. */
+  venueOnHold?: boolean;
   dateStart: string;
   dateEnd?: string | null;
   lat: number;

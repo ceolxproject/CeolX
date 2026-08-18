@@ -66,7 +66,9 @@ function EditEventForm({ event, eventId }: { event: LoadedEvent; eventId: string
     eventId,
     initialData: {
       title: event.title,
-      description: event.description,
+      // Never actually null here — the server serves a creator their own event in
+      // full — but the field is nullable since M8 withholds it from other viewers.
+      description: event.description ?? '',
       coverImageUri: event.coverImage ?? null,
       category: event.category as EventCategory,
       collectionId: event.collectionId ?? '',

@@ -13,6 +13,36 @@ export default function SavedEventsScreen() {
   const { upcomingEvents, pastEvents, isLoading } = useSavedEvents();
   const [showPast, setShowPast] = useState(false);
 
+  /**
+   * One renderer for both lists.
+   *
+   * The upcoming and past lists previously repeated the same sixteen-line ternary with
+   * a nine-prop ProfileEventCard written out twice, so a change to one would silently
+   * miss the other — and the on-hold branch is exactly the sort of thing that gets
+   * added to the list you happen to be looking at.
+   *
+   * V-03: an on-hold venue's event stays in the saved list, marked, with its detail
+   * withheld — the spectator saved it deliberately, and having it silently vanish would
+   * read as CeolX losing their plans (D-52).
+   */
+  const renderSavedEvent = (event: (typeof upcomingEvents)[number]) =>
+    event.venueOnHold ? (
+      <VenueOnHoldEventCard key={event.id} title={event.title} dateStart={event.dateStart} />
+    ) : (
+      <ProfileEventCard
+        key={event.id}
+        id={event.id}
+        title={event.title}
+        coverImage={event.coverImage}
+        dateStart={event.dateStart}
+        dateEnd={event.dateEnd}
+        category={event.category}
+        venueAddress={event.venueAddress}
+        collectionName={event.collectionName}
+        onPress={() => router.push(`/(app)/(tabs)/profile/event/${event.id}`)}
+      />
+    );
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#080808' }}>
       <AppHeader leading="back" title="Saved Events" />
@@ -34,31 +64,7 @@ export default function SavedEventsScreen() {
             {upcomingEvents.length > 0 && (
               <Text className="text-base font-bold text-white font-urbanist">Upcoming</Text>
             )}
-            {upcomingEvents.map((event) =>
-              // V-03: an on-hold venue's event stays in the saved list, marked, with
-              // its detail withheld — the spectator saved it deliberately, and having
-              // it silently vanish would read as CeolX losing their plans (D-52).
-              event.venueOnHold ? (
-                <VenueOnHoldEventCard
-                  key={event.id}
-                  title={event.title}
-                  dateStart={event.dateStart}
-                />
-              ) : (
-                <ProfileEventCard
-                  key={event.id}
-                  id={event.id}
-                  title={event.title}
-                  coverImage={event.coverImage}
-                  dateStart={event.dateStart}
-                  dateEnd={event.dateEnd}
-                  category={event.category}
-                  venueAddress={event.venueAddress}
-                  collectionName={event.collectionName}
-                  onPress={() => router.push(`/(app)/(tabs)/profile/event/${event.id}`)}
-                />
-              )
-            )}
+            {upcomingEvents.map(renderSavedEvent)}
 
             {pastEvents.length > 0 && (
               <>
@@ -75,29 +81,7 @@ export default function SavedEventsScreen() {
                     color="rgba(255,255,255,0.6)"
                   />
                 </Pressable>
-                {showPast &&
-                  pastEvents.map((event) =>
-                    event.venueOnHold ? (
-                      <VenueOnHoldEventCard
-                        key={event.id}
-                        title={event.title}
-                        dateStart={event.dateStart}
-                      />
-                    ) : (
-                      <ProfileEventCard
-                        key={event.id}
-                        id={event.id}
-                        title={event.title}
-                        coverImage={event.coverImage}
-                        dateStart={event.dateStart}
-                        dateEnd={event.dateEnd}
-                        category={event.category}
-                        venueAddress={event.venueAddress}
-                        collectionName={event.collectionName}
-                        onPress={() => router.push(`/(app)/(tabs)/profile/event/${event.id}`)}
-                      />
-                    )
-                  )}
+                {showPast && pastEvents.map(renderSavedEvent)}
               </>
             )}
           </View>

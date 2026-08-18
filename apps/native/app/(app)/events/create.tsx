@@ -11,15 +11,24 @@ import { BasicDetailsStep } from '@/components/events/BasicDetailsStep';
 import { DateVenueStep } from '@/components/events/DateVenueStep';
 import { StepIndicator } from '@/components/events/StepIndicator';
 import { TicketAdsStep } from '@/components/events/TicketAdsStep';
+import { PUBLISH_BLOCKED_MESSAGE } from '@/components/subscription/VenueSubscriptionState';
 import { useEventForm } from '@/hooks/use-event-form';
 import { useMe } from '@/hooks/use-me';
+import { useVenueSubscription } from '@/hooks/use-venue-subscription';
 
 export default function CreateEventScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { data: me } = useMe();
   const isVenue = me?.currentRole === UserRole.VENUE;
+  const subscription = useVenueSubscription();
   const [showManualAddress, setShowManualAddress] = useState(false);
+
+  // V-14. This screen previously had no subscription awareness at all: the interim
+  // free-access notice was removed and nothing replaced it, so an on-hold venue filled
+  // all three steps, tapped CREATE EVENT, and the server's FORBIDDEN was the first and
+  // only signal. Editing an existing event is a separate screen and stays allowed.
+  const publishBlocked = isVenue && !subscription.mayPublish;
 
   const form = useEventForm({
     onSuccess: () => {
@@ -41,6 +50,18 @@ export default function CreateEventScreen() {
     const timer = setTimeout(() => setCoverRefreshKey((k) => k + 1), 350);
     return () => clearTimeout(timer);
   }, [form.coverImageUri]);
+
+  // Guarded rather than relying on the disabled button alone — the button is
+  // presentation, and the server refuses this too (`assertVenueMayPublish`).
+  const handleSubmit = () => {
+    if (publishBlocked) {
+      appToast.error(PUBLISH_BLOCKED_MESSAGE);
+      return;
+    }
+    // Fire-and-forget, matching how form.handleSubmit was previously passed straight
+    // through as onSubmit — errors surface via the form hook's own toast.
+    void form.handleSubmit();
+  };
 
   const handleBackPress = () => {
     Alert.alert('Leave without saving?', 'Your event details will be lost.', [
@@ -144,11 +165,12 @@ export default function CreateEventScreen() {
             shareToFeed={form.shareToFeed}
             onShareToFeedChange={form.setShareToFeed}
             errors={form.errors}
-            onSubmit={form.handleSubmit}
+            onSubmit={handleSubmit}
             onBack={form.goBack}
             isPending={form.isPending}
             isEditing={false}
             isVenue={isVenue}
+            publishBlocked={publishBlocked}
           />
         )}
       </KeyboardAvoidingView>
