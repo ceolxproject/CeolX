@@ -119,11 +119,14 @@ Health check endpoint for monitoring and uptime verification. Returns immediatel
 
 ### External Services Configuration
 
-- R15: **Stripe webhook** endpoint: `POST https://api.ceolx.com/webhooks/stripe`
-  - Registered in Stripe Dashboard (Live mode)
-  - Events subscribed: `customer.subscription.created`, `customer.subscription.updated`, `customer.subscription.deleted`, `invoice.payment_failed`
-  - Webhook secret: stored in AWS Secrets Manager; used for signature verification
-  - Test: trigger a test webhook from Stripe Dashboard; verify it's received and processed
+- R15: **Stripe webhook** — see the M8 Stripe Configuration section below, which is
+  authoritative. This entry predates M8 and had both the path and the event list wrong
+  (the mount is `/api/webhooks/stripe`, and `invoice.paid`, `trial_will_end` and
+  `charge.dispute.created` were missing). Configure from that section, not this one.
+  - Note when testing: `stripe trigger` fabricates its own customer, so the handler
+    finds no venue row and no-ops. A green trigger proves signature verification and
+    routing only — it does **not** prove a state transition. Act on a real test
+    subscription for that.
 - R16: **Mux webhook** endpoint: `POST https://api.ceolx.com/webhooks/mux`
   - Registered in Mux Dashboard (Live environment)
   - Events subscribed: `video.asset.ready`
@@ -144,7 +147,7 @@ Health check endpoint for monitoring and uptime verification. Returns immediatel
   - CloudFront domain: `cdn.ceolx.com` (CNAME configured)
   - Test: upload a test image via presigned URL; verify it's accessible via CloudFront
 
-### Stripe Configuration (M8 — pre-launch, Dashboard not code)
+### Stripe Configuration (M8 — pre-launch, mostly Dashboard; VAT needs a code change)
 
 None of this lives in the repo, and **test-mode and live-mode are separate objects** —
 configuring one does not configure the other. Verify each in live mode before launch.
@@ -159,11 +162,18 @@ configuring one does not configure the other. Verify each in live mode before la
 - [ ] Both Prices created with **`tax_behavior: 'inclusive'`** (D-61). This cannot be
       changed afterwards; getting it wrong means new Prices and migrating live
       subscriptions.
-- [ ] **Stripe Tax enabled AND an active Irish VAT registration added** (D-66).
-      ⚠️ Stripe calculates and collects **zero** tax, and returns **no error**, until a
-      registration exists. With VAT-inclusive pricing that failure is completely
-      silent and looks exactly like working software. Verify on a real test charge
-      that VAT appears on the invoice.
+- [ ] 🚨 **BLOCKING — VAT is not collected, and turning it on is a CODE change** (D-66).
+      This is two separate failures, and the Dashboard only fixes one of them: 1. `automatic_tax` is **not set** in `createSubscriptionCheckoutSession`
+      (`packages/api/src/services/stripe.ts`). It defaults to disabled on
+      API-created Sessions, and **enabling Stripe Tax in the Dashboard does not
+      change that.** Someone has to add
+      `automatic_tax: { enabled: true }` — plus
+      `customer_update: { address: 'auto' }`, because we reuse an existing
+      Customer and Stripe needs an address to determine the rate. 2. An **active Irish VAT registration** must exist in Stripe Tax.
+      Either one missing means €0.00 VAT on every invoice with **no error raised**.
+      With VAT-inclusive pricing (D-61) that is completely silent and indistinguishable
+      from working software. Do not tick this from the Dashboard alone — read the code.
+      Verify on a real test charge that VAT appears as a line on the invoice.
 - [ ] **Customer Portal configuration** (D-39, D-43): - Payment method update: enabled - Invoice history: enabled - Cancellation: enabled, **at period end** - Plan switching: enabled between the monthly and annual Prices - `subscription_update.proration_behavior`: prorate — monthly→annual is
       immediate with credit - `subscription_update.schedule_at_period_end`: conditions set so a
       **downgrade** defers to the end of the paid year - Customer email update: enabled - Cancellation reason: enabled - **Verify both switch directions against a test subscription.** Getting this
