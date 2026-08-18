@@ -18,9 +18,14 @@ export const billingIntervalSchema = z.enum(BILLING_INTERVALS);
  * reaches a query or any rendered output. The length floor rejects a truncated
  * or obviously guessed value without leaking how long a real token is.
  *
- * This is defence in depth, not the primary control: lookups are by hash and
- * comparison is constant-time. It exists so a malformed value fails as a clean
- * 400 rather than travelling further into the system.
+ * This is defence in depth, not the primary control. The real protection is that the
+ * stored value is a SHA-256 hash and lookup is by hash: an attacker cannot steer the
+ * comparison without already knowing the preimage, so the plain SQL equality involved
+ * is not a useful timing oracle. (An earlier version of this note claimed the
+ * comparison was constant-time. It is not, and it does not need to be.)
+ *
+ * This schema exists so a malformed value fails as a clean 400 rather than travelling
+ * further into the system.
  */
 export const activationTokenSchema = z
   .string()

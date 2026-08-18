@@ -46,6 +46,16 @@ export interface VenueVisibilityInput {
    * grace days. Only consulted when `status` is `past_due`.
    */
   graceEndsAt?: Date | null;
+  /**
+   * Billing blocked after a chargeback (D-51).
+   *
+   * Checked before status, because status alone is not durable here: the dispute
+   * handler writes `cancelled`, but it does not cancel the Stripe subscription, so a
+   * later `invoice.paid` or `customer.subscription.updated` re-syncs the venue back to
+   * `active`. This flag is never cleared by a webhook, so honouring it here is what
+   * keeps a disputed venue hidden through that revert.
+   */
+  billingBlocked?: boolean;
 }
 
 /**
@@ -57,9 +67,12 @@ export interface VenueVisibilityInput {
  * itself rather than inferred from a query's result.
  */
 export function venueVisibilityFor(
-  { status, graceEndsAt }: VenueVisibilityInput,
+  { status, graceEndsAt, billingBlocked }: VenueVisibilityInput,
   now: Date = new Date()
 ): VenueVisibility {
+  // Before status: a chargeback outranks whatever Stripe last told us (D-51).
+  if (billingBlocked) return ProfileVisibility.ON_HOLD;
+
   if (ALWAYS_VISIBLE_STATUSES.includes(status)) return ProfileVisibility.VISIBLE;
 
   if (status === SubscriptionStatus.PAST_DUE) {
@@ -84,4 +97,25 @@ export function venueVisibilityFor(
  */
 export function isPubliclyVisible(visibility: ProfileVisibility): boolean {
   return visibility === ProfileVisibility.VISIBLE;
+}
+
+/**
+ * Does this venue already have live billing?
+ *
+ * Guards the "start a subscription" paths — a second checkout against a venue that is
+ * already trialing, active or past-due would double-charge them. Distinct from
+ * `venueVisibilityFor`, which answers a different question: `past_due` counts as live
+ * billing here (there IS a subscription) while it may still resolve to ON_HOLD there
+ * once the grace window lapses.
+ *
+ * Lives in shared because it was previously copied verbatim into both
+ * `routers/stripe.ts` and `routers/venues.ts`, each with its own `readonly string[]`
+ * cast at the call site.
+ */
+export function hasLiveBilling(status: VenueSubscriptionStatus): boolean {
+  return (
+    status === SubscriptionStatus.TRIALING ||
+    status === SubscriptionStatus.ACTIVE ||
+    status === SubscriptionStatus.PAST_DUE
+  );
 }

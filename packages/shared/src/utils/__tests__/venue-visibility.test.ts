@@ -114,3 +114,40 @@ describe('isPubliclyVisible', () => {
     expect(ProfileVisibility.ON_HOLD).not.toBe(ProfileVisibility.NOT_FOUND);
   });
 });
+
+describe('billingBlocked outranks status (D-51)', () => {
+  // The revert this guards: the dispute handler writes `cancelled` but does not cancel
+  // the Stripe subscription, so the next invoice.paid re-syncs the venue to `active`.
+  // If visibility read status alone, the disputed venue would come back publicly.
+  it.each([
+    SubscriptionStatus.ACTIVE,
+    SubscriptionStatus.TRIALING,
+    SubscriptionStatus.PAST_DUE,
+    SubscriptionStatus.INACTIVE,
+    SubscriptionStatus.CANCELLED,
+  ])('holds a blocked venue whatever Stripe last said (%s)', (status) => {
+    expect(venueVisibilityFor({ status, billingBlocked: true })).toBe(ProfileVisibility.ON_HOLD);
+  });
+
+  it('holds even inside a live grace window', () => {
+    // A dispute is not an innocent expired card, so the D-33 grace period must not
+    // rescue it.
+    expect(
+      venueVisibilityFor({
+        status: SubscriptionStatus.PAST_DUE,
+        graceEndsAt: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000),
+        billingBlocked: true,
+      })
+    ).toBe(ProfileVisibility.ON_HOLD);
+  });
+
+  it('leaves an unblocked venue unaffected', () => {
+    expect(venueVisibilityFor({ status: SubscriptionStatus.ACTIVE, billingBlocked: false })).toBe(
+      ProfileVisibility.VISIBLE
+    );
+    // Omitted entirely — every existing caller shape must keep working.
+    expect(venueVisibilityFor({ status: SubscriptionStatus.ACTIVE })).toBe(
+      ProfileVisibility.VISIBLE
+    );
+  });
+});

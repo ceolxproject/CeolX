@@ -144,3 +144,16 @@ export const RESEND_COOLDOWN_MS = 24 * 60 * 60 * 1000; // 24 hours
 // Collaboration — "Share Interest" anti-spam cooldown. Blocks re-sending
 // interest to the same recipient within this window (M? — Asana 1215700058851992).
 export const SHARE_INTEREST_COOLDOWN_MS = 24 * 60 * 60 * 1000; // 24 hours
+
+/**
+ * Paths Stripe returns a venue to after Checkout.
+ *
+ * Shared because the miss they caused was structural: `success_url` was built as a
+ * string literal in the API while the routes were registered separately in the
+ * server, so nothing failed when only one side existed. Both sides now read these,
+ * and the contract test in `apps/server` requests each one against the real app.
+ */
+export const ACTIVATION_RETURN_PATHS = {
+  complete: '/activate/complete',
+  cancelled: '/activate/cancelled',
+} as const;
