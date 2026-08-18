@@ -45,6 +45,7 @@ export const NotificationTrigger = {
   BOOKING_COARTIST_CANCELLED: 'booking_coartist_cancelled',
   ADDED_AS_COLLABORATOR_TO_ARTIST: 'added_as_collaborator_to_artist',
   EVENT_HOSTED_AT_VENUE_TO_VENUE: 'event_hosted_at_venue_to_venue',
+  VENUE_ON_HOLD_TO_LINKED_ARTIST: 'venue_on_hold_to_linked_artist',
   EVENT_REMOVED_BY_ADMIN_TO_ARTIST: 'event_removed_by_admin_to_artist',
   EVENT_REMOVED_BY_ADMIN_TO_VENUE: 'event_removed_by_admin_to_venue',
   EVENT_RESUBMITTED_TO_ARTIST: 'event_resubmitted_to_artist',
@@ -105,6 +106,8 @@ export type NotificationType =
   | 'event_restored'
   | 'event_resubmitted'
   | 'saved_event_removed'
+  // M8: a venue an artist is linked to has gone on hold (A-20).
+  | 'venue_on_hold'
   | 'welcome';
 
 export interface TriggerDefinition {
@@ -395,6 +398,31 @@ export const NOTIFICATION_TRIGGERS: Record<NotificationTrigger, TriggerDefinitio
     inApp: {
       title: 'Added as collaborator',
       body: 'You\'re listed as a collaborator on "{eventTitle}" at {venueName} on {date}.',
+    },
+    email: null,
+  },
+  // A-20 — an artist's event names a venue whose profile has gone on hold.
+  //
+  // The artist's event STAYS VISIBLE (M8-T0 V-06): Sean overruled hiding it, on the
+  // reasoning that the artist did nothing wrong and telling them puts the pressure
+  // where it belongs. This notification is the mechanism for that pressure — it is
+  // what makes the artist chase the venue rather than us.
+  //
+  // Copy stays neutral: it says the venue's profile is on hold, never that they
+  // failed to pay. We are surfacing a billing state to the people that venue books,
+  // so vagueness is deliberate, not sloppiness (D-46).
+  [NotificationTrigger.VENUE_ON_HOLD_TO_LINKED_ARTIST]: {
+    matrixRef: 'A-20',
+    type: 'venue_on_hold',
+    persona: 'artist',
+    routeTemplate: '/(app)/(tabs)/discover/event/{eventId}',
+    push: {
+      title: 'Venue profile on hold',
+      body: '{venueName}\'s profile is on hold. Your event "{eventTitle}" is still live.',
+    },
+    inApp: {
+      title: 'Venue profile on hold',
+      body: '{venueName}\'s profile is on hold, so it won\'t appear on your event "{eventTitle}". Your event is still live — you may want to check in with them.',
     },
     email: null,
   },

@@ -15,3 +15,4 @@ export * from './discovery.js';
 export * from './event-analytics.js';
 export * from './admin.js';
 export * from './uploads.js';
+export * from './subscriptions.js';
