@@ -176,7 +176,6 @@ export const onboardingRouter = router({
             contactEmail: null,
             profileImageUrl: input.profileImageUrl ?? null,
             subscriptionStatus: SubscriptionStatus.INACTIVE,
-            isActive: false,
           });
 
           const linkRows = Object.entries(input.venueLinks ?? {})

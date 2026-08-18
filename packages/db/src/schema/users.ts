@@ -60,9 +60,17 @@ export const venueProfiles = pgTable('venue_profiles', {
   coverImageUrl: text('cover_image_url'), // CDN URL — populated via presigned S3 upload (M10-T1)
   websiteUrl: text('website_url'),
   phone: varchar('phone', { length: 30 }),
+  // The single source of subscription state (M8-T0 D-14). Written only by the
+  // Stripe webhook (D-22); read by the visibility predicate and every surface
+  // that gates on it. `venue_subscriptions` holds the billing record and
+  // deliberately has no status column of its own.
   subscriptionStatus: subscriptionStatusEnum('subscription_status').notNull().default('inactive'),
   stripeCustomerId: varchar('stripe_customer_id', { length: 255 }), // set when Stripe customer is created
-  isActive: boolean('is_active').default(false), // true only when subscription is active
+  // `is_active` removed in M8-T1 (D-14). It duplicated subscription_status while
+  // meaning the exact opposite of artist_profiles.is_active ("persona switched
+  // away", default true) in tables that get joined together — a find-and-replace
+  // waiting to take out the artist gate. It also never once held `true`: the only
+  // writers ever set it false. Visibility now comes from venueVisibilityFor().
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 });

@@ -4,6 +4,7 @@ export * from './users';
 export * from './events';
 export * from './social';
 export * from './bookings';
+export * from './subscriptions';
 export * from './collaboration';
 export * from './notifications';
 export * from './admin';

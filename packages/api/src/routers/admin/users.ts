@@ -19,10 +19,11 @@ import type { SQL } from 'drizzle-orm';
 
 import { db } from '@CeolX/db';
 import { account, session, user } from '@CeolX/db/schema/auth';
-import { bookings, venueSubscriptions } from '@CeolX/db/schema/bookings';
+import { bookings } from '@CeolX/db/schema/bookings';
 import { events, savedEvents } from '@CeolX/db/schema/events';
 import { deviceTokens } from '@CeolX/db/schema/notifications';
 import { follows, posts } from '@CeolX/db/schema/social';
+import { venueSubscriptions } from '@CeolX/db/schema/subscriptions';
 import { artistProfiles, profileSocialLinks, venueProfiles } from '@CeolX/db/schema/users';
 import type { AuthMethod, UserPersonaFilter } from '@CeolX/shared/validators';
 import {
@@ -226,8 +227,13 @@ const getById = adminProcedure.input(adminUserDetailInputSchema).query(async ({ 
         await db
           .select({
             plan: venueSubscriptions.plan,
-            status: venueSubscriptions.status,
+            // venue_subscriptions.status was dropped in M8-T1 (D-14) —
+            // venue_profiles.subscription_status is the single source of state and
+            // is already surfaced as `subscriptionStatus` on the venue above.
             currentPeriodEnd: venueSubscriptions.currentPeriodEnd,
+            trialEndsAt: venueSubscriptions.trialEndsAt,
+            cancelAtPeriodEnd: venueSubscriptions.cancelAtPeriodEnd,
+            billingBlocked: venueSubscriptions.billingBlocked,
           })
           .from(venueSubscriptions)
           .where(eq(venueSubscriptions.venueId, venue.id))
@@ -323,14 +329,24 @@ const getById = adminProcedure.input(adminUserDetailInputSchema).query(async ({ 
           coverImageUrl: venue.coverImageUrl,
           subscriptionStatus: venue.subscriptionStatus,
           stripeCustomerId: venue.stripeCustomerId,
-          isActive: venue.isActive ?? false,
+          // Derived for one release for wire compatibility (M8-T1). The admin
+          // dashboard should read `subscriptionStatus`; this key goes once the
+          // shipped app versions are confirmed.
+          isActive:
+            venue.subscriptionStatus !== 'inactive' && venue.subscriptionStatus !== 'cancelled',
           createdAt: venue.createdAt.toISOString(),
           updatedAt: venue.updatedAt.toISOString(),
           subscription: venueSub
             ? {
                 plan: venueSub.plan,
-                status: venueSub.status,
+                // Status comes from venue_profiles now (D-14) — the same value the
+                // venue's own `subscriptionStatus` field above carries. Kept on this
+                // object so the admin UI's shape does not change.
+                status: venue.subscriptionStatus,
                 currentPeriodEnd: toIso(venueSub.currentPeriodEnd),
+                trialEndsAt: toIso(venueSub.trialEndsAt),
+                cancelAtPeriodEnd: venueSub.cancelAtPeriodEnd,
+                billingBlocked: venueSub.billingBlocked,
               }
             : null,
         }

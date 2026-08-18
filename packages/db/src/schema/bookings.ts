@@ -1,8 +1,8 @@
 import { relations } from 'drizzle-orm';
-import { index, pgTable, text, timestamp, uuid, varchar } from 'drizzle-orm/pg-core';
+import { index, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
 
 import { user } from './auth';
-import { bookingDirectionEnum, bookingStatusEnum, subscriptionStatusEnum } from './enums';
+import { bookingDirectionEnum, bookingStatusEnum } from './enums';
 import { events } from './events';
 import { artistProfiles, venueProfiles } from './users';
 
@@ -50,31 +50,6 @@ export const bookings = pgTable(
 );
 
 // ---------------------------------------------------------------------------
-// venue_subscriptions — source of truth for Stripe billing lifecycle.
-// One subscription per venue (unique on venue_id). If a venue cancels and
-// resubscribes, the existing row is updated — not replaced.
-// Subscription history lives in the Stripe dashboard, not here.
-//
-// plan is varchar (not enum) — Lite/Pro tiers are not finalised with the client
-// (Open Item #2 in CLAUDE.md). Avoid enum migration pain when tiers are confirmed.
-// ---------------------------------------------------------------------------
-export const venueSubscriptions = pgTable('venue_subscriptions', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  venueId: uuid('venue_id')
-    .notNull()
-    .unique() // one active subscription per venue
-    .references(() => venueProfiles.id, { onDelete: 'cascade' }),
-  stripeCustomerId: varchar('stripe_customer_id', { length: 255 }).notNull(), // cus_xxx
-  stripeSubscriptionId: varchar('stripe_subscription_id', { length: 255 }).notNull(), // sub_xxx
-  plan: varchar('plan', { length: 50 }).notNull().default('lite'), // varchar not enum — tiers TBC
-  status: subscriptionStatusEnum('status').notNull().default('inactive'),
-  currentPeriodStart: timestamp('current_period_start'),
-  currentPeriodEnd: timestamp('current_period_end'),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-  updatedAt: timestamp('updated_at').notNull().defaultNow(),
-});
-
-// ---------------------------------------------------------------------------
 // Relations
 // ---------------------------------------------------------------------------
 export const bookingsRelations = relations(bookings, ({ one }) => ({
@@ -102,17 +77,8 @@ export const bookingsRelations = relations(bookings, ({ one }) => ({
   }),
 }));
 
-export const venueSubscriptionsRelations = relations(venueSubscriptions, ({ one }) => ({
-  venue: one(venueProfiles, {
-    fields: [venueSubscriptions.venueId],
-    references: [venueProfiles.id],
-  }),
-}));
-
 // ---------------------------------------------------------------------------
 // Inferred types
 // ---------------------------------------------------------------------------
 export type Booking = typeof bookings.$inferSelect;
 export type NewBooking = typeof bookings.$inferInsert;
-export type VenueSubscription = typeof venueSubscriptions.$inferSelect;
-export type NewVenueSubscription = typeof venueSubscriptions.$inferInsert;

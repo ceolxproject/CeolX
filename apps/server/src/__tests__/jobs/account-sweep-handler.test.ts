@@ -50,16 +50,36 @@ vi.mock('@CeolX/db/schema/notifications', () => ({
   deviceTokens: { userId: 'user_id' },
 }));
 
+// Billing cancellation is a separate concern with its own coverage in
+// packages/api/src/__tests__/subscription-sync.test.ts. Stubbed here so these
+// tests stay about erasure — but asserted below, because D-47 requires it to
+// happen BEFORE the account is erased.
+const mockCancelSubscription = vi.hoisted(() => vi.fn());
+vi.mock('@CeolX/api/services/subscription-sync', () => ({
+  cancelSubscriptionForUser: mockCancelSubscription,
+}));
+
 vi.mock('drizzle-orm', () => ({
+  // These four are stubbed with inspectable shapes: the assertions below read the
+  // composed predicate rather than executing it.
   and: (...args: unknown[]) => ({ kind: 'and', args }),
   eq: (col: unknown, val: unknown) => ({ kind: 'eq', col, val }),
   isNotNull: (col: unknown) => ({ kind: 'isNotNull', col }),
   lte: (col: unknown, val: unknown) => ({ kind: 'lte', col, val }),
+  // `relations` is a no-op stub, required only because the handler now reaches
+  // @CeolX/api/services/subscription-sync (to cancel billing before erasure,
+  // M8-T0 D-47), which imports schema files that declare relations. Nothing here
+  // exercises a relational query.
+  relations: () => ({}),
 }));
 
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { handleAccountAnonymizeSweep } from '../../jobs/handlers/account.js';
+
+beforeEach(() => {
+  mockCancelSubscription.mockResolvedValue(true);
+});
 
 afterEach(() => {
   vi.clearAllMocks();

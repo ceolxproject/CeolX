@@ -1,10 +1,12 @@
 import { and, eq, isNotNull, lte } from 'drizzle-orm';
 
+import { cancelSubscriptionForUser } from '@CeolX/api/services/subscription-sync';
 import { db } from '@CeolX/db';
 import { session, user } from '@CeolX/db/schema/auth';
 import { deviceTokens } from '@CeolX/db/schema/notifications';
 import { artistProfiles, profileSocialLinks, venueProfiles } from '@CeolX/db/schema/users';
 import { sendAccountDeletedEmail } from '@CeolX/email';
+import { SubscriptionStatus } from '@CeolX/shared';
 
 import type { JobPayload } from '../types.js';
 
@@ -37,6 +39,14 @@ async function applyAnonymization(
   userId: string,
   contact: { email: string | null; name: string | null }
 ): Promise<void> {
+  // Cancel billing FIRST (M8-T0 D-47). Deliberately before the erasure
+  // transaction and deliberately allowed to throw: if Stripe cannot be reached we
+  // want the job to retry rather than erase the account and keep charging a
+  // customer who no longer exists. Erasure has a 30-day statutory window, so a
+  // delayed retry is acceptable — an uncancellable live subscription against an
+  // erased account is not. A network call also has no business inside a DB
+  // transaction, which is the other reason it sits out here.
+  await cancelSubscriptionForUser(userId);
   const now = new Date();
 
   await db.transaction(async (tx) => {
@@ -89,7 +99,12 @@ async function applyAnonymization(
         coverImageUrl: null,
         websiteUrl: null,
         phone: null,
-        isActive: false,
+        // `is_active` was removed in M8-T1 (D-14). Visibility is now derived from
+        // subscription_status, so an anonymised venue is hidden by moving it to
+        // `cancelled` rather than by clearing a separate flag. Leaving the status
+        // untouched here would keep a deleted venue publicly visible if it happened
+        // to be mid-trial. The Stripe subscription itself is cancelled by M8-T3.
+        subscriptionStatus: SubscriptionStatus.CANCELLED,
       })
       .where(eq(venueProfiles.userId, userId));
 

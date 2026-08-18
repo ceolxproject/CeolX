@@ -207,7 +207,6 @@ export const followsRouter = router({
             userId: venueProfiles.userId,
             displayName: venueProfiles.venueName,
             profileImageUrl: venueProfiles.profileImageUrl,
-            isActive: venueProfiles.isActive,
           })
           .from(venueProfiles)
           .where(eq(venueProfiles.userId, row.followeeId))

@@ -355,8 +355,10 @@ async function seedGalway() {
       userId: VENUE,
       venueName,
       address: '123 Main St, Dublin, D01 AB12',
-      subscriptionStatus: 'inactive',
-      isActive: false,
+      // Seeded mid-trial rather than inactive: a trialing venue is the realistic
+      // launch state and is publicly visible (M8-T0 D-28), so local dev exercises
+      // the visible path once VENUE_GATE_ENABLED is switched on.
+      subscriptionStatus: 'trialing',
     });
   }
 

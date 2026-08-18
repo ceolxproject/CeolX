@@ -1,0 +1,1 @@
+ALTER TABLE "venue_subscriptions" ADD COLUMN "last_portal_request_at" timestamp with time zone;

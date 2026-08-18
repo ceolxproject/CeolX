@@ -197,6 +197,27 @@
       "when": 1784272399964,
       "tag": "20260717071319_abandoned_northstar",
       "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "7",
+      "when": 1786994463624,
+      "tag": "20260817192103_m8_t1_drop_legacy_gate_columns",
+      "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1786994509100,
+      "tag": "20260817192149_m8_t1_subscription_billing_columns",
+      "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1786997199568,
+      "tag": "20260817200639_m8_t4_portal_request_throttle",
+      "breakpoints": true
     }
   ]
 }
