@@ -1,12 +1,12 @@
 # M8-T1 · Stripe Foundation, Activation Token & Checkout
 
-| Field          | Value                                                                                                |
-| -------------- | ---------------------------------------------------------------------------------------------------- |
-| **Milestone**  | M8 — Venue Subscription & Payments                                                                   |
-| **Status**     | ✅ Implemented — local only, unmerged                                                                |
-| **Decisions**  | `M8-T0-Subscription-Decisions.md` — **read first.** This task implements D-04…D-24, D-49, D-60, D-61 |
-| **Depends on** | M2-T4 (venue persona), M7-T3 (Postmark), M1-T13 (QStash jobs)                                        |
-| **Blocked by** | Nothing to write. **O-08 blocks deploying the restored visibility gate** — see §3                    |
+| Field          | Value                                                                                                         |
+| -------------- | ------------------------------------------------------------------------------------------------------------- |
+| **Milestone**  | M8 — Venue Subscription & Payments                                                                            |
+| **Status**     | ✅ Implemented — local only, unmerged                                                                         |
+| **Decisions**  | `M8-T0-Subscription-Decisions.md` — **read first.** This task implements D-04…D-24, D-49, D-60, D-61          |
+| **Depends on** | M2-T4 (venue persona), M7-T3 (Postmark), M1-T13 (QStash jobs)                                                 |
+| **Blocked by** | Nothing. O-08 closed 18/08/2026 as **D-67** — the gate now waits on the manual email campaign, not a decision |
 
 ---
 
@@ -54,7 +54,7 @@ Per D-07, D-10, D-14 and the columns D-29 / D-42 depend on:
 
 ### 3 · Visibility predicate
 
-> ⚠️ **This is the cutover.** Every venue row in production is `subscription_status = 'inactive'` — the column default, never written, because the webhook is a stub. Restoring the gate therefore hides **every venue on the platform** and blocks their event/post creation, while `FreeAccessNotice` has been promising them advance warning. **T0 O-08 must be answered before this ships to production.** The recommendation on the table is to back-fill existing venues to `trialing` with a launch-dated `trial_ends_at` in the same migration, so the cutover starts their free period rather than ending their access.
+> ⚠️ **This is the cutover.** Every venue row in production is `subscription_status = 'inactive'` — the column default, never written, because the webhook was a stub. Their profiles are live today because `VENUE_GATE_ENABLED` is off, not because of anything in that column, so switching the gate on hides **every venue on the platform** at once. **D-67 is how that is avoided:** no row is back-filled, and the gate stays off until every existing venue has been emailed by hand and had the chance to activate — at which point their own six months starts. The gate is a deploy-time operation, not a code branch.
 
 `isProfileVisibleToViewer` in `packages/api/src/routers/_profile-helpers.ts:76` currently ends `return true; // venue: gate disabled`.
 
@@ -88,7 +88,7 @@ Per **D-60** there is no page to build. `GET api.ceolx.com/activate?token=…` v
 - [ ] `stripe` installed; all Stripe env vars validated at boot; boot fails loudly if a required key is missing
 - [ ] Migration applied: `trialing` present, plan interval, `trial_ends_at`, `cancel_at_period_end`, `billing_blocked`, Stripe ids nullable, `venue_profiles.is_active` dropped and all read sites updated
 - [ ] `isProfileVisibleToViewer` returns a three-way state and every caller renders the correct one; no caller treats "on hold" as "not found"
-- [ ] O-08 answered and the existing-venue back-fill agreed **before** the gate reaches production
+- [ ] Manual activation email sent to every existing venue **before** the gate reaches production (D-67 — no back-fill, their trial starts when they activate)
 - [ ] `/activate` absent from `LINK_PATH_GLOBS` and `intentFilters`, with a comment at both sites explaining why
 - [ ] Requesting activation issues a token, emails it, and invalidates all previous tokens for that user
 - [ ] Only the newest link works; an older link returns `invalid`, not a server error

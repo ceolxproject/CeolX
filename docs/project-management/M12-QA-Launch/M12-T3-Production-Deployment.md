@@ -474,3 +474,15 @@ If a critical bug is discovered post-launch:
 - **Stripe test mode in production**: Ensure you're using `sk_live_...` (production keys), not `sk_test_...` keys in production. Test keys will silently fail to charge real cards.
 
 - **Launch timing**: Coordinate launch date with the team and Chongie Entertainment Services. Announce on social media, Irish music forums, and to media partners. Time launch around the Irish festival season (March–September) for maximum engagement.
+
+### Live-mode Stripe Product copy (D-69)
+
+The Checkout trial headline is Stripe's and always reads in **days** ("183 days free") — there is
+no months parameter in the API, confirmed by rendering the hosted page. The "6 months" wording
+therefore lives in the Product **description**, which is per-mode and does not copy across from
+test:
+
+- [ ] Set the live-mode Product description to: `Includes a 6-month free trial. Venue profile visibility and event publishing on CeolX.`
+
+Adaptive Pricing needs no Dashboard action — D-68 disables it per-Session in code, which is
+deliberate, so leaving the account toggle on is harmless.
