@@ -2,15 +2,10 @@ import { and, eq, ne, sql } from 'drizzle-orm';
 
 import { db } from '@CeolX/db';
 import { follows } from '@CeolX/db/schema/social';
-import { venueSubscriptions } from '@CeolX/db/schema/subscriptions';
 import { artistProfiles, profileSocialLinks, venueProfiles } from '@CeolX/db/schema/users';
-import { env } from '@CeolX/env/server';
-import {
-  ProfileVisibility,
-  SubscriptionStatus,
-  venueVisibilityFor,
-  type VenueSubscriptionStatus,
-} from '@CeolX/shared';
+import { ProfileVisibility } from '@CeolX/shared';
+
+import { onHoldVenueIds } from '../services/venue-gate.js';
 
 /**
  * Get follower and following counts for a user.
@@ -63,41 +58,6 @@ export async function getFollowerCounts(userId: string) {
 }
 
 /**
- * Is the venue subscription gate live? (M8-T0 O-08.)
- *
- * Defaults to false. Every venue in production still sits at
- * `subscription_status = 'inactive'`, because nothing has ever written that
- * column to anything else — the Stripe webhook is the only intended writer.
- * Switching this on before existing venues are back-filled would hide every
- * venue on the platform at once and block them from creating events or posts,
- * while the app has been promising them advance notice.
- *
- * So the gate ships dark: the code is wired and tested in both positions, and
- * turning it on is a config change plus a back-fill, not a deploy.
- */
-function isVenueGateEnabled(): boolean {
-  return env.VENUE_GATE_ENABLED === 'true';
-}
-
-/**
- * End of the past-due grace window for a venue, or null when not applicable.
- *
- * Read lazily and only for `past_due`, which is rare — the common statuses need
- * no query at all, so the hot profile path keeps its current shape rather than
- * gaining a join it would almost never use.
- */
-async function graceWindowEndFor(venueId: string): Promise<Date | null> {
-  const [row] = await db
-    .select({ pastDueSince: venueSubscriptions.pastDueSince })
-    .from(venueSubscriptions)
-    .where(eq(venueSubscriptions.venueId, venueId))
-    .limit(1);
-
-  if (!row?.pastDueSince) return null;
-  return new Date(row.pastDueSince.getTime() + env.STRIPE_GRACE_DAYS * 24 * 60 * 60 * 1000);
-}
-
-/**
  * Public-visibility predicate shared by artists.byId, venues.byId,
  * profiles.getByUsername and the /u/<username> share page, so "is this profile
  * public?" lives in ONE place and those surfaces cannot diverge.
@@ -125,14 +85,15 @@ export async function resolveProfileVisibility(
     return profile.isActive === true ? ProfileVisibility.VISIBLE : ProfileVisibility.NOT_FOUND;
   }
 
-  if (!isVenueGateEnabled()) return ProfileVisibility.VISIBLE;
-
-  const status = (profile.subscriptionStatus ??
-    SubscriptionStatus.INACTIVE) as VenueSubscriptionStatus;
-  const graceEndsAt =
-    status === SubscriptionStatus.PAST_DUE ? await graceWindowEndFor(profile.id) : null;
-
-  return venueVisibilityFor({ status, graceEndsAt });
+  // Delegates to the gate rather than re-deriving it. This used to duplicate the
+  // VENUE_GATE_ENABLED check and the grace-window arithmetic, which is how it came to
+  // miss `billing_blocked` entirely — a disputed venue stayed publicly visible here
+  // while every other surface hid it. One reader, one rule (D-13).
+  //
+  // `onHoldVenueIds` short-circuits without a query while the gate is off, which is
+  // the shipping default, so the common path costs nothing.
+  const onHold = await onHoldVenueIds([profile.id]);
+  return onHold.has(profile.id) ? ProfileVisibility.ON_HOLD : ProfileVisibility.VISIBLE;
 }
 
 /**

@@ -109,6 +109,11 @@ vi.mock('../services/event-sync', () => ({
   removeEventFromTypesense: vi.fn(async () => {}),
 }));
 
+const mockAssertVenueMayPublish = vi.hoisted(() => vi.fn(async () => {}));
+vi.mock('../routers/_venue-publish-guard', () => ({
+  assertVenueMayPublish: mockAssertVenueMayPublish,
+}));
+
 vi.mock('../routers/events/helpers', () => ({
   resolveEventCoordinates: vi.fn(() => Promise.resolve({ lat: '53.3498', lng: '-6.2603' })),
   lookupVenueCoords: vi.fn(() => Promise.resolve(null)),
@@ -375,5 +380,67 @@ describe('events.update — artist-to-artist co-artist invites', () => {
         (args[0] as Record<string, unknown>).direction === 'artist_to_artist'
     );
     expect(a2aBookings).toHaveLength(0);
+  });
+});
+
+describe('events.update — the edit path cannot be used to publish (V-14)', () => {
+  beforeEach(() => {
+    // This file has no global mock reset, so call counts accumulate across tests
+    // without an explicit clear here.
+    vi.clearAllMocks();
+    mockUpdateReturning.mockResolvedValue([updatedEvent]);
+    mockSelectWhere.mockResolvedValue([]);
+    mockCollabsFindMany.mockResolvedValue([]);
+    mockPendingInvitesWhere.mockResolvedValue([]);
+    mockAssertVenueMayPublish.mockResolvedValue(undefined);
+  });
+
+  /** Same session shape as artistContext, but a venue. */
+  function venueContext(): Context {
+    const ctx = artistContext();
+    return {
+      ...ctx,
+      session: {
+        ...ctx.session,
+        user: { ...(ctx.session as { user: Record<string, unknown> }).user, currentRole: 'venue' },
+      },
+    } as unknown as Context;
+  }
+
+  it('runs the publish guard when a REMOVED event is resubmitted', async () => {
+    // `create` was guarded; `update` was a bare protectedProcedure that could move an
+    // event from REMOVED back to ACTIVE. An on-hold venue could publish by editing.
+    mockEventsFindFirst.mockResolvedValue({ ...existingEvent, status: 'removed' });
+
+    await createCaller(venueContext()).events.update({
+      id: EVENT_ID,
+      data: { title: 'Back on' },
+    });
+
+    expect(mockAssertVenueMayPublish).toHaveBeenCalledTimes(1);
+  });
+
+  it('does NOT run the guard for an ordinary edit of an already-active event', async () => {
+    // Editing is deliberately still allowed while lapsed — a venue keeps view, edit and
+    // fix-payment. Only the transition into a visible state is gated.
+    mockEventsFindFirst.mockResolvedValue({ ...existingEvent, status: 'active' });
+
+    await createCaller(venueContext()).events.update({
+      id: EVENT_ID,
+      data: { title: 'Typo fixed' },
+    });
+
+    expect(mockAssertVenueMayPublish).not.toHaveBeenCalled();
+  });
+
+  it('propagates the guard refusal instead of publishing anyway', async () => {
+    mockEventsFindFirst.mockResolvedValue({ ...existingEvent, status: 'removed' });
+    mockAssertVenueMayPublish.mockRejectedValueOnce(
+      Object.assign(new Error('subscription needed'), { code: 'FORBIDDEN' })
+    );
+
+    await expect(
+      createCaller(venueContext()).events.update({ id: EVENT_ID, data: { title: 'Back on' } })
+    ).rejects.toThrow(/subscription needed/);
   });
 });

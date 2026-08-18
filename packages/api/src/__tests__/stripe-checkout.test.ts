@@ -1,8 +1,6 @@
 import { TRPCError } from '@trpc/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { UserRole } from '@CeolX/shared';
-
 const VENUE_USER_ID = 'venue-user-1';
 const VENUE_ID = 'venue-profile-1';
 
@@ -31,18 +29,8 @@ vi.mock('@CeolX/env/server', () => ({
 }));
 vi.mock('../services/stripe', () => ({ createSubscriptionCheckoutSession: mockCreateSession }));
 
-import type { Context } from '../context';
-import { router, t } from '../index';
-import { buildCheckoutSessionForVenue, stripeRouter } from '../routers/stripe';
-
-const createCaller = t.createCallerFactory(router({ stripe: stripeRouter }));
-
-function authedContext(role: UserRole, userId = VENUE_USER_ID): Context {
-  return {
-    session: { user: { id: userId, currentRole: role }, session: { userId } },
-    dispatchNotification: vi.fn(async () => {}),
-  } as unknown as Context;
-}
+import * as stripeModule from '../routers/stripe';
+import { buildCheckoutSessionForVenue } from '../routers/stripe';
 
 async function expectCode(promise: Promise<unknown>, code: TRPCError['code']) {
   try {
@@ -162,57 +150,33 @@ describe('buildCheckoutSessionForVenue — trial eligibility (D-42)', () => {
   });
 });
 
-describe('stripe.createCheckoutSession', () => {
-  it('rejects an unauthenticated caller', async () => {
-    await expectCode(
-      createCaller({ session: null } as unknown as Context).stripe.createCheckoutSession({
-        plan: 'monthly',
-      }),
-      'UNAUTHORIZED'
-    );
+describe('no tRPC checkout surface (D-16)', () => {
+  it('exports no router, so there is nothing to mount', () => {
+    // Apple Rule 3.1.1 turns on whether a payment URL is reachable from inside the app,
+    // not on which screen chooses to open it. `stripe.createCheckoutSession` returned a
+    // live Checkout URL to any authenticated venue; nothing called it, but that left the
+    // compliance position one client change away from breaking.
+    //
+    // Asserted on the module rather than on appRouter, which would drag Typesense and
+    // the rest of the tree into a unit test.
+    expect(Object.keys(stripeModule)).not.toContain('stripeRouter');
+    expect(Object.keys(stripeModule)).toEqual(['buildCheckoutSessionForVenue']);
   });
 
-  it('rejects a non-venue role', async () => {
-    await expectCode(
-      createCaller(authedContext('artist')).stripe.createCheckoutSession({ plan: 'monthly' }),
-      'FORBIDDEN'
-    );
-  });
-
-  it('rejects an unknown interval at the schema boundary', async () => {
-    await expect(
-      createCaller(authedContext('venue')).stripe.createCheckoutSession({
-        plan: 'weekly' as unknown as 'monthly',
-      })
-    ).rejects.toThrow();
-    expect(mockCreateSession).not.toHaveBeenCalled();
-  });
-
-  it('resolves the venue from the session, never from caller input', async () => {
-    // profile-by-userId, account, then the guards inside the shared builder.
+  it('still mints checkout server-side through the guarded builder', async () => {
+    // The capability did not go away — it moved to GET /activate, which 302s the
+    // browser to Stripe without the URL ever reaching the app.
     mockSelectLimit
-      .mockResolvedValueOnce([{ id: VENUE_ID }])
-      .mockResolvedValueOnce([{ email: 'venue@example.com' }])
       .mockResolvedValueOnce([{ id: VENUE_ID, subscriptionStatus: 'inactive' }])
       .mockResolvedValueOnce([]);
 
-    const res = await createCaller(authedContext('venue')).stripe.createCheckoutSession({
-      plan: 'annual',
+    await buildCheckoutSessionForVenue({
+      userId: VENUE_USER_ID,
+      venueId: VENUE_ID,
+      email: 'venue@example.com',
+      interval: 'monthly' as const,
     });
 
-    expect(res).toEqual({ checkoutUrl: 'https://checkout.stripe.com/x', sessionId: 'cs_1' });
-    expect(mockCreateSession).toHaveBeenCalledWith(
-      expect.objectContaining({ userId: VENUE_USER_ID, venueId: VENUE_ID, interval: 'annual' })
-    );
-  });
-
-  it('PRECONDITION_FAILEDs when the account has no email to prefill', async () => {
-    mockSelectLimit
-      .mockResolvedValueOnce([{ id: VENUE_ID }])
-      .mockResolvedValueOnce([{ email: null }]);
-    await expectCode(
-      createCaller(authedContext('venue')).stripe.createCheckoutSession({ plan: 'monthly' }),
-      'PRECONDITION_FAILED'
-    );
+    expect(mockCreateSession).toHaveBeenCalledTimes(1);
   });
 });

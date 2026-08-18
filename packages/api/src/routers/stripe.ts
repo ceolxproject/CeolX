@@ -2,22 +2,14 @@ import { TRPCError } from '@trpc/server';
 import { eq } from 'drizzle-orm';
 
 import { db } from '@CeolX/db';
-import { user } from '@CeolX/db/schema/auth';
 import { venueSubscriptions } from '@CeolX/db/schema/subscriptions';
 import { venueProfiles } from '@CeolX/db/schema/users';
 import { env } from '@CeolX/env/server';
-import { SubscriptionStatus, type BillingInterval } from '@CeolX/shared';
-import { createCheckoutSessionSchema } from '@CeolX/shared/validators';
+import { ACTIVATION_RETURN_PATHS, hasLiveBilling, type BillingInterval } from '@CeolX/shared';
 
-import { router, venueProcedure } from '../index';
 import { createSubscriptionCheckoutSession } from '../services/stripe';
 
 /** Statuses that already have live billing — a second checkout would double-charge. */
-const ALREADY_SUBSCRIBED: readonly string[] = [
-  SubscriptionStatus.TRIALING,
-  SubscriptionStatus.ACTIVE,
-  SubscriptionStatus.PAST_DUE,
-];
 
 export interface CheckoutContext {
   userId: string;
@@ -55,7 +47,7 @@ export async function buildCheckoutSessionForVenue({
 
   // D-49: refuse a second checkout while one is already live. This is the guard
   // that makes double-clicking, two devices and an impatient reload harmless.
-  if (ALREADY_SUBSCRIBED.includes(profile.subscriptionStatus)) {
+  if (hasLiveBilling(profile.subscriptionStatus)) {
     throw new TRPCError({
       code: 'CONFLICT',
       message: 'This venue already has an active subscription',
@@ -95,55 +87,21 @@ export async function buildCheckoutSessionForVenue({
     stripeCustomerId: subscription?.stripeCustomerId,
     trialDays,
     activationTokenId,
-    successUrl: `${origin}/activate/complete`,
-    cancelUrl: `${origin}/activate/cancelled`,
+    successUrl: `${origin}${ACTIVATION_RETURN_PATHS.complete}`,
+    cancelUrl: `${origin}${ACTIVATION_RETURN_PATHS.cancelled}`,
   });
 }
 
-export const stripeRouter = router({
-  /**
-   * Create a Checkout Session for the authenticated venue.
-   *
-   * Note this is NOT how a venue normally reaches Stripe — the emailed link is
-   * (D-16), and nothing in the mobile app may call this or surface the URL it
-   * returns. It exists for the web activation route and for support use.
-   *
-   * The venue is resolved from the session, never from the input, so one venue can
-   * never open a checkout against another.
-   */
-  createCheckoutSession: venueProcedure
-    .input(createCheckoutSessionSchema)
-    .mutation(async ({ ctx, input }) => {
-      const [profile] = await db
-        .select({ id: venueProfiles.id })
-        .from(venueProfiles)
-        .where(eq(venueProfiles.userId, ctx.userId))
-        .limit(1);
-
-      if (!profile) {
-        throw new TRPCError({ code: 'NOT_FOUND', message: 'No venue profile for this account' });
-      }
-
-      const [account] = await db
-        .select({ email: user.email })
-        .from(user)
-        .where(eq(user.id, ctx.userId))
-        .limit(1);
-
-      if (!account?.email) {
-        throw new TRPCError({
-          code: 'PRECONDITION_FAILED',
-          message: 'Account has no email address',
-        });
-      }
-
-      const { url, sessionId } = await buildCheckoutSessionForVenue({
-        userId: ctx.userId,
-        venueId: profile.id,
-        email: account.email,
-        interval: input.plan,
-      });
-
-      return { checkoutUrl: url, sessionId };
-    }),
-});
+/**
+ * No tRPC surface for checkout — deliberately (D-16).
+ *
+ * `stripeRouter` used to expose `createCheckoutSession`, which returned a live Stripe
+ * Checkout URL to any authenticated venue. Nothing in the app called it, but its mere
+ * existence left the Apple Rule 3.1.1 position one client change away from breaking:
+ * the rule is about a payment URL being reachable from inside the app, not about which
+ * screen happens to open it.
+ *
+ * Checkout is minted server-side only, by `GET /activate` in apps/server, which 302s
+ * the browser straight to Stripe. `buildCheckoutSessionForVenue` above is the single
+ * entry point and carries all the guards.
+ */

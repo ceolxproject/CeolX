@@ -60,7 +60,15 @@ export const profilesRouter = router({
           profile.userId
         );
         if (artistVisibility !== ProfileVisibility.VISIBLE) throw notFound();
-        return { role: 'artist' as const, userId: profile.userId };
+        // `visibility` is returned on BOTH branches so the response shape does not
+        // depend on the role. It was venue-only, so a client reading `visibility` got
+        // `undefined` for artists — and `undefined` is easy to mistake for "not
+        // visible". An artist reaching here is always visible; anything else threw.
+        return {
+          role: 'artist' as const,
+          userId: profile.userId,
+          visibility: ProfileVisibility.VISIBLE,
+        };
       }
 
       if (account.currentRole === 'venue') {

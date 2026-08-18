@@ -6,14 +6,22 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 //   1. user row (id + currentRole) by normalized username
 //   2. artist_profiles OR venue_profiles row by user id
 // so each case seeds mockSelectLimit with one value per expected read.
-const { mockSelectLimit, mockDb } = vi.hoisted(() => {
+//
+// For a venue with the gate ON there is a third read: the shared venue gate's
+// select().from().leftJoin().where() — no .limit — which is why the chain below
+// branches. Seed it with mockGateWhere.
+const { mockSelectLimit, mockGateWhere, mockDb } = vi.hoisted(() => {
   const mockSelectLimit = vi.fn();
+  const mockGateWhere = vi.fn();
   const mockDb: Record<string, unknown> = {
     select: vi.fn(() => ({
-      from: vi.fn(() => ({ where: vi.fn(() => ({ limit: mockSelectLimit })) })),
+      from: vi.fn(() => ({
+        where: vi.fn(() => ({ limit: mockSelectLimit })),
+        leftJoin: vi.fn(() => ({ where: mockGateWhere })),
+      })),
     })),
   };
-  return { mockSelectLimit, mockDb };
+  return { mockSelectLimit, mockGateWhere, mockDb };
 });
 
 vi.mock('@CeolX/db', () => ({ db: mockDb }));
@@ -73,7 +81,9 @@ describe('profiles.getByUsername', () => {
 
     const res = await createCaller(anon()).profiles.getByUsername({ username: 'priyamusic' });
 
-    expect(res).toEqual({ role: 'artist', userId: 'u1' });
+    // `visibility` is on both branches now, so the shape no longer depends on role —
+    // a client reading it used to get `undefined` for artists.
+    expect(res).toEqual({ role: 'artist', userId: 'u1', visibility: 'visible' });
   });
 
   it('404s an inactive artist for a non-owner', async () => {
@@ -142,6 +152,16 @@ describe('profiles.getByUsername', () => {
           subscriptionStatus: 'inactive',
         },
       ]);
+    // No billing row was ever created for this venue — the LEFT join case.
+    mockGateWhere.mockResolvedValue([
+      {
+        venueId: 'vp1',
+        userId: 'v1',
+        subscriptionStatus: 'inactive',
+        pastDueSince: null,
+        billingBlocked: null,
+      },
+    ]);
 
     const res = await t
       .createCallerFactory(gated)(anon() as unknown as Context)
@@ -168,6 +188,15 @@ describe('profiles.getByUsername', () => {
           subscriptionStatus: 'trialing',
         },
       ]);
+    mockGateWhere.mockResolvedValue([
+      {
+        venueId: 'vp1',
+        userId: 'v1',
+        subscriptionStatus: 'trialing',
+        pastDueSince: null,
+        billingBlocked: false,
+      },
+    ]);
 
     const res = await t
       .createCallerFactory(gated)(anon() as unknown as Context)

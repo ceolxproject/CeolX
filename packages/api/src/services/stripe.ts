@@ -243,6 +243,18 @@ export async function createSubscriptionCheckoutSession(
 
   const session = await stripe.checkout.sessions.create({
     mode: 'subscription',
+    // No `automatic_tax` — deliberate, and NOT a Dashboard toggle.
+    //
+    // It defaults to disabled on API-created Sessions, so enabling Stripe Tax in the
+    // Dashboard changes nothing here. Chongie has no Irish VAT registration confirmed
+    // yet (D-66), and with `tax_behavior: 'inclusive'` Prices the result either way is
+    // €19.99 with €0.00 VAT and no error raised.
+    //
+    // To switch it on: add `automatic_tax: { enabled: true }` AND
+    // `customer_update: { address: 'auto' }` (required because we reuse an existing
+    // Customer and Stripe needs an address to pick a rate), then verify VAT appears as
+    // a line on a real test invoice. Registration first — enabling it without one is
+    // indistinguishable from this state. Blocking item in M12-T3.
     integration_identifier: CHECKOUT_INTEGRATION_IDENTIFIER,
     // `payment_method_types` is deliberately absent. Stripe determines eligible
     // methods dynamically from Dashboard settings; hardcoding ['card'] would lock

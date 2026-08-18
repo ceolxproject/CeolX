@@ -44,6 +44,7 @@ interface GateRow {
   userId: string;
   subscriptionStatus: VenueSubscriptionStatus;
   pastDueSince: Date | null;
+  billingBlocked: boolean | null;
 }
 
 /**
@@ -63,6 +64,7 @@ async function loadGateRows(by: 'venueId' | 'userId', ids: readonly string[]): P
         userId: venueProfiles.userId,
         subscriptionStatus: venueProfiles.subscriptionStatus,
         pastDueSince: venueSubscriptions.pastDueSince,
+        billingBlocked: venueSubscriptions.billingBlocked,
       })
       .from(venueProfiles)
       // LEFT join: a venue with no billing row at all is still a venue, and it is
@@ -78,6 +80,8 @@ function onHold(row: GateRow): boolean {
     venueVisibilityFor({
       status: row.subscriptionStatus,
       graceEndsAt: graceEndFor(row.pastDueSince),
+      // Null for a venue with no billing row at all (LEFT join) — not blocked.
+      billingBlocked: row.billingBlocked ?? false,
     }) === ProfileVisibility.ON_HOLD
   );
 }

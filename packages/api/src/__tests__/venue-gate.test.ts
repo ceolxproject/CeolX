@@ -173,3 +173,23 @@ describe('a venue with no billing row at all', () => {
     expect((await onHoldVenueIds(['v1'])).has('v1')).toBe(true);
   });
 });
+
+describe('gate honours billingBlocked (D-51)', () => {
+  it('holds a disputed venue even while Stripe still reports active', async () => {
+    // The dispute handler writes `cancelled` but the subscription keeps billing, so
+    // the next invoice.paid re-syncs to `active`. Reading status alone put the venue
+    // back on the map within one cycle.
+    mockSelectWhere.mockResolvedValue([
+      row({ subscriptionStatus: 'active', billingBlocked: true }),
+    ]);
+    expect((await onHoldVenueUserIds(['u1'])).has('u1')).toBe(true);
+  });
+
+  it('treats a venue with no billing row as unblocked, not blocked', async () => {
+    // LEFT join yields null, which must not read as `true`.
+    mockSelectWhere.mockResolvedValue([
+      row({ subscriptionStatus: 'active', billingBlocked: null }),
+    ]);
+    expect((await onHoldVenueUserIds(['u1'])).has('u1')).toBe(false);
+  });
+});

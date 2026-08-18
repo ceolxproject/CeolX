@@ -9,16 +9,23 @@ const {
   mockUpdateWhere,
   mockUpdateSet,
   mockInsertValues,
+  mockOnConflictDoUpdate,
   mockTransaction,
   mockDb,
   mockRetrieveSubscription,
   mockRetrieveCharge,
+  mockCancelSubscription,
   mockMarkConsumed,
 } = vi.hoisted(() => {
   const mockSelectLimit = vi.fn();
   const mockUpdateWhere = vi.fn(() => Promise.resolve());
   const mockUpdateSet = vi.fn(() => ({ where: mockUpdateWhere }));
-  const mockInsertValues = vi.fn(() => Promise.resolve());
+  const mockOnConflictDoUpdate = vi.fn(() => Promise.resolve());
+  // values() is awaited directly on some paths and chained with .onConflictDoUpdate()
+  // on the upsert path — mirror drizzle's thenable builder rather than picking one.
+  const mockInsertValues = vi.fn(() =>
+    Object.assign(Promise.resolve(), { onConflictDoUpdate: mockOnConflictDoUpdate })
+  );
   const mockDb: Record<string, unknown> = {};
   const mockTransaction = vi.fn((cb: (tx: unknown) => Promise<unknown>) => cb(mockDb));
 
@@ -33,6 +40,7 @@ const {
 
   return {
     mockSelectLimit,
+    mockOnConflictDoUpdate,
     mockUpdateWhere,
     mockUpdateSet,
     mockInsertValues,
@@ -40,6 +48,7 @@ const {
     mockDb,
     mockRetrieveSubscription: vi.fn(),
     mockRetrieveCharge: vi.fn(),
+    mockCancelSubscription: vi.fn(),
     mockMarkConsumed: vi.fn(),
   };
 });
@@ -47,7 +56,7 @@ const {
 vi.mock('@CeolX/db', () => ({ db: mockDb }));
 vi.mock('../services/stripe', () => ({
   getStripeClient: () => ({
-    subscriptions: { retrieve: mockRetrieveSubscription },
+    subscriptions: { retrieve: mockRetrieveSubscription, cancel: mockCancelSubscription },
     charges: { retrieve: mockRetrieveCharge },
   }),
 }));
@@ -111,7 +120,12 @@ beforeEach(() => {
   mockSelectLimit.mockResolvedValue([]);
   mockUpdateWhere.mockResolvedValue(undefined);
   mockUpdateSet.mockImplementation(() => ({ where: mockUpdateWhere }));
-  mockInsertValues.mockResolvedValue(undefined);
+  // insert().values() is chained with .onConflictDoUpdate() on the upsert path, so it
+  // has to return drizzle's thenable builder rather than a bare promise.
+  mockOnConflictDoUpdate.mockResolvedValue(undefined);
+  mockInsertValues.mockImplementation(() =>
+    Object.assign(Promise.resolve(), { onConflictDoUpdate: mockOnConflictDoUpdate })
+  );
   mockTransaction.mockImplementation((cb: (tx: unknown) => Promise<unknown>) => cb(mockDb));
   mockRetrieveSubscription.mockResolvedValue(stripeSubscription());
   mockMarkConsumed.mockResolvedValue(undefined);
@@ -161,7 +175,7 @@ describe('syncSubscriptionFromStripe', () => {
     expect(profileWrite().subscriptionStatus).toBe('trialing');
   });
 
-  it('inserts a billing row when the venue has none yet', async () => {
+  it('upserts the billing row on venue_id', async () => {
     await syncSubscriptionFromStripe(SUB_ID);
     expect(mockInsertValues).toHaveBeenCalledTimes(1);
     expect(subscriptionWrite()).toMatchObject({
@@ -172,10 +186,28 @@ describe('syncSubscriptionFromStripe', () => {
     });
   });
 
-  it('updates the existing billing row rather than inserting a duplicate', async () => {
-    mockSelectLimit.mockResolvedValue([{ id: 'row1', trialEndsAt: null, pastDueSince: null }]);
+  it('never branches on the SELECT — two concurrent first events cannot both insert', async () => {
+    // The race this closes: read and write are separate statements under READ
+    // COMMITTED, so both callers saw no row and both INSERTed, one dying on the unique
+    // violation. Stripe fans out subscription.created and invoice.paid together and
+    // there is deliberately no processed-event table to serialise them.
+    mockSelectLimit.mockResolvedValue([]);
     await syncSubscriptionFromStripe(SUB_ID);
-    expect(mockInsertValues).not.toHaveBeenCalled();
+
+    expect(mockOnConflictDoUpdate).toHaveBeenCalledTimes(1);
+    expect(mockOnConflictDoUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({ target: expect.anything() as unknown })
+    );
+  });
+
+  it('takes the same upsert path when a row already exists', async () => {
+    mockSelectLimit.mockResolvedValue([
+      { id: 'row1', trialEndsAt: null, pastDueSince: null, plan: 'monthly' },
+    ]);
+    await syncSubscriptionFromStripe(SUB_ID);
+
+    // One code path for both cases — no insert-vs-update branch left to get wrong.
+    expect(mockOnConflictDoUpdate).toHaveBeenCalledTimes(1);
   });
 
   it('derives the interval from the Stripe price', async () => {
@@ -366,6 +398,42 @@ describe('blockBillingForCustomer', () => {
     mockSelectLimit.mockResolvedValue([]);
     await blockBillingForCustomer('cus_unknown');
     expect(mockTransaction).not.toHaveBeenCalled();
+    expect(mockCancelSubscription).not.toHaveBeenCalled();
+  });
+
+  it('cancels the subscription at Stripe, or the block reverts within a cycle', async () => {
+    // Without this the subscription keeps billing and the next invoice.paid re-syncs
+    // the venue to `active`, undoing the local write above.
+    mockSelectLimit.mockResolvedValue([
+      { id: 'row1', venueId: VENUE_ID, stripeSubscriptionId: 'sub_disputed' },
+    ]);
+    await blockBillingForCustomer(CUSTOMER_ID);
+
+    expect(mockCancelSubscription).toHaveBeenCalledWith('sub_disputed');
+  });
+
+  it('keeps the local block when the Stripe cancel fails', async () => {
+    // Degrades to "hidden but still billing", which is recoverable by hand. Losing the
+    // block instead would put a disputed venue back on the map.
+    mockSelectLimit.mockResolvedValue([
+      { id: 'row1', venueId: VENUE_ID, stripeSubscriptionId: 'sub_disputed' },
+    ]);
+    mockCancelSubscription.mockRejectedValue(new Error('stripe down'));
+
+    await expect(blockBillingForCustomer(CUSTOMER_ID)).resolves.toBeUndefined();
+    const writes = mockUpdateSet.mock.calls.map((_c, i) =>
+      callArg<Record<string, unknown>>(mockUpdateSet, i)
+    );
+    expect(writes.some((w) => w.billingBlocked === true)).toBe(true);
+  });
+
+  it('skips the Stripe call when no subscription id was ever recorded', async () => {
+    mockSelectLimit.mockResolvedValue([
+      { id: 'row1', venueId: VENUE_ID, stripeSubscriptionId: null },
+    ]);
+    await blockBillingForCustomer(CUSTOMER_ID);
+
+    expect(mockCancelSubscription).not.toHaveBeenCalled();
   });
 });
 
@@ -436,5 +504,106 @@ describe('handleStripeSubscriptionEvent', () => {
     expect(mockRetrieveSubscription).not.toHaveBeenCalled();
     expect(mockTransaction).not.toHaveBeenCalled();
     expect(mockUpdateSet).not.toHaveBeenCalled();
+  });
+});
+
+describe('plan is never guessed (H5 — chargeback risk)', () => {
+  it('keeps the stored interval when Stripe sends no recurring block', async () => {
+    // Relabelling an annual subscriber as monthly makes the trial-ending email quote
+    // €19.99 seven days before we take €199.
+    mockSelectLimit.mockResolvedValue([
+      { id: 'row1', trialEndsAt: null, pastDueSince: null, plan: 'annual' },
+    ]);
+    mockRetrieveSubscription.mockResolvedValue({
+      id: 'sub_1',
+      status: 'active',
+      customer: CUSTOMER_ID,
+      cancel_at_period_end: false,
+      trial_end: null,
+      items: { data: [{ price: {}, current_period_start: null, current_period_end: null }] },
+      metadata: { venueId: VENUE_ID },
+    });
+
+    await syncSubscriptionFromStripe('sub_1', {});
+
+    // The billing row is upserted, so the payload is on insert().values().
+    expect(subscriptionWrite()).toMatchObject({ plan: 'annual' });
+  });
+
+  it('throws rather than defaulting when there is no interval and no stored plan', async () => {
+    mockSelectLimit.mockResolvedValue([]);
+    mockRetrieveSubscription.mockResolvedValue({
+      id: 'sub_2',
+      status: 'active',
+      customer: CUSTOMER_ID,
+      cancel_at_period_end: false,
+      trial_end: null,
+      items: { data: [{ price: {}, current_period_start: null, current_period_end: null }] },
+      metadata: { venueId: VENUE_ID },
+    });
+
+    // 500 means Stripe retries and someone sees it, which beats a plausible wrong row.
+    await expect(syncSubscriptionFromStripe('sub_2', {})).rejects.toThrow(/refusing to guess/);
+  });
+});
+
+describe('past_due always records an origin (H6)', () => {
+  it('stamps pastDueSince when the row goes past_due without one', async () => {
+    // recordInvoicePaymentFailure no-ops when no row matches the customer, so a
+    // first-invoice failure at trial end can land here with nothing recorded. A null
+    // origin makes venueVisibilityFor fail open permanently — free visibility forever.
+    mockSelectLimit.mockResolvedValue([
+      { id: 'row1', trialEndsAt: null, pastDueSince: null, plan: 'monthly' },
+    ]);
+    mockRetrieveSubscription.mockResolvedValue({
+      id: 'sub_3',
+      status: 'past_due',
+      customer: CUSTOMER_ID,
+      cancel_at_period_end: false,
+      trial_end: null,
+      items: {
+        data: [
+          {
+            price: { recurring: { interval: 'month' } },
+            current_period_start: null,
+            current_period_end: null,
+          },
+        ],
+      },
+      metadata: { venueId: VENUE_ID },
+    });
+
+    await syncSubscriptionFromStripe('sub_3', {});
+
+    expect(subscriptionWrite().pastDueSince).toBeInstanceOf(Date);
+  });
+
+  it('preserves an existing origin rather than resetting the grace window', async () => {
+    const original = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
+    mockSelectLimit.mockResolvedValue([
+      { id: 'row1', trialEndsAt: null, pastDueSince: original, plan: 'monthly' },
+    ]);
+    mockRetrieveSubscription.mockResolvedValue({
+      id: 'sub_4',
+      status: 'past_due',
+      customer: CUSTOMER_ID,
+      cancel_at_period_end: false,
+      trial_end: null,
+      items: {
+        data: [
+          {
+            price: { recurring: { interval: 'month' } },
+            current_period_start: null,
+            current_period_end: null,
+          },
+        ],
+      },
+      metadata: { venueId: VENUE_ID },
+    });
+
+    await syncSubscriptionFromStripe('sub_4', {});
+
+    // Re-stamping on every redelivered event would restart the 7-day window each time.
+    expect(subscriptionWrite().pastDueSince).toBe(original);
   });
 });

@@ -125,17 +125,24 @@ export interface SyncHooks {
    */
   notifyLinkedArtist?: (notice: LinkedArtistNotice) => Promise<void>;
   /**
-   * Queue the trial-ending warning (D-30), seven days before the first charge.
+   * Confirm a real payment to the venue (D-64).
    *
-   * Passed in rather than imported: the QStash publisher lives in apps/server, and
-   * this package must not depend on the app that hosts it. Omitted in tests and on
-   * any path where scheduling is not wanted.
+   * Passed in rather than imported for the same reason as the notifier: the email
+   * senders live outside this package. Omitted in tests and anywhere confirmation is
+   * not wanted.
    */
-  scheduleTrialEnding?: (venueId: string, delaySeconds: number) => Promise<void>;
+  confirmPayment?: (receipt: PaymentReceipt) => Promise<void>;
 }
 
-/** Lead time on the trial-ending email (D-30: seven days before the first charge). */
-const TRIAL_WARNING_LEAD_MS = 7 * 24 * 60 * 60 * 1000;
+/** What the venue is told after a successful charge (D-64). */
+export interface PaymentReceipt {
+  venueId: string;
+  /** Formatted with currency, straight from the invoice — never recomputed locally. */
+  amount: string;
+  interval: 'monthly' | 'annual';
+  nextBillingDate: Date | null;
+  invoiceUrl: string | null;
+}
 
 export async function syncSubscriptionFromStripe(
   subscriptionId: string,
@@ -174,7 +181,6 @@ export async function syncSubscriptionFromStripe(
   const trialEnd = toDate(subscription.trial_end);
   const item = subscription.items.data[0];
 
-  let existingTrialEndsAt: Date | null = null;
   let previousStatus: VenueSubscriptionStatus | null = null;
 
   await db.transaction(async (tx) => {
@@ -183,6 +189,7 @@ export async function syncSubscriptionFromStripe(
         id: venueSubscriptions.id,
         trialEndsAt: venueSubscriptions.trialEndsAt,
         pastDueSince: venueSubscriptions.pastDueSince,
+        plan: venueSubscriptions.plan,
       })
       .from(venueSubscriptions)
       .where(eq(venueSubscriptions.venueId, venueId))
@@ -192,20 +199,38 @@ export async function syncSubscriptionFromStripe(
     // consumed its one trial (D-42) and must survive a cancellation. Only ever
     // move it forward from null, never clear it.
     const trialEndsAt = existing?.trialEndsAt ?? trialEnd;
-    existingTrialEndsAt = existing?.trialEndsAt ?? null;
 
-    // Recovery clears the grace-window origin. The failure path sets it —
-    // see recordInvoicePaymentFailure.
-    const pastDueSince = status === SubscriptionStatus.PAST_DUE ? existing?.pastDueSince : null;
+    // Recovery clears the grace-window origin; going past_due must always set one.
+    //
+    // `recordInvoicePaymentFailure` normally writes it, but it no-ops when no row
+    // matches the customer — which is exactly what happens if the first invoice fails
+    // at trial end before this row exists, or if that event is dropped. A `past_due`
+    // row with a null origin makes `venueVisibilityFor` fail open permanently, so the
+    // venue would stay visible for free forever with nothing to back-fill it. Falling
+    // back to now costs a paying venue at most a few hours of their 7-day grace; the
+    // alternative costs us the gate entirely.
+    const pastDueSince =
+      status === SubscriptionStatus.PAST_DUE ? (existing?.pastDueSince ?? new Date()) : null;
+
+    // No interval from Stripe and none stored is a genuine anomaly: a subscription
+    // whose price has no recurring block. Throwing returns 500, so Stripe retries and
+    // the failure is visible, rather than writing a plausible-looking wrong plan.
+    const resolvedPlan = interval ?? existing?.plan;
+    if (!resolvedPlan) {
+      throw new Error(
+        `[subscription-sync] ${subscription.id} has no billing interval and no stored plan — refusing to guess`
+      );
+    }
 
     const row = {
       venueId,
       stripeCustomerId: idOf(subscription.customer),
       stripeSubscriptionId: subscription.id,
-      // Fall back to the stored interval when Stripe's price has no recurring
-      // block, rather than writing a wrong one. A NOT NULL column with no prior
-      // row and no interval is a genuine error, surfaced below.
-      plan: interval ?? BillingInterval.MONTHLY,
+      // The stored interval, not a hardcoded default. Defaulting to monthly here
+      // relabels an annual subscriber, and `handleSubscriptionTrialEnding` then quotes
+      // them €19.99 seven days before we take €199 — the exact chargeback that
+      // handler's own docblock warns about.
+      plan: resolvedPlan,
       currentPeriodStart: toDate(item?.current_period_start),
       currentPeriodEnd: toDate(item?.current_period_end),
       trialEndsAt,
@@ -214,11 +239,22 @@ export async function syncSubscriptionFromStripe(
       updatedAt: new Date(),
     };
 
-    if (existing) {
-      await tx.update(venueSubscriptions).set(row).where(eq(venueSubscriptions.id, existing.id));
-    } else {
-      await tx.insert(venueSubscriptions).values(row);
-    }
+    // Upsert on the unique venue_id rather than branching on the SELECT above.
+    //
+    // The read and the write are separate statements under READ COMMITTED, so two
+    // concurrent first-time events for the same venue both saw no row and both
+    // INSERTed — one of them dying on the unique violation. Stripe fans out
+    // `customer.subscription.created` and `invoice.paid` at essentially the same
+    // instant, and there is deliberately no processed-event table to serialise them,
+    // so this is a live race rather than a theoretical one.
+    //
+    // `existing` is still read above because the write-once trial date and the
+    // grace-window origin depend on the prior row; it is no longer what decides
+    // insert-vs-update.
+    await tx
+      .insert(venueSubscriptions)
+      .values(row)
+      .onConflictDoUpdate({ target: venueSubscriptions.venueId, set: row });
 
     const [profileBefore] = await tx
       .select({ subscriptionStatus: venueProfiles.subscriptionStatus })
@@ -254,21 +290,17 @@ export async function syncSubscriptionFromStripe(
     });
   }
 
-  // Queue the trial-ending warning the first time we learn a trial end date. Only
-  // on transition (no prior date), so a redelivered event or a later status change
-  // cannot queue a second copy — the job itself re-reads everything and no-ops if
-  // the venue has since converted or cancelled.
-  const firstTimeSeeingTrialEnd = !existingTrialEndsAt && !!trialEnd;
-  if (firstTimeSeeingTrialEnd && hooks.scheduleTrialEnding && trialEnd) {
-    const delayMs = trialEnd.getTime() - TRIAL_WARNING_LEAD_MS - Date.now();
-    // A trial shorter than the lead time (a 3-day trial for testing, say) would
-    // give a negative delay; send it promptly rather than not at all.
-    await hooks
-      .scheduleTrialEnding(venueId, Math.max(0, Math.round(delayMs / 1000)))
-      .catch((err: unknown) => {
-        console.error('[subscription-sync] could not queue the trial-ending email:', err);
-      });
-  }
+  // The trial-ending warning is sent by the daily `subscription.trial-ending-sweep`
+  // cron, not queued here. A delayed job would need a ~176-day delay for the default
+  // 183-day trial, and this repo already established that a 30-day QStash delay
+  // exceeds the plan cap and fails silently (Asana 1215276188230541).
+  //
+  // Nothing needs clearing when Stripe's trial end moves: `trialEndsAt` above is
+  // write-once by design (D-42 uses it as the record that this account consumed its
+  // one trial), so the stored date never shifts. The cost is that a trial extended in
+  // the Stripe Dashboard leaves us warning against the original date — early rather
+  // than late, so no one is charged unwarned. Splitting "trial consumed" from "current
+  // charge date" into two columns is the fix if that ever matters.
 
   // Consume the activation token once payment has actually gone through (D-17) —
   // not when the link was opened, which D-24 requires to stay repeatable. Only a
@@ -432,7 +464,11 @@ export async function clearPastDueMarker(stripeCustomerId: string): Promise<void
  */
 export async function blockBillingForCustomer(stripeCustomerId: string): Promise<void> {
   const [row] = await db
-    .select({ id: venueSubscriptions.id, venueId: venueSubscriptions.venueId })
+    .select({
+      id: venueSubscriptions.id,
+      venueId: venueSubscriptions.venueId,
+      stripeSubscriptionId: venueSubscriptions.stripeSubscriptionId,
+    })
     .from(venueSubscriptions)
     .where(eq(venueSubscriptions.stripeCustomerId, stripeCustomerId))
     .limit(1);
@@ -459,6 +495,25 @@ export async function blockBillingForCustomer(stripeCustomerId: string): Promise
       .set({ subscriptionStatus: SubscriptionStatus.CANCELLED, updatedAt: new Date() })
       .where(eq(venueProfiles.id, row.venueId));
   });
+
+  // Cancel at Stripe as well, or the subscription keeps billing and the next
+  // `invoice.paid` re-syncs this venue straight back to `active` — the local write
+  // above would silently revert within one billing cycle.
+  //
+  // Deliberately after the local write and best-effort: `billing_blocked` is our own
+  // durable record and `venueVisibilityFor` honours it ahead of status, so a Stripe
+  // outage here degrades to "still hidden, still billing" rather than losing the block.
+  if (row.stripeSubscriptionId) {
+    try {
+      await getStripeClient().subscriptions.cancel(row.stripeSubscriptionId);
+    } catch (err) {
+      console.error(
+        `[subscription-sync] dispute: could not cancel ${row.stripeSubscriptionId} at Stripe —`,
+        'the venue stays blocked locally but is still being billed. Cancel it by hand:',
+        err
+      );
+    }
+  }
 }
 
 /** Stripe sends related ids either expanded or as a bare string, depending on event. */
@@ -552,6 +607,25 @@ export async function handleStripeSubscriptionEvent(
       if (customerId) await clearPastDueMarker(customerId);
       const subscriptionId = subscriptionIdOfInvoice(invoice);
       if (subscriptionId) await syncSubscriptionFromStripe(subscriptionId, hooks);
+
+      // D-64: confirm the charge. Deliberately last, so an email problem cannot stop
+      // the state write above from committing.
+      //
+      // `amount_paid > 0` matters: Stripe also emits invoice.paid for the €0 invoice
+      // that opens a trial, and "payment received — €0.00" six months before anyone is
+      // charged is worse than silence.
+      //
+      // Not exactly-once. A redelivered invoice.paid re-sends, because there is no
+      // processed-event table by design (D-22 re-fetches instead). A duplicate receipt
+      // is the accepted cost; if it ever becomes a complaint, store the last paid
+      // invoice id on the subscription row and compare.
+      if (hooks.confirmPayment && customerId && (invoice.amount_paid ?? 0) > 0) {
+        await sendPaymentReceipt(customerId, invoice, hooks.confirmPayment).catch(
+          (err: unknown) => {
+            console.error('[subscription-sync] could not confirm payment:', err);
+          }
+        );
+      }
       return;
     }
 
@@ -565,4 +639,42 @@ export async function handleStripeSubscriptionEvent(
     default:
       return;
   }
+}
+
+/**
+ * Build and dispatch the payment receipt for a paid invoice (D-64).
+ *
+ * Every figure comes off the invoice Stripe just charged — the amount is formatted
+ * from `amount_paid`/`currency` rather than from a local price constant, so the email
+ * cannot state a different number from the one on the customer's statement.
+ */
+async function sendPaymentReceipt(
+  stripeCustomerId: string,
+  invoice: Stripe.Invoice,
+  confirm: (receipt: PaymentReceipt) => Promise<void>
+): Promise<void> {
+  const [row] = await db
+    .select({
+      venueId: venueSubscriptions.venueId,
+      plan: venueSubscriptions.plan,
+      currentPeriodEnd: venueSubscriptions.currentPeriodEnd,
+    })
+    .from(venueSubscriptions)
+    .where(eq(venueSubscriptions.stripeCustomerId, stripeCustomerId))
+    .limit(1);
+
+  if (!row) return;
+
+  const amount = new Intl.NumberFormat('en-IE', {
+    style: 'currency',
+    currency: (invoice.currency ?? 'eur').toUpperCase(),
+  }).format((invoice.amount_paid ?? 0) / 100);
+
+  await confirm({
+    venueId: row.venueId,
+    amount,
+    interval: row.plan === 'annual' ? 'annual' : 'monthly',
+    nextBillingDate: row.currentPeriodEnd ?? null,
+    invoiceUrl: invoice.hosted_invoice_url ?? null,
+  });
 }

@@ -204,29 +204,51 @@ describe('venues.requestBillingPortal — the email', () => {
     expect(JSON.stringify(res)).not.toContain('billing.stripe.com');
   });
 
-  it('stamps the cooldown only AFTER the email has gone out', async () => {
+  it('stamps the cooldown BEFORE minting the Stripe session', async () => {
+    // Reversed deliberately. Stamping last meant any failure below threw with the
+    // throttle un-armed, so a client retrying on error minted an unbounded number of
+    // real Stripe Portal sessions — the exact spend the cooldown exists to cap.
     prime();
     const order: string[] = [];
-    mockSendManage.mockImplementation(() => {
-      order.push('send');
-      return Promise.resolve();
-    });
     mockRecordPortal.mockImplementation(() => {
       order.push('stamp');
       return Promise.resolve();
     });
+    mockCreatePortal.mockImplementation(() => {
+      order.push('mint');
+      return Promise.resolve('https://billing.stripe.com/session/abc');
+    });
+    mockSendManage.mockImplementation(() => {
+      order.push('send');
+      return Promise.resolve();
+    });
 
     await createCaller(authedContext('venue')).venues.requestBillingPortal();
-    expect(order).toEqual(['send', 'stamp']);
+    expect(order).toEqual(['stamp', 'mint', 'send']);
   });
 
-  it('does not stamp the cooldown when the send fails, so a retry is possible', async () => {
+  it('still stamps the cooldown when the send fails, capping Stripe session spend', async () => {
+    // The venue loses one cooldown window to a Postmark blip and waits before
+    // retrying. That is the correct direction to fail: one delayed email beats
+    // uncapped session creation. The error still propagates — the email IS the
+    // deliverable, so the caller must know it did not arrive.
     prime();
     mockSendManage.mockRejectedValue(new Error('postmark down'));
 
     await expect(
       createCaller(authedContext('venue')).venues.requestBillingPortal()
     ).rejects.toThrow('postmark down');
-    expect(mockRecordPortal).not.toHaveBeenCalled();
+    expect(mockRecordPortal).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not mint a Stripe session when the venue is inside the cooldown', async () => {
+    // The cap only works if the throttle short-circuits before the billable call.
+    prime();
+    mockMillisSincePortal.mockResolvedValue(5_000);
+
+    await expect(
+      createCaller(authedContext('venue')).venues.requestBillingPortal()
+    ).rejects.toThrow();
+    expect(mockCreatePortal).not.toHaveBeenCalled();
   });
 });

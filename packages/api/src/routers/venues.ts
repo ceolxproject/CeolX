@@ -10,7 +10,7 @@ import { venueSubscriptions } from '@CeolX/db/schema/subscriptions';
 import { venueProfiles } from '@CeolX/db/schema/users';
 import { sendManageSubscriptionEmail, sendVenueActivationEmail } from '@CeolX/email';
 import { env } from '@CeolX/env/server';
-import { ProfileVisibility, SubscriptionStatus } from '@CeolX/shared';
+import { ProfileVisibility, hasLiveBilling } from '@CeolX/shared';
 import { updateVenueProfileSchema } from '@CeolX/shared/validators';
 
 import { protectedProcedure, publicProcedure, router, venueProcedure } from '../index';
@@ -59,11 +59,6 @@ const ACTIVATION_REMINDER_DELAYS = ['24h', '3d', '7d'] as const;
 const PORTAL_EMAIL_COOLDOWN_MS = 60_000;
 
 /** Statuses with nothing to activate — the venue already has live billing. */
-const ALREADY_SUBSCRIBED = [
-  SubscriptionStatus.TRIALING,
-  SubscriptionStatus.ACTIVE,
-  SubscriptionStatus.PAST_DUE,
-] as const;
 
 export const venuesRouter = router({
   /**
@@ -121,6 +116,18 @@ export const venuesRouter = router({
       throw new TRPCError({ code: 'PRECONDITION_FAILED', message: 'Account has no email address' });
     }
 
+    // Cooldown stamped FIRST, before anything billable or fallible.
+    //
+    // It used to be stamped last, so any failure below — a Postmark outage being the
+    // likely one — threw before the cooldown was recorded and left the throttle
+    // un-armed. A client retrying on error then minted an unbounded number of real
+    // Stripe Portal sessions, which is exactly the spend this column exists to cap.
+    //
+    // The cost of this order is that a failed send consumes the venue's cooldown
+    // window and they wait before retrying. That is the correct direction to fail:
+    // one delayed email beats uncapped session creation.
+    await recordPortalRequest(ctx.userId);
+
     const origin = env.BETTER_AUTH_URL.replace(/\/$/, '');
     const portalUrl = await createBillingPortalSession(
       subscription.stripeCustomerId,
@@ -135,8 +142,6 @@ export const venuesRouter = router({
       userName: account.name ?? '',
       portalUrl,
     });
-
-    await recordPortalRequest(ctx.userId);
 
     // Never returns the URL — see D-16.
     return { sentTo: account.email };
@@ -168,7 +173,7 @@ export const venuesRouter = router({
       throw new TRPCError({ code: 'NOT_FOUND', message: 'No venue profile for this account' });
     }
 
-    if ((ALREADY_SUBSCRIBED as readonly string[]).includes(profile.subscriptionStatus)) {
+    if (hasLiveBilling(profile.subscriptionStatus)) {
       throw new TRPCError({
         code: 'CONFLICT',
         message: 'This venue already has an active subscription',
@@ -434,13 +439,21 @@ export const venuesRouter = router({
       displayName: profile.venueName,
       bio: isOnHold ? null : profile.bio,
       address: isOnHold ? null : profile.address,
-      county: profile.county,
-      lat: profile.lat ? Number(profile.lat) : null,
-      lng: profile.lng ? Number(profile.lng) : null,
+      // Everything past the identity line is withheld while on hold. The split is
+      // deliberate: name, handle and avatar stay so the client can say *which* venue
+      // has lapsed — D-52 requires the state to read as the venue's own lapse, which it
+      // cannot do anonymously — while contact details, location and promotional imagery
+      // are the listing itself, and the listing is what the subscription pays for.
+      //
+      // `phone` and `websiteUrl` were the whole point: a venue whose profile is
+      // "hidden" but whose phone number is still served has not been gated at all.
+      county: isOnHold ? null : profile.county,
+      lat: isOnHold || !profile.lat ? null : Number(profile.lat),
+      lng: isOnHold || !profile.lng ? null : Number(profile.lng),
       profileImageUrl: profile.profileImageUrl ?? profile.userImage,
-      coverImageUrl: profile.coverImageUrl,
-      websiteUrl: profile.websiteUrl,
-      phone: profile.phone,
+      coverImageUrl: isOnHold ? null : profile.coverImageUrl,
+      websiteUrl: isOnHold ? null : profile.websiteUrl,
+      phone: isOnHold ? null : profile.phone,
       // Public profile — never carries an email. See artists.byId for why the
       // key stays in the response instead of being dropped.
       contactEmail: null,

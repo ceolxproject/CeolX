@@ -31,6 +31,7 @@ import { creatorProcedure, protectedProcedure, publicProcedure } from '../../ind
 import { eventFinished, eventNotFinished } from '../../lib/event-window';
 import { syncEventToTypesense, removeEventFromTypesense } from '../../services/event-sync';
 import { syncPromoPost } from '../../services/promo-post';
+import { onHoldVenueUserIds } from '../../services/venue-gate';
 import { assertVenueMayPublish } from '../_venue-publish-guard';
 
 import { resolveEventCoordinates, resolveProfileImageUrl } from './helpers';
@@ -284,6 +285,21 @@ export const byId = publicProcedure
       throw new TRPCError({ code: 'NOT_FOUND', message: 'Event not found' });
     }
 
+    // V-03 / D-52: an on-hold venue's OWN event is withheld here too, not only on the
+    // map, feed and saved list.
+    //
+    // Without this the gate was cosmetic: the saved-list card said "TBC by venue"
+    // while the same event opened in full via deep link, share URL or search. The
+    // event is deliberately not 404'd — that would read as CeolX being broken, which
+    // D-52 forbids — the promotional detail is simply not served, and `venueOnHold`
+    // lets the client render the venue's lapse instead.
+    //
+    // The creator still sees their own event in full: they need it to fix payment.
+    const venueOnHold =
+      userId === event.createdBy
+        ? false
+        : (await onHoldVenueUserIds([event.createdBy])).has(event.createdBy);
+
     // Fire-and-forget per-event view tracking (M11-T3). Helper is best-effort
     // and skips anonymous viewers + the creator themselves.
     void recordEventView({
@@ -512,7 +528,14 @@ export const byId = publicProcedure
     return {
       id: event.id,
       title: event.title,
-      description: event.description,
+      /**
+       * Withheld while the creating venue is on hold (V-03). Title, date and location
+       * stay so the client can render a recognisable "TBC by venue" placeholder rather
+       * than an empty screen; the promotional content — the part the subscription pays
+       * for — does not.
+       */
+      venueOnHold,
+      description: venueOnHold ? null : event.description,
       dateStart: event.dateStart.toISOString(),
       dateEnd: event.dateEnd?.toISOString() ?? null,
       lat: parseFloat(event.lat),
@@ -521,10 +544,10 @@ export const byId = publicProcedure
       category: event.category,
       coverImage: event.coverImage ?? null,
       coverImageUrl: event.coverImage ?? null,
-      ticketLink: event.ticketLink ?? null,
-      ticketPrice: event.ticketPrice ?? null,
-      adTitle: event.adTitle ?? null,
-      adDescription: event.adDescription ?? null,
+      ticketLink: venueOnHold ? null : (event.ticketLink ?? null),
+      ticketPrice: venueOnHold ? null : (event.ticketPrice ?? null),
+      adTitle: venueOnHold ? null : (event.adTitle ?? null),
+      adDescription: venueOnHold ? null : (event.adDescription ?? null),
       venueId: event.venueId ?? null,
       venueUserId: event.venue?.userId ?? null,
       collectionId: event.collectionId ?? null,
@@ -981,6 +1004,17 @@ export const update = protectedProcedure
         setValues.status = EventStatus.PENDING_REVIEW;
       } else if (releasesHeldVenue) {
         setValues.status = EventStatus.ACTIVE;
+      }
+
+      // V-14: an on-hold venue must not PUBLISH via the edit path.
+      //
+      // `create` is guarded, but this mutation can also move an event into a publicly
+      // visible state — a REMOVED event resubmitted, or a held event released — which
+      // is publishing by another name. Only the transition is gated, not editing
+      // generally: a lapsed venue keeps full access to view, edit and fix payment,
+      // which is what was agreed for the past-due case.
+      if (setValues.status === EventStatus.ACTIVE && event.status !== EventStatus.ACTIVE) {
+        await assertVenueMayPublish(ctx.userId, ctx.session.user.currentRole);
       }
 
       const rows = await tx

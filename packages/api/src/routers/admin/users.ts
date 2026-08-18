@@ -41,6 +41,7 @@ import {
   shapeUserRow,
   toIso,
 } from '../../lib/admin-users';
+import { onHoldVenueIds } from '../../services/venue-gate';
 
 const SORT_COLUMNS = {
   name: user.name,
@@ -222,6 +223,11 @@ const getById = adminProcedure.input(adminUserDetailInputSchema).query(async ({ 
   const artist = artistRows[0] ?? null;
   const venue = venueRows[0] ?? null;
 
+  // Same gate every public surface uses, so the admin view cannot disagree with what a
+  // spectator actually sees. Returns false whenever the gate is off, which is the
+  // shipping default — the point is to reflect reality, not to re-derive the rule.
+  const venueOnHold = venue ? (await onHoldVenueIds([venue.id])).has(venue.id) : false;
+
   const venueSub = venue
     ? ((
         await db
@@ -332,8 +338,13 @@ const getById = adminProcedure.input(adminUserDetailInputSchema).query(async ({ 
           // Derived for one release for wire compatibility (M8-T1). The admin
           // dashboard should read `subscriptionStatus`; this key goes once the
           // shipped app versions are confirmed.
-          isActive:
-            venue.subscriptionStatus !== 'inactive' && venue.subscriptionStatus !== 'cancelled',
+          //
+          // Reads the real gate rather than inferring from status. Inferring made this
+          // screen report the exact inverse of reality during the dark-ship window:
+          // with VENUE_GATE_ENABLED off every venue is in fact fully visible, while
+          // every venue is still `inactive` — so the admin was told all of them were
+          // inactive. It also ignored the past-due grace window and `billing_blocked`.
+          isActive: !venueOnHold,
           createdAt: venue.createdAt.toISOString(),
           updatedAt: venue.updatedAt.toISOString(),
           subscription: venueSub
