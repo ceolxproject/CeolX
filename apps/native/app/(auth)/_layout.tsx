@@ -11,9 +11,14 @@ import { useAuth } from '@/contexts/auth-context';
 //     otherwise a logged-in user tapping a reset link gets bounced to the map.
 //   - set-location: (app)/_layout redirects users who haven't done the location
 //     onboarding step *into* it; redirecting back out would bounce forever.
+//   - venue-activation: venue onboarding replaces *into* it once the profile exists, so
+//     by definition the session is authenticated and onboarded by then. It also has to
+//     sit outside (app) for that reason — under (app) the location-setup gate would
+//     redirect straight past it and no venue would ever see it.
 const AUTH_REDIRECT_EXEMPT = [
   'artist-onboarding',
   'venue-onboarding',
+  'venue-activation',
   'set-location',
   'reset-password',
   'verify-email',
@@ -51,6 +56,7 @@ export default function AuthLayout() {
       <Stack.Screen name="sign-up" />
       <Stack.Screen name="verify-email" />
       <Stack.Screen name="artist-onboarding" />
+      <Stack.Screen name="venue-activation" />
       <Stack.Screen name="set-location" />
       <Stack.Screen name="forgot-password" />
       <Stack.Screen name="reset-password" />

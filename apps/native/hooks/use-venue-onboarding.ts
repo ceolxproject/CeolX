@@ -9,7 +9,6 @@ import {
   venueOnboardingStep3Schema,
 } from '@CeolX/shared/validators';
 
-import { appToast } from '@/components/AppToast';
 import type { VenueLinks } from '@/components/onboarding/VenueLinksSection';
 import { useAuth } from '@/contexts/auth-context';
 import { useMediaUpload } from '@/hooks/use-media-upload';
@@ -393,8 +392,14 @@ export function useVenueOnboarding(): UseVenueOnboardingReturn {
         old ? { ...old, onboardingComplete: true } : old
       );
       void queryClient.invalidateQueries({ queryKey: trpc.users.me.queryKey() });
-      appToast.success('Venue/festival profile created', 'Welcome to CeolX!');
-      router.replace('/(app)/(tabs)/map');
+      // Straight to the activation hand-off, which sends the email and explains the one
+      // remaining step (M8). A venue used to land on the map with nothing said and nothing
+      // sent, and discovered the requirement only by opening its own profile later.
+      //
+      // No success toast here: the screen's first line is "Your venue profile is created",
+      // so a toast saying the same thing over the top of it is noise. The route lives under
+      // (auth) on purpose — see that layout's exempt list.
+      router.replace('/(auth)/venue-activation');
     } catch (err: unknown) {
       // If the server says the profile already exists, the user has finished
       // onboarding (possibly from a half-failed prior submit). Route them

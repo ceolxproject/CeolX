@@ -144,6 +144,12 @@ export const AnalyticsEvent = {
   // usually on another device, so the app never observes it. The paid step is measured
   // server-side from Stripe's own data. What these three give us is where the drop-off
   // sits on our side — shown, asked, and blocked.
+  //
+  // The first two carry `source`: 'onboarding' for the hand-off screen shown right after
+  // profile creation, 'profile' for the prompt a venue finds later. Worth separating —
+  // they answer different questions ("did the funnel start at all" vs "did we recover
+  // someone who ignored it"), and before the onboarding screen existed the answer to the
+  // first was always no.
   VENUE_ACTIVATION_PROMPT_SHOWN: 'venue_activation_prompt_shown',
   VENUE_ACTIVATION_EMAIL_REQUESTED: 'venue_activation_email_requested',
   VENUE_PUBLISH_BLOCKED: 'venue_publish_blocked',
