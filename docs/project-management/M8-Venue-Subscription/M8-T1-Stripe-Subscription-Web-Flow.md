@@ -12,7 +12,7 @@
 
 ## Description
 
-Stand up everything needed for a venue to go from `inactive` to `trialing`: the Stripe SDK and configuration, the schema changes the trial and grace period require, the one-time activation token, and the Checkout Session.
+Stand up everything needed for a venue to go from `inactive` to `trialing`: the Stripe SDK and configuration, the schema changes the trial requires, the one-time activation token, and the Checkout Session.
 
 This task deliberately stops at "Checkout Session created". Consuming the result is M8-T2 — the webhook is the only source of truth (D-22), so nothing here writes subscription state.
 
@@ -37,7 +37,7 @@ This task deliberately stops at "Checkout Session created". Consuming the result
 The `stripe` package is not installed anywhere in the monorepo today, and no server-side Stripe env vars exist.
 
 - Install `stripe` in `packages/api`.
-- Add to `packages/env/src/server.ts`: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_MONTHLY`, `STRIPE_PRICE_ANNUAL`, `STRIPE_TRIAL_DAYS` (default `183`, D-06), `STRIPE_GRACE_DAYS` (default `7`, D-33).
+- Add to `packages/env/src/server.ts`: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_MONTHLY`, `STRIPE_PRICE_ANNUAL`, `STRIPE_TRIAL_DAYS` (default `183`, D-06). No `STRIPE_GRACE_DAYS` — the grace window is Stripe's retry schedule since D-33 was revised on 18/08/2026.
 - Test keys for local and staging, live keys only in production. Both price ids differ per environment.
 
 ### 2 · Schema migration

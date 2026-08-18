@@ -33,7 +33,6 @@ const {
     envState: {
       BETTER_AUTH_URL: 'https://api.ceolx.com',
       ACTIVATION_TOKEN_TTL_MINUTES: 45,
-      STRIPE_GRACE_DAYS: 7,
       VENUE_GATE_ENABLED: 'false',
     } as Record<string, unknown>,
   };

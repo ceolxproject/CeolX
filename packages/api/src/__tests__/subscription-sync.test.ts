@@ -66,10 +66,8 @@ vi.mock('../services/activation-token', () => ({
 
 import {
   blockBillingForCustomer,
-  clearPastDueMarker,
   handleStripeSubscriptionEvent,
   mapStripeStatus,
-  recordInvoicePaymentFailure,
   syncSubscriptionFromStripe,
 } from '../services/subscription-sync';
 
@@ -296,26 +294,6 @@ describe('syncSubscriptionFromStripe', () => {
     });
   });
 
-  describe('grace-window marker', () => {
-    it('preserves past_due_since while still past_due', async () => {
-      const since = new Date('2026-08-15T00:00:00.000Z');
-      mockSelectLimit.mockResolvedValue([{ id: 'row1', trialEndsAt: null, pastDueSince: since }]);
-      mockRetrieveSubscription.mockResolvedValue(stripeSubscription({ status: 'past_due' }));
-      await syncSubscriptionFromStripe(SUB_ID);
-      // Resetting it on each retry would mean the window never expires.
-      expect(subscriptionWrite().pastDueSince).toBe(since);
-    });
-
-    it('clears it once the subscription is healthy again (D-36)', async () => {
-      mockSelectLimit.mockResolvedValue([
-        { id: 'row1', trialEndsAt: null, pastDueSince: new Date('2026-08-15T00:00:00.000Z') },
-      ]);
-      mockRetrieveSubscription.mockResolvedValue(stripeSubscription({ status: 'active' }));
-      await syncSubscriptionFromStripe(SUB_ID);
-      expect(subscriptionWrite().pastDueSince).toBeNull();
-    });
-  });
-
   describe('activation token consumption (D-17)', () => {
     it('consumes the token once the subscription is paying', async () => {
       mockRetrieveSubscription.mockResolvedValue(
@@ -346,37 +324,6 @@ describe('syncSubscriptionFromStripe', () => {
       await syncSubscriptionFromStripe(SUB_ID);
       expect(mockMarkConsumed).not.toHaveBeenCalled();
     });
-  });
-});
-
-describe('recordInvoicePaymentFailure', () => {
-  it('records the first failure as the grace-window origin (D-64)', async () => {
-    mockSelectLimit.mockResolvedValue([{ id: 'row1', pastDueSince: null }]);
-    const at = new Date('2026-08-18T10:00:00.000Z');
-    await recordInvoicePaymentFailure(CUSTOMER_ID, at);
-    expect(mockUpdateSet).toHaveBeenCalledWith(expect.objectContaining({ pastDueSince: at }));
-  });
-
-  it('leaves an existing origin alone, so the window actually expires', async () => {
-    const original = new Date('2026-08-15T00:00:00.000Z');
-    mockSelectLimit.mockResolvedValue([{ id: 'row1', pastDueSince: original }]);
-    await recordInvoicePaymentFailure(CUSTOMER_ID, new Date('2026-08-18T10:00:00.000Z'));
-    // Stripe retries several times; restarting the clock on each would keep an
-    // unpaid venue visible indefinitely.
-    expect(mockUpdateSet).not.toHaveBeenCalled();
-  });
-
-  it('does nothing for an unknown customer', async () => {
-    mockSelectLimit.mockResolvedValue([]);
-    await recordInvoicePaymentFailure('cus_unknown');
-    expect(mockUpdateSet).not.toHaveBeenCalled();
-  });
-});
-
-describe('clearPastDueMarker', () => {
-  it('nulls the origin on recovery', async () => {
-    await clearPastDueMarker(CUSTOMER_ID);
-    expect(mockUpdateSet).toHaveBeenCalledWith(expect.objectContaining({ pastDueSince: null }));
   });
 });
 
@@ -448,25 +395,6 @@ describe('handleStripeSubscriptionEvent', () => {
     'customer.subscription.trial_will_end',
   ])('syncs on %s', async (type) => {
     await handleStripeSubscriptionEvent(event(type, { id: SUB_ID }));
-    expect(mockRetrieveSubscription).toHaveBeenCalledWith(SUB_ID);
-  });
-
-  it('records the failure origin on invoice.payment_failed', async () => {
-    mockSelectLimit.mockResolvedValue([{ id: 'row1', pastDueSince: null }]);
-    await handleStripeSubscriptionEvent(event('invoice.payment_failed', { customer: CUSTOMER_ID }));
-    expect(mockUpdateSet).toHaveBeenCalledWith(
-      expect.objectContaining({ pastDueSince: expect.any(Date) as unknown })
-    );
-  });
-
-  it('clears the marker and re-syncs on invoice.paid', async () => {
-    await handleStripeSubscriptionEvent(
-      event('invoice.paid', {
-        customer: CUSTOMER_ID,
-        parent: { subscription_details: { subscription: SUB_ID } },
-      })
-    );
-    expect(mockUpdateSet).toHaveBeenCalledWith(expect.objectContaining({ pastDueSince: null }));
     expect(mockRetrieveSubscription).toHaveBeenCalledWith(SUB_ID);
   });
 
@@ -547,63 +475,36 @@ describe('plan is never guessed (H5 — chargeback risk)', () => {
   });
 });
 
-describe('past_due always records an origin (H6)', () => {
-  it('stamps pastDueSince when the row goes past_due without one', async () => {
-    // recordInvoicePaymentFailure no-ops when no row matches the customer, so a
-    // first-invoice failure at trial end can land here with nothing recorded. A null
-    // origin makes venueVisibilityFor fail open permanently — free visibility forever.
-    mockSelectLimit.mockResolvedValue([
-      { id: 'row1', trialEndsAt: null, pastDueSince: null, plan: 'monthly' },
-    ]);
-    mockRetrieveSubscription.mockResolvedValue({
-      id: 'sub_3',
-      status: 'past_due',
-      customer: CUSTOMER_ID,
-      cancel_at_period_end: false,
-      trial_end: null,
-      items: {
-        data: [
-          {
-            price: { recurring: { interval: 'month' } },
-            current_period_start: null,
-            current_period_end: null,
-          },
-        ],
-      },
-      metadata: { venueId: VENUE_ID },
-    });
-
-    await syncSubscriptionFromStripe('sub_3', {});
-
-    expect(subscriptionWrite().pastDueSince).toBeInstanceOf(Date);
+describe('dunning is delegated to Stripe (D-33, revised 18/08/2026)', () => {
+  it('writes past_due with no date bookkeeping of its own', () => {
+    // We used to stamp past_due_since here and hide the venue seven days later on our
+    // own clock. That duplicated Stripe's retry schedule and could disagree with it:
+    // hiding a venue Stripe was still successfully chasing, or keeping one visible
+    // after Stripe had given up. Stripe's schedule now owns the window.
+    expect(mapStripeStatus('past_due')).toBe('past_due');
+    expect(mapStripeStatus('unpaid')).toBe('past_due');
   });
 
-  it('preserves an existing origin rather than resetting the grace window', async () => {
-    const original = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
-    mockSelectLimit.mockResolvedValue([
-      { id: 'row1', trialEndsAt: null, pastDueSince: original, plan: 'monthly' },
-    ]);
-    mockRetrieveSubscription.mockResolvedValue({
-      id: 'sub_4',
-      status: 'past_due',
-      customer: CUSTOMER_ID,
-      cancel_at_period_end: false,
-      trial_end: null,
-      items: {
-        data: [
-          {
-            price: { recurring: { interval: 'month' } },
-            current_period_start: null,
-            current_period_end: null,
-          },
-        ],
-      },
-      metadata: { venueId: VENUE_ID },
-    });
+  it('treats a Stripe cancellation as the end of the window', () => {
+    // The 7-day boundary is now expressed as Stripe cancelling, which arrives as
+    // customer.subscription.deleted and maps to `cancelled` — the hidden state.
+    expect(mapStripeStatus('canceled')).toBe('cancelled');
+  });
 
-    await syncSubscriptionFromStripe('sub_4', {});
+  it('ignores invoice.payment_failed rather than acting on it', async () => {
+    // Deliberately unhandled now. The status change reaches us through
+    // customer.subscription.updated, and Stripe's own dunning emails tell the venue.
+    // Asserting it is inert stops anyone re-adding grace bookkeeping here by reflex.
+    const failedEvent = {
+      id: 'evt_pf',
+      type: 'invoice.payment_failed',
+      data: { object: { customer: CUSTOMER_ID, id: 'in_1' } },
+    } as never;
 
-    // Re-stamping on every redelivered event would restart the 7-day window each time.
-    expect(subscriptionWrite().pastDueSince).toBe(original);
+    await expect(handleStripeSubscriptionEvent(failedEvent)).resolves.toBeUndefined();
+
+    expect(mockRetrieveSubscription).not.toHaveBeenCalled();
+    expect(mockUpdateSet).not.toHaveBeenCalled();
+    expect(mockInsertValues).not.toHaveBeenCalled();
   });
 });

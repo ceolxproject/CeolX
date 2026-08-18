@@ -9,72 +9,67 @@ import {
 } from '../venue-visibility.js';
 
 // Fixed instant so the past-due grace assertions cannot drift with the clock.
-const NOW = new Date('2026-08-18T12:00:00.000Z');
-const inGrace = new Date('2026-08-20T00:00:00.000Z'); // after NOW
-const graceLapsed = new Date('2026-08-17T00:00:00.000Z'); // before NOW
 
 describe('venueVisibilityFor', () => {
   it('shows a venue on trial — the trial is the product, not a preview (D-28)', () => {
-    expect(venueVisibilityFor({ status: SubscriptionStatus.TRIALING }, NOW)).toBe(
+    expect(venueVisibilityFor({ status: SubscriptionStatus.TRIALING })).toBe(
       ProfileVisibility.VISIBLE
     );
   });
 
   it('shows a paying venue', () => {
-    expect(venueVisibilityFor({ status: SubscriptionStatus.ACTIVE }, NOW)).toBe(
+    expect(venueVisibilityFor({ status: SubscriptionStatus.ACTIVE })).toBe(
       ProfileVisibility.VISIBLE
     );
   });
 
   it('holds a venue that never completed payment setup', () => {
-    expect(venueVisibilityFor({ status: SubscriptionStatus.INACTIVE }, NOW)).toBe(
+    expect(venueVisibilityFor({ status: SubscriptionStatus.INACTIVE })).toBe(
       ProfileVisibility.ON_HOLD
     );
   });
 
   it('holds a venue whose paid period has elapsed', () => {
-    expect(venueVisibilityFor({ status: SubscriptionStatus.CANCELLED }, NOW)).toBe(
+    expect(venueVisibilityFor({ status: SubscriptionStatus.CANCELLED })).toBe(
       ProfileVisibility.ON_HOLD
     );
   });
 
-  describe('past_due', () => {
-    it('stays visible inside the grace window (D-33)', () => {
-      expect(
-        venueVisibilityFor({ status: SubscriptionStatus.PAST_DUE, graceEndsAt: inGrace }, NOW)
-      ).toBe(ProfileVisibility.VISIBLE);
-    });
-
-    it('goes on hold once the grace window has lapsed', () => {
-      expect(
-        venueVisibilityFor({ status: SubscriptionStatus.PAST_DUE, graceEndsAt: graceLapsed }, NOW)
-      ).toBe(ProfileVisibility.ON_HOLD);
-    });
-
-    it('goes on hold exactly at the boundary — the window is half-open', () => {
-      expect(
-        venueVisibilityFor({ status: SubscriptionStatus.PAST_DUE, graceEndsAt: NOW }, NOW)
-      ).toBe(ProfileVisibility.ON_HOLD);
-    });
-
-    it('fails open when no grace end is recorded, rather than hiding a paying venue', () => {
-      // Pins the deliberate choice documented in venue-visibility.ts: a null here is
-      // a data bug in the webhook, and hiding a customer whose card merely expired is
-      // the worse of the two errors. If this ever flips, it must be a decision.
-      expect(venueVisibilityFor({ status: SubscriptionStatus.PAST_DUE }, NOW)).toBe(
+  describe('past_due — dunning is delegated to Stripe (D-33, revised 18/08/2026)', () => {
+    it('stays visible for as long as Stripe reports past_due', () => {
+      // No dates involved any more. `past_due` means Stripe is still retrying the
+      // charge; its retry schedule decides when to stop and cancels at that point,
+      // which flips the status to `cancelled` and hides the venue via the branch below.
+      expect(venueVisibilityFor({ status: SubscriptionStatus.PAST_DUE })).toBe(
         ProfileVisibility.VISIBLE
       );
-      expect(
-        venueVisibilityFor({ status: SubscriptionStatus.PAST_DUE, graceEndsAt: null }, NOW)
-      ).toBe(ProfileVisibility.VISIBLE);
     });
+
+    it('is hidden once Stripe gives up and cancels', () => {
+      // The end of the grace window is now expressed as a Stripe cancellation, not as
+      // arithmetic on our clock. This is the pair that used to be a 7-day comparison.
+      expect(venueVisibilityFor({ status: SubscriptionStatus.CANCELLED })).toBe(
+        ProfileVisibility.ON_HOLD
+      );
+    });
+
+    it('is still hidden while past_due if a chargeback blocked billing', () => {
+      // billing_blocked outranks everything, including a collectable past_due (D-51).
+      expect(
+        venueVisibilityFor({ status: SubscriptionStatus.PAST_DUE, billingBlocked: true })
+      ).toBe(ProfileVisibility.ON_HOLD);
+    });
+  });
+
+  it('takes no clock at all, so it cannot drift from Stripe', () => {
+    // The whole reason for the change: a 7-day window measured on our clock could
+    // disagree with whether Stripe was still retrying. There is nothing left to sync.
+    expect(venueVisibilityFor.length).toBe(1);
   });
 
   it('never returns not_found — a status implies a row exists', () => {
     for (const status of SUBSCRIPTION_STATUSES) {
-      expect(venueVisibilityFor({ status, graceEndsAt: inGrace }, NOW)).not.toBe(
-        ProfileVisibility.NOT_FOUND
-      );
+      expect(venueVisibilityFor({ status })).not.toBe(ProfileVisibility.NOT_FOUND);
     }
   });
 
@@ -86,21 +81,14 @@ describe('venueVisibilityFor', () => {
       inactive: ProfileVisibility.ON_HOLD,
       trialing: ProfileVisibility.VISIBLE,
       active: ProfileVisibility.VISIBLE,
-      past_due: ProfileVisibility.VISIBLE, // with graceEndsAt in the future
+      past_due: ProfileVisibility.VISIBLE, // Stripe still retrying; it cancels when it stops
       cancelled: ProfileVisibility.ON_HOLD,
     };
     expect(Object.keys(expected).sort()).toEqual([...SUBSCRIPTION_STATUSES].sort());
 
     for (const status of SUBSCRIPTION_STATUSES) {
-      expect(venueVisibilityFor({ status, graceEndsAt: inGrace }, NOW)).toBe(expected[status]);
+      expect(venueVisibilityFor({ status })).toBe(expected[status]);
     }
-  });
-
-  it('defaults `now` to the current time when not supplied', () => {
-    const wellPast = new Date(Date.now() - 60_000);
-    expect(venueVisibilityFor({ status: SubscriptionStatus.PAST_DUE, graceEndsAt: wellPast })).toBe(
-      ProfileVisibility.ON_HOLD
-    );
   });
 });
 
@@ -129,16 +117,12 @@ describe('billingBlocked outranks status (D-51)', () => {
     expect(venueVisibilityFor({ status, billingBlocked: true })).toBe(ProfileVisibility.ON_HOLD);
   });
 
-  it('holds even inside a live grace window', () => {
-    // A dispute is not an innocent expired card, so the D-33 grace period must not
-    // rescue it.
-    expect(
-      venueVisibilityFor({
-        status: SubscriptionStatus.PAST_DUE,
-        graceEndsAt: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000),
-        billingBlocked: true,
-      })
-    ).toBe(ProfileVisibility.ON_HOLD);
+  it('holds a past_due venue Stripe is still happily retrying', () => {
+    // past_due is otherwise visible now that dunning is Stripe's. A dispute is not an
+    // innocent expired card, so the block must outrank a collectable status.
+    expect(venueVisibilityFor({ status: SubscriptionStatus.PAST_DUE, billingBlocked: true })).toBe(
+      ProfileVisibility.ON_HOLD
+    );
   });
 
   it('leaves an unblocked venue unaffected', () => {

@@ -34,16 +34,10 @@ function isVenueGateEnabled(): boolean {
   return env.VENUE_GATE_ENABLED === 'true';
 }
 
-function graceEndFor(pastDueSince: Date | null): Date | null {
-  if (!pastDueSince) return null;
-  return new Date(pastDueSince.getTime() + env.STRIPE_GRACE_DAYS * 24 * 60 * 60 * 1000);
-}
-
 interface GateRow {
   venueId: string;
   userId: string;
   subscriptionStatus: VenueSubscriptionStatus;
-  pastDueSince: Date | null;
   billingBlocked: boolean | null;
 }
 
@@ -63,7 +57,6 @@ async function loadGateRows(by: 'venueId' | 'userId', ids: readonly string[]): P
         venueId: venueProfiles.id,
         userId: venueProfiles.userId,
         subscriptionStatus: venueProfiles.subscriptionStatus,
-        pastDueSince: venueSubscriptions.pastDueSince,
         billingBlocked: venueSubscriptions.billingBlocked,
       })
       .from(venueProfiles)
@@ -79,7 +72,6 @@ function onHold(row: GateRow): boolean {
   return (
     venueVisibilityFor({
       status: row.subscriptionStatus,
-      graceEndsAt: graceEndFor(row.pastDueSince),
       // Null for a venue with no billing row at all (LEFT join) — not blocked.
       billingBlocked: row.billingBlocked ?? false,
     }) === ProfileVisibility.ON_HOLD

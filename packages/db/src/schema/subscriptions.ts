@@ -78,10 +78,18 @@ export const venueSubscriptions = pgTable(
     /** Cancelled but still inside the paid period (D-39) — access continues. */
     cancelAtPeriodEnd: boolean('cancel_at_period_end').notNull().default(false),
     /**
-     * When the current run of failed payments began. The grace window (D-33) is
-     * this plus STRIPE_GRACE_DAYS, evaluated at read time rather than by a job,
-     * so the webhook stays the only writer of subscription state (D-22).
-     * Cleared on recovery.
+     * @deprecated Dunning moved to Stripe (D-33, revised 18/08/2026). Nothing reads or
+     * writes this any more.
+     *
+     * It used to record the first failed charge so we could hide the venue seven days
+     * later on our own clock. That duplicated Stripe's retry schedule and could disagree
+     * with it — we might hide a venue Stripe was still successfully chasing, or keep one
+     * visible after Stripe had given up. Stripe's schedule now owns the window and
+     * cancels when it expires, so `past_due` means "still collectable" and needs no date.
+     *
+     * Retained for one release for the same expand/contract reason as the columns above.
+     * Follow-up PR:
+     *   ALTER TABLE venue_subscriptions DROP COLUMN past_due_since;
      */
     pastDueSince: timestamp('past_due_since', { withTimezone: true }),
     /**

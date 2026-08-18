@@ -101,7 +101,6 @@ export const env = createEnv({
     // Days a failed payment keeps the profile visible before it is hidden
     // (D-33). Zero is a legitimate setting if the client prefers strictness,
     // hence nonnegative rather than positive.
-    STRIPE_GRACE_DAYS: z.coerce.number().int().nonnegative().default(7),
     // One-time activation link lifetime (D-17 fixes the window at 30–60 min).
     ACTIVATION_TOKEN_TTL_MINUTES: z.coerce.number().int().min(30).max(60).default(45),
     // Venue visibility kill switch (M8-T0 O-08). Defaults to 'false' so merging

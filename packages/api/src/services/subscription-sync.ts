@@ -188,7 +188,6 @@ export async function syncSubscriptionFromStripe(
       .select({
         id: venueSubscriptions.id,
         trialEndsAt: venueSubscriptions.trialEndsAt,
-        pastDueSince: venueSubscriptions.pastDueSince,
         plan: venueSubscriptions.plan,
       })
       .from(venueSubscriptions)
@@ -200,17 +199,11 @@ export async function syncSubscriptionFromStripe(
     // move it forward from null, never clear it.
     const trialEndsAt = existing?.trialEndsAt ?? trialEnd;
 
-    // Recovery clears the grace-window origin; going past_due must always set one.
-    //
-    // `recordInvoicePaymentFailure` normally writes it, but it no-ops when no row
-    // matches the customer — which is exactly what happens if the first invoice fails
-    // at trial end before this row exists, or if that event is dropped. A `past_due`
-    // row with a null origin makes `venueVisibilityFor` fail open permanently, so the
-    // venue would stay visible for free forever with nothing to back-fill it. Falling
-    // back to now costs a paying venue at most a few hours of their 7-day grace; the
-    // alternative costs us the gate entirely.
-    const pastDueSince =
-      status === SubscriptionStatus.PAST_DUE ? (existing?.pastDueSince ?? new Date()) : null;
+    // No past-due bookkeeping. Dunning is Stripe's (D-33, revised 18/08/2026): its
+    // retry schedule decides how long to chase the charge and cancels when it gives up,
+    // so `past_due` simply means "still collectable" and `cancelled` means "not". We
+    // used to stamp an origin here and hide the venue 7 days later, on our own clock,
+    // which could disagree with whether Stripe was still retrying at all.
 
     // No interval from Stripe and none stored is a genuine anomaly: a subscription
     // whose price has no recurring block. Throwing returns 500, so Stripe retries and
@@ -235,7 +228,6 @@ export async function syncSubscriptionFromStripe(
       currentPeriodEnd: toDate(item?.current_period_end),
       trialEndsAt,
       cancelAtPeriodEnd: subscription.cancel_at_period_end ?? false,
-      pastDueSince: pastDueSince ?? null,
       updatedAt: new Date(),
     };
 
@@ -407,54 +399,6 @@ async function notifyLinkedArtists(
 }
 
 /**
- * Record the start of a run of failed payments (D-64).
- *
- * This is the origin of the grace window (D-33): the predicate computes
- * `past_due_since + STRIPE_GRACE_DAYS` at read time. It is deliberately driven by
- * the invoice failure rather than inferred from a status transition — Stripe may
- * move a subscription through `past_due` more than once, and only the first
- * failure of the current run should start the clock.
- *
- * Idempotent: a redelivered event finds the timestamp already set and leaves it.
- */
-export async function recordInvoicePaymentFailure(
-  stripeCustomerId: string,
-  failedAt: Date = new Date()
-): Promise<void> {
-  const [row] = await db
-    .select({ id: venueSubscriptions.id, pastDueSince: venueSubscriptions.pastDueSince })
-    .from(venueSubscriptions)
-    .where(eq(venueSubscriptions.stripeCustomerId, stripeCustomerId))
-    .limit(1);
-
-  if (!row) {
-    console.warn(
-      '[subscription-sync] payment failed for an unknown customer',
-      stripeCustomerId,
-      '— nothing to record.'
-    );
-    return;
-  }
-
-  // Already inside a failing run: keep the original start, or the grace window
-  // would restart on every retry and never expire.
-  if (row.pastDueSince) return;
-
-  await db
-    .update(venueSubscriptions)
-    .set({ pastDueSince: failedAt, updatedAt: new Date() })
-    .where(eq(venueSubscriptions.id, row.id));
-}
-
-/** Clear the grace-window origin once a payment succeeds (D-36, D-64). */
-export async function clearPastDueMarker(stripeCustomerId: string): Promise<void> {
-  await db
-    .update(venueSubscriptions)
-    .set({ pastDueSince: null, updatedAt: new Date() })
-    .where(eq(venueSubscriptions.stripeCustomerId, stripeCustomerId));
-}
-
-/**
  * Block a disputed account (D-51).
  *
  * Hides the profile immediately and prevents resubscription until an admin
@@ -593,18 +537,12 @@ export async function handleStripeSubscriptionEvent(
     // Origin of the grace window (D-64), driven by the failure itself rather than
     // inferred from a status transition, so only the first failure of a run starts
     // the clock.
-    case 'invoice.payment_failed': {
-      const customerId = relatedId(event.data.object.customer);
-      if (customerId) await recordInvoicePaymentFailure(customerId);
-      return;
-    }
 
     // Recovery: clear the marker, then re-read the subscription so status and period
     // end come from Stripe rather than being assumed from the invoice.
     case 'invoice.paid': {
       const invoice = event.data.object;
       const customerId = relatedId(invoice.customer);
-      if (customerId) await clearPastDueMarker(customerId);
       const subscriptionId = subscriptionIdOfInvoice(invoice);
       if (subscriptionId) await syncSubscriptionFromStripe(subscriptionId, hooks);
 

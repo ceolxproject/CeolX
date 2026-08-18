@@ -47,17 +47,17 @@ This makes the handler idempotent and order-independent for free: a redelivered 
 
 Three code paths, not one per event.
 
-| Event                                                     | Action                                                                                                                                                                                               |
-| --------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `customer.subscription.created` / `.updated` / `.deleted` | One handler. Re-fetch, then write status, trial end date, period end, cancel-at-period-end, plan interval. Covers activation, trial→active, past_due, cancellation and reactivation                  |
-| `invoice.payment_failed`                                  | Record `past_due_since` if not already set — this is the origin of the D-33 grace window (D-64)                                                                                                      |
-| `invoice.paid`                                            | Clear `past_due_since`, refresh the period end, mark the activation token consumed, and queue the payment-confirmation email (D-64)                                                                  |
-| `customer.subscription.trial_will_end`                    | Queue the trial-ending email (M8-T6). Stripe fires this ~3 days out; **our** email goes 7 days out per D-30, so M8-T6 schedules from `trial_ends_at` and this event is a safety net, not the trigger |
-| `charge.dispute.created`                                  | D-51 — hide immediately and set `billing_blocked`                                                                                                                                                    |
+| Event                                                     | Action                                                                                                                                                                                                                                      |
+| --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `customer.subscription.created` / `.updated` / `.deleted` | One handler. Re-fetch, then write status, trial end date, period end, cancel-at-period-end, plan interval. Covers activation, trial→active, past_due, cancellation and reactivation                                                         |
+| `invoice.payment_failed`                                  | **Not handled** (D-64, revised 18/08/2026). It existed to record `past_due_since`; the grace window moved to Stripe's retry schedule, so there is nothing left to record. Reaches us as a status change via `customer.subscription.updated` |
+| `invoice.paid`                                            | Clear `past_due_since`, refresh the period end, mark the activation token consumed, and queue the payment-confirmation email (D-64)                                                                                                         |
+| `customer.subscription.trial_will_end`                    | Queue the trial-ending email (M8-T6). Stripe fires this ~3 days out; **our** email goes 7 days out per D-30, so M8-T6 schedules from `trial_ends_at` and this event is a safety net, not the trigger                                        |
+| `charge.dispute.created`                                  | D-51 — hide immediately and set `billing_blocked`                                                                                                                                                                                           |
 
 `checkout.session.completed` is **not** handled. `customer.subscription.created` already carries everything, and handling both means two writers for one fact.
 
-Payment-failure and card-update **emails** stay Stripe's (D-38) — but the invoice **events** are still handled, per D-64: `past_due_since` has to be recorded from the failure itself rather than inferred from a status transition, or the grace window has no honest start time.
+Payment-failure and card-update **emails** stay Stripe's (D-38), and since D-33 was revised the failure **event** is Stripe's business too — we only handle `invoice.paid`, because the settled amount on it is the one figure we can quote to a customer without risk of contradicting their statement.
 
 ### 4 · Status mapping
 
@@ -76,7 +76,7 @@ Unmapped or future Stripe statuses must **fail loudly** in logs and leave state 
 
 ### 5 · Grace period
 
-D-33: 7 days, configurable. Stripe's own retry schedule is not the grace period — ours is measured from the first failure and read from `STRIPE_GRACE_DAYS`, so the client can change it without a deploy.
+D-33, **revised 18/08/2026**: Stripe's retry schedule **is** the grace period. It was originally ours — measured from the first failure against our own clock and read from `STRIPE_GRACE_DAYS` — which duplicated Stripe's native dunning and could disagree with it in both directions. Configure the schedule to retry for ~7 days then cancel; the rule is then `past_due` = visible, `cancelled` = hidden, with no dates on our side. Changing the window is a Dashboard change, still no deploy.
 
 While inside the window the venue stays `past_due` and visible (D-13). At expiry the profile hides. Implement as a comparison at read time, **not** as a scheduled job that mutates status — a job introduces a second writer and breaks D-22.
 
@@ -105,7 +105,7 @@ D-47: the existing `account.anonymize` job in `apps/server/src/jobs/handlers/acc
 - [ ] Trial start writes `trialing` + `trial_ends_at`; profile visible
 - [ ] Trial→active transition writes `active`, `trial_ends_at` preserved (D-42 relies on it persisting)
 - [ ] Cancel during trial keeps access until `trial_ends_at` (D-29)
-- [ ] Failed charge writes `past_due`, profile stays visible through the configured grace window, hides after
+- [ ] Failed charge writes `past_due` and the profile stays visible; once Stripe exhausts its retries and cancels, the profile hides
 - [ ] Recovery inside the window restores everything with no manual step (D-36)
 - [ ] Retries exhausted → `cancelled` (D-37)
 - [ ] Chargeback → hidden immediately and `billing_blocked` set (D-51)
@@ -127,7 +127,7 @@ D-47: the existing `account.anonymize` job in `apps/server/src/jobs/handlers/acc
 
 ## Notes
 
-**Test with the Stripe CLI**, not hand-rolled fixtures — `stripe trigger customer.subscription.updated` and friends. Trial-end and grace-expiry paths need Stripe test clocks; a 183-day trial cannot be waited out.
+**Test with the Stripe CLI**, not hand-rolled fixtures. Two cautions learned on 18/08/2026: `stripe trigger` fabricates its own customer, so the handler finds no venue and no-ops — it proves signature verification and routing, never a state transition. And a Stripe test clock moves _Stripe's_ time only: it cannot advance our `now()`, so anything timed on our side (the trial-ending sweep) needs its DB dates nudged instead. Clocks can only be advanced two subscription intervals per call, so a 183-day trial takes several hops.
 
 **The webhook endpoint must be unauthenticated** and excluded from any auth middleware, or Stripe receives a 401 and silently retries into oblivion.
 

@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const { mockSelectWhere, envState } = vi.hoisted(() => ({
   mockSelectWhere: vi.fn(),
-  envState: { VENUE_GATE_ENABLED: 'true', STRIPE_GRACE_DAYS: 7 } as Record<string, unknown>,
+  envState: { VENUE_GATE_ENABLED: 'true' } as Record<string, unknown>,
 }));
 
 vi.mock('@CeolX/db', () => ({
@@ -35,7 +35,6 @@ const row = (over: Record<string, unknown> = {}) => ({
 beforeEach(() => {
   vi.clearAllMocks();
   envState.VENUE_GATE_ENABLED = 'true';
-  envState.STRIPE_GRACE_DAYS = 7;
   mockSelectWhere.mockResolvedValue([]);
 });
 
@@ -61,6 +60,13 @@ describe('the kill switch (O-08)', () => {
 });
 
 describe('onHoldVenueUserIds', () => {
+  it('keeps a past_due venue visible for as long as Stripe reports it (D-33 revised)', () => {
+    // Dunning is Stripe's: past_due means it is still retrying the charge, and its
+    // retry schedule cancels when it gives up — which arrives as `cancelled` and is
+    // gated by the case above. No dates on our side, so no clock to disagree with.
+    return expect(onHoldVenueUserIds(['u1']).then((s) => s.has('u1'))).resolves.toBe(false);
+  });
+
   it('short-circuits on an empty input', async () => {
     expect(await onHoldVenueUserIds([])).toEqual(new Set());
     expect(mockSelectWhere).not.toHaveBeenCalled();
@@ -75,35 +81,6 @@ describe('onHoldVenueUserIds', () => {
     mockSelectWhere.mockResolvedValue([row({ subscriptionStatus: status })]);
     const held = await onHoldVenueUserIds(['u1']);
     expect(held.has('u1')).toBe(expected);
-  });
-
-  it('keeps a past_due venue visible inside the grace window (D-33)', async () => {
-    mockSelectWhere.mockResolvedValue([
-      row({ subscriptionStatus: 'past_due', pastDueSince: new Date() }),
-    ]);
-    expect((await onHoldVenueUserIds(['u1'])).has('u1')).toBe(false);
-  });
-
-  it('holds a past_due venue once the grace window has lapsed', async () => {
-    mockSelectWhere.mockResolvedValue([
-      row({
-        subscriptionStatus: 'past_due',
-        pastDueSince: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000),
-      }),
-    ]);
-    expect((await onHoldVenueUserIds(['u1'])).has('u1')).toBe(true);
-  });
-
-  it('honours a configured grace period other than the default', async () => {
-    envState.STRIPE_GRACE_DAYS = 0;
-    mockSelectWhere.mockResolvedValue([
-      row({
-        subscriptionStatus: 'past_due',
-        pastDueSince: new Date(Date.now() - 60_000),
-      }),
-    ]);
-    // Zero days is a legitimate setting if the client prefers strictness.
-    expect((await onHoldVenueUserIds(['u1'])).has('u1')).toBe(true);
   });
 });
 

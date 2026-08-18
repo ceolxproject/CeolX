@@ -36,16 +36,16 @@ export type VenueVisibility = typeof ProfileVisibility.VISIBLE | typeof ProfileV
 const ALWAYS_VISIBLE_STATUSES: readonly VenueSubscriptionStatus[] = [
   SubscriptionStatus.TRIALING,
   SubscriptionStatus.ACTIVE,
+  // `past_due` means Stripe is still retrying the charge. Dunning is Stripe's job
+  // (D-33, revised 18/08/2026): its retry schedule is configured to give up after
+  // ~7 days and cancel, at which point the status becomes `cancelled` and the venue
+  // is hidden by the line below. So there is nothing to time here — a venue is
+  // visible while Stripe still thinks it can collect, and hidden once it can't.
+  SubscriptionStatus.PAST_DUE,
 ];
 
 export interface VenueVisibilityInput {
   status: VenueSubscriptionStatus;
-  /**
-   * End of the past-due grace window (D-33: 7 days, configurable), computed by
-   * the caller from the recorded first-failure timestamp plus the configured
-   * grace days. Only consulted when `status` is `past_due`.
-   */
-  graceEndsAt?: Date | null;
   /**
    * Billing blocked after a chargeback (D-51).
    *
@@ -66,25 +66,14 @@ export interface VenueVisibilityInput {
  * filter invisible to them — so correctness has to be pinned on the predicate
  * itself rather than inferred from a query's result.
  */
-export function venueVisibilityFor(
-  { status, graceEndsAt, billingBlocked }: VenueVisibilityInput,
-  now: Date = new Date()
-): VenueVisibility {
+export function venueVisibilityFor({
+  status,
+  billingBlocked,
+}: VenueVisibilityInput): VenueVisibility {
   // Before status: a chargeback outranks whatever Stripe last told us (D-51).
   if (billingBlocked) return ProfileVisibility.ON_HOLD;
 
   if (ALWAYS_VISIBLE_STATUSES.includes(status)) return ProfileVisibility.VISIBLE;
-
-  if (status === SubscriptionStatus.PAST_DUE) {
-    // A missing grace-window end means we cannot tell how long the venue has been
-    // failing. We fail *open* deliberately: the grace period exists precisely to
-    // absorb the innocent expired card, and hiding a customer who is still paying
-    // is the worse error. A null here is a data bug in whatever wrote `past_due`
-    // without a first-failure timestamp, not a licence to keep free visibility —
-    // the webhook (M8-T3) is responsible for always recording one.
-    if (!graceEndsAt) return ProfileVisibility.VISIBLE;
-    return now < graceEndsAt ? ProfileVisibility.VISIBLE : ProfileVisibility.ON_HOLD;
-  }
 
   // inactive (never completed payment setup) and cancelled (paid period elapsed).
   return ProfileVisibility.ON_HOLD;
