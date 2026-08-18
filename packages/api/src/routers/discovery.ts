@@ -8,6 +8,7 @@ import { suggestSchema, type Suggestion } from '@CeolX/shared/validators';
 import { publicProcedure, router } from '../index';
 import { typesenseClient } from '../lib/typesense';
 import { countUpcomingEventsByArtist } from '../lib/upcoming-events';
+import { onHoldVenueUserIds } from '../services/venue-gate';
 
 // Per-group cap. Keeps the dropdown short and the fan-out queries cheap.
 const GROUP_LIMIT = 5;
@@ -86,12 +87,18 @@ async function suggestArtists(term: string): Promise<Suggestion[]> {
   }));
 }
 
-// Venue-name matches. No subscription-status filter: the venue visibility gate
-// is disabled until subscriptions ship (isProfileVisibleToViewer('venue') always
-// returns true — Asana 1215489113550392), so venue profiles are visible on every
-// other screen. Search must match that, otherwise a venue you can open from a
-// profile link wouldn't appear here. When the gate is restored in
-// isProfileVisibleToViewer, re-add the `subscriptionStatus = 'active'` filter here.
+// Venue-name matches for spectator search.
+//
+// V-10: on-hold venues are EXCLUDED here. Note the deliberate asymmetry with
+// `venues.list`, which reads the same rows and keeps them (badged and
+// unselectable) for the artist's event picker — the "profile on hold" badge exists
+// so an artist understands why they cannot book, and a spectator has no use for a
+// venue they cannot visit. Two opposite rules over one table, on purpose; do not
+// reconcile them.
+//
+// Post-filtered rather than filtered in SQL so the gate lives in one place
+// (services/venue-gate.ts) and honours the kill switch and the grace window
+// identically everywhere.
 async function suggestVenues(term: string): Promise<Suggestion[]> {
   const rows = await db
     .select({
@@ -103,13 +110,17 @@ async function suggestVenues(term: string): Promise<Suggestion[]> {
     .where(ilike(venueProfiles.venueName, `%${term}%`))
     .limit(GROUP_LIMIT);
 
+  const onHold = await onHoldVenueUserIds(rows.map((r) => r.userId));
+
   return dedupeByLabel(
-    rows.map((r) => ({
-      label: r.venueName,
-      imageUrl: r.imageUrl || undefined,
-      // The venue profile route keys off the owner's user id (see venue/[venueId]).
-      venueId: r.userId,
-    }))
+    rows
+      .filter((r) => !onHold.has(r.userId))
+      .map((r) => ({
+        label: r.venueName,
+        imageUrl: r.imageUrl || undefined,
+        // The venue profile route keys off the owner's user id (see venue/[venueId]).
+        venueId: r.userId,
+      }))
   );
 }
 

@@ -31,6 +31,7 @@ import { creatorProcedure, protectedProcedure, publicProcedure } from '../../ind
 import { eventFinished, eventNotFinished } from '../../lib/event-window';
 import { syncEventToTypesense, removeEventFromTypesense } from '../../services/event-sync';
 import { syncPromoPost } from '../../services/promo-post';
+import { assertVenueMayPublish } from '../_venue-publish-guard';
 
 import { resolveEventCoordinates, resolveProfileImageUrl } from './helpers';
 import { recordEventView } from './view-tracking';
@@ -595,6 +596,10 @@ export const byId = publicProcedure
   });
 
 export const create = creatorProcedure.input(createEventSchema).mutation(async ({ input, ctx }) => {
+  // V-14: an unpaid venue cannot publish. Server-side because the disabled
+  // button in the app is presentation, not access control.
+  await assertVenueMayPublish(ctx.userId, ctx.currentRole);
+
   const { platformInvites, unregisteredCollaborators, shareToFeed, ...eventData } = input;
 
   const isVenue = ctx.session.user.currentRole === UserRole.VENUE;

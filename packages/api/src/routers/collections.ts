@@ -10,7 +10,7 @@ import { createCollectionSchema, updateCollectionSchema } from '@CeolX/shared/va
 
 import { protectedProcedure, router, venueProcedure } from '../index';
 import { isEventNotFinished } from '../lib/event-window';
-
+import { onHoldVenueIds } from '../services/venue-gate';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -126,6 +126,21 @@ export const collectionsRouter = router({
       // control — a direct tRPC call would otherwise leak unpublished events.
       const callerVenueProfileId = await findVenueProfileId(ctx.userId);
       const isOwner = !!callerVenueProfileId && callerVenueProfileId === collection.createdBy;
+
+      // V-08: a collection follows the events inside it, so an on-hold venue's
+      // collections are hidden from everyone except the owner — who still needs to
+      // reach their own content to manage it and fix payment.
+      //
+      // NOT_FOUND rather than an on-hold state: unlike a venue profile or a saved
+      // event, nobody arrives at a collection by a shared link they are waiting on,
+      // so there is no expectation to explain away. `collections.list` needs no gate
+      // at all — it is venueProcedure and therefore owner-only by construction.
+      if (!isOwner) {
+        const onHold = await onHoldVenueIds([collection.createdBy]);
+        if (onHold.has(collection.createdBy)) {
+          throw new TRPCError({ code: 'NOT_FOUND', message: 'Collection not found' });
+        }
+      }
       const byStatus = isOwner
         ? collection.events.filter((e) => e.status !== EventStatus.ARCHIVED)
         : collection.events.filter((e) => e.status === EventStatus.ACTIVE);

@@ -9,6 +9,7 @@ import { EventStatus } from '@CeolX/shared';
 import { savedEventsQuerySchema } from '@CeolX/shared/validators';
 
 import { protectedProcedure } from '../../index';
+import { onHoldVenueUserIds } from '../../services/venue-gate';
 
 export const save = protectedProcedure
   .input(z.object({ id: z.string().uuid() }))
@@ -87,20 +88,40 @@ export const getSavedEvents = protectedProcedure
 
     const totalCount = countResult[0]?.count ?? 0;
 
+    // V-03 gets a DIFFERENT treatment here than on map and feed.
+    //
+    // Elsewhere an on-hold venue's events are simply dropped. A saved event is not
+    // dropped: the spectator deliberately saved it, and having it silently vanish
+    // reads as CeolX losing their plans. Sean asked for a "TBC by venue" marker so
+    // the absence attributes to the venue instead (D-52). The event stays in the
+    // list, marked, with its detail withheld.
+    const onHoldCreators = await onHoldVenueUserIds(
+      rows.map((r) => r.creatorId).filter((id): id is string => !!id)
+    );
+
     return {
-      events: rows.map((r) => ({
-        id: r.id,
-        title: r.title,
-        coverImage: r.coverImage ?? null,
-        dateStart: r.dateStart.toISOString(),
-        dateEnd: r.dateEnd?.toISOString() ?? null,
-        category: r.category,
-        status: r.status,
-        venueAddress: r.venueAddress ?? null,
-        savedAt: r.savedAt.toISOString(),
-        creatorName: r.creatorName ?? 'Unknown',
-        collectionName: r.collectionName ?? null,
-      })),
+      events: rows.map((r) => {
+        const venueOnHold = !!r.creatorId && onHoldCreators.has(r.creatorId);
+        return {
+          id: r.id,
+          title: r.title,
+          coverImage: r.coverImage ?? null,
+          dateStart: r.dateStart.toISOString(),
+          dateEnd: r.dateEnd?.toISOString() ?? null,
+          category: r.category,
+          status: r.status,
+          venueAddress: r.venueAddress ?? null,
+          savedAt: r.savedAt.toISOString(),
+          creatorName: r.creatorName ?? 'Unknown',
+          collectionName: r.collectionName ?? null,
+          /**
+           * The event is on hold because its venue is (V-03). The client renders the
+           * "TBC by venue" state instead of the normal card, and must not offer
+           * navigation into a detail screen that would show withheld content.
+           */
+          venueOnHold,
+        };
+      }),
       totalCount,
       hasNextPage: offset + limit < totalCount,
     };

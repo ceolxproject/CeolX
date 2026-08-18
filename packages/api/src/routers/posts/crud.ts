@@ -17,6 +17,7 @@ import { creatorProcedure, protectedProcedure, publicProcedure } from '../../ind
 import { eventFinished } from '../../lib/event-window';
 import { retrieveUploadStatus } from '../../services/mux';
 import { isPromoEventExpired, promoVisible } from '../../services/promo-post';
+import { assertVenueMayPublish } from '../_venue-publish-guard';
 
 import { hydrateAuthors } from './hydrate';
 
@@ -78,6 +79,10 @@ async function resolveMuxColumns(input: {
 }
 
 export const create = creatorProcedure.input(createPostSchema).mutation(async ({ input, ctx }) => {
+  // V-14: an unpaid venue cannot publish. Server-side because the disabled
+  // button in the app is presentation, not access control.
+  await assertVenueMayPublish(ctx.userId, ctx.currentRole);
+
   const muxColumns = await resolveMuxColumns(input);
 
   const [inserted] = await db

@@ -9,6 +9,7 @@ import { feedQuerySchema } from '@CeolX/shared/validators';
 import { publicProcedure } from '../../index';
 import { rankFeedEvents, type RawFeedEvent } from '../../lib/feed-ranking';
 import { typesenseClient } from '../../lib/typesense';
+import { filterOutOnHoldVenueItems } from '../../services/venue-gate';
 
 import { buildDateFilter } from './helpers';
 
@@ -102,7 +103,12 @@ export const getFeed = publicProcedure.input(feedQuerySchema).query(async ({ inp
       };
     });
 
-    const ranked = rankFeedEvents(rawEvents, lat, lng, followedIds);
+    // V-03: drop events created BY an on-hold venue, before ranking so the feed's
+    // pagination window is computed over what the viewer can actually see. Artist
+    // events at that venue stay (V-06) — hence filtering on creator, not venue.
+    const visibleEvents = await filterOutOnHoldVenueItems(rawEvents, (e) => e.creatorId);
+
+    const ranked = rankFeedEvents(visibleEvents, lat, lng, followedIds);
     const paginated = ranked.slice(offset, offset + limit);
 
     // Fetch collection names for paginated events in a single query

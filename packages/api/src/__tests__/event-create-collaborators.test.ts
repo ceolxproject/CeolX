@@ -27,6 +27,11 @@ const { mockInsertReturning, mockDb, mockSyncEventToTypesense } = vi.hoisted(() 
   return { mockInsertReturning, mockDb, mockSyncEventToTypesense };
 });
 
+// V-14's publish guard is a separate concern with its own coverage in
+// __tests__/venue-publish-guard.test.ts. Stubbed here so these tests stay about
+// event creation rather than billing state.
+vi.mock('../routers/_venue-publish-guard', () => ({ assertVenueMayPublish: vi.fn() }));
+
 vi.mock('@CeolX/db', () => ({ db: mockDb }));
 
 vi.mock('@CeolX/db/schema/auth', () => ({ user: { id: 'id', image: 'image' } }));

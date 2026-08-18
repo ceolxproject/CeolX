@@ -2,6 +2,7 @@ import { TRPCError } from '@trpc/server';
 
 import { publicProcedure } from '../../index';
 import { typesenseClient } from '../../lib/typesense';
+import { filterOutOnHoldVenueItems } from '../../services/venue-gate';
 
 import { buildDateFilter, MapQueryInput } from './helpers';
 
@@ -52,10 +53,25 @@ export const getMap = publicProcedure.input(MapQueryInput).query(async ({ input 
         venueAddress: (doc['venue_address'] as string) || undefined,
         coverImageUrl: (doc['cover_image'] as string) || undefined,
         distanceMeters: hit.geo_distance_meters?.location,
+        creatorId: (doc['creator_id'] as string) || null,
       };
     });
 
-    return { events, totalCount: result.found ?? 0 };
+    // V-03: drop events created BY an on-hold venue. Artist-created events at that
+    // venue deliberately stay (V-06), which is why this filters on the creator
+    // rather than on the venue the event names.
+    //
+    // Post-filtered rather than indexed, per D-54 — see services/venue-gate.ts.
+    const visible = await filterOutOnHoldVenueItems(events, (e) => e.creatorId);
+    const removed = events.length - visible.length;
+
+    return {
+      // `found` is Typesense's pre-filter total, so subtract what this page dropped.
+      // Still approximate for pages we did not fetch — acceptable because the map
+      // caps at 50 pins and the count drives a label, not pagination.
+      events: visible.map(({ creatorId: _creatorId, ...rest }) => rest),
+      totalCount: Math.max(0, (result.found ?? 0) - removed),
+    };
   } catch (err) {
     console.error('[events.getMap] Typesense search failed:', err);
     // Returning an empty result here made an outage indistinguishable from "no
