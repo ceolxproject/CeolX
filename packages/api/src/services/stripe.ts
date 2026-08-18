@@ -256,6 +256,23 @@ export async function createSubscriptionCheckoutSession(
     // a line on a real test invoice. Registration first — enabling it without one is
     // indistinguishable from this state. Blocking item in M12-T3.
     integration_identifier: CHECKOUT_INTEGRATION_IDENTIFIER,
+    // Charge in euro, always — never Stripe's Adaptive Pricing conversion.
+    //
+    // Adaptive Pricing defaults to the *Dashboard* setting, and with it on a venue
+    // outside the eurozone is quoted their local currency plus a **4% conversion fee**:
+    // a test checkout from India rendered "₹22,923.04 per year — 1 EUR = 115.1912 INR
+    // (includes 4% conversion fee)" and no euro figure anywhere on the page.
+    //
+    // Two things break if that reaches a customer. D-04 fixed the price at €19.99 / €199,
+    // and a 4% markup is not that price. Worse, every figure we email is read from the
+    // Price in euro (`getPriceSummaries`), so the trial-ending warning would quote €199
+    // while the card is charged a number the venue has never seen — which is exactly the
+    // mismatch D-30 exists to prevent, in the one email whose whole job is to prevent a
+    // chargeback. CeolX has global access, so this is reachable, not hypothetical.
+    //
+    // Set in code rather than left to the Dashboard toggle, for the same reason VAT is
+    // (M12-T3): a billing rule that a click can silently reverse is not a rule.
+    adaptive_pricing: { enabled: false },
     // `payment_method_types` is deliberately absent. Stripe determines eligible
     // methods dynamically from Dashboard settings; hardcoding ['card'] would lock
     // out methods that improve conversion, and Stripe's own guidance is to never

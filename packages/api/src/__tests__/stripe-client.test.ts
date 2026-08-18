@@ -235,6 +235,24 @@ describe('createSubscriptionCheckoutSession', () => {
     expect(argOf()).not.toHaveProperty('payment_method_types');
   });
 
+  it('disables Adaptive Pricing so the charge is always the euro price (D-04)', async () => {
+    // Adaptive Pricing defaults to the *Dashboard* setting, so leaving this unset is not
+    // a neutral choice. A test checkout from India rendered "₹22,923.04 per year — 1 EUR =
+    // 115.1912 INR (includes 4% conversion fee)" with no euro figure on the page at all.
+    //
+    // That breaks two things at once. D-04 fixed the price at €19.99 / €199, and a 4%
+    // markup is not that price. And every amount we email is read from the Price in euro,
+    // so the trial-ending warning would quote €199 while the card is charged a number the
+    // venue has never seen — the precise mismatch D-30 exists to prevent. CeolX has global
+    // access, so a non-eurozone venue is a real customer, not a hypothetical.
+    //
+    // Asserted here rather than trusted to the Dashboard: this is invisible from Ireland,
+    // where the page renders in euro either way.
+    const { createSubscriptionCheckoutSession } = await import('../services/stripe.js');
+    await createSubscriptionCheckoutSession(base);
+    expect(argOf()).toMatchObject({ adaptive_pricing: { enabled: false } });
+  });
+
   it('never sets payment_method_collection — Stripe already defaults to always (D-05)', async () => {
     const { createSubscriptionCheckoutSession } = await import('../services/stripe.js');
     await createSubscriptionCheckoutSession(base);
