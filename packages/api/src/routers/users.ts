@@ -9,6 +9,7 @@ import { UserRole } from '@CeolX/shared';
 import { updateAccountSchema } from '@CeolX/shared/validators';
 
 import { protectedProcedure, router } from '../index';
+import { onHoldVenueIds } from '../services/venue-gate';
 
 import { getFollowerCounts, getSocialLinksRecord } from './_profile-helpers';
 
@@ -86,6 +87,24 @@ export const usersRouter = router({
       contactEmail: string | null;
       subscriptionStatus: string;
       trialEndsAt: string | null;
+      /**
+       * Resolved by the server, never derived on the client (M8 V-01/V-14).
+       *
+       * The app used to infer both of these from `subscriptionStatus` alone, which was
+       * wrong twice over: it ignored VENUE_GATE_ENABLED — so with the gate off, which is
+       * the shipping default, every venue was told its profile was not live while in
+       * fact all of them were fully visible — and it ignored the past-due grace window
+       * and `billing_blocked`, so a venue eight days down was told it was still live and
+       * then hit a raw FORBIDDEN on publish.
+       *
+       * Both come from the same gate the public surfaces and the publish guard use, so
+       * the app cannot disagree with what a spectator sees or with what the server will
+       * allow. They currently always differ only by negation, because amended V-14 lets a
+       * venue inside the grace window keep publishing; they stay separate fields so that
+       * rule can change server-side without another client release.
+       */
+      onHold: boolean;
+      mayPublish: boolean;
       followerCount: number;
       followingCount: number;
       socialLinks: Record<string, string>;
@@ -152,9 +171,16 @@ export const usersRouter = router({
       if (profile) {
         const { followerCount, followingCount } = await getFollowerCounts(userId);
         const socialLinksRecord = await getSocialLinksRecord(userId);
+        // One gate call answers both questions. Returns an empty set while the gate is
+        // off, which is what keeps this inert until O-08 is resolved.
+        const onHold = (await onHoldVenueIds([profile.id])).has(profile.id);
 
         venueProfile = {
           ...profile,
+          onHold,
+          // Mirrors assertVenueMayPublish: a venue that is not hidden may publish, so a
+          // venue inside the grace window keeps publishing (V-14, amended 18/08/2026).
+          mayPublish: !onHold,
           // numeric columns come back as strings — expose as numbers for the map
           lat: profile.lat ? Number(profile.lat) : null,
           lng: profile.lng ? Number(profile.lng) : null,
