@@ -1,20 +1,83 @@
+import * as Sentry from '@sentry/node';
 import { eq } from 'drizzle-orm';
 import { Hono } from 'hono';
 
 import { verifyAndUnwrap } from '@CeolX/api/services/mux';
+import { constructWebhookEvent } from '@CeolX/api/services/stripe';
+import { handleStripeSubscriptionEvent } from '@CeolX/api/services/subscription-sync';
 import { db } from '@CeolX/db';
 import { posts } from '@CeolX/db/schema/social';
+import { NotificationTrigger } from '@CeolX/shared';
 
 import { routeJob } from '../jobs/handlers/index.js';
 import { verifyQStashSignature } from '../jobs/verify.js';
 import { logPostmarkEvent, parsePostmarkEvent } from '../lib/postmark-webhook.js';
+import { dispatchNotification } from '../services/notifications-dispatcher.js';
+import { scheduleTrialEndingReminder } from '../services/subscription-scheduler.js';
 
 const webhooksRoutes = new Hono<{ Variables: { rawBody: string } }>();
 
-// TODO M8-T2: wire Stripe webhook handler
-webhooksRoutes.post('/stripe', (c) =>
-  c.json({ message: 'not implemented', route: 'POST /api/webhooks/stripe' })
-);
+/**
+ * Stripe webhook — the ONLY writer of venue subscription state (M8-T0 D-22).
+ *
+ * Subscription changes are asynchronous and arrive long after checkout: renewals,
+ * failed payments, trial conversions and cancellations are all invisible to an
+ * integration that only reads the success page. That is why this endpoint is not
+ * optional for a subscription product.
+ *
+ * Two properties make every handler safe to redeliver and safe to receive out of
+ * order, which is why there is no processed-event ledger:
+ *   - subscription events re-fetch from Stripe and write current truth rather than
+ *     trusting the payload's snapshot;
+ *   - the invoice and dispute handlers are individually idempotent.
+ *
+ * Locally: `stripe listen --forward-to localhost:3001/api/webhooks/stripe`, then set
+ * the printed `whsec_…` as STRIPE_WEBHOOK_SECRET.
+ */
+webhooksRoutes.post('/stripe', async (c) => {
+  // Raw body, unparsed — re-serialising the JSON changes the bytes and the
+  // signature stops matching.
+  const rawBody = await c.req.text();
+
+  let event: ReturnType<typeof constructWebhookEvent>;
+  try {
+    event = constructWebhookEvent(rawBody, c.req.header('stripe-signature'));
+  } catch (err) {
+    // A bad or absent signature is indistinguishable from a forgery. 400 and
+    // process nothing. The body is never logged — it carries customer data.
+    console.warn(
+      '[Stripe] webhook verification failed:',
+      err instanceof Error ? `${err.name}: ${err.message}` : err
+    );
+    return c.json({ error: 'unauthorized' }, 400);
+  }
+
+  try {
+    await handleStripeSubscriptionEvent(event, {
+      scheduleTrialEnding: scheduleTrialEndingReminder,
+      // A-20: an artist whose event names this venue gets told the profile went on
+      // hold. Their event stays visible (V-06); this is what puts the pressure on
+      // the venue rather than on us.
+      notifyLinkedArtist: async ({ artistUserId, eventId, eventTitle, venueName }) => {
+        await dispatchNotification({
+          trigger: NotificationTrigger.VENUE_ON_HOLD_TO_LINKED_ARTIST,
+          recipientUserId: artistUserId,
+          vars: { eventId, eventTitle, venueName },
+        });
+      },
+    });
+  } catch (err) {
+    // 500 so Stripe retries with backoff. Every handler is idempotent, so a retry is
+    // always safe — silently losing an event is not.
+    console.error(`[Stripe] failed to process ${event.type} (${event.id}):`, err);
+    Sentry.captureException(err, {
+      extra: { stripeEventType: event.type, stripeEventId: event.id },
+    });
+    return c.json({ error: 'processing failed' }, 500);
+  }
+
+  return c.json({ received: true }, 200);
+});
 
 /**
  * Postmark inbound webhook for bounce + spam-complaint events.

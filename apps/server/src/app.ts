@@ -15,6 +15,7 @@ import '@CeolX/env/server'; // validates required env vars at startup
 
 import { isAllowedOrigin } from './config/cors';
 import { errorHandler } from './middleware/errorHandler';
+import activateRoute from './routes/activate';
 import appLinksRoute from './routes/app-links';
 import appRedirectRoute from './routes/app-redirect';
 import eventShareRoute from './routes/event-share';
@@ -27,11 +28,26 @@ import resetPasswordRoute from './routes/reset-password';
 import verifyEmailRoute from './routes/verify-email';
 import webhooksRoutes from './routes/webhooks';
 import { dispatchNotification } from './services/notifications-dispatcher';
+import { scheduleActivationReminder } from './services/subscription-scheduler';
 
 export function buildApp() {
   const app = new Hono();
 
-  app.use(logger());
+  // hono's logger derives its path from the URL including the query string, so a
+  // request to /activate?token=… would write a live credential straight into the
+  // function logs (retained by Vercel). Strip any `token` parameter before it is
+  // printed. Note /verify-email, /reset-password and /invite/:token leak the same
+  // way today — that predates M8 and wants its own ticket rather than widening
+  // this change.
+  app.use(
+    logger((message: string, ...rest: unknown[]) => {
+      // This IS the HTTP access log — informational, not a warning. hono's default
+      // printer calls console.log for the same reason; the custom printer exists
+      // only to redact, so changing the level would alter unrelated behaviour.
+      // eslint-disable-next-line no-console
+      console.log(message.replace(/([?&]token=)[^&\s]+/gi, '$1[redacted]'), ...rest);
+    })
+  );
   app.use(
     '/*',
     cors({
@@ -67,6 +83,13 @@ export function buildApp() {
   // Tokenless redirect bridge (/r?to=<route>) for notification email CTAs.
   app.route('/', appRedirectRoute);
 
+  // Venue subscription activation (M8). Public and unauthenticated by design: the
+  // one-time token in the URL is the credential, because a venue who signed up with
+  // Google or Apple has no password to log in with (D-19). IP-keyed rate limit —
+  // there is no user to key on before the token is resolved.
+  app.use('/activate', rateLimiter(RATE_LIMIT_TIERS.locationLookup));
+  app.route('/', activateRoute);
+
   // App Links / Universal Links ownership files + the shared-post and
   // shared-event web fallbacks. ceolx.com (admin) rewrites /.well-known/*,
   // /post/*, and /event/* here. No auth, no rate limit — these are public and
@@ -83,7 +106,8 @@ export function buildApp() {
     '/trpc/*',
     trpcServer({
       router: appRouter,
-      createContext: (_opts, context) => createContext({ context, dispatchNotification }),
+      createContext: (_opts, context) =>
+        createContext({ context, dispatchNotification, scheduleActivationReminder }),
       onError: ({ error, path }) => {
         if (error.code === 'INTERNAL_SERVER_ERROR') {
           Sentry.captureException(error, {
