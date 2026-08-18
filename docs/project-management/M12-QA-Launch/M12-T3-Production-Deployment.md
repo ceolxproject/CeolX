@@ -152,10 +152,31 @@ Health check endpoint for monitoring and uptime verification. Returns immediatel
 None of this lives in the repo, and **test-mode and live-mode are separate objects** —
 configuring one does not configure the other. Verify each in live mode before launch.
 
-- [ ] **Restricted API key**, not a secret key (M8-T0 D-65). Scopes needed: Checkout
-      Sessions write, Customers read/write, Subscriptions read, Prices read, Billing
-      Portal write. Nothing more — a compromised RAK scoped that way cannot issue
-      refunds or read the full customer ledger. Store as `STRIPE_SECRET_KEY`.
+- [ ] **Restricted API key**, not a secret key (M8-T0 D-65). Store as
+      `STRIPE_SECRET_KEY`. Derived from every Stripe call the code actually makes —
+      an earlier version of this list omitted two of them, and an under-scoped key
+      fails at runtime in exactly the paths that matter least often and hurt most:
+
+      | Resource                | Permission   | Call site |
+      | ----------------------- | ------------ | --------- |
+      | Prices                  | read         | `prices.retrieve` — amounts for the trial-ending and receipt emails |
+      | Checkout Sessions       | write        | `checkout.sessions.create` |
+      | Billing Portal Sessions | write        | `billingPortal.sessions.create` |
+      | Subscriptions           | read + write | `retrieve` for the webhook re-fetch; **`cancel`** for chargeback blocks (D-51) and GDPR erasure (D-47) |
+      | Charges                 | read         | `charges.retrieve` — resolves the customer behind a dispute |
+      | Customers               | write        | only once `automatic_tax` + `customer_update` is enabled (D-66) |
+
+      Webhook signature verification needs no scope — it is a local HMAC, not an API
+      call. Nothing else is required: invoice data arrives inside webhook payloads and
+      is never fetched, and Refunds, Tax Rates and Payment Intents are never touched.
+      Keep it to this list — a compromised key scoped this way cannot issue refunds or
+      read the full customer ledger.
+
+- [ ] **Use the same restricted scopes in test mode**, not a plain `sk_test`. The point
+      is to catch a missing scope locally rather than on the first live dispute: the
+      `subscriptions.cancel` and `charges.retrieve` paths only fire on chargeback and
+      account deletion, so an under-scoped production key could sit undetected for
+      months.
 - [ ] **One Product**, "CeolX Venue Subscription", with **two Prices** — €19.99/month
       and €199/year. Two Prices on one Product is correct here because they are
       billing variants of the same plan, not different tiers.
