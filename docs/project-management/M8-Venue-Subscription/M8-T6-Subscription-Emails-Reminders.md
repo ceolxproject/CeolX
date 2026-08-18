@@ -3,7 +3,7 @@
 | Field          | Value                                                                                                 |
 | -------------- | ----------------------------------------------------------------------------------------------------- |
 | **Milestone**  | M8 — Venue Subscription & Payments                                                                    |
-| **Status**     | 🔲 To Do                                                                                              |
+| **Status**     | ✅ Implemented — local only, unmerged                                                                 |
 | **Decisions**  | `M8-T0-Subscription-Decisions.md` — **read first.** This task implements D-18, D-26, D-30, D-38, D-45 |
 | **Depends on** | M8-T1 (token issuance), M8-T3 (trial end date persisted)                                              |
 | **Unblocks**   | M7-T4 PR3, which has been parked on M8                                                                |

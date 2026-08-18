@@ -3,7 +3,7 @@
 | Field          | Value                                                                                                 |
 | -------------- | ----------------------------------------------------------------------------------------------------- |
 | **Milestone**  | M8 — Venue Subscription & Payments                                                                    |
-| **Status**     | 🔲 To Do                                                                                              |
+| **Status**     | ✅ Implemented — local only, unmerged                                                                 |
 | **Decisions**  | `M8-T0-Subscription-Decisions.md` — **read first.** This task implements D-16, D-39, D-41, D-43, D-45 |
 | **Depends on** | M8-T1 (Stripe SDK + customer id), M8-T3 (status)                                                      |
 

@@ -144,6 +144,46 @@ Health check endpoint for monitoring and uptime verification. Returns immediatel
   - CloudFront domain: `cdn.ceolx.com` (CNAME configured)
   - Test: upload a test image via presigned URL; verify it's accessible via CloudFront
 
+### Stripe Configuration (M8 — pre-launch, Dashboard not code)
+
+None of this lives in the repo, and **test-mode and live-mode are separate objects** —
+configuring one does not configure the other. Verify each in live mode before launch.
+
+- [ ] **Restricted API key**, not a secret key (M8-T0 D-65). Scopes needed: Checkout
+      Sessions write, Customers read/write, Subscriptions read, Prices read, Billing
+      Portal write. Nothing more — a compromised RAK scoped that way cannot issue
+      refunds or read the full customer ledger. Store as `STRIPE_SECRET_KEY`.
+- [ ] **One Product**, "CeolX Venue Subscription", with **two Prices** — €19.99/month
+      and €199/year. Two Prices on one Product is correct here because they are
+      billing variants of the same plan, not different tiers.
+- [ ] Both Prices created with **`tax_behavior: 'inclusive'`** (D-61). This cannot be
+      changed afterwards; getting it wrong means new Prices and migrating live
+      subscriptions.
+- [ ] **Stripe Tax enabled AND an active Irish VAT registration added** (D-66).
+      ⚠️ Stripe calculates and collects **zero** tax, and returns **no error**, until a
+      registration exists. With VAT-inclusive pricing that failure is completely
+      silent and looks exactly like working software. Verify on a real test charge
+      that VAT appears on the invoice.
+- [ ] **Customer Portal configuration** (D-39, D-43): - Payment method update: enabled - Invoice history: enabled - Cancellation: enabled, **at period end** - Plan switching: enabled between the monthly and annual Prices - `subscription_update.proration_behavior`: prorate — monthly→annual is
+      immediate with credit - `subscription_update.schedule_at_period_end`: conditions set so a
+      **downgrade** defers to the end of the paid year - Customer email update: enabled - Cancellation reason: enabled - **Verify both switch directions against a test subscription.** Getting this
+      wrong means either an unwanted refund obligation (immediate downgrade) or an
+      angry venue (deferred upgrade).
+- [ ] **Webhook endpoint** registered at `POST /api/webhooks/stripe`, subscribed to:
+      `customer.subscription.created`, `.updated`, `.deleted`, `.trial_will_end`,
+      `invoice.paid`, `invoice.payment_failed`, `charge.dispute.created`. Signing
+      secret stored as `STRIPE_WEBHOOK_SECRET`.
+- [ ] Consider **allowlisting Stripe's IP ranges** on the webhook endpoint as defence
+      in depth alongside signature verification.
+- [ ] **Pre-activated demo account** shipped in the Apple and Google review notes
+      (D-27). Reviewers cannot receive the activation email, so without this they see
+      a blocked screen and reject the build.
+- [ ] `VENUE_GATE_ENABLED` — leave `false` until T0 **O-08** is answered and existing
+      venues are back-filled. Turning it on hides every venue that is still
+      `inactive`, which today is all of them.
+
+---
+
 ### Mobile App Configuration
 
 - R20: **EAS production channel** configured

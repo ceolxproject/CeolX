@@ -3,7 +3,7 @@
 | Field          | Value                                                                                                                 |
 | -------------- | --------------------------------------------------------------------------------------------------------------------- |
 | **Milestone**  | M8 — Venue Subscription & Payments                                                                                    |
-| **Status**     | 🔲 To Do                                                                                                              |
+| **Status**     | ✅ Implemented — local only, unmerged                                                                                 |
 | **Decisions**  | `M8-T0-Subscription-Decisions.md` **Section 9** — read first. This task implements D-52…D-59 and the V-01…V-14 matrix |
 | **Depends on** | M8-T1 (visibility predicate), M8-T3 (status is accurate)                                                              |
 | **Blocked by** | Nothing. O-01, O-03, O-04 and O-07 closed 17/08/2026 (D-56, D-58, D-59, D-46)                                         |

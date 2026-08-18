@@ -3,7 +3,7 @@
 | Field          | Value                                                                                                       |
 | -------------- | ----------------------------------------------------------------------------------------------------------- |
 | **Milestone**  | M8 — Venue Subscription & Payments                                                                          |
-| **Status**     | 🔲 To Do                                                                                                    |
+| **Status**     | ✅ Implemented — local only, unmerged                                                                       |
 | **Decisions**  | `M8-T0-Subscription-Decisions.md` — **read first.** This task implements D-15, D-16, D-28, D-46, D-57, V-14 |
 | **Depends on** | M8-T1 (activation request + token), M8-T3 (status written by webhook)                                       |
 | **Blocked by** | Nothing. O-02 and O-07 closed 17/08/2026 (D-57, D-46)                                                       |

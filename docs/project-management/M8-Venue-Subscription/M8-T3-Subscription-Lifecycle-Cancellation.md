@@ -3,7 +3,7 @@
 | Field          | Value                                                                                                                              |
 | -------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
 | **Milestone**  | M8 — Venue Subscription & Payments                                                                                                 |
-| **Status**     | 🔲 To Do                                                                                                                           |
+| **Status**     | ✅ Implemented — local only, unmerged                                                                                              |
 | **Decisions**  | `M8-T0-Subscription-Decisions.md` — **read first.** This task implements D-11, D-12, D-14, D-22, D-29, D-33…D-39, D-42, D-47, D-51 |
 | **Depends on** | M8-T1 (SDK, env, schema, Checkout Session)                                                                                         |
 
@@ -50,12 +50,14 @@ Three code paths, not one per event.
 | Event                                                     | Action                                                                                                                                                                                               |
 | --------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `customer.subscription.created` / `.updated` / `.deleted` | One handler. Re-fetch, then write status, trial end date, period end, cancel-at-period-end, plan interval. Covers activation, trial→active, past_due, cancellation and reactivation                  |
+| `invoice.payment_failed`                                  | Record `past_due_since` if not already set — this is the origin of the D-33 grace window (D-64)                                                                                                      |
+| `invoice.paid`                                            | Clear `past_due_since`, refresh the period end, mark the activation token consumed, and queue the payment-confirmation email (D-64)                                                                  |
 | `customer.subscription.trial_will_end`                    | Queue the trial-ending email (M8-T6). Stripe fires this ~3 days out; **our** email goes 7 days out per D-30, so M8-T6 schedules from `trial_ends_at` and this event is a safety net, not the trigger |
 | `charge.dispute.created`                                  | D-51 — hide immediately and set `billing_blocked`                                                                                                                                                    |
 
 `checkout.session.completed` is **not** handled. `customer.subscription.created` already carries everything, and handling both means two writers for one fact.
 
-Payment-failure and card-update emails stay Stripe's (D-38), so `invoice.payment_failed` needs no handler of its own — the resulting subscription status change arrives as `customer.subscription.updated`.
+Payment-failure and card-update **emails** stay Stripe's (D-38) — but the invoice **events** are still handled, per D-64: `past_due_since` has to be recorded from the failure itself rather than inferred from a status transition, or the grace window has no honest start time.
 
 ### 4 · Status mapping
 

@@ -3,7 +3,7 @@
 | Field          | Value                                                                                                |
 | -------------- | ---------------------------------------------------------------------------------------------------- |
 | **Milestone**  | M8 — Venue Subscription & Payments                                                                   |
-| **Status**     | 🔲 To Do                                                                                             |
+| **Status**     | ✅ Implemented — local only, unmerged                                                                |
 | **Decisions**  | `M8-T0-Subscription-Decisions.md` — **read first.** This task implements D-04…D-24, D-49, D-60, D-61 |
 | **Depends on** | M2-T4 (venue persona), M7-T3 (Postmark), M1-T13 (QStash jobs)                                        |
 | **Blocked by** | Nothing to write. **O-08 blocks deploying the restored visibility gate** — see §3                    |
@@ -77,6 +77,7 @@ Per **D-60** there is no page to build. `GET api.ceolx.com/activate?token=…` v
 ⚠️ **Do not add `/activate` to `LINK_PATH_GLOBS`** in `apps/server/src/routes/app-links.ts` (currently `/post/*`, `/event/*`, `/u/*`) or to `intentFilters` in `apps/native/app.config.js`. Both are correctly scoped today, so the activation link opens the browser as intended. Widening either to `/*` would make the email open the **app** instead of the payment page and silently kill the only route into the paid flow. Leave a comment at both sites saying so.
 
 - `stripe.createCheckoutSession` builds the session per D-21, with `subscription_data.trial_period_days` from `STRIPE_TRIAL_DAYS`. Card collection is Checkout's default — no extra parameter.
+- The billing interval comes from the `plan` query parameter (D-08), validated against a two-value allowlist and mapped to `STRIPE_PRICE_MONTHLY` / `STRIPE_PRICE_ANNUAL` server-side. A Price ID is never read from the URL.
 - Guard per D-49: refuse when the venue already has a `trialing`, `active` or in-progress subscription, and refuse when `billing_blocked` is set (D-51).
 - Trial eligibility per D-42: pass the trial only when no trial end date has ever been recorded.
 
