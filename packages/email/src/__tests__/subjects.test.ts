@@ -20,7 +20,9 @@ describe('subjectFor', () => {
       subjectFor('venue-activation', {
         userName: 'A',
         venueName: 'The Hut',
-        activationUrl: 'https://ceolx.com/subscribe',
+        monthlyUrl: 'https://api.ceolx.com/activate?token=abc&plan=monthly',
+        annualUrl: 'https://api.ceolx.com/activate?token=abc&plan=annual',
+        expiresInMinutes: 45,
       })
     ).toBe('Activate your CeolX Venue/Festival subscription');
   });
@@ -91,5 +93,42 @@ describe('subjectFor', () => {
     expect(subjectFor('account-deleted', { userName: 'Aoife' })).toBe(
       'Your CeolX account has been deleted'
     );
+  });
+
+  it('names the venue in the activation-reminder subject', () => {
+    expect(
+      subjectFor('activation-reminder', {
+        userName: 'A',
+        venueName: 'The Hut',
+        monthlyUrl: 'https://api.ceolx.com/activate?token=abc&plan=monthly',
+        annualUrl: 'https://api.ceolx.com/activate?token=abc&plan=annual',
+        expiresInMinutes: 45,
+      })
+    ).toBe("The Hut isn't visible on CeolX yet");
+  });
+
+  it('puts the amount and date in the trial-ending subject', () => {
+    // For many venues the subject line is the only part they read, and an
+    // unannounced debit six months after sign-up is how disputes start (D-30).
+    expect(
+      subjectFor('trial-ending', {
+        userName: 'A',
+        venueName: 'The Hut',
+        amount: '€19.99',
+        chargeDate: '17 February 2027',
+        interval: 'monthly',
+        manageUrl: 'https://api.ceolx.com/r?to=/profile',
+      })
+    ).toBe('Your CeolX trial ends soon — €19.99 on 17 February 2027');
+  });
+
+  it('has a plain subject for the manage-subscription link', () => {
+    expect(
+      subjectFor('manage-subscription', {
+        userName: 'A',
+        venueName: 'The Hut',
+        portalUrl: 'https://billing.stripe.com/p/session_abc',
+      })
+    ).toBe('Manage your CeolX subscription');
   });
 });

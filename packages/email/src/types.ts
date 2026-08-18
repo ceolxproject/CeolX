@@ -14,7 +14,46 @@ export type EmailTemplateMap = {
   'venue-activation': {
     userName: string;
     venueName: string;
-    activationUrl: string;
+    // Two links, one per billing interval: Stripe Checkout cannot offer an
+    // interval toggle inside a session, so the choice is made in the email
+    // (M8-T0 D-08). Each carries the same token with a different ?plan.
+    monthlyUrl: string;
+    annualUrl: string;
+    // Read from Stripe at send time so the quoted amount can never drift from
+    // what is actually charged. Omitted if Stripe is unreachable — the buttons
+    // then carry plain labels rather than an unverified price.
+    monthlyPrice?: string;
+    annualPrice?: string;
+    expiresInMinutes: number;
+  };
+  // Same two-button shape as venue-activation: the venue already decided to join,
+  // so the fewest steps between the nudge and Stripe is the right answer (D-26).
+  'activation-reminder': {
+    userName: string;
+    venueName: string;
+    monthlyUrl: string;
+    annualUrl: string;
+    monthlyPrice?: string;
+    annualPrice?: string;
+    expiresInMinutes: number;
+  };
+  // Sent 7 days before the first charge (D-30). Amount and date are read from
+  // Stripe at send time — six months is long enough for pricing to change, and a
+  // wrong figure here is what produces disputes.
+  'trial-ending': {
+    userName: string;
+    venueName: string;
+    amount: string;
+    chargeDate: string;
+    interval: string;
+    manageUrl: string;
+  };
+  // Emailed Stripe Customer Portal link (D-45). Never stored; a new session is
+  // created per request.
+  'manage-subscription': {
+    userName: string;
+    venueName: string;
+    portalUrl: string;
   };
   'payment-confirmation': {
     userName: string;

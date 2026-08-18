@@ -1,12 +1,15 @@
 import type { ComponentType } from 'react';
 
 import { AccountDeletedEmail } from './templates/account-deleted.js';
+import { ActivationReminderEmail } from './templates/activation-reminder.js';
 import { CollaboratorInviteEmail } from './templates/collaborator-invite.js';
 import { EventApprovedEmail } from './templates/event-approved.js';
 import { EventRejectedEmail } from './templates/event-rejected.js';
+import { ManageSubscriptionEmail } from './templates/manage-subscription.js';
 import { NotificationEmail } from './templates/notification.js';
 import { PasswordResetEmail } from './templates/password-reset.js';
 import { PaymentConfirmationEmail } from './templates/payment-confirmation.js';
+import { TrialEndingEmail } from './templates/trial-ending.js';
 import { VenueActivationEmail } from './templates/venue-activation.js';
 import { VerificationEmail } from './templates/verification.js';
 import { WelcomeEmail } from './templates/welcome.js';
@@ -27,6 +30,9 @@ export const registry: TemplateRegistry = {
   verification: { component: VerificationEmail },
   'password-reset': { component: PasswordResetEmail },
   'venue-activation': { component: VenueActivationEmail },
+  'activation-reminder': { component: ActivationReminderEmail },
+  'trial-ending': { component: TrialEndingEmail },
+  'manage-subscription': { component: ManageSubscriptionEmail },
   'payment-confirmation': { component: PaymentConfirmationEmail },
   'event-approved': { component: EventApprovedEmail },
   'event-rejected': { component: EventRejectedEmail },

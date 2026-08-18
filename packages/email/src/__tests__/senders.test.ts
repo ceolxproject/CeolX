@@ -47,11 +47,15 @@ describe('sendPasswordResetEmail', () => {
 });
 
 describe('sendVenueActivationEmail', () => {
-  it('dispatches the venue-activation template with venue name + URL', async () => {
+  it('dispatches the venue-activation template with both interval links', async () => {
     await sendVenueActivationEmail({
       to: 'v@example.com',
       venueName: 'The Hut',
-      activationUrl: 'https://ceolx.com/subscribe',
+      monthlyUrl: 'https://api.ceolx.com/activate?token=abc&plan=monthly',
+      annualUrl: 'https://api.ceolx.com/activate?token=abc&plan=annual',
+      monthlyPrice: '€19.99',
+      annualPrice: '€199.00',
+      expiresInMinutes: 45,
       userName: 'Sean',
     });
     expect(sendEmail).toHaveBeenCalledWith({
@@ -60,9 +64,34 @@ describe('sendVenueActivationEmail', () => {
       data: {
         userName: 'Sean',
         venueName: 'The Hut',
-        activationUrl: 'https://ceolx.com/subscribe',
+        monthlyUrl: 'https://api.ceolx.com/activate?token=abc&plan=monthly',
+        annualUrl: 'https://api.ceolx.com/activate?token=abc&plan=annual',
+        monthlyPrice: '€19.99',
+        annualPrice: '€199.00',
+        expiresInMinutes: 45,
       },
     });
+  });
+
+  it('passes the prices through as undefined when Stripe could not be reached', async () => {
+    // The activation email is the venue's ONLY route to payment (D-16), so a
+    // Stripe outage must not block it. Buttons fall back to plain labels rather
+    // than quoting a price we could not verify.
+    await sendVenueActivationEmail({
+      to: 'v@example.com',
+      venueName: 'The Hut',
+      monthlyUrl: 'https://api.ceolx.com/activate?token=abc&plan=monthly',
+      annualUrl: 'https://api.ceolx.com/activate?token=abc&plan=annual',
+      expiresInMinutes: 45,
+    });
+    expect(sendEmail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          monthlyPrice: undefined,
+          annualPrice: undefined,
+        }) as unknown,
+      })
+    );
   });
 });
 

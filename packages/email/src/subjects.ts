@@ -17,6 +17,13 @@ const builders: SubjectBuilders = {
   verification: () => 'Confirm your email for CeolX',
   'password-reset': () => 'Reset your CeolX password',
   'venue-activation': () => 'Activate your CeolX Venue/Festival subscription',
+  'activation-reminder': ({ venueName }) => `${venueName} isn't visible on CeolX yet`,
+  // Amount and date in the subject line, deliberately. A six-month gap between
+  // sign-up and the first charge means the subject is the only part many venues
+  // will read, and an unannounced debit is how chargebacks start (D-30).
+  'trial-ending': ({ amount, chargeDate }) =>
+    `Your CeolX trial ends soon — ${amount} on ${chargeDate}`,
+  'manage-subscription': () => 'Manage your CeolX subscription',
   'payment-confirmation': () => 'CeolX subscription — payment received',
   'event-approved': ({ eventTitle }) => `Your event "${eventTitle}" is live on CeolX`,
   'event-rejected': ({ eventTitle }) => `Action needed — "${eventTitle}"`,

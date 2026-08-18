@@ -13,33 +13,27 @@ import {
   secondaryButton,
 } from './components/email-styles.js';
 
-interface VenueActivationEmailProps {
+interface ActivationReminderEmailProps {
   userName: string;
   venueName: string;
-  /** Checkout link for the monthly interval — carries ?plan=monthly (M8-T0 D-08). */
   monthlyUrl: string;
-  /** Checkout link for the annual interval — carries ?plan=annual. */
   annualUrl: string;
-  /**
-   * Formatted prices read from Stripe at send time. Optional: if Stripe is
-   * unreachable we send the email with plain labels rather than either quoting a
-   * price we cannot verify or blocking the venue's only route to payment.
-   */
   monthlyPrice?: string;
   annualPrice?: string;
-  /** Link lifetime, so the venue knows to act now rather than tomorrow (D-17). */
   expiresInMinutes: number;
 }
 
 /**
- * The venue's only route to payment (D-16) — no equivalent exists in the app, so
- * this email has to stand on its own.
+ * Nudge for a venue who signed up but never activated (M8-T0 D-26: 24 h, 3 days,
+ * 7 days).
  *
- * The plan choice lives here rather than on a web page because Stripe Checkout
- * cannot offer an interval toggle inside one session (D-08), and adding a page of
- * our own would reintroduce the login problem the token exists to avoid (D-19).
+ * Deliberately the same two-button shape as the original activation email rather
+ * than a "click here to resend" indirection — the venue has already decided to
+ * join, so the fewest steps between this email and Stripe is the right answer.
+ * Each send carries a freshly issued token, because the original will long since
+ * have expired (D-17).
  */
-export function VenueActivationEmail({
+export function ActivationReminderEmail({
   userName,
   venueName,
   monthlyUrl,
@@ -47,17 +41,17 @@ export function VenueActivationEmail({
   monthlyPrice,
   annualPrice,
   expiresInMinutes,
-}: VenueActivationEmailProps) {
+}: ActivationReminderEmailProps) {
   return (
-    <EmailLayout preview={`Activate ${venueName} on CeolX — choose your subscription`}>
-      <Text style={heading}>Activate your Venue/Festival profile</Text>
+    <EmailLayout preview={`${venueName} is not visible to artists yet`}>
+      <Text style={heading}>Your profile isn&apos;t live yet</Text>
 
       <Text style={bodyText}>Hi {userName || 'there'},</Text>
 
       <Text style={bodyText}>
-        Welcome to CeolX. To make <strong>{venueName}</strong> visible to artists, choose how you
-        would like to be billed. Your free trial starts as soon as you have added a card, and you
-        will not be charged until it ends.
+        <strong>{venueName}</strong> is set up on CeolX but isn&apos;t visible to artists yet,
+        because the subscription hasn&apos;t been started. Choose how you&apos;d like to be billed
+        and your free trial begins straight away — you won&apos;t be charged until it ends.
       </Text>
 
       <Section style={buttonSection}>
@@ -73,9 +67,8 @@ export function VenueActivationEmail({
       </Section>
 
       <Text style={mutedText}>
-        These links expire in {expiresInMinutes} minutes. If you have asked us for more than one
-        activation email, only the most recent one will work — please use this message and ignore
-        any earlier ones.
+        These links expire in {expiresInMinutes} minutes, and replace any links we sent you earlier.
+        If you&apos;d rather not continue, you can ignore this — we&apos;ll stop reminding you.
       </Text>
 
       <Text style={fallbackText}>
