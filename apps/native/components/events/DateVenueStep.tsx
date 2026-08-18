@@ -349,10 +349,27 @@ export function DateVenueStep({
                       </View>
                     ) : (
                       registeredVenues.map((v) => (
+                        // M8 V-09: an on-hold venue stays LISTED but is not
+                        // selectable, and says why. The client asked for this
+                        // specifically — an absent venue reads as CeolX failing to
+                        // show it, whereas "profile on hold" attributes the absence
+                        // to the venue. The manual-address hint below is the exit;
+                        // without it the artist hits a dead end and the whole point
+                        // of the treatment inverts.
                         <Pressable
                           key={v.id}
-                          className="px-4 py-3 active:bg-white/5 border-b border-gray-8"
+                          disabled={v.onHold}
+                          accessibilityState={{ disabled: v.onHold }}
+                          accessibilityHint={
+                            v.onHold
+                              ? 'This venue cannot be selected while its profile is on hold'
+                              : undefined
+                          }
+                          className={`px-4 py-3 border-b border-gray-8 ${
+                            v.onHold ? 'opacity-60' : 'active:bg-white/5'
+                          }`}
                           onPress={() => {
+                            if (v.onHold) return;
                             setShowVenueDropdown(false);
                             onVenueAddressChange(v.address);
                             onVenueIdChange(v.id);
@@ -365,15 +382,26 @@ export function DateVenueStep({
                             }
                           }}
                         >
-                          <Text className="text-sm font-semibold text-white font-urbanist">
-                            {v.name}
-                          </Text>
+                          <View className="flex-row items-center gap-2">
+                            <Text className="shrink text-sm font-semibold text-white font-urbanist">
+                              {v.name}
+                            </Text>
+                            {v.onHold ? (
+                              <View className="rounded border border-gray-7 px-1.5 py-px">
+                                <Text className="text-[10px] font-bold uppercase tracking-[0.2px] text-gray-7 font-urbanist">
+                                  On hold
+                                </Text>
+                              </View>
+                            ) : null}
+                          </View>
                           <Text
                             className="text-xs text-gray-7 font-urbanist mt-0.5"
                             numberOfLines={1}
                             ellipsizeMode="tail"
                           >
-                            {v.address}
+                            {v.onHold
+                              ? "This venue's profile is on hold — add the address manually below instead."
+                              : v.address}
                           </Text>
                         </Pressable>
                       ))

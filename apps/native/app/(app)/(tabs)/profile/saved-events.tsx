@@ -6,6 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppHeader } from '@/components/AppHeader';
 import { ProfileEventCard } from '@/components/ProfileEventCard';
+import { VenueOnHoldEventCard } from '@/components/subscription/VenueOnHoldEventCard';
 import { useSavedEvents } from '@/hooks/use-saved-events';
 
 export default function SavedEventsScreen() {
@@ -33,20 +34,31 @@ export default function SavedEventsScreen() {
             {upcomingEvents.length > 0 && (
               <Text className="text-base font-bold text-white font-urbanist">Upcoming</Text>
             )}
-            {upcomingEvents.map((event) => (
-              <ProfileEventCard
-                key={event.id}
-                id={event.id}
-                title={event.title}
-                coverImage={event.coverImage}
-                dateStart={event.dateStart}
-                dateEnd={event.dateEnd}
-                category={event.category}
-                venueAddress={event.venueAddress}
-                collectionName={event.collectionName}
-                onPress={() => router.push(`/(app)/(tabs)/profile/event/${event.id}`)}
-              />
-            ))}
+            {upcomingEvents.map((event) =>
+              // V-03: an on-hold venue's event stays in the saved list, marked, with
+              // its detail withheld — the spectator saved it deliberately, and having
+              // it silently vanish would read as CeolX losing their plans (D-52).
+              event.venueOnHold ? (
+                <VenueOnHoldEventCard
+                  key={event.id}
+                  title={event.title}
+                  dateStart={event.dateStart}
+                />
+              ) : (
+                <ProfileEventCard
+                  key={event.id}
+                  id={event.id}
+                  title={event.title}
+                  coverImage={event.coverImage}
+                  dateStart={event.dateStart}
+                  dateEnd={event.dateEnd}
+                  category={event.category}
+                  venueAddress={event.venueAddress}
+                  collectionName={event.collectionName}
+                  onPress={() => router.push(`/(app)/(tabs)/profile/event/${event.id}`)}
+                />
+              )
+            )}
 
             {pastEvents.length > 0 && (
               <>
@@ -64,20 +76,28 @@ export default function SavedEventsScreen() {
                   />
                 </Pressable>
                 {showPast &&
-                  pastEvents.map((event) => (
-                    <ProfileEventCard
-                      key={event.id}
-                      id={event.id}
-                      title={event.title}
-                      coverImage={event.coverImage}
-                      dateStart={event.dateStart}
-                      dateEnd={event.dateEnd}
-                      category={event.category}
-                      venueAddress={event.venueAddress}
-                      collectionName={event.collectionName}
-                      onPress={() => router.push(`/(app)/(tabs)/profile/event/${event.id}`)}
-                    />
-                  ))}
+                  pastEvents.map((event) =>
+                    event.venueOnHold ? (
+                      <VenueOnHoldEventCard
+                        key={event.id}
+                        title={event.title}
+                        dateStart={event.dateStart}
+                      />
+                    ) : (
+                      <ProfileEventCard
+                        key={event.id}
+                        id={event.id}
+                        title={event.title}
+                        coverImage={event.coverImage}
+                        dateStart={event.dateStart}
+                        dateEnd={event.dateEnd}
+                        category={event.category}
+                        venueAddress={event.venueAddress}
+                        collectionName={event.collectionName}
+                        onPress={() => router.push(`/(app)/(tabs)/profile/event/${event.id}`)}
+                      />
+                    )
+                  )}
               </>
             )}
           </View>

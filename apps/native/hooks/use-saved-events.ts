@@ -7,6 +7,14 @@ import { trpc } from '@/utils/trpc';
 
 const PAGE_SIZE = 20;
 
+/**
+ * Hand-maintained mirror of the `events.getSavedEvents` row shape.
+ *
+ * ⚠️ It is a structural SUBSET, so TypeScript will not warn if the server drops a
+ * field this omits — the compiler only checks what is declared here. Keep it in
+ * step with packages/api/src/routers/events/saved.ts by hand, or better, infer it
+ * from the router's output type.
+ */
 type SavedEvent = {
   id: string;
   title: string;
@@ -19,6 +27,12 @@ type SavedEvent = {
   savedAt: string;
   creatorName: string;
   collectionName: string | null;
+  /**
+   * The event's venue is on hold, so its detail is withheld (M8-T0 V-03). The
+   * screen renders the "TBC by venue" card instead of dropping the row — the user
+   * saved this deliberately and a silent disappearance reads as our bug.
+   */
+  venueOnHold: boolean;
 };
 
 export function useSavedEvents(includeArchived = false) {
