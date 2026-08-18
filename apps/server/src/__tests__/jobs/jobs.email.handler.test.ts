@@ -18,6 +18,7 @@ vi.mock('@CeolX/email', () => ({
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { handleEmailSend } from '../../jobs/handlers/email.js';
+import type { QueueableEmailTemplate } from '../../jobs/types.js';
 
 afterEach(() => {
   vi.clearAllMocks();
@@ -52,22 +53,24 @@ describe('handleEmailSend', () => {
     );
   });
 
-  it('routes venue-activation with the activation URL and venue name', async () => {
-    await handleEmailSend({
-      to: 'venue@example.com',
-      template: 'venue-activation',
-      locale: 'en',
-      data: {
-        venueName: 'The Hut',
-        activationUrl: 'https://ceolx.com/subscribe',
-      },
-    });
-    expect(mockSendVenueActivation).toHaveBeenCalledWith({
-      to: 'venue@example.com',
-      venueName: 'The Hut',
-      activationUrl: 'https://ceolx.com/subscribe',
-      userName: undefined,
-    });
+  // Rewritten in M8-T1. venue-activation used to be routed through this queue.
+  // It no longer can be: publishJob posts the whole payload to Upstash, so a queued
+  // activation email would leave a live token — a credential — sitting in a
+  // third-party message store for its retention window. venues.requestActivation
+  // sends it directly instead. This asserts the door is actually shut, rather than
+  // trusting a comment to keep it shut.
+  it('cannot dispatch venue-activation — it is not a queueable template', async () => {
+    await expect(
+      handleEmailSend({
+        to: 'venue@example.com',
+        // Cast: the type no longer permits this, which is the point — the runtime
+        // guard is what we are pinning.
+        template: 'venue-activation' as QueueableEmailTemplate,
+        locale: 'en',
+        data: { venueName: 'The Hut' },
+      })
+    ).rejects.toThrow(/non-queueable template "venue-activation"/);
+    expect(mockSendVenueActivation).not.toHaveBeenCalled();
   });
 
   it('routes payment-confirmation with required Stripe-derived fields', async () => {

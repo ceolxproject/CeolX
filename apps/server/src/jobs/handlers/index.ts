@@ -12,7 +12,10 @@ import { handleEmailSend } from './email.js';
 import { handleAccountFlagInactive } from './inactive.js';
 import { handleIpAnonymize } from './ip.js';
 import { handleNotificationBatch, handleNotificationPush } from './notification.js';
-import { handleVenueSubscriptionRetry } from './venue.js';
+import {
+  handleSubscriptionActivationReminder,
+  handleSubscriptionTrialEnding,
+} from './subscription.js';
 
 // ---------------------------------------------------------------------------
 // Job dispatch table
@@ -34,8 +37,12 @@ const handlers: Record<JobType, (payload: unknown) => Promise<void>> = {
     handleNotificationPush(jobPayloadSchemas['notification.push'].parse(p)),
   'notification.batch': (p) =>
     handleNotificationBatch(jobPayloadSchemas['notification.batch'].parse(p)),
-  'venue.subscription-retry': (p) =>
-    handleVenueSubscriptionRetry(jobPayloadSchemas['venue.subscription-retry'].parse(p)),
+  'subscription.activation-reminder': (p) =>
+    handleSubscriptionActivationReminder(
+      jobPayloadSchemas['subscription.activation-reminder'].parse(p)
+    ),
+  'subscription.trial-ending': (p) =>
+    handleSubscriptionTrialEnding(jobPayloadSchemas['subscription.trial-ending'].parse(p)),
   'data-export.process': (p) =>
     handleDataExportProcess(jobPayloadSchemas['data-export.process'].parse(p)),
   'data-export.notify': (p) =>

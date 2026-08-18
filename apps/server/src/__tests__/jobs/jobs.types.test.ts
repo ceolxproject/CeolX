@@ -11,7 +11,9 @@ describe('jobPayloadSchemas', () => {
       expect(() =>
         jobPayloadSchemas['email.send'].parse({
           to: 'user@example.com',
-          template: 'venue-activation',
+          // 'venue-activation' is deliberately not queueable — queuing it would put
+          // a live activation token in Upstash's message store (M8-T1).
+          template: 'payment-confirmation',
         })
       ).not.toThrow();
     });
@@ -175,22 +177,52 @@ describe('jobPayloadSchemas', () => {
   // ---------------------------------------------------------------------------
   // venue.subscription-retry
   // ---------------------------------------------------------------------------
-  describe('venue.subscription-retry', () => {
+  // Rewritten in M8-T6. 'venue.subscription-retry' was deleted: it was never
+  // implemented, and the webhook's re-fetch approach removed the need for it
+  // entirely. These are the two jobs that replaced it.
+  describe('subscription.activation-reminder', () => {
     it('accepts a valid payload', () => {
       expect(() =>
-        jobPayloadSchemas['venue.subscription-retry'].parse({
-          stripeEventId: 'evt_abc123',
+        jobPayloadSchemas['subscription.activation-reminder'].parse({
+          userId: 'user_abc',
+          attempt: 2,
+        })
+      ).not.toThrow();
+    });
+
+    it('rejects an attempt outside 1-3', () => {
+      expect(() =>
+        jobPayloadSchemas['subscription.activation-reminder'].parse({
+          userId: 'user_abc',
+          attempt: 4,
+        })
+      ).toThrow();
+    });
+
+    it('carries no token or URL — a queued credential would sit in Upstash', () => {
+      const parsed = jobPayloadSchemas['subscription.activation-reminder'].parse({
+        userId: 'user_abc',
+        attempt: 1,
+        token: 'should-be-stripped',
+        monthlyUrl: 'https://example.com',
+      });
+      expect(parsed).toEqual({ userId: 'user_abc', attempt: 1 });
+    });
+  });
+
+  describe('subscription.trial-ending', () => {
+    it('accepts a valid payload', () => {
+      expect(() =>
+        jobPayloadSchemas['subscription.trial-ending'].parse({
           venueId: '550e8400-e29b-41d4-a716-446655440000',
         })
       ).not.toThrow();
     });
 
     it('rejects a non-uuid venueId', () => {
-      const result = jobPayloadSchemas['venue.subscription-retry'].safeParse({
-        stripeEventId: 'evt_abc',
-        venueId: 'not-uuid',
-      });
-      expect(result.success).toBe(false);
+      expect(() =>
+        jobPayloadSchemas['subscription.trial-ending'].parse({ venueId: 'nope' })
+      ).toThrow();
     });
   });
 

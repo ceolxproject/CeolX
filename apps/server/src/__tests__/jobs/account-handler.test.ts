@@ -41,11 +41,24 @@ vi.mock('@CeolX/db/schema/notifications', () => ({
   deviceTokens: { userId: 'user_id' },
 }));
 
-vi.mock('drizzle-orm', () => ({
-  eq: (col: unknown, val: unknown) => ({ col, val }),
+// Billing cancellation is a separate concern with its own coverage in
+// packages/api/src/__tests__/subscription-sync.test.ts. Stubbed here so these
+// tests stay about erasure — but asserted below, because D-47 requires it to
+// happen BEFORE the account is erased.
+const mockCancelSubscription = vi.hoisted(() => vi.fn());
+vi.mock('@CeolX/api/services/subscription-sync', () => ({
+  cancelSubscriptionForUser: mockCancelSubscription,
 }));
 
-import { afterEach, describe, expect, it, vi } from 'vitest';
+vi.mock('drizzle-orm', () => ({
+  eq: (col: unknown, val: unknown) => ({ col, val }),
+  // No-op stub, required only because the handler now reaches
+  // @CeolX/api/services/subscription-sync (to cancel billing before erasure,
+  // M8-T0 D-47), which imports schema files that declare relations.
+  relations: () => ({}),
+}));
+
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { handleAccountAnonymize } from '../../jobs/handlers/account.js';
 
@@ -53,6 +66,10 @@ const PAYLOAD = {
   userId: '550e8400-e29b-41d4-a716-446655440000',
   requestedAt: '2026-04-28T00:00:00.000Z',
 };
+
+beforeEach(() => {
+  mockCancelSubscription.mockResolvedValue(true);
+});
 
 afterEach(() => {
   vi.clearAllMocks();
@@ -87,6 +104,49 @@ describe('handleAccountAnonymize — idempotency guards', () => {
 });
 
 describe('handleAccountAnonymize — anonymisation path', () => {
+  it('cancels billing BEFORE erasing, so a deleted account cannot keep being charged (D-47)', async () => {
+    const order: string[] = [];
+    mockCancelSubscription.mockImplementation(() => {
+      order.push('cancel');
+      return Promise.resolve(true);
+    });
+    mockTransaction.mockImplementationOnce(async (cb: (tx: unknown) => Promise<void>) => {
+      order.push('erase');
+      await cb({ update: mockTxUpdate, delete: mockTxDelete });
+    });
+    mockSelectLimit.mockResolvedValueOnce([
+      {
+        isAnonymized: false,
+        deletionScheduledFor: new Date('2026-05-28'),
+        email: 'real@example.com',
+        name: 'Aoife',
+      },
+    ]);
+
+    await handleAccountAnonymize(PAYLOAD);
+
+    expect(mockCancelSubscription).toHaveBeenCalledWith(PAYLOAD.userId);
+    expect(order).toEqual(['cancel', 'erase']);
+  });
+
+  it('does NOT erase when the Stripe cancellation fails — the job must retry', async () => {
+    // Erasure has a 30-day statutory window, so a delayed retry is acceptable. An
+    // uncancellable live subscription against an erased account is not: there would
+    // be nobody left to refund and no record to reason about.
+    mockCancelSubscription.mockRejectedValue(new Error('stripe unreachable'));
+    mockSelectLimit.mockResolvedValueOnce([
+      {
+        isAnonymized: false,
+        deletionScheduledFor: new Date('2026-05-28'),
+        email: 'real@example.com',
+        name: 'Aoife',
+      },
+    ]);
+
+    await expect(handleAccountAnonymize(PAYLOAD)).rejects.toThrow('stripe unreachable');
+    expect(mockTransaction).not.toHaveBeenCalled();
+  });
+
   it('runs all writes inside a single transaction', async () => {
     mockSelectLimit.mockResolvedValueOnce([
       {
@@ -148,7 +208,13 @@ describe('handleAccountAnonymize — anonymisation path', () => {
     expect(venueSet).toBeDefined();
     expect(venueSet?.bio).toBeNull();
     expect(venueSet?.lat).toBeNull();
-    expect(venueSet?.isActive).toBe(false);
+    // venue_profiles.is_active was dropped in M8-T1 (D-14). An anonymised venue is
+    // now hidden by moving its subscription status to `cancelled` — leaving the
+    // status untouched would keep a deleted venue publicly visible if it happened
+    // to be mid-trial. The artist assertion above is a DIFFERENT column meaning
+    // "persona switched away" and is deliberately unchanged.
+    expect(venueSet?.subscriptionStatus).toBe('cancelled');
+    expect(venueSet).not.toHaveProperty('isActive');
   });
 
   it('hard-deletes profile social links, device tokens, and active sessions', async () => {

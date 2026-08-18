@@ -4,7 +4,6 @@ import {
   sendNotificationEmail,
   sendPasswordResetEmail,
   sendPaymentConfirmationEmail,
-  sendVenueActivationEmail,
   sendVerificationEmail,
 } from '@CeolX/email';
 
@@ -21,13 +20,6 @@ type Dispatch = (to: string, data: Record<string, string>) => Promise<void>;
 const dispatchers: Record<QueueableEmailTemplate, Dispatch> = {
   verification: (to, d) => sendVerificationEmail(to, d.verificationUrl ?? '', d.userName),
   'password-reset': (to, d) => sendPasswordResetEmail(to, d.resetUrl ?? '', d.userName),
-  'venue-activation': (to, d) =>
-    sendVenueActivationEmail({
-      to,
-      venueName: d.venueName ?? '',
-      activationUrl: d.activationUrl ?? '',
-      userName: d.userName,
-    }),
   'payment-confirmation': (to, d) =>
     sendPaymentConfirmationEmail({
       to,
@@ -66,5 +58,20 @@ const dispatchers: Record<QueueableEmailTemplate, Dispatch> = {
 
 export async function handleEmailSend(payload: JobPayload<'email.send'>): Promise<void> {
   const { to, template, data = {} } = payload;
-  await dispatchers[template](to, data);
+
+  // Explicit lookup rather than calling straight through. This payload arrives as
+  // JSON over the QStash webhook, so `template` is untrusted at runtime however
+  // well-typed it is at compile time. An unknown key would otherwise fail as
+  // "dispatchers[template] is not a function", which says nothing useful in a log
+  // and looks like a bug in the handler rather than a bad payload.
+  //
+  // It also matters for the deliberately non-queueable templates: 'venue-activation'
+  // must never be dispatched from here, because a queued payload would park a live
+  // activation token in Upstash's message store (M8-T1).
+  const dispatch = dispatchers[template];
+  if (!dispatch) {
+    throw new Error(`email.send: unknown or non-queueable template "${template}"`);
+  }
+
+  await dispatch(to, data);
 }

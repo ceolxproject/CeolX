@@ -14,7 +14,9 @@ import type { EmailTemplate } from '@CeolX/email';
 const EMAIL_TEMPLATES = [
   'verification',
   'password-reset',
-  'venue-activation',
+  // 'venue-activation' is deliberately NOT queueable: publishJob posts the full
+  // payload to Upstash, which would leave a live activation token (a credential)
+  // in a third-party message store. venues.requestActivation sends it directly.
   'payment-confirmation',
   'event-approved',
   'event-rejected',
@@ -63,8 +65,29 @@ export const notificationPushSchema = z.object({
 
 export const notificationBatchSchema = z.object({});
 
-export const venueSubscriptionRetrySchema = z.object({
-  stripeEventId: z.string(),
+/**
+ * Activation reminder (M8-T0 D-26: 24 h, 3 days, 7 days after sign-up).
+ *
+ * Carries the user id ONLY — never a token or a URL. The handler mints a fresh
+ * token at send time, because by 3 days the original has long expired (D-17), and
+ * because a queued payload containing a live credential would sit in Upstash's
+ * message store for its retention window.
+ *
+ * `attempt` exists so a log line can say which of the three this was.
+ */
+export const subscriptionActivationReminderSchema = z.object({
+  userId: z.string().min(1),
+  attempt: z.union([z.literal(1), z.literal(2), z.literal(3)]),
+});
+
+/**
+ * Trial-ending warning (D-30), scheduled 7 days before the first charge.
+ *
+ * Carries the venue id only. Everything else — the amount, the date, whether the
+ * venue has since cancelled — is re-read at send time, because the job is queued
+ * up to six months in advance and any value captured now may be stale by then.
+ */
+export const subscriptionTrialEndingSchema = z.object({
   venueId: z.uuid(),
 });
 
@@ -92,7 +115,8 @@ export type JobType =
   | 'ip.anonymize'
   | 'notification.push'
   | 'notification.batch'
-  | 'venue.subscription-retry'
+  | 'subscription.activation-reminder'
+  | 'subscription.trial-ending'
   | 'data-export.process'
   | 'data-export.notify';
 
@@ -105,7 +129,8 @@ export const jobPayloadSchemas = {
   'ip.anonymize': ipAnonymizeSchema,
   'notification.push': notificationPushSchema,
   'notification.batch': notificationBatchSchema,
-  'venue.subscription-retry': venueSubscriptionRetrySchema,
+  'subscription.activation-reminder': subscriptionActivationReminderSchema,
+  'subscription.trial-ending': subscriptionTrialEndingSchema,
   'data-export.process': dataExportProcessSchema,
   'data-export.notify': dataExportNotifySchema,
 } as const;
