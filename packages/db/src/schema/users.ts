@@ -39,9 +39,15 @@ export const artistProfiles = pgTable('artist_profiles', {
 });
 
 // ---------------------------------------------------------------------------
-// venue_profiles — one per user account. is_active gates visibility.
-// subscription_status is a denormalized cache from venue_subscriptions —
-// updated atomically by the Stripe webhook handler (M8-T2).
+// venue_profiles — one per user account.
+//
+// `subscription_status` is the single source of billing state (D-14), written by the
+// Stripe webhook and read through the shared venue gate. It is NOT a cache of a column
+// on venue_subscriptions; that duplicate was removed precisely so the two could not
+// disagree.
+//
+// `is_active` no longer gates anything — see its own note below. Visibility for a venue
+// comes from `venueVisibilityFor`, never from a boolean here.
 // ---------------------------------------------------------------------------
 export const venueProfiles = pgTable('venue_profiles', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -65,6 +71,20 @@ export const venueProfiles = pgTable('venue_profiles', {
   // that gates on it. `venue_subscriptions` holds the billing record and
   // deliberately has no status column of its own.
   subscriptionStatus: subscriptionStatusEnum('subscription_status').notNull().default('inactive'),
+  /**
+   * @deprecated Superseded by `subscriptionStatus` + the venue gate. Nothing in this
+   * codebase reads or writes it any more.
+   *
+   * Retained ONLY so the DROP can happen in a separate, later deploy (expand/contract).
+   * Dropping it in the same release that stops reading it breaks the previous build
+   * while it is still serving: Vercel rolls deploys, so warm instances from the old
+   * bundle keep querying this column for the length of the cutover and every one of
+   * those queries 500s with `column "is_active" does not exist`.
+   *
+   * Follow-up PR, once this release is fully live:
+   *   ALTER TABLE venue_profiles DROP COLUMN is_active;
+   */
+  isActive: boolean('is_active').default(false),
   stripeCustomerId: varchar('stripe_customer_id', { length: 255 }), // set when Stripe customer is created
   // `is_active` removed in M8-T1 (D-14). It duplicated subscription_status while
   // meaning the exact opposite of artist_profiles.is_active ("persona switched

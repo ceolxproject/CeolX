@@ -1,0 +1,1 @@
+ALTER TABLE "venue_subscriptions" ADD COLUMN "trial_ending_sent_at" timestamp with time zone;

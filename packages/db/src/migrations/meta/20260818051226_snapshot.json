@@ -1,6 +1,6 @@
 {
-  "id": "9d0cd810-ba3f-42b0-998c-31627995bb68",
-  "prevId": "35ebdacd-f401-403d-829d-8700a253898c",
+  "id": "de4412f6-45c9-4eda-9f44-3eda7106aaca",
+  "prevId": "33152754-7c32-4da6-baee-af9333c4dab5",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -2394,43 +2394,81 @@
           "name": "stripe_customer_id",
           "type": "varchar(255)",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "stripe_subscription_id": {
           "name": "stripe_subscription_id",
           "type": "varchar(255)",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "plan": {
           "name": "plan",
-          "type": "varchar(50)",
+          "type": "billing_interval",
+          "typeSchema": "public",
           "primaryKey": false,
-          "notNull": true,
-          "default": "'lite'"
+          "notNull": true
         },
         "current_period_start": {
           "name": "current_period_start",
-          "type": "timestamp",
+          "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": false
         },
         "current_period_end": {
           "name": "current_period_end",
-          "type": "timestamp",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "trial_ends_at": {
+          "name": "trial_ends_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "cancel_at_period_end": {
+          "name": "cancel_at_period_end",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "past_due_since": {
+          "name": "past_due_since",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "billing_blocked": {
+          "name": "billing_blocked",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "last_portal_request_at": {
+          "name": "last_portal_request_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "trial_ending_sent_at": {
+          "name": "trial_ending_sent_at",
+          "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": false
         },
         "created_at": {
           "name": "created_at",
-          "type": "timestamp",
+          "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": true,
           "default": "now()"
         },
         "updated_at": {
           "name": "updated_at",
-          "type": "timestamp",
+          "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": true,
           "default": "now()"
@@ -2444,7 +2482,23 @@
           "default": "'inactive'"
         }
       },
-      "indexes": {},
+      "indexes": {
+        "venue_subscriptions_stripe_subscription_id_idx": {
+          "name": "venue_subscriptions_stripe_subscription_id_idx",
+          "columns": [
+            {
+              "expression": "stripe_subscription_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
       "foreignKeys": {
         "venue_subscriptions_venue_id_venue_profiles_id_fk": {
           "name": "venue_subscriptions_venue_id_venue_profiles_id_fk",

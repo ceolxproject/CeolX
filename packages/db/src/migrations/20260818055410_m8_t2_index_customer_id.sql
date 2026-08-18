@@ -1,0 +1,2 @@
+DROP INDEX "venue_subscriptions_stripe_subscription_id_idx";--> statement-breakpoint
+CREATE INDEX "venue_subscriptions_stripe_customer_id_idx" ON "venue_subscriptions" USING btree ("stripe_customer_id");

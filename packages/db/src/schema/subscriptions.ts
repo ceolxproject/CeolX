@@ -2,7 +2,7 @@ import { relations } from 'drizzle-orm';
 import { boolean, index, pgTable, text, timestamp, uuid, varchar } from 'drizzle-orm/pg-core';
 
 import { user } from './auth';
-import { billingIntervalEnum } from './enums';
+import { billingIntervalEnum, subscriptionStatusEnum } from './enums';
 import { venueProfiles } from './users';
 
 // ---------------------------------------------------------------------------
@@ -52,6 +52,19 @@ export const venueSubscriptions = pgTable(
     // default: an interval is always known when a subscription is written, and
     // defaulting to 'monthly' would silently mislabel an annual subscriber if a
     // writer ever forgot to set it.
+    /**
+     * @deprecated Status lives on `venue_profiles.subscription_status` (D-14 — one
+     * status column, so two cannot disagree). Nothing reads or writes this any more.
+     *
+     * Retained for the same expand/contract reason as `venue_profiles.is_active`: the
+     * previous build still reads it while the new one is rolling out. Keeping the
+     * NOT NULL default means inserts from the new code, which omit the column
+     * entirely, still succeed.
+     *
+     * Follow-up PR, once this release is fully live:
+     *   ALTER TABLE venue_subscriptions DROP COLUMN status;
+     */
+    status: subscriptionStatusEnum('status').notNull().default('inactive'),
     plan: billingIntervalEnum('plan').notNull(),
     currentPeriodStart: timestamp('current_period_start', { withTimezone: true }),
     currentPeriodEnd: timestamp('current_period_end', { withTimezone: true }),
@@ -86,6 +99,20 @@ export const venueSubscriptions = pgTable(
      * request mints a real Stripe session, so this guards spend as well as spam.
      */
     lastPortalRequestAt: timestamp('last_portal_request_at', { withTimezone: true }),
+    /**
+     * When the 7-days-before-charge warning actually went out.
+     *
+     * The warning used to be a QStash job delayed until the trial ended, which for a
+     * 183-day trial is a ~176-day delay. This repo already learned that a 30-day delay
+     * exceeds the QStash plan cap and silently fails (Asana 1215276188230541, see
+     * `handleAccountAnonymizeSweep`) — so a daily sweep sends it instead, and this
+     * column is what keeps the sweep from re-sending every day for a week.
+     *
+     * Null means not yet sent. Cleared whenever `trialEndsAt` moves, so an extended
+     * trial gets a fresh warning against the new date.
+     */
+    trialEndingSentAt: timestamp('trial_ending_sent_at', { withTimezone: true }),
+
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true })
       .notNull()
@@ -94,7 +121,14 @@ export const venueSubscriptions = pgTable(
   },
   (t) => [
     // The webhook resolves a row by Stripe's subscription id on every event.
-    index('venue_subscriptions_stripe_subscription_id_idx').on(t.stripeSubscriptionId),
+    // Keyed on the CUSTOMER id, which is what every lookup actually filters on:
+    // the webhook resolves a venue from `invoice.customer` / `charge.customer`, and
+    // recovery, dispute and cancellation paths all do the same (seven call sites).
+    //
+    // The index used to be on `stripe_subscription_id`, which nothing queries — the
+    // subscription id is only ever written, or read from the row after it is found by
+    // customer. `venue_id` needs none: its UNIQUE constraint already provides one.
+    index('venue_subscriptions_stripe_customer_id_idx').on(t.stripeCustomerId),
   ]
 );
 
