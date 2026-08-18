@@ -200,15 +200,32 @@ configuring one does not configure the other. Verify each in live mode before la
       **downgrade** defers to the end of the paid year - Customer email update: enabled - Cancellation reason: enabled - **Verify both switch directions against a test subscription.** Getting this
       wrong means either an unwanted refund obligation (immediate downgrade) or an
       angry venue (deferred upgrade).
-- [ ] 🚨 **Failed-payment retry schedule** (Settings → Billing → Subscriptions and emails).
+- [ ] 🚨 **Failed-payment retry schedule** — Settings → Billing → Subscriptions and
+      emails → _Manage payments that require confirmation_ → "If a recurring payment is
+      incomplete for **N days**" → **cancel the subscription**.
+
       **Load-bearing since D-33 was revised on 18/08/2026** — the grace window is no
-      longer arithmetic in our code, it _is_ this setting. Configure retries to run for
-      **~7 days and then cancel the subscription**. Get it wrong and the grace period is
-      silently whatever Stripe's default happens to be: too long keeps an unpaid venue
-      visible for weeks, too short hides one Stripe could still have collected from.
-- [ ] **Stripe's own dunning emails enabled** (same settings page). We deliberately no
-      longer handle `invoice.payment_failed`, so without these a venue is never told its
-      card failed — it just goes quiet and then gets cancelled.
+      longer arithmetic in our code, it _is_ this setting. Set N to **7 days**. As of
+      18/08/2026 the account default is **15 days**, so leaving it untouched silently
+      doubles the free-visibility window.
+
+      ⚠️ **LIVE-MODE ONLY — hidden in test mode and impossible to rehearse.** Verified
+      18/08/2026: applying "Hide live mode settings" removes it from the page entirely.
+      Our code path is identical at 7 or 15 days (`past_due` visible, `cancelled` hidden),
+      so tests cover the transition; nothing can cover whether the number is right, and
+      Stripe exposes no API to read it back. A human must confirm this field in live mode.
+
+- [ ] **Stripe's customer emails enabled** — same page, _Email notifications and customer
+      management_. At minimum **card payments fail** and **expiring cards**. We
+      deliberately no longer handle `invoice.payment_failed` (D-64), so without these a
+      venue is never told its card failed — it goes quiet and is cancelled N days later.
+
+      ⚠️ **Also live-mode only**, so their wording and delivery cannot be checked before
+      launch. "Send a reminder email 7 days before a trial ends" lives here too and must
+      stay **off**: our own trial-ending sweep sends that warning, and enabling both would
+      double-send. The sweep was kept precisely because a Stripe-sent version could not be
+      verified in advance.
+
 - [ ] **Webhook endpoint** registered at `POST /api/webhooks/stripe`, subscribed to:
       `customer.subscription.created`, `.updated`, `.deleted`, `.trial_will_end`,
       `invoice.paid`, `charge.dispute.created`. (`invoice.payment_failed` is no longer
