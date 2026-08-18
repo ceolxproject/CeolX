@@ -81,6 +81,34 @@ export const env = createEnv({
     MUX_TOKEN_ID: z.string().optional(),
     MUX_TOKEN_SECRET: z.string().optional(),
     MUX_WEBHOOK_SECRET: z.string().optional(),
+    // Stripe — venue subscriptions (M8). Optional for the same reason as Mux
+    // above: the server, the admin app and every test suite must boot without
+    // billing configured. getStripeClient() throws PRECONDITION_FAILED naming
+    // the missing variable on first use, so a misconfiguration surfaces loudly
+    // at the call site instead of silently half-working.
+    STRIPE_SECRET_KEY: z.string().optional(),
+    STRIPE_WEBHOOK_SECRET: z.string().optional(),
+    // One product, two billing intervals (M8-T0 D-04). Both Prices must be
+    // created with tax_behavior: 'inclusive' (D-61) — Stripe will not let that
+    // be changed afterwards, so a mistake means new Prices and migrating live
+    // subscriptions.
+    STRIPE_PRICE_MONTHLY: z.string().optional(),
+    STRIPE_PRICE_ANNUAL: z.string().optional(),
+    // Free-trial length in days (D-05/D-06). Configurable so the client can
+    // change it without a deploy; it applies to new checkouts only and never
+    // shortens or extends a trial already running.
+    STRIPE_TRIAL_DAYS: z.coerce.number().int().positive().default(183),
+    // Days a failed payment keeps the profile visible before it is hidden
+    // (D-33). Zero is a legitimate setting if the client prefers strictness,
+    // hence nonnegative rather than positive.
+    STRIPE_GRACE_DAYS: z.coerce.number().int().nonnegative().default(7),
+    // One-time activation link lifetime (D-17 fixes the window at 30–60 min).
+    ACTIVATION_TOKEN_TTL_MINUTES: z.coerce.number().int().min(30).max(60).default(45),
+    // Venue visibility kill switch (M8-T0 O-08). Defaults to 'false' so merging
+    // the restored gate is inert: every venue in production is still `inactive`,
+    // and enabling this before the back-fill runs would hide all of them at
+    // once — while the app has been promising them advance notice.
+    VENUE_GATE_ENABLED: z.enum(['true', 'false']).default('false'),
     // Firebase Cloud Messaging — used by apps/server/src/lib/firebase-admin
     // and the notification.push QStash handler. Optional so the server boots
     // in dev/test without push set up; getMessaging() throws on first use.
