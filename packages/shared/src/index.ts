@@ -5,5 +5,6 @@ export * from './utils/string.js';
 export * from './utils/date.js';
 export * from './utils/geo.js';
 export * from './utils/events.js';
+export * from './utils/venue-visibility.js';
 export * from './validators/index.js';
 export * from './notifications/index.js';

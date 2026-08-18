@@ -51,14 +51,42 @@ export const BookingDirection = {
 } as const satisfies Record<string, BookingDirection>;
 
 // Venue subscription via Stripe — imported by packages/db to build pgEnum("subscription_status")
-export const SUBSCRIPTION_STATUSES = ['inactive', 'active', 'past_due', 'cancelled'] as const;
+//
+// Mirrors Stripe's own subscription statuses rather than collapsing them (M8-T0 D-11):
+// a translation layer means our DB and the Stripe dashboard disagree mid-incident.
+// `trialing` sits before `active` deliberately — the generated migration emits
+// `ADD VALUE 'trialing' BEFORE 'active'`, keeping the pg enum in lifecycle order.
+// Note we spell it `cancelled`; Stripe sends `canceled`. One mapping owns that (D-12).
+export const SUBSCRIPTION_STATUSES = [
+  'inactive',
+  'trialing',
+  'active',
+  'past_due',
+  'cancelled',
+] as const;
 export type VenueSubscriptionStatus = (typeof SUBSCRIPTION_STATUSES)[number];
 export const SubscriptionStatus = {
   INACTIVE: 'inactive',
+  TRIALING: 'trialing',
   ACTIVE: 'active',
   PAST_DUE: 'past_due',
   CANCELLED: 'cancelled',
 } as const satisfies Record<string, VenueSubscriptionStatus>;
+
+// Venue subscription billing interval (M8-T0 D-04). One product, two intervals —
+// these are NOT tiers; the Lite/Pro tier model was dropped (D-07).
+//
+// This is the value that travels on the wire and lands in
+// `venue_subscriptions.plan`. A Stripe Price ID is deliberately never accepted
+// from a client or a URL: the id is resolved server-side from
+// STRIPE_PRICE_MONTHLY / STRIPE_PRICE_ANNUAL, so a crafted activation link
+// cannot point checkout at an arbitrary Price (D-08).
+export const BILLING_INTERVALS = ['monthly', 'annual'] as const;
+export type BillingInterval = (typeof BILLING_INTERVALS)[number];
+export const BillingInterval = {
+  MONTHLY: 'monthly',
+  ANNUAL: 'annual',
+} as const satisfies Record<string, BillingInterval>;
 
 // Irish music event categories (finalised — client-provided list, Figma node 1:3817)
 export const EVENT_CATEGORIES = [
