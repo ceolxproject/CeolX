@@ -1,10 +1,26 @@
 import { useQuery } from '@tanstack/react-query';
 
 import { useAuth } from '@/contexts/auth-context';
-import { trpc } from '@/utils/trpc';
+import { trpc, type RouterOutputs } from '@/utils/trpc';
 
 type UseMeOpts = {
   enabled?: boolean;
+  /**
+   * Poll while mounted. Off by default.
+   *
+   * Only one surface wants this: a venue waiting for an activation it completes in a
+   * browser, often on another device (D-16). Nothing in the app can observe that payment,
+   * so the alternative is the venue staring at a stale screen. TanStack pauses the
+   * interval when the app is unfocused, so this never polls in the background.
+   *
+   * The callback form is the useful one — it is re-evaluated against live query state, so a
+   * poll can switch itself off the moment the thing it was waiting for arrives, with no
+   * mirrored component state to drift from it.
+   */
+  refetchInterval?:
+    | number
+    | false
+    | ((query: { state: { data?: RouterOutputs['users']['me'] } }) => number | false);
 };
 
 export function useMe(opts?: UseMeOpts) {
@@ -21,6 +37,7 @@ export function useMe(opts?: UseMeOpts) {
   const query = useQuery({
     ...trpc.users.me.queryOptions(),
     enabled,
+    refetchInterval: opts?.refetchInterval ?? false,
   });
 
   // A disabled useQuery still returns whatever is already in the shared cache.

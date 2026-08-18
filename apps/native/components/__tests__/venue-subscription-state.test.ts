@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-import { venueStateFor } from '@/components/subscription/venue-subscription-state.utils';
+import {
+  activationPanelFor,
+  asVenueStatus,
+  formatTrialEnd,
+  isActivated,
+  venueStateFor,
+} from '@/components/subscription/venue-subscription-state.utils';
 
 /**
  * `venueStateFor` decides whether a venue is told its profile is not live. Getting it
@@ -74,5 +80,98 @@ describe('venueStateFor — gate-aware, not status-inferred', () => {
     // The "under review, contact us" surface is deferred with the rest of the chargeback
     // handling (D-62). Until it exists, silence beats a control that errors.
     expect(venueStateFor({ status: 'active', onHold: true })).toBe('none');
+  });
+});
+
+/**
+ * The activation hand-off screen's panel choice.
+ *
+ * This is the screen every new venue walks through, and it has already shipped two bugs —
+ * both ordering mistakes in exactly this decision, and neither reachable by a test while the
+ * logic lived inline in JSX:
+ *
+ *   - it rendered "One last step" to a venue whose payment had landed 96 seconds earlier,
+ *     because nothing re-read the subscription state
+ *   - before that it asserted an email had been sent while the request was still in flight
+ */
+describe('activationPanelFor — order is the substance', () => {
+  const waiting = { activated: false, error: null, isPending: false, sent: false };
+
+  it('shows the waiting copy on a fresh arrival', () => {
+    expect(activationPanelFor({ ...waiting, isPending: false })).toBe('waiting');
+  });
+
+  it('holds a spinner until the first send resolves, rather than claiming it sent', () => {
+    expect(activationPanelFor({ ...waiting, isPending: true })).toBe('sending');
+  });
+
+  it('keeps the waiting copy for a RESEND — an email is already away', () => {
+    // Once any email is out, the waiting copy is true. Blanking the screen to a spinner
+    // would take away what the venue is reading mid-resend.
+    expect(activationPanelFor({ ...waiting, isPending: true, sent: true })).toBe('waiting');
+  });
+
+  it('keeps the failure visible while a retry is in flight', () => {
+    // The retry button carries its own spinner; swapping the whole screen for one would
+    // hide the reason they are retrying.
+    expect(activationPanelFor({ ...waiting, error: 'nope', isPending: true })).toBe('error');
+  });
+
+  it('lets activation outrank a failed email — the email was only ever the means', () => {
+    // The regression that motivated all of this. A venue with live billing must never see a
+    // failure or a "we're waiting" state, whatever the email request did.
+    expect(
+      activationPanelFor({ activated: true, error: 'nope', isPending: true, sent: false })
+    ).toBe('success');
+  });
+
+  it('lets activation outrank an in-flight send', () => {
+    expect(activationPanelFor({ activated: true, error: null, isPending: true, sent: false })).toBe(
+      'success'
+    );
+  });
+});
+
+describe('isActivated', () => {
+  it('treats past-due as activated — the profile is live and the card merely failed', () => {
+    // D-33: the grace window exists to absorb an expired card. Prompting them to "activate"
+    // would be wrong; they are a paying customer.
+    for (const status of ['trialing', 'active', 'past_due'] as const) {
+      expect(isActivated(status)).toBe(true);
+    }
+  });
+
+  it('treats every non-billing state as not activated', () => {
+    for (const status of ['inactive', 'cancelled'] as const) {
+      expect(isActivated(status)).toBe(false);
+    }
+    expect(isActivated(null)).toBe(false);
+    expect(isActivated(undefined)).toBe(false);
+  });
+});
+
+describe('formatTrialEnd', () => {
+  it('formats an ISO date the way the badge and the success panel both need it', () => {
+    expect(formatTrialEnd('2027-02-17T00:00:00.000Z')).toBe('17 February 2027');
+  });
+
+  it('returns null rather than "Invalid Date" for absent or junk input', () => {
+    // `users.me` LEFT JOINs the billing row, so null is the normal case for an unsubscribed
+    // venue and for every seeded venue — not an error.
+    expect(formatTrialEnd(null)).toBeNull();
+    expect(formatTrialEnd(undefined)).toBeNull();
+    expect(formatTrialEnd('')).toBeNull();
+    expect(formatTrialEnd('not-a-date')).toBeNull();
+  });
+});
+
+describe('asVenueStatus', () => {
+  it('maps absent values to null so callers have one shape to handle', () => {
+    expect(asVenueStatus(undefined)).toBeNull();
+    expect(asVenueStatus(null)).toBeNull();
+  });
+
+  it('passes a real status through untouched', () => {
+    expect(asVenueStatus('trialing')).toBe('trialing');
   });
 });
