@@ -21,7 +21,6 @@ import { AppHeader } from '@/components/AppHeader';
 import { appToast } from '@/components/AppToast';
 import { ConfirmedBookingCard } from '@/components/bookings/ConfirmedBookingCard';
 import { EmptyState } from '@/components/EmptyState';
-import { FreeAccessBadge } from '@/components/FreeAccessNotice';
 import { FeedPostsList } from '@/components/posts/FeedPostsList';
 import { ProfileEventCard } from '@/components/ProfileEventCard';
 import { SegmentControl, ShareProfileButton } from '@/components/profiles';
@@ -29,6 +28,11 @@ import { EmptyRequests } from '@/components/requests/EmptyRequests';
 import { BOOKING_STATUS_FEEDBACK, type RequestAction } from '@/components/requests/RequestActions';
 import { RequestCard } from '@/components/requests/RequestCard';
 import { SettingsBottomSheet } from '@/components/SettingsBottomSheet';
+import {
+  VenueActivationPrompt,
+  VenuePastDueBanner,
+  VenueTrialNotice,
+} from '@/components/subscription/VenueSubscriptionState';
 import { useAuth } from '@/contexts/auth-context';
 import { useArchiveEvent } from '@/hooks/use-archive-event';
 import { useBookings } from '@/hooks/use-bookings';
@@ -39,6 +43,7 @@ import { useMyPosts } from '@/hooks/use-my-posts';
 import { useResendBooking } from '@/hooks/use-resend-booking';
 import { useSavedEvents } from '@/hooks/use-saved-events';
 import { useUpdateBooking } from '@/hooks/use-update-booking';
+import { useVenueSubscription } from '@/hooks/use-venue-subscription';
 import { getBookingActionErrorBody } from '@/utils/booking-error';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -84,6 +89,9 @@ function ProfileHeader({
   onSettingsPress: () => void;
 }) {
   const isVenue = currentRole === UserRole.VENUE;
+  // Reads users.me from the shared cache — the same query this screen already
+  // depends on, so no extra request.
+  const subscription = useVenueSubscription();
   const followerCount = (isVenue ? venueProfile?.followerCount : artistProfile?.followerCount) ?? 0;
   const followingCount =
     (isVenue ? venueProfile?.followingCount : artistProfile?.followingCount) ?? 0;
@@ -137,7 +145,23 @@ function ProfileHeader({
       {/* Name + details */}
       <View className="items-center gap-1.5 mb-3">
         <Text className="text-xl font-bold text-white font-urbanist">{displayName}</Text>
-        {isVenue && <FreeAccessBadge />}
+        {/* M8: the venue's own subscription surface. Replaces the interim
+            free-access badge. Never shows a price or a payment link (D-16). */}
+        {isVenue && subscription.isResolved && subscription.state === 'activate' ? (
+          <View className="w-full mt-2">
+            <VenueActivationPrompt />
+          </View>
+        ) : null}
+        {isVenue && subscription.state === 'trial' ? (
+          <View className="w-full mt-2">
+            <VenueTrialNotice trialEndsAt={subscription.trialEndsAt} />
+          </View>
+        ) : null}
+        {isVenue && subscription.state === 'past_due' ? (
+          <View className="w-full mt-2">
+            <VenuePastDueBanner />
+          </View>
+        ) : null}
         {isVenue && (venueProfile?.address ?? me.venueAddress) && (
           <View className="flex-row items-start justify-center gap-1 max-w-[292px]">
             <Ionicons

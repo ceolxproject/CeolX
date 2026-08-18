@@ -149,7 +149,8 @@ export const AnalyticsEvent = {
 //   through every navigation call site. Left out rather than half-done; revisit
 //   if "which surface drives event views" becomes a live question.
 // - subscription_notice_shown / activation_email_resent — no such UI exists.
-//   Venues are on interim free access (FreeAccessNotice) and Stripe is stubbed
+//   Venue subscriptions shipped in M8 — this note predates them and the interim
+//   free-access notice it referenced has been removed
 //   (M8-T1/T2), so there is no paywall notice and no resend button to hook.
 //   These land with M8 alongside the conversion events.
 

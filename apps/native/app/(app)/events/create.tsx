@@ -149,7 +149,6 @@ export default function CreateEventScreen() {
             isPending={form.isPending}
             isEditing={false}
             isVenue={isVenue}
-            showFreeAccessNotice
           />
         )}
       </KeyboardAvoidingView>

@@ -18,8 +18,8 @@ import { createPostSchema, POST_CAPTION_MAX, updatePostSchema } from '@CeolX/sha
 import { AppHeader } from '@/components/AppHeader';
 import { appToast } from '@/components/AppToast';
 import { CharacterCount, CharacterLimitNote } from '@/components/CharacterCount';
-import { FreeAccessNotice } from '@/components/FreeAccessNotice';
 import { MediaPickerField } from '@/components/posts/MediaPickerField';
+import { VenuePublishBlockedNotice } from '@/components/subscription/VenueSubscriptionState';
 import { useCreatePost } from '@/hooks/use-create-post';
 import { useMe } from '@/hooks/use-me';
 import { useMediaDelete, keyFromCdnUrl } from '@/hooks/use-media-delete';
@@ -27,6 +27,7 @@ import { useMediaUpload } from '@/hooks/use-media-upload';
 import { usePostById } from '@/hooks/use-post-by-id';
 import { useUpdatePost } from '@/hooks/use-update-post';
 import { planPostMediaUpdate } from '@/hooks/use-update-post.utils';
+import { useVenueSubscription } from '@/hooks/use-venue-subscription';
 import { useVideoUpload } from '@/hooks/use-video-upload';
 
 type LocalMedia = {
@@ -44,6 +45,7 @@ export default function CreatePostScreen() {
 
   const { data: me } = useMe();
   const isVenue = me?.currentRole === UserRole.VENUE;
+  const subscription = useVenueSubscription();
 
   const existing = usePostById(editId ?? null);
   const [caption, setCaption] = useState('');
@@ -266,7 +268,10 @@ export default function CreatePostScreen() {
         </ScrollView>
 
         <View className="px-6 pb-6 gap-3">
-          {isVenue && !isEditing ? <FreeAccessNotice /> : null}
+          {/* V-14: an unpaid venue cannot publish. The server refuses it too
+              (assertVenueMayPublish) — this explains why the button is dim, because
+              a disabled control with no reason reads as a bug. */}
+          {isVenue && !isEditing && !subscription.mayPublish ? <VenuePublishBlockedNotice /> : null}
 
           <Pressable
             onPress={handlePublish}
