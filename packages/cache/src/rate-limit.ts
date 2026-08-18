@@ -14,6 +14,15 @@ export const RATE_LIMIT_TIERS = {
   authenticatedGeneral: { limit: 120, window: '1 m', keyBy: 'userId' },
   /** Unauthenticated IP-keyed lookups (e.g. /location/ip). Higher than authLogin — called on every map open. */
   locationLookup: { limit: 60, window: '1 m', keyBy: 'ip' },
+  /**
+   * Credential-bearing public GETs — currently /activate (M8).
+   *
+   * Tight on purpose. These used to run on `locationLookup`, which allows 60/min
+   * because it is called on every map open; that is a generous budget for guessing at
+   * a one-time token. The token is 32 random bytes so brute force is not the real
+   * threat, but a credential endpoint has no business sharing a map lookup's budget.
+   */
+  credentialRedeem: { limit: 10, window: '15 m', keyBy: 'ip' },
   /** Defined for future use — wired in Milestone 04 when RBAC is implemented. */
   adminGeneral: { limit: 300, window: '1 m', keyBy: 'userId' },
   /** Defined for future use — wired in Milestone 04 when RBAC is implemented. */
