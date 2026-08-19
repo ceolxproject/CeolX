@@ -34,12 +34,21 @@ async function findVenueProfileId(userId: string): Promise<string | null> {
   return profile?.id ?? null;
 }
 
-// Whether an event is still upcoming relative to `now`. Matches the discovery
-// feed's "now onwards" rule (buildDateFilter → date_start:>=now): an event counts
-// as upcoming until its start time passes. dateEnd is intentionally ignored so an
-// event that has *started* drops off collections in lockstep with the feed.
-function isUpcomingEvent(event: { dateStart: Date }, now: Date): boolean {
-  return event.dateStart.getTime() >= now.getTime();
+/**
+ * Whether an event is still worth showing, relative to `now`.
+ *
+ * Stays in lockstep with the discovery feed, which is what this has always been for —
+ * but the feed's rule changed. It used to drop an event the moment its start time
+ * passed, and this deliberately copied that, ignoring `dateEnd` on purpose. Both were
+ * wrong the same way: an event disappeared while it was actually happening, and a
+ * multi-day festival vanished from its second day. `buildDateFilter` and
+ * `lib/event-window` now both ask whether the event has *finished*, so this does too.
+ *
+ * `dateEnd` is nullable — a single-evening gig has no end time — so a missing end falls
+ * back to the start, preserving the old behaviour for the events it suited.
+ */
+function isUpcomingEvent(event: { dateStart: Date; dateEnd: Date | null }, now: Date): boolean {
+  return (event.dateEnd ?? event.dateStart).getTime() >= now.getTime();
 }
 
 // ─── Router ──────────────────────────────────────────────────────────────────
@@ -103,6 +112,9 @@ export const collectionsRouter = router({
               id: true,
               title: true,
               dateStart: true,
+              // Read by isUpcomingEvent — a multi-day event stays in the collection
+              // until it actually ends, not from the moment it starts.
+              dateEnd: true,
               coverImage: true,
               status: true,
               category: true,

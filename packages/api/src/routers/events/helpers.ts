@@ -73,18 +73,30 @@ export const MapQueryInput = z.object({
 });
 
 /**
- * Builds a Typesense date_start filter string.
+ * Builds the Typesense date filter for the map, feed and search.
  *
- *   - `day` — a single calendar day picked from the feed's calendar button,
- *     already resolved by the client to an absolute [start, end) Unix-second
- *     window. Filtered exactly as given (no server-side timezone math, since the
- *     server runs in UTC and would otherwise shift the day boundary; and no
- *     "earlier today" clamp, so a picked day shows every event on it).
- *   - Omitted — everything from now onwards.
+ * Both branches ask whether the event **overlaps** the window, not whether it starts
+ * inside it. Filtering on `date_start` alone dropped an event the instant it began —
+ * a gig running 20:00–23:00 vanished at 20:01 while it was on, and a festival running
+ * 10–14 August was gone from the 11th. See `lib/event-window` for the same rule in SQL.
+ *
+ * `date_end` is optional in the schema, and Typesense does not match a range filter
+ * against a document that lacks the field. That is what the `||` is for rather than a
+ * COALESCE: an event with no end date falls back to its start, which is the old
+ * behaviour and is correct for the single-evening gigs that have no end.
+ *
+ *   - `day` — a single calendar day picked from the feed's calendar button, already
+ *     resolved by the client to an absolute [start, end) Unix-second window. Filtered
+ *     exactly as given (no server-side timezone math, since the server runs in UTC and
+ *     would otherwise shift the day boundary; and no "earlier today" clamp, so a picked
+ *     day shows every event on it). An event overlaps the day if it starts before the
+ *     day ends and has not already finished when the day begins — so day three of a
+ *     festival now lists it, which it never did before.
+ *   - Omitted — everything not yet finished.
  */
 export function buildDateFilter(nowUnix: number, day?: { start: number; end: number }): string {
   if (day) {
-    return ` && date_start:>=${day.start} && date_start:<${day.end}`;
+    return ` && date_start:<${day.end} && (date_end:>=${day.start} || date_start:>=${day.start})`;
   }
-  return ` && date_start:>=${nowUnix}`;
+  return ` && (date_end:>=${nowUnix} || date_start:>=${nowUnix})`;
 }

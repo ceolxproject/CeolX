@@ -1,9 +1,11 @@
-import { and, countDistinct, eq, gt, inArray, isNull, or, sql } from 'drizzle-orm';
+import { and, countDistinct, eq, inArray, isNull, or, sql } from 'drizzle-orm';
 import { unionAll } from 'drizzle-orm/pg-core';
 
 import { db } from '@CeolX/db';
 import { bookings } from '@CeolX/db/schema/bookings';
 import { eventCollaborators, events } from '@CeolX/db/schema/events';
+
+import { eventNotFinished } from './event-window';
 
 /**
  * Upcoming-event count per artist, keyed by the artist's user id.
@@ -34,11 +36,7 @@ export async function countUpcomingEventsByArtist(
     .select({ artistId: events.createdBy, eventId: events.id })
     .from(events)
     .where(
-      and(
-        inArray(events.createdBy, artistUserIds),
-        eq(events.status, 'active'),
-        gt(events.dateStart, sql`now()`)
-      )
+      and(inArray(events.createdBy, artistUserIds), eq(events.status, 'active'), eventNotFinished())
     );
 
   const collaboratedUpcoming = db
@@ -51,7 +49,7 @@ export async function countUpcomingEventsByArtist(
       and(
         inArray(eventCollaborators.artistProfileId, artistUserIds),
         eq(events.status, 'active'),
-        gt(events.dateStart, sql`now()`),
+        eventNotFinished(),
         or(
           isNull(eventCollaborators.bookingId),
           sql`EXISTS (SELECT 1 FROM ${bookings} WHERE ${bookings.id} = ${eventCollaborators.bookingId} AND ${bookings.status} = 'accepted')`

@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 
 import { TRPCError } from '@trpc/server';
-import { and, countDistinct, desc, eq, gt, gte, inArray, isNull, ne, or, sql } from 'drizzle-orm';
+import { and, countDistinct, desc, eq, inArray, isNull, ne, or, sql } from 'drizzle-orm';
 import { unionAll } from 'drizzle-orm/pg-core';
 import { z } from 'zod';
 
@@ -28,6 +28,7 @@ import {
 
 import type { DispatchNotificationInput } from '../../context';
 import { creatorProcedure, protectedProcedure, publicProcedure } from '../../index';
+import { eventFinished, eventNotFinished } from '../../lib/event-window';
 import { syncEventToTypesense, removeEventFromTypesense } from '../../services/event-sync';
 import { syncPromoPost } from '../../services/promo-post';
 
@@ -311,7 +312,7 @@ export const byId = publicProcedure
         and(
           inArray(events.createdBy, collaboratorUserIds),
           eq(events.status, 'active'),
-          gt(events.dateStart, sql`now()`)
+          eventNotFinished()
         )
       );
     const collaboratedUpcoming = db
@@ -324,7 +325,7 @@ export const byId = publicProcedure
         and(
           inArray(eventCollaborators.artistProfileId, collaboratorUserIds),
           eq(events.status, 'active'),
-          gt(events.dateStart, sql`now()`),
+          eventNotFinished(),
           or(
             isNull(eventCollaborators.bookingId),
             sql`EXISTS (SELECT 1 FROM ${bookings} WHERE ${bookings.id} = ${eventCollaborators.bookingId} AND ${bookings.status} = 'accepted')`
@@ -395,14 +396,14 @@ export const byId = publicProcedure
       // A past event stays status='active' (only creator-delete flips it to
       // archived), so a status filter alone leaks elapsed events into the
       // "Explore the collection" preview. Mirror collections.byId's
-      // isUpcomingEvent (dateStart >= now) so this preview and the "see all"
+      // isUpcomingEvent so this preview and the "see all"
       // list show the same events. (Asana 1216297161493463)
       event.collectionId
         ? db.query.events.findMany({
             where: and(
               eq(events.collectionId, event.collectionId),
               eq(events.status, EventStatus.ACTIVE),
-              gte(events.dateStart, sql`now()`),
+              eventNotFinished(),
               ne(events.id, input.id)
             ),
             columns: {
@@ -1461,7 +1462,7 @@ export const getMyEvents = creatorProcedure
     // Date-driven "past" predicate — matches the public profile split and the
     // map's date filter. Shared by the select flag and the ordering below so the
     // two can never drift, and resolved against the same statement-stable now().
-    const isPastExpr = sql<boolean>`${events.dateStart} <= now()`;
+    const isPastExpr = eventFinished();
 
     const [rows, countResult] = await Promise.all([
       db
@@ -1495,7 +1496,7 @@ export const getMyEvents = creatorProcedure
           // Within upcoming: soonest first (past rows are null here, sorted by
           // the next key). Within past: most recent first. Mirrors the public
           // profile's ordering.
-          sql`CASE WHEN ${events.dateStart} > now() THEN ${events.dateStart} END ASC NULLS LAST`,
+          sql`CASE WHEN ${eventNotFinished()} THEN ${events.dateStart} END ASC NULLS LAST`,
           desc(events.dateStart),
           // Unique final key so the total order is deterministic — without it,
           // two events sharing a dateStart could swap between offset pages and
