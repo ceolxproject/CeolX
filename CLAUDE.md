@@ -171,7 +171,7 @@ Silent auto-expand:
 
 1. Try current viewport / ~5 km from map centre
 2. If 0 results → silently retry at 25 km
-3. If 0 results → silently retry at 100 km
+3. If 0 results → silently retry at 150 km (matches `MAP_POINTER_MAX_KM`, so an empty map searches as far as an edge pointer may point)
 4. If still 0 → show non-blocking floating card: _"No events near here. Try searching for Dublin, Galway, or Cork."_ + **Browse all upcoming events** (switches to Feed view)
 
 ---

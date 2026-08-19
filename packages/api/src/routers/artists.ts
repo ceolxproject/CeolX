@@ -10,6 +10,8 @@ import { artistProfiles } from '@CeolX/db/schema/users';
 import { updateArtistProfileSchema } from '@CeolX/shared/validators';
 
 import { artistProcedure, protectedProcedure, publicProcedure, router } from '../index';
+import { isEventNotFinished } from '../lib/event-window';
+
 
 import {
   getFollowerCounts,
@@ -171,12 +173,17 @@ export const artistsRouter = router({
     // Past vs upcoming is purely date-driven now that only ACTIVE events reach here.
     // Keep the explicit status guard as defense-in-depth so a deleted event can never
     // slip into either bucket even if a query filter regresses.
+    //
+    // Split on "has it finished", via the same rule as the upcoming-event badge
+    // (countUpcomingEventsByArtist). The two MUST agree — crud.ts documents that the
+    // badge equals this list — and they did not while this compared dateStart: a gig
+    // running now was counted by the badge and filed under Past Events here.
     const upcomingEvents = allEvents
-      .filter((e) => e.status === 'active' && new Date(e.dateStart) > now)
+      .filter((e) => e.status === 'active' && isEventNotFinished(e, now))
       .sort((a, b) => new Date(a.dateStart).getTime() - new Date(b.dateStart).getTime());
 
     const pastEvents = allEvents
-      .filter((e) => e.status === 'active' && new Date(e.dateStart) <= now)
+      .filter((e) => e.status === 'active' && !isEventNotFinished(e, now))
       .sort((a, b) => new Date(b.dateStart).getTime() - new Date(a.dateStart).getTime());
 
     return {

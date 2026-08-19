@@ -9,6 +9,8 @@ import { EventStatus } from '@CeolX/shared/enums';
 import { createCollectionSchema, updateCollectionSchema } from '@CeolX/shared/validators';
 
 import { protectedProcedure, router, venueProcedure } from '../index';
+import { isEventNotFinished } from '../lib/event-window';
+
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -32,23 +34,6 @@ async function findVenueProfileId(userId: string): Promise<string | null> {
     columns: { id: true },
   });
   return profile?.id ?? null;
-}
-
-/**
- * Whether an event is still worth showing, relative to `now`.
- *
- * Stays in lockstep with the discovery feed, which is what this has always been for —
- * but the feed's rule changed. It used to drop an event the moment its start time
- * passed, and this deliberately copied that, ignoring `dateEnd` on purpose. Both were
- * wrong the same way: an event disappeared while it was actually happening, and a
- * multi-day festival vanished from its second day. `buildDateFilter` and
- * `lib/event-window` now both ask whether the event has *finished*, so this does too.
- *
- * `dateEnd` is nullable — a single-evening gig has no end time — so a missing end falls
- * back to the start, preserving the old behaviour for the events it suited.
- */
-function isUpcomingEvent(event: { dateStart: Date; dateEnd: Date | null }, now: Date): boolean {
-  return (event.dateEnd ?? event.dateStart).getTime() >= now.getTime();
 }
 
 // ─── Router ──────────────────────────────────────────────────────────────────
@@ -82,11 +67,14 @@ export const collectionsRouter = router({
         createdAt: collections.createdAt,
         // Mirror what the owner sees in byId: exclude deleted (archived) events and
         // count only upcoming ones, so the list badge matches the collection screen.
+        // "Upcoming" is has-not-finished (see lib/event-window) — while this read
+        // date_start alone the badge said 0 for a collection holding a festival that
+        // was mid-run, and opening it showed 1.
         eventCount: sql<number>`(
           SELECT count(*)::int FROM events
           WHERE events.collection_id = ${collections.id}
             AND events.status <> 'archived'
-            AND events.date_start >= now()
+            AND (events.date_start >= now() OR (events.date_end IS NOT NULL AND events.date_end >= now()))
         )`,
       })
       .from(collections)
@@ -146,7 +134,7 @@ export const collectionsRouter = router({
       // event is still status='active' — it has simply slipped behind `now` — so the
       // status filter above does not catch it. Drop anything that isn't upcoming.
       const now = new Date();
-      const visibleEvents = byStatus.filter((e) => isUpcomingEvent(e, now));
+      const visibleEvents = byStatus.filter((e) => isEventNotFinished(e, now));
 
       return {
         id: collection.id,

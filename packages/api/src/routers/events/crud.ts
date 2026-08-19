@@ -1459,9 +1459,10 @@ export const getMyEvents = creatorProcedure
       ne(events.status, EventStatus.ARCHIVED)
     );
 
-    // Date-driven "past" predicate — matches the public profile split and the
-    // map's date filter. Shared by the select flag and the ordering below so the
-    // two can never drift, and resolved against the same statement-stable now().
+    // Date-driven "past" predicate — has the event FINISHED (lib/event-window), which
+    // is the same rule as the public profile split, the map, the feed and search.
+    // Shared by the select flag and the ordering below so the two can never drift, and
+    // resolved against the same statement-stable now().
     const isPastExpr = eventFinished();
 
     const [rows, countResult] = await Promise.all([

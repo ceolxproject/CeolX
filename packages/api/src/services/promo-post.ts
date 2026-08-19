@@ -1,9 +1,11 @@
-import { and, eq, isNull, or, sql, type SQL } from 'drizzle-orm';
+import { and, eq, isNull, or, type SQL } from 'drizzle-orm';
 
 import type { db } from '@CeolX/db';
 import { events } from '@CeolX/db/schema/events';
 import { posts } from '@CeolX/db/schema/social';
 import { EventStatus } from '@CeolX/shared';
+
+import { eventNotFinished, isEventNotFinished } from '../lib/event-window';
 
 // Accepts either the top-level db or a transaction handle.
 type Executor = typeof db | Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -61,10 +63,7 @@ export async function syncPromoPost(
 export function promoVisible(includeExpired = false): SQL {
   const live = includeExpired
     ? eq(events.status, EventStatus.ACTIVE)
-    : and(
-        eq(events.status, EventStatus.ACTIVE),
-        sql`coalesce(${events.dateEnd}, ${events.dateStart}) >= now()`
-      );
+    : and(eq(events.status, EventStatus.ACTIVE), eventNotFinished());
   return or(isNull(posts.eventId), live) as SQL;
 }
 
@@ -73,6 +72,5 @@ export function isPromoEventExpired(
   event: { dateStart: Date; dateEnd: Date | null } | null
 ): boolean {
   if (!event) return false; // not a promo post, or no linked event
-  const end = event.dateEnd ?? event.dateStart;
-  return end.getTime() < Date.now();
+  return !isEventNotFinished(event, new Date());
 }

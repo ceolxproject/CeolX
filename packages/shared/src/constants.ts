@@ -8,8 +8,11 @@ export const MAP_DEBOUNCE_MS = 400;
 // events instead of fetching them on arrival.
 export const MAP_VIEWPORT_PAD_FACTOR = 2;
 
-// Silent radius expansion for empty map states
-export const MAP_EXPAND_RADIUS_KM = [5, 25, 100] as const;
+// Silent radius expansion for empty map states. The last step matches
+// MAP_POINTER_MAX_KM so an empty map searches as far as an arrow is allowed to
+// point — while it stopped at 100 the documented 150km reach was unreachable on
+// this path, which is what QA hit on 11/08/2026.
+export const MAP_EXPAND_RADIUS_KM = [5, 25, 150] as const;
 
 // Edge pointers — arrows shown at the viewport border when the visible map is
 // empty but events were found just outside it. Beyond MAP_POINTER_MAX_KM of the
@@ -18,12 +21,15 @@ export const MAP_EXPAND_RADIUS_KM = [5, 25, 100] as const;
 // Measured from the viewport, not the user, so panning to a distant county still
 // surfaces its events — and so the cap still applies when there is no anchor.
 //
-// Derived from the widest silent sweep rather than written as its own number. It
-// was 150 while the sweep stopped at 100, so the top third of the range described
-// behaviour that could not happen: no event beyond 100km is ever loaded, so no
-// arrow could ever point at one. Tying the two means a change to the sweep cannot
-// leave this claiming a reach the app does not have (QA, 11/08/2026).
-export const MAP_POINTER_MAX_KM = MAP_EXPAND_RADIUS_KM[MAP_EXPAND_RADIUS_KM.length - 1];
+// Two fetch paths feed the arrows and only one was capped at 100km. The primary
+// query is a viewport bbox padded by MAP_VIEWPORT_PAD_FACTOR, which at low zoom
+// loads events far beyond 100km — those are exactly the padding-ring events
+// isOutsideRegion exists to point at. Only the empty-map sweep
+// (MAP_EXPAND_RADIUS_KM) was short, so the fix was to lengthen the sweep to match
+// this number, NOT to lower this number to match the sweep: doing that removed
+// arrows that work today on the bbox path. Left as an explicit 150 so the type
+// stays `number` rather than narrowing to the sweep's literal union.
+export const MAP_POINTER_MAX_KM = 150;
 // How far the user may be from the map before quoting a distance stops being
 // trip-planning information and becomes trivia. Island-of-Ireland scale, so a
 // Dublin user browsing Galway (~186km) or Cork (~220km) still gets the number

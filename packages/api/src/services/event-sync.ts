@@ -1,4 +1,4 @@
-import { and, count, eq, gte } from 'drizzle-orm';
+import { and, count, eq } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 
 import { db } from '@CeolX/db';
@@ -7,6 +7,7 @@ import type { Event } from '@CeolX/db/schema/events';
 import { artistProfiles, venueProfiles } from '@CeolX/db/schema/users';
 import { EventStatus } from '@CeolX/shared';
 
+import { eventNotFinished } from '../lib/event-window';
 import { typesenseClient } from '../lib/typesense';
 
 // ---------------------------------------------------------------------------
@@ -112,7 +113,11 @@ export async function bulkSyncEventsToTypesense(): Promise<{ synced: number }> {
     .leftJoin(artistProfiles, eq(artistProfiles.userId, events.createdBy))
     .leftJoin(venueProfiles, eq(venueProfiles.userId, events.createdBy))
     .leftJoin(registeredVenue, eq(registeredVenue.id, events.venueId))
-    .where(and(eq(events.status, EventStatus.ACTIVE), gte(events.dateStart, new Date())));
+    // eventNotFinished(), not a dateStart floor: this is the reseed used after a
+    // Typesense swap, and a dateStart filter dropped exactly the in-progress and
+    // multi-day events the query-time filter exists to surface. They would have been
+    // absent from the index with nothing to match, invisible until someone edited them.
+    .where(and(eq(events.status, EventStatus.ACTIVE), eventNotFinished()));
 
   if (rows.length === 0) {
     return { synced: 0 };

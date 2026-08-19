@@ -10,6 +10,8 @@ import { venueProfiles } from '@CeolX/db/schema/users';
 import { updateVenueProfileSchema } from '@CeolX/shared/validators';
 
 import { protectedProcedure, publicProcedure, router, venueProcedure } from '../index';
+import { isEventNotFinished } from '../lib/event-window';
+
 
 import {
   getFollowerCounts,
@@ -143,12 +145,15 @@ export const venuesRouter = router({
     // Past vs upcoming is purely date-driven now that only ACTIVE events reach here.
     // Keep the explicit status guard as defense-in-depth so a deleted event can never
     // slip into either bucket even if the query filter regresses.
+    // Split on "has it finished" — same rule as the map, feed, search and collections.
+    // While this compared dateStart, a venue's own trad session running 21:00-01:00 sat
+    // under Past Events at 22:00 while every other surface correctly showed it.
     const upcomingEvents = allEvents
-      .filter((e) => e.status === 'active' && new Date(e.dateStart) > now)
+      .filter((e) => e.status === 'active' && isEventNotFinished(e, now))
       .sort((a, b) => new Date(a.dateStart).getTime() - new Date(b.dateStart).getTime());
 
     const pastEvents = allEvents
-      .filter((e) => e.status === 'active' && new Date(e.dateStart) <= now)
+      .filter((e) => e.status === 'active' && !isEventNotFinished(e, now))
       .sort((a, b) => new Date(b.dateStart).getTime() - new Date(a.dateStart).getTime());
 
     return {

@@ -192,6 +192,21 @@ describe('computePointers', () => {
     expect(pointers).toEqual([]);
   });
 
+  // The Paris case above passes for any cap between roughly 50 and 700km, so on its own
+  // it does not pin the number. These two bracket it: MAP_POINTER_MAX_KM was briefly
+  // lowered to 100 on the false premise that nothing beyond 100km is ever loaded, and
+  // nothing in the suite noticed. Distances are from the region CENTRE, which is what
+  // computePointers measures (53.3498 plus 130km and 175km due north).
+  it('keeps an event inside the cap but well past the empty-map sweep', () => {
+    const pointers = computePointers([event('a', 54.51892, -6.2603)], DUBLIN_REGION, DUBLIN_ANCHOR);
+    expect(pointers).toHaveLength(1);
+  });
+
+  it('drops an event just outside the cap', () => {
+    const pointers = computePointers([event('a', 54.92361, -6.2603)], DUBLIN_REGION, DUBLIN_ANCHOR);
+    expect(pointers).toEqual([]);
+  });
+
   it('keeps the nearest directions when more than three exist', () => {
     const pointers = computePointers(
       [

@@ -14,6 +14,7 @@ import {
 } from '@CeolX/shared/validators';
 
 import { creatorProcedure, protectedProcedure, publicProcedure } from '../../index';
+import { eventFinished } from '../../lib/event-window';
 import { retrieveUploadStatus } from '../../services/mux';
 import { isPromoEventExpired, promoVisible } from '../../services/promo-post';
 
@@ -249,7 +250,7 @@ export const byUser = publicProcedure.input(userPostsQuerySchema).query(async ({
         // Marks a promo whose linked event has already ended — drives the
         // "Ended" badge. Only the owner ever receives ended promos (see above);
         // false for non-promo posts (no joined event row).
-        eventEnded: sql<boolean>`(${events.id} is not null and coalesce(${events.dateEnd}, ${events.dateStart}) < now())`,
+        eventEnded: sql<boolean>`(${events.id} is not null and ${eventFinished()})`,
       })
       .from(posts)
       .leftJoin(events, eq(events.id, posts.eventId))
