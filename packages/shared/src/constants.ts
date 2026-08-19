@@ -17,7 +17,13 @@ export const MAP_EXPAND_RADIUS_KM = [5, 25, 100] as const;
 // at Ireland from 1000km away), so the empty-state card takes over instead.
 // Measured from the viewport, not the user, so panning to a distant county still
 // surfaces its events — and so the cap still applies when there is no anchor.
-export const MAP_POINTER_MAX_KM = 150;
+//
+// Derived from the widest silent sweep rather than written as its own number. It
+// was 150 while the sweep stopped at 100, so the top third of the range described
+// behaviour that could not happen: no event beyond 100km is ever loaded, so no
+// arrow could ever point at one. Tying the two means a change to the sweep cannot
+// leave this claiming a reach the app does not have (QA, 11/08/2026).
+export const MAP_POINTER_MAX_KM = MAP_EXPAND_RADIUS_KM[MAP_EXPAND_RADIUS_KM.length - 1];
 // How far the user may be from the map before quoting a distance stops being
 // trip-planning information and becomes trivia. Island-of-Ireland scale, so a
 // Dublin user browsing Galway (~186km) or Cork (~220km) still gets the number
