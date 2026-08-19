@@ -22,18 +22,27 @@ export function storeUrls(): { iosStoreUrl: string; androidStoreUrl: string } {
   };
 }
 
-// Crawlers get the HTML (for OG unfurls), never a redirect. In-app browsers
-// (Instagram "FBAN", Facebook) are humans, not crawlers — intentionally excluded.
+// Crawlers get the HTML (for OG unfurls), never a redirect.
 const SHARE_BOT_RE =
   /bot\b|crawler|spider|facebookexternalhit|Facebot|WhatsApp|Twitterbot|Slackbot|Slack-ImgProxy|LinkedInBot|TelegramBot|Discordbot|Pinterest|redditbot|Applebot|Googlebot|bingbot|SkypeUriPreview|Embedly|Iframely|vkShare|Google-InspectionTool/i;
 
+// Meta's in-app webviews. Android FB ships FB_IAB, iOS FB ships FBAN/FBAV,
+// Instagram ships its own token — all three also carry the platform token, so
+// they must be checked before the iPhone/Android branches below.
+const IN_APP_WEBVIEW_RE = /FB_IAB|FBAN|FBAV|Instagram/i;
+
 /**
  * Store URL for a not-installed mobile visitor, or null to render the HTML page.
- * Installed users never reach here — the OS deep-links first — so a real mobile
- * browser means "no app".
  *
- * Note: we can't detect install server-side, so an installed user in an in-app
- * webview also lands on the store ("Open" button); acceptable.
+ * A plain mobile browser reaching here means "no app": an installed user's OS
+ * resolves the Universal / App Link first and never issues this request.
+ *
+ * That inference breaks inside an in-app webview. Facebook and Instagram render
+ * links in their own webview, which never asks the OS to resolve App Links, so
+ * installed users DO reach here — and redirecting them lands them on a store
+ * "Open" button that cold-launches the app with no route, losing the content
+ * they tapped. We render the page instead; its ceolx:// button opens the right
+ * screen, and custom schemes work inside these webviews on both platforms.
  */
 export function storeRedirectFor(
   userAgent: string | undefined,
@@ -41,6 +50,7 @@ export function storeRedirectFor(
 ): string | null {
   const ua = userAgent ?? '';
   if (SHARE_BOT_RE.test(ua)) return null;
+  if (IN_APP_WEBVIEW_RE.test(ua)) return null;
   if (/iPhone|iPad|iPod/.test(ua)) return stores.iosStoreUrl;
   if (/Android/.test(ua)) return stores.androidStoreUrl;
   return null;

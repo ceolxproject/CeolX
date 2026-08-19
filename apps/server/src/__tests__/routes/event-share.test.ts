@@ -115,6 +115,12 @@ const ANDROID_UA =
 const CRAWLER_UA = 'facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)';
 const DESKTOP_UA =
   'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+const FB_ANDROID_IAB_UA =
+  'Mozilla/5.0 (Linux; Android 14; SM-S918B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36 [FB_IAB/FB4A;FBAV/450.0.0.35.108;]';
+const FB_IOS_IAB_UA =
+  'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 [FBAN/FBIOS;FBAV/450.0.0.35.108;]';
+const INSTAGRAM_IAB_UA =
+  'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36 Instagram 320.0.0.42.101 Android';
 
 describe('GET /event/:id — not-installed store redirect', () => {
   function requestWithUa(ua: string) {
@@ -150,5 +156,19 @@ describe('GET /event/:id — not-installed store redirect', () => {
     const res = await requestWithUa(DESKTOP_UA);
     expect(res.status).toBe(200);
     expect(res.headers.get('content-type')).toMatch(/text\/html/);
+  });
+
+  // Meta's webviews never let the OS resolve the App Link, so installed users
+  // reach the server. A store redirect would strand them on an "Open" button
+  // that cold-launches the app with no route — they must get the deep-link page.
+  it.each([
+    ['Facebook Android', FB_ANDROID_IAB_UA],
+    ['Facebook iOS', FB_IOS_IAB_UA],
+    ['Instagram', INSTAGRAM_IAB_UA],
+  ])('serves the deep-link page to the %s in-app browser', async (_label, ua) => {
+    mockFindFirst.mockResolvedValue(activeEvent());
+    const res = await requestWithUa(ua);
+    expect(res.status).toBe(200);
+    expect(await res.text()).toContain(`href="ceolx://event/${VALID_ID}"`);
   });
 });
