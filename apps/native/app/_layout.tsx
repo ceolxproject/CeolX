@@ -35,6 +35,7 @@ import { PostLikersSheet } from '@/components/posts/PostLikersSheet';
 import { FallbackComponent } from '@/components/sentry-fallback';
 import { AppThemeProvider } from '@/contexts/app-theme-context';
 import { AuthProvider } from '@/contexts/auth-context';
+import { useInitialUrlGuard } from '@/hooks/use-initial-url-guard';
 import { useApplyUpdateOnResume } from '@/hooks/use-update-on-resume';
 import { posthog, trackScreen } from '@/lib/analytics';
 import { applyPendingUpdate } from '@/lib/check-for-update';
@@ -125,6 +126,10 @@ function Layout() {
   // the app out of the switcher. This picks up an already-downloaded bundle when
   // they come back after a long enough break.
   useApplyUpdateOnResume();
+
+  // Recovers a launch URL that Expo Router dropped in favour of the navigation
+  // state it had restored — see the hook for which Android launch path does it.
+  useInitialUrlGuard();
 
   // Screen tracking. expo-router has no navigation-state callback PostHog can
   // hook, so the pathname is the signal; record ids are stripped in trackScreen.
