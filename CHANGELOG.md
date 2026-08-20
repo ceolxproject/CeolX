@@ -1,5 +1,121 @@
 # Changelog
 
+<a name="1.0.14"></a>
+
+## 1.0.14 (2026-08-20)
+
+### Added
+
+- ✨ feat(native): autoplay videos on profile, artist and venue posts [[b301892](https://github.com/Raft-Labs/CeolX/commit/b301892e12dd73a717d3bbe397c4e6296ffdef58)]
+- ✨ feat(native): let the posts list own its scroll and header [[f377473](https://github.com/Raft-Labs/CeolX/commit/f37747337704c820aeeaf4d9cc6aedc066cbb455)]
+- ✨ feat(native): play the picked video with sound and enforce the length cap [[320b5cb](https://github.com/Raft-Labs/CeolX/commit/320b5cbd63965aca27d53a0dcb1ec316aa8b4e09)]
+- ✨ feat(shared): cap post video length at 60 seconds [[3809fa4](https://github.com/Raft-Labs/CeolX/commit/3809fa453f3357db0cddd56e37d7bd8d68e9a958)]
+- ✨ feat(native): show who liked a post in a bottom sheet [[d569870](https://github.com/Raft-Labs/CeolX/commit/d56987044844d1e1ad5cfa01246508392398489c)]
+- ✨ feat(api): add paginated post likers endpoint [[2b0b211](https://github.com/Raft-Labs/CeolX/commit/2b0b211b5d03e19a686d21d26cb4406fcb6886ab)]
+- ✨ feat(shared): add post likers query schema [[65353e0](https://github.com/Raft-Labs/CeolX/commit/65353e0f691e6e3cfd669681bc41eda84da1c4e5)]
+- ✨ feat(native): measure pointer distance from the searched place first [[d661d60](https://github.com/Raft-Labs/CeolX/commit/d661d6007204163df2b669faad157850526f88d8)]
+- ✨ feat(native): point to off-screen events when the visible map is empty [[8b23c6e](https://github.com/Raft-Labs/CeolX/commit/8b23c6ea1286cb72c21f55579c128f52d7da0b30)]
+- ✨ feat(native): add edge pointer engine for off-screen events [[e7036ae](https://github.com/Raft-Labs/CeolX/commit/e7036aedcd9d76e36492d9e1242f043bbb3b215c)]
+- ✨ feat(shared): add bearing helper and map pointer constants [[4b527ce](https://github.com/Raft-Labs/CeolX/commit/4b527ce6b963cef9a8bc633a258f72a0e25023e0)]
+- ✨ feat(api): surface artist upcoming-event count in search suggestions [[d9ac8ab](https://github.com/Raft-Labs/CeolX/commit/d9ac8abb76cd5d168745a522d4c8575c1626d87e)]
+- ✅ test(cache): cover the redis config check and ping probe [[c333b0e](https://github.com/Raft-Labs/CeolX/commit/c333b0e0243fe2eef1a3b1a739a409036ba52306)]
+- ✨ feat(server): add a dependency health endpoint for uptime monitoring [[109837c](https://github.com/Raft-Labs/CeolX/commit/109837c016cd4c428f749d438a06fe2938832eac)]
+- ✨ feat(native): show the ota publish time on the about screen [[faaa4a9](https://github.com/Raft-Labs/CeolX/commit/faaa4a97be81b2e6f7520cc28097dd8639056252)]
+- ✨ feat(native): apply a downloaded update when the user comes back [[7626171](https://github.com/Raft-Labs/CeolX/commit/76261715131aaed5143ee27f6467bef16e7d014e)]
+- ✨ feat(native): track post likes and content shares in posthog [[ad914a6](https://github.com/Raft-Labs/CeolX/commit/ad914a6c83035ebe192f8dea71ff78371c4f3a86)]
+- ✨ feat(native): point users at their spam folder on the password reset screen [[7c3e9c3](https://github.com/Raft-Labs/CeolX/commit/7c3e9c338743352adab5e28c48c85a425a095cea)]
+- ✨ feat(native): offer posts from the empty events feed [[37d037e](https://github.com/Raft-Labs/CeolX/commit/37d037ee19feebd4cdcef2a7bab36a5d7c64e710)]
+- ✨ feat(native): point users at their spam folder on the verify email screen [[e7a4776](https://github.com/Raft-Labs/CeolX/commit/e7a477682d156f1d18044ce1c5f9c477138d0df0)]
+- ✨ feat(native): add image-ratio hook for adaptive poster sizing [[c2ca7d9](https://github.com/Raft-Labs/CeolX/commit/c2ca7d985c9b28a9e28eb411122216e404a25d83)]
+- ✅ test(api): assert onboarding discards the client-sent contact email [[8f0debd](https://github.com/Raft-Labs/CeolX/commit/8f0debdfafec06d646c1708ece589c0afe39f6b4)]
+
+### Changed
+
+- ⚡ perf(native): buffer feed videos before they scroll into view [[3019390](https://github.com/Raft-Labs/CeolX/commit/3019390a35f9910563ebc28065505dca6d17b3ef)]
+- ⚡ perf(native): cap feed video renditions at 720p [[99b3a4c](https://github.com/Raft-Labs/CeolX/commit/99b3a4c200bbb5c11d85ea5540ca343e7519209b)]
+- 💄 style(native): say venue/festival across onboarding, profile and event copy [[d560804](https://github.com/Raft-Labs/CeolX/commit/d56080418c10b93c2a4df2718727668f268016e5)]
+- 💄 style(email): say venue/festival in the activation and welcome emails [[f6c59c3](https://github.com/Raft-Labs/CeolX/commit/f6c59c31075bad90088799129857b69dae7e3171)]
+- 💄 style(shared): say venue/festival in profile validation and venue notifications [[4f0c854](https://github.com/Raft-Labs/CeolX/commit/4f0c8543f98a7a22e0ee9e491834ee6657c9f303)]
+- 💄 style(native): label the like count so it reads as a way into the list [[5402021](https://github.com/Raft-Labs/CeolX/commit/54020212186273d2abecd75886624d370940ab9a)]
+- 💄 style(native): make edge pointers legible and say &quot;from you&quot; [[df93744](https://github.com/Raft-Labs/CeolX/commit/df9374415ef3f110c061ff69c5fe9720ec98f589)]
+- 💄 fix(native): drop genre from artist suggestion sub-line [[c6ea84f](https://github.com/Raft-Labs/CeolX/commit/c6ea84fc2b807b37e24c180dc6ef169ac46eac28)]
+- 💄 fix(native): split search suggestion row into two tap targets [[6a402aa](https://github.com/Raft-Labs/CeolX/commit/6a402aa20af9457f58ddff06885ff793e1454dd8)]
+- ♻️ refactor(server): drop redis from the critical severity tier [[c4d1e97](https://github.com/Raft-Labs/CeolX/commit/c4d1e970b6ad3a5f366a6a2cf5a4072340231051)]
+- ♻️ refactor(cache): expose the redis config check and a ping probe [[3f518a4](https://github.com/Raft-Labs/CeolX/commit/3f518a4338c9b4e98a3973d97e88cdadaf337cbd)]
+- ⏪ revert(native): drop looping time picker wheels to fix stuck minutes [[a5a77c0](https://github.com/Raft-Labs/CeolX/commit/a5a77c068c7b551cbb0f9e136e82dfd47913dcfe)]
+- ⚡ perf(native): measure each image ratio once instead of once per caller [[11538b3](https://github.com/Raft-Labs/CeolX/commit/11538b332fa27f4ada99ec08ba5b335883bd3d79)]
+
+### Fixed
+
+- 🐛 fix(native): don&#x27;t restart for an update on top of an arriving link [[98cbd12](https://github.com/Raft-Labs/CeolX/commit/98cbd125e80b782958c3ee8d626c99463fbe633b)]
+- 🐛 fix(native): recover a launch url expo-router discarded [[6a6d39e](https://github.com/Raft-Labs/CeolX/commit/6a6d39ec1613c72707d40d90c5cadd1433e6d4bd)]
+- 🐛 fix(native): give event and post back buttons a destination [[a867bce](https://github.com/Raft-Labs/CeolX/commit/a867bcec545a826e1ae7a67fc93f14304cf180e3)]
+- 🐛 fix(native): land shared event links in the tab by rewriting the path [[2a956e2](https://github.com/Raft-Labs/CeolX/commit/2a956e2bff7c84b4e6b993fe1035434ff0094614)]
+- 🐛 fix(native): keep the app navigator mounted and anchored for deep links [[c956552](https://github.com/Raft-Labs/CeolX/commit/c956552039f7dd0870b60c0af9b532d8941af271)]
+- 🐛 fix(native): anchor each tab stack&#x27;s index route [[1cb4ad7](https://github.com/Raft-Labs/CeolX/commit/1cb4ad79659641524b86bd464b091bd2fe10a8c2)]
+- 🐛 fix(server): open the app from facebook links instead of the store [[637ba30](https://github.com/Raft-Labs/CeolX/commit/637ba305e6c9e9d6fbd49dfd02f5df2a5fe8f7c0)]
+- 🐛 fix(api): finish the end-time fix everywhere it is read, and undo a wrong cap change [[926f723](https://github.com/Raft-Labs/CeolX/commit/926f72315c45ba660837a6655846465078743520)]
+- 🐛 fix(shared): tie the edge-pointer reach to the radius actually searched [[18d7c3c](https://github.com/Raft-Labs/CeolX/commit/18d7c3c5b3b447d9bf15ff889d7fbdd01138a623)]
+- 🐛 fix(api): keep an event visible until it ends, not until it starts [[431c1ee](https://github.com/Raft-Labs/CeolX/commit/431c1ee1e2c34b16eec5716607866eb117b775d1)]
+- 🐛 fix(native): keep the video preview silent when editing an existing post [[2e5bdd9](https://github.com/Raft-Labs/CeolX/commit/2e5bdd9f407593ee767bbf5f5e39116390f035ce)]
+- 🐛 fix(native): surface resend failures instead of promising a sent email [[c09f1b8](https://github.com/Raft-Labs/CeolX/commit/c09f1b8ac4c4f644fd2ee65332243eb0fe56f1c5)]
+- 🐛 fix(native): keep loaded likers on a failed page and stop the dismiss flicker [[e046f86](https://github.com/Raft-Labs/CeolX/commit/e046f864940c7ecd551e13ee2dc3ce2de250e99c)]
+- 🐛 fix(api): waive promo expiry for the creator and make the like insert idempotent [[bb72fac](https://github.com/Raft-Labs/CeolX/commit/bb72fac22577d3d378500f1ba366a6bd02cd40bc)]
+- 🐛 fix(native): stop the likers tap stealing heart presses and jumping the sheet [[8f676aa](https://github.com/Raft-Labs/CeolX/commit/8f676aa925b8692dcf6160b4cc549a512ece075b)]
+- 🐛 fix(api): restrict likers to signed-in callers and honour post visibility [[ea5ae60](https://github.com/Raft-Labs/CeolX/commit/ea5ae6042cbbbf039ac23444a978de26593b5404)]
+- 🐛 fix(native): resolve pointer collisions in both directions [[e94cde1](https://github.com/Raft-Labs/CeolX/commit/e94cde1a0b4b3631dc181c13d1dc6beecec1cb00)]
+- 🐛 fix(native): stop opposite-edge pointers overlapping in the middle [[4ad3052](https://github.com/Raft-Labs/CeolX/commit/4ad3052423e96ddf8b3153a441be428e44f8348c)]
+- 🐛 fix(native): keep pointer distances country-wide, not just within 150km [[61722f8](https://github.com/Raft-Labs/CeolX/commit/61722f8f752f6da8635760ab23cf343c489307e0)]
+- 🐛 fix(native): withhold pointer distance when home is nowhere near the map [[15b5f67](https://github.com/Raft-Labs/CeolX/commit/15b5f6770b18e6006b1afa78af88bcc2258d77cb)]
+- 🐛 fix(native): let a backend error outrank the empty-map card [[3efc0fa](https://github.com/Raft-Labs/CeolX/commit/3efc0fa3c681dd7c6ba8fc77c791c59638520ae1)]
+- 🐛 fix(native): stop stale and aborted radius sweeps writing map state [[e92bdba](https://github.com/Raft-Labs/CeolX/commit/e92bdba5c2faeff3f15073ba4d1162e00788aca2)]
+- 🐛 fix(native): cap edge pointers by viewport distance, not the home anchor [[cfe6f65](https://github.com/Raft-Labs/CeolX/commit/cfe6f655f943c725936ac25df2ec3791aa6ecef0)]
+- 🐛 fix(api): throw on map query failure instead of returning no events [[e06a5f7](https://github.com/Raft-Labs/CeolX/commit/e06a5f76880b43c3f723efe3da7c36346285c2bc)]
+- 🐛 fix(native): stop the location sheet confirming a place the user never picked [[3871bec](https://github.com/Raft-Labs/CeolX/commit/3871bec5c958411065a8356ad1db5767b00162ac)]
+- 🐛 fix(native): clear the venue link when switching to a manual address [[013b655](https://github.com/Raft-Labs/CeolX/commit/013b655549d299a5df37d68a6536682f973d509d)]
+- 🐛 fix(shared): allow a cleared venue link to persist on event edit [[ad3f0b7](https://github.com/Raft-Labs/CeolX/commit/ad3f0b7e357a55836053bc0d51180724615731fa)]
+- 🐛 fix(native): replace tap-to-place location picking with a centre-pin map [[59572d2](https://github.com/Raft-Labs/CeolX/commit/59572d296d60248acc4fea9c716109e22dde974a)]
+- 🐛 fix(native): stop event location running off the suggestion card [[be1715c](https://github.com/Raft-Labs/CeolX/commit/be1715c7f7b39b05ad5d174f39059c5f01462daf)]
+- 🐛 fix(native): match profile-edit venue field placeholder to its label [[417e773](https://github.com/Raft-Labs/CeolX/commit/417e7731a7e90b42c72e337720c82525aead32bd)]
+- 🐛 fix(native): match placeholder copy and fix profile-icon caption sizing [[771e29c](https://github.com/Raft-Labs/CeolX/commit/771e29c2e6e0d52c6a47f18a004f30f48e6a9003)]
+- 🐛 fix(native): add profile caption to search result shortcut icon [[8c12b63](https://github.com/Raft-Labs/CeolX/commit/8c12b6368494af5c9a2d546d86e6e91b0de315ab)]
+- 🐛 fix(native): label venue signup field as venue/festival name [[b3b67d8](https://github.com/Raft-Labs/CeolX/commit/b3b67d8aee813f480d1c0c03cdd48659ffe0bfac)]
+- 🐛 fix(cache): let the rate limiter fail open when upstash is unreachable [[acd1e80](https://github.com/Raft-Labs/CeolX/commit/acd1e8090e251f072a8e8c460b0a6224ecf540e4)]
+- 🐛 fix(native): give the cold-start ota fetch a real budget [[6a99ff1](https://github.com/Raft-Labs/CeolX/commit/6a99ff1a53d31c33ce7e09e93ce2584912e33e4f)]
+- 🐛 fix(native): floor detail images against pathological ratios [[e968423](https://github.com/Raft-Labs/CeolX/commit/e9684235720b99fe367547a37a890baecda7dd6c)]
+- 🐛 fix(native): stop profile lists autoplaying every video at once [[89dc6e1](https://github.com/Raft-Labs/CeolX/commit/89dc6e127698ff6ea3d6a24d42a45c79e64d4df9)]
+- 🐛 fix(native): keep the profile share button on screen [[3944b49](https://github.com/Raft-Labs/CeolX/commit/3944b49166199ab049dfe92b63acda60ee551620)]
+- 🐛 fix(native): stop sharing the link twice on ios [[7e9bf2f](https://github.com/Raft-Labs/CeolX/commit/7e9bf2f266f689218bcd229b7d854f27176cc286)]
+- 🐛 fix(native): stop the landing heading clipping on iphone [[f32cca6](https://github.com/Raft-Labs/CeolX/commit/f32cca61e032443b85db1efdc64835ad009f33e5)]
+- 🐛 fix(native): autoplay post videos muted on loop with no player controls [[89f8411](https://github.com/Raft-Labs/CeolX/commit/89f84113e4f00e0cc17ec1b85c62e449a956d45f)]
+- 🐛 fix(native): correct the event cover size limit shown to artists [[7854b42](https://github.com/Raft-Labs/CeolX/commit/7854b4213bf88b5d2294b66e54efae237d819562)]
+- 🐛 fix(native): stop cropping event covers at upload [[2abbd10](https://github.com/Raft-Labs/CeolX/commit/2abbd10904f120fa5cbd4c66d2655329ad5b17a7)]
+- 🐛 fix(native): size event cover art to the poster&#x27;s own ratio [[a97d01e](https://github.com/Raft-Labs/CeolX/commit/a97d01e1e181c8eb8988a34bc7225a23eb457796)]
+- 🐛 fix(native): show full post posters in the feed instead of a 16:9 crop [[1ee5f2e](https://github.com/Raft-Labs/CeolX/commit/1ee5f2ef69a57789c54d6b2e49d3b48804aa4716)]
+- 🐛 fix(api): drop contact email from public artist and venue profiles [[f93497a](https://github.com/Raft-Labs/CeolX/commit/f93497abca924ec4e148eed53432ed58777a9003)]
+- 🐛 fix(api): stop storing the account email as a public booking address [[4f63c66](https://github.com/Raft-Labs/CeolX/commit/4f63c66292f637ca158b11d851fdd4e8420ef26b)]
+- 🐛 fix(api): allow guests to use discover search [[f75e13b](https://github.com/Raft-Labs/CeolX/commit/f75e13bb6ce089e9d0d72e29f9256cb8535e806d)]
+
+### Security
+
+- 🔒 fix(server): dedupe in-flight probes and correct the redis signal [[9cb8afa](https://github.com/Raft-Labs/CeolX/commit/9cb8afaf37710f9efb51d3e14d64752aadbb551a)]
+- 🔒 fix(server): stop /health/deps amplifying into paid backends [[bc1bf81](https://github.com/Raft-Labs/CeolX/commit/bc1bf81d67824281ec9e8c644033f351e1537924)]
+
+### Miscellaneous
+
+- 📝 docs(docs): align m8-t6 copy note with the interim-copy decision [[cc487fe](https://github.com/Raft-Labs/CeolX/commit/cc487fe1ed40041d681960ef80e3485d6d6986d3)]
+- 📝 docs(claude): correct subscription facts in project context [[024183e](https://github.com/Raft-Labs/CeolX/commit/024183e0c5464ac586ab48b0a9cf9c970db40070)]
+- 📝 docs(docs): mark june subscription specs superseded [[c5e28d3](https://github.com/Raft-Labs/CeolX/commit/c5e28d38e8b1944a5888e3671b4c72a729db43fd)]
+- 📝 docs(docs): withdraw artist billing triggers and add venue-on-hold notice [[6c8cf65](https://github.com/Raft-Labs/CeolX/commit/6c8cf65bf84ea4a92286b3bf6e9ee834285fde27)]
+- 📝 docs(docs): realign m8 progress and milestone tracking [[74770e3](https://github.com/Raft-Labs/CeolX/commit/74770e3822b286e710938b4ee60bb4450ee3d4b6)]
+- 📝 docs(docs): add m8-t6 covering subscription emails and reminders [[2a02e59](https://github.com/Raft-Labs/CeolX/commit/2a02e5983008e2ba0d35b49e3ce3741187deee54)]
+- 📝 docs(docs): replace artist checkout task with unpaid-venue content visibility [[353a390](https://github.com/Raft-Labs/CeolX/commit/353a390f86413353c3fc328f8a775522019ed4a9)]
+- 📝 docs(docs): rewrite m8-t1 to t4 against the signed client decisions [[4603766](https://github.com/Raft-Labs/CeolX/commit/4603766e62270b2f75a2eb1cc2981378c2badba7)]
+- 📝 docs(docs): add m8-t0 as the single source of truth for subscription decisions [[08b1dd5](https://github.com/Raft-Labs/CeolX/commit/08b1dd55c861c496094f38be661b70d19a9423df)]
+- 📝 docs(shared): correct how the map pointer cap is measured [[05d547b](https://github.com/Raft-Labs/CeolX/commit/05d547bf58e8e5ad78a35b0b6176786d69007020)]
+- 📝 docs(stack): record the maps sdk incident and stop the runbook pointing at the sha [[3cb7509](https://github.com/Raft-Labs/CeolX/commit/3cb75099f450ace4f2ae2b04b9e77b936d8aa758)]
+- 📝 docs(docs): drop the enforced 16:9 from the event cover specs [[e2b1b85](https://github.com/Raft-Labs/CeolX/commit/e2b1b857f30fb07a95e480985a0e54059f0c1675)]
+
 <a name="1.0.13"></a>
 
 ## 1.0.13 (2026-07-30)
