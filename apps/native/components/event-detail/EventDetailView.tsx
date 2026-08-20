@@ -36,7 +36,8 @@ interface EventDetailViewProps {
   isArtist: boolean;
   isOwner: boolean;
   userId?: string;
-  onBack: () => void;
+  /** Omit to use AppHeader's canGoBack/fallback handling. */
+  onBack?: () => void;
   onNavigateToEvent: (eventId: string) => void;
   onEdit: () => void;
   onArchive: () => void;

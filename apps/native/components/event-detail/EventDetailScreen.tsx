@@ -49,13 +49,7 @@ export function EventDetailScreen({ tabEventRoute }: EventDetailScreenProps) {
   if (isError || !event) {
     return (
       <View className="flex-1 bg-background" style={{ paddingTop: insets.top }}>
-        <AppHeader
-          leading="back"
-          onBack={() => router.back()}
-          title="Event"
-          bgClassName="bg-background"
-          showBell
-        />
+        <AppHeader leading="back" title="Event" bgClassName="bg-background" showBell />
         <View className="flex-1 items-center justify-center px-8 gap-4">
           <Text className="text-base text-white/60 text-center font-urbanist">
             We couldn’t load this event. Please try again.
@@ -80,7 +74,6 @@ export function EventDetailScreen({ tabEventRoute }: EventDetailScreenProps) {
       isArtist={isArtist}
       isOwner={isOwner}
       userId={me?.id}
-      onBack={() => router.back()}
       onNavigateToEvent={(id) => router.push(`${tabEventRoute}/${id}`)}
       onEdit={() => router.push(`/(app)/events/edit/${event.id}`)}
       onArchive={() => archiveEvent({ id: event.id })}
