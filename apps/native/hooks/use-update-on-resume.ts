@@ -1,3 +1,4 @@
+import * as Linking from 'expo-linking';
 import * as Updates from 'expo-updates';
 import { useUpdates } from 'expo-updates';
 import { useEffect, useRef } from 'react';
@@ -42,6 +43,14 @@ export function useApplyUpdateOnResume(): void {
     // 'background' counts as the user leaving.
     let backgroundedAt: number | null = null;
 
+    // A link arriving is what brings the app forward, and the 'url' event fires
+    // before the resume settles — so record it and let shouldApplyOnResume hold
+    // the reload back rather than restarting on top of the incoming route.
+    let lastDeepLinkAt: number | null = null;
+    const linkSubscription = Linking.addEventListener('url', () => {
+      lastDeepLinkAt = Date.now();
+    });
+
     const subscription = AppState.addEventListener('change', (status: AppStateStatus) => {
       if (status === 'background') {
         backgroundedAt = Date.now();
@@ -51,7 +60,7 @@ export function useApplyUpdateOnResume(): void {
 
       const awaySince = backgroundedAt;
       backgroundedAt = null;
-      if (!shouldApplyOnResume(awaySince, Date.now())) return;
+      if (!shouldApplyOnResume(awaySince, Date.now(), lastDeepLinkAt)) return;
 
       if (pendingRef.current) {
         // Already on the device — this is just the restart that was missing.
@@ -66,6 +75,9 @@ export function useApplyUpdateOnResume(): void {
         .catch(() => {});
     });
 
-    return () => subscription.remove();
+    return () => {
+      subscription.remove();
+      linkSubscription.remove();
+    };
   }, []);
 }
