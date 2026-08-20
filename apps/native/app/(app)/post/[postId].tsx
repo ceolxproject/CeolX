@@ -12,10 +12,17 @@ export default function PostDetailScreen() {
   const { data: post, isLoading, isError } = usePostById(postId);
   const { data: me } = useMe();
 
+  // A shared post link can open this screen with nothing beneath it, so back
+  // needs a destination of its own rather than a bare pop.
+  const goBack = () => {
+    if (router.canGoBack()) router.back();
+    else router.replace('/(app)/(tabs)/discover');
+  };
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#080808' }} edges={['top']}>
       <View className="flex-row items-center p-5">
-        <Pressable onPress={() => router.back()} hitSlop={8}>
+        <Pressable onPress={goBack} hitSlop={8}>
           <Ionicons name="arrow-back" size={24} color="#fff" />
         </Pressable>
         <Text className="ml-4 text-base font-bold text-white font-urbanist">Post</Text>
@@ -37,12 +44,7 @@ export default function PostDetailScreen() {
         )}
 
         {post && (
-          <PostCard
-            post={post}
-            currentUserId={me?.id ?? null}
-            expanded
-            onDeleted={() => router.back()}
-          />
+          <PostCard post={post} currentUserId={me?.id ?? null} expanded onDeleted={goBack} />
         )}
       </ScrollView>
     </SafeAreaView>

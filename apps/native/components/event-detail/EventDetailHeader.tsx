@@ -1,7 +1,8 @@
 import { AppHeader } from '@/components/AppHeader';
 
 interface EventDetailHeaderProps {
-  onBack: () => void;
+  /** Omit to use AppHeader's canGoBack/fallback handling. */
+  onBack?: () => void;
   /** Event title shown in the bar (replaces the old centered logo). */
   title?: string;
   isSaved: boolean;
