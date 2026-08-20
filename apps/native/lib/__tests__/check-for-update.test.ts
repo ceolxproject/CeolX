@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   applyPendingUpdate,
   checkForUpdateManually,
+  DEEP_LINK_RELOAD_GRACE_MS,
   getRunningBundleInfo,
   RESUME_UPDATE_THRESHOLD_MS,
   shouldApplyOnResume,
@@ -252,5 +253,30 @@ describe('shouldApplyOnResume', () => {
 
   it('restarts after a long break', () => {
     expect(shouldApplyOnResume(NOW - 8 * 60 * 60 * 1000, NOW)).toBe(true);
+  });
+
+  /**
+   * Someone who taps a shared link after a long time away qualifies on the
+   * threshold alone. Restarting there discards the URL that just arrived and
+   * the app comes back on the screen it was already showing — the failure the
+   * grace window exists to prevent.
+   */
+  it('does not restart when a deep link just arrived', () => {
+    const away = NOW - 8 * 60 * 60 * 1000;
+    expect(shouldApplyOnResume(away, NOW, NOW - 500)).toBe(false);
+  });
+
+  it('restarts once the deep-link grace window has passed', () => {
+    const away = NOW - 8 * 60 * 60 * 1000;
+    expect(shouldApplyOnResume(away, NOW, NOW - DEEP_LINK_RELOAD_GRACE_MS)).toBe(true);
+  });
+
+  it('ignores a deep link from earlier in the session', () => {
+    const away = NOW - 8 * 60 * 60 * 1000;
+    expect(shouldApplyOnResume(away, NOW, NOW - 60 * 60 * 1000)).toBe(true);
+  });
+
+  it('still refuses a short trip even with no deep link', () => {
+    expect(shouldApplyOnResume(NOW - 30_000, NOW, null)).toBe(false);
   });
 });

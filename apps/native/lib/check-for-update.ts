@@ -91,13 +91,28 @@ export async function applyPendingUpdate(): Promise<boolean> {
 export const RESUME_UPDATE_THRESHOLD_MS = 15 * 60 * 1000;
 
 /**
+ * How recently a deep link must have arrived for a resume to leave the app
+ * alone. Tapping a shared link is itself a resume, and reloading the process
+ * to apply an update throws away the URL that just came in — the user watches
+ * the app restart onto whatever it was showing before. The update applies on
+ * the next resume instead, when nothing is riding on the current launch.
+ */
+export const DEEP_LINK_RELOAD_GRACE_MS = 10_000;
+
+/**
  * Pure so the threshold is testable without faking AppState. `backgroundedAt`
  * is null when the app has not been backgrounded since launch — a cold start
  * that never left the foreground must not qualify, because `applyPendingUpdate`
- * has already had its turn.
+ * has already had its turn. `lastDeepLinkAt` is null when no link has arrived
+ * this process.
  */
-export function shouldApplyOnResume(backgroundedAt: number | null, now: number): boolean {
+export function shouldApplyOnResume(
+  backgroundedAt: number | null,
+  now: number,
+  lastDeepLinkAt: number | null = null
+): boolean {
   if (backgroundedAt === null) return false;
+  if (lastDeepLinkAt !== null && now - lastDeepLinkAt < DEEP_LINK_RELOAD_GRACE_MS) return false;
   return now - backgroundedAt >= RESUME_UPDATE_THRESHOLD_MS;
 }
 
