@@ -1,19 +1,15 @@
-import { Redirect, useLocalSearchParams } from 'expo-router';
-import type { Href } from 'expo-router';
+import { EventDetailScreen } from '@/components/event-detail';
 
 /**
- * Deep-link landing for shared event links (`ceolx.com/event/<id>` /
- * `ceolx://event/<id>`). Events live inside the tab stack, so this thin
- * top-level route immediately forwards to the canonical discover event detail
- * screen — reusing EventDetailScreen with no UI duplication. Mirrors how
- * app/(app)/post/[postId].tsx anchors shared post links.
+ * Top-level event detail, used when an event is opened from somewhere outside
+ * the tabs — a promo post tapped on the post-detail screen, for instance (see
+ * components/posts/PostCard).
+ *
+ * Shared links are minted against this path but no longer land here: they are
+ * rewritten to the discover tab in app/+native-intent, so the tab bar is
+ * present and back reaches the feed. This route used to do that forwarding
+ * itself, which it cannot do safely — see lib/deep-link-routes.
  */
-export default function EventDeepLinkScreen() {
-  const { eventId } = useLocalSearchParams<{ eventId: string }>();
-
-  if (!eventId) {
-    return <Redirect href="/(app)/(tabs)/discover" />;
-  }
-
-  return <Redirect href={`/(app)/(tabs)/discover/event/${eventId}` as Href} />;
+export default function EventDetailRoute() {
+  return <EventDetailScreen tabEventRoute="/(app)/events" />;
 }
