@@ -1,5 +1,11 @@
 import { Stack } from 'expo-router';
 
+// Anchors the profile screen under any deep-linked screen in this stack, so a
+// link opened from a cold start has somewhere to go back to.
+export const unstable_settings = {
+  initialRouteName: 'index',
+};
+
 export default function ProfileStack() {
   return (
     <Stack screenOptions={{ headerShown: false }}>
