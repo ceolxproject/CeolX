@@ -1,0 +1,1 @@
+ALTER TABLE "activation_tokens" ADD COLUMN "checkout_session_id" text;

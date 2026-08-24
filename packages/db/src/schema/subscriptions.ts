@@ -191,6 +191,20 @@ export const activationTokens = pgTable(
     tokenHash: text('token_hash').notNull().unique(),
     expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
     consumedAt: timestamp('consumed_at', { withTimezone: true }),
+    /**
+     * The one Stripe Checkout Session this token has opened, if any (D-49).
+     *
+     * A single token reaches two links — the email offers monthly and annual (D-08) —
+     * and every duplicate-payment guard we have reads state that only the Stripe
+     * webhook writes. Before that webhook lands there is nothing to read, so a second
+     * click minted a second Customer, a second subscription and a second six-month
+     * trial with no row pointing at either. Observed in test: one token, two
+     * subscriptions, 102 seconds apart.
+     *
+     * Recording the session makes the token itself the thing that enforces "one
+     * checkout", with no dependency on webhook timing.
+     */
+    checkoutSessionId: text('checkout_session_id'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
