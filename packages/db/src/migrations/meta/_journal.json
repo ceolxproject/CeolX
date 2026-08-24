@@ -232,6 +232,13 @@
       "when": 1787032450186,
       "tag": "20260818055410_m8_t2_index_customer_id",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1787555578331,
+      "tag": "20260824071258_add_ticket_currency",
+      "breakpoints": true
     }
   ]
 }

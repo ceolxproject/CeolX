@@ -62,6 +62,9 @@ export const events = pgTable(
     category: varchar('category', { length: 100 }).notNull(),
     ticketLink: text('ticket_link'), // external URL — not validated in DB
     ticketPrice: integer('ticket_price'), // stored in cents (e.g. 49900 = €499.00)
+    // Currency of ticketPrice, picked by the creator on the event form.
+    // NOT NULL DEFAULT 'EUR' so every legacy row keeps the euro it was priced in.
+    ticketCurrency: varchar('ticket_currency', { length: 3 }).notNull().default('EUR'),
     isGigOpportunity: boolean('is_gig_opportunity'), // DEPRECATED — nullable, no longer written
     collectionId: uuid('collection_id').references(() => collections.id, { onDelete: 'set null' }),
     adTitle: varchar('ad_title', { length: 100 }),
