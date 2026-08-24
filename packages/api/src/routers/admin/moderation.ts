@@ -111,6 +111,7 @@ export const listEvents = adminProcedure
         category: events.category,
         ticketLink: events.ticketLink,
         ticketPrice: events.ticketPrice,
+        ticketCurrency: events.ticketCurrency,
         viewCount: events.viewCount,
         ticketClicks: events.ticketClicks,
         // Real engagement the admin can act on, unlike viewCount/ticketClicks
@@ -194,6 +195,7 @@ export const listEvents = adminProcedure
         category: row.category,
         ticketLink: row.ticketLink,
         ticketPrice: row.ticketPrice,
+        ticketCurrency: row.ticketCurrency,
         viewCount: row.viewCount ?? 0,
         ticketClicks: row.ticketClicks ?? 0,
         confirmedCount: row.confirmedCount ?? 0,

@@ -15,6 +15,7 @@ import { sendCollaboratorInviteEmail } from '@CeolX/email';
 import {
   BookingDirection,
   BookingStatus,
+  DEFAULT_TICKET_CURRENCY,
   EventStatus,
   formatNotificationDate,
   NotificationTrigger,
@@ -546,6 +547,7 @@ export const byId = publicProcedure
       coverImageUrl: event.coverImage ?? null,
       ticketLink: venueOnHold ? null : (event.ticketLink ?? null),
       ticketPrice: venueOnHold ? null : (event.ticketPrice ?? null),
+      ticketCurrency: venueOnHold ? null : event.ticketCurrency,
       adTitle: venueOnHold ? null : (event.adTitle ?? null),
       adDescription: venueOnHold ? null : (event.adDescription ?? null),
       venueId: event.venueId ?? null,
@@ -670,6 +672,7 @@ export const create = creatorProcedure.input(createEventSchema).mutation(async (
         category: eventData.category,
         ticketLink: eventData.ticketLink ?? null,
         ticketPrice: eventData.ticketPrice ?? null,
+        ticketCurrency: eventData.ticketCurrency ?? DEFAULT_TICKET_CURRENCY,
         collectionId: eventData.collectionId ?? null,
         adTitle: eventData.adTitle ?? null,
         adDescription: eventData.adDescription ?? null,
@@ -985,6 +988,8 @@ export const update = protectedProcedure
       if (updateData.category !== undefined) setValues.category = updateData.category;
       if (updateData.ticketLink !== undefined) setValues.ticketLink = updateData.ticketLink;
       if (updateData.ticketPrice !== undefined) setValues.ticketPrice = updateData.ticketPrice;
+      if (updateData.ticketCurrency !== undefined)
+        setValues.ticketCurrency = updateData.ticketCurrency;
       if (updateData.collectionId !== undefined) setValues.collectionId = updateData.collectionId;
       if (updateData.adTitle !== undefined) setValues.adTitle = updateData.adTitle;
       if (updateData.adDescription !== undefined)
