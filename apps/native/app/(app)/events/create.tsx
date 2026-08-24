@@ -156,6 +156,8 @@ export default function CreateEventScreen() {
           <TicketAdsStep
             ticketPrice={form.ticketPrice}
             onTicketPriceChange={form.setTicketPrice}
+            ticketCurrency={form.ticketCurrency}
+            onTicketCurrencyChange={form.setTicketCurrency}
             ticketLink={form.ticketLink}
             onTicketLinkChange={form.setTicketLink}
             adTitle={form.adTitle}

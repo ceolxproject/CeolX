@@ -3,6 +3,8 @@ import { cn } from 'heroui-native';
 import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { formatTicketPrice } from '@CeolX/shared';
+
 import { appToast } from '@/components/AppToast';
 import { useTrackTicketClick } from '@/hooks/use-track-ticket-click';
 import { normalizeOptionalUrl } from '@/utils/normalize-url';
@@ -16,6 +18,7 @@ const ctaLabelClass = 'text-[11px] font-bold text-white font-urbanist tracking-w
 interface StickyBottomBarProps {
   eventId: string;
   ticketPrice?: number | null;
+  ticketCurrency?: string | null;
   ticketLink?: string | null;
   isArtist: boolean;
   isOwner: boolean;
@@ -34,6 +37,7 @@ interface StickyBottomBarProps {
 export function StickyBottomBar({
   eventId,
   ticketPrice,
+  ticketCurrency,
   ticketLink,
   isArtist,
   isOwner,
@@ -65,7 +69,7 @@ export function StickyBottomBar({
 
   const ticketLabel =
     ticketPrice !== null && ticketPrice !== undefined && ticketPrice > 0
-      ? `Book Ticket FOR €${(ticketPrice / 100).toFixed(0)}`
+      ? `Book Ticket FOR ${formatTicketPrice(ticketPrice, ticketCurrency)}`
       : 'Book Ticket';
 
   const handleBookTicket = async () => {

@@ -89,6 +89,29 @@ describe('StickyBottomBar', () => {
     expect(bookBtn).toBeDefined();
   });
 
+  it('prices the CTA in the currency the creator picked', () => {
+    const label = (
+      props: Partial<Omit<typeof baseProps, 'ticketPrice'>> & {
+        ticketPrice?: number | null;
+        ticketCurrency?: string | null;
+      }
+    ) => {
+      const tree = StickyBottomBar({ ...baseProps, ticketLink: 'https://tix.ie/e', ...props });
+      return collect(tree, 'Pressable')
+        .map((p) => textContent(p.props?.children))
+        .find((t) => t.includes('Book Ticket'));
+    };
+
+    expect(label({ ticketCurrency: 'GBP' })).toContain('\u00a399');
+    expect(label({ ticketCurrency: 'USD' })).toContain('$99');
+    // Legacy rows carry no currency — they stay euro rather than losing the symbol.
+    expect(label({ ticketCurrency: null })).toContain('\u20ac99');
+    // Cents survive: a 25.50 ticket must not advertise as 26.
+    expect(label({ ticketPrice: 2550, ticketCurrency: 'USD' })).toContain('$25.50');
+    // No price → no amount in the label at all.
+    expect(label({ ticketPrice: null })).toBe('Book Ticket');
+  });
+
   it('opens the normalized link in an in-app browser and tracks the click', async () => {
     // Bare domain (no scheme) must still open — normalized to https://.
     const tree = StickyBottomBar({ ...baseProps, ticketLink: 'tix.ie/e/99' });

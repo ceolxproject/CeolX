@@ -3,8 +3,13 @@ import { useState } from 'react';
 import { ActivityIndicator, Alert, KeyboardAvoidingView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import type { EventCategory } from '@CeolX/shared';
-import { EventStatus, UserRole } from '@CeolX/shared/enums';
+import type { EventCategory, TicketCurrency } from '@CeolX/shared';
+import {
+  DEFAULT_TICKET_CURRENCY,
+  EventStatus,
+  TICKET_CURRENCIES,
+  UserRole,
+} from '@CeolX/shared/enums';
 
 import { AppHeader } from '@/components/AppHeader';
 import { appToast } from '@/components/AppToast';
@@ -87,6 +92,11 @@ function EditEventForm({ event, eventId }: { event: LoadedEvent; eventId: string
       venueAddress: event.venueAddress ?? '',
       venueId: event.venueId ?? '',
       ticketPrice: event.ticketPrice ? String(event.ticketPrice / 100) : '',
+      // A row written outside createEventSchema's z.enum (raw SQL, bad seed) could hold a
+      // currency this app doesn't offer — fall back rather than trust it into form state.
+      ticketCurrency: TICKET_CURRENCIES.includes(event.ticketCurrency as TicketCurrency)
+        ? (event.ticketCurrency as TicketCurrency)
+        : DEFAULT_TICKET_CURRENCY,
       ticketLink: event.ticketLink ?? '',
       ticketQuantity: '',
       adTitle: event.adTitle ?? '',
@@ -199,6 +209,8 @@ function EditEventForm({ event, eventId }: { event: LoadedEvent; eventId: string
           <TicketAdsStep
             ticketPrice={form.ticketPrice}
             onTicketPriceChange={form.setTicketPrice}
+            ticketCurrency={form.ticketCurrency}
+            onTicketCurrencyChange={form.setTicketCurrency}
             ticketLink={form.ticketLink}
             onTicketLinkChange={form.setTicketLink}
             adTitle={form.adTitle}

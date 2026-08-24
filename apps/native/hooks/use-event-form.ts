@@ -2,8 +2,8 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { launchImageLibraryAsync, requestMediaLibraryPermissionsAsync } from 'expo-image-picker';
 import { useCallback, useEffect, useState } from 'react';
 
-import type { EventCategory } from '@CeolX/shared';
-import { isValidCoordinate } from '@CeolX/shared';
+import type { EventCategory, TicketCurrency } from '@CeolX/shared';
+import { DEFAULT_TICKET_CURRENCY, isValidCoordinate } from '@CeolX/shared';
 import { createEventSchema } from '@CeolX/shared/validators';
 
 import { appToast } from '@/components/AppToast';
@@ -48,6 +48,7 @@ export interface EventFormData {
 
   // Step 3 — Ticket & Ads
   ticketPrice: string;
+  ticketCurrency: TicketCurrency;
   ticketLink: string;
   ticketQuantity: string;
   adTitle: string;
@@ -77,6 +78,7 @@ const FIELD_STEP: Record<string, Step> = {
   venueId: 2,
   venueAddress: 2,
   ticketPrice: 3,
+  ticketCurrency: 3,
   ticketLink: 3,
   ticketQuantity: 3,
   adTitle: 3,
@@ -116,6 +118,7 @@ function defaults(initial?: EventFormData): EventFormData {
     venueId: initial?.venueId ?? '',
 
     ticketPrice: initial?.ticketPrice ?? '',
+    ticketCurrency: initial?.ticketCurrency ?? DEFAULT_TICKET_CURRENCY,
     ticketLink: initial?.ticketLink ?? '',
     ticketQuantity: initial?.ticketQuantity ?? '',
     adTitle: initial?.adTitle ?? '',
@@ -209,6 +212,7 @@ export function useEventForm(options?: UseEventFormOptions) {
 
   // Step 3 — Ticket & Ads
   const [ticketPrice, setTicketPrice] = useState(init.ticketPrice);
+  const [ticketCurrency, setTicketCurrency] = useState(init.ticketCurrency);
   const [ticketLink, setTicketLink] = useState(init.ticketLink);
   const [ticketQuantity, setTicketQuantity] = useState(init.ticketQuantity);
   const [adTitle, setAdTitle] = useState(init.adTitle);
@@ -567,6 +571,7 @@ export function useEventForm(options?: UseEventFormOptions) {
       // the server treats an absent key as "leave unchanged". (Asana 1216070978559447)
       ticketLink: ticketLink.trim() || null,
       ticketPrice: ticketPrice.trim() ? priceToCents(ticketPrice) : null,
+      ticketCurrency,
       ticketQuantity: parseQuantity(ticketQuantity),
       collectionId: collectionId || undefined,
       platformInvites: platformInviteIds(platformInvites, isEditing),
@@ -682,6 +687,7 @@ export function useEventForm(options?: UseEventFormOptions) {
     category,
     ticketLink,
     ticketPrice,
+    ticketCurrency,
     ticketQuantity,
     collectionId,
     platformInvites,
@@ -740,6 +746,8 @@ export function useEventForm(options?: UseEventFormOptions) {
     // Step 3 — Ticket & Ads
     ticketPrice,
     setTicketPrice,
+    ticketCurrency,
+    setTicketCurrency,
     ticketLink,
     setTicketLink,
     ticketQuantity,

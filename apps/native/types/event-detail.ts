@@ -53,6 +53,8 @@ export interface EventDetailData {
   coverImageUrl?: string | null;
   ticketLink?: string | null;
   ticketPrice?: number | null;
+  /** 3-letter code the creator priced in ('EUR' | 'GBP' | 'USD'); absent on legacy rows. */
+  ticketCurrency?: string | null;
   collectionId?: string | null;
   unregisteredCollaborators: Array<{ name: string; email: string; imageUrl?: string }>;
   adTitle?: string | null;

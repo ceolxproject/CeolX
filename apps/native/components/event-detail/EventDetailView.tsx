@@ -3,7 +3,7 @@ import { useMemo, useRef, useState } from 'react';
 import { FlatList, Linking, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { distanceBetween, isEventPast } from '@CeolX/shared';
+import { distanceBetween, formatTicketPrice, isEventPast } from '@CeolX/shared';
 import { EventStatus, UserRole } from '@CeolX/shared/enums';
 
 import { CollectionEventCard } from './CollectionEventCard';
@@ -243,7 +243,7 @@ export function EventDetailView({
             {event.ticketPrice !== undefined && event.ticketPrice !== null && (
               <EventInfoRow
                 icon="pricetag-outline"
-                title={event.ticketPrice > 0 ? `€${(event.ticketPrice / 100).toFixed(0)}` : 'Free'}
+                title={formatTicketPrice(event.ticketPrice, event.ticketCurrency)}
                 subtitle="Ticket price"
               />
             )}
@@ -354,6 +354,7 @@ export function EventDetailView({
         <StickyBottomBar
           eventId={event.id}
           ticketPrice={event.ticketPrice}
+          ticketCurrency={event.ticketCurrency}
           ticketLink={event.ticketLink}
           isArtist={isArtist}
           isOwner={isOwner}

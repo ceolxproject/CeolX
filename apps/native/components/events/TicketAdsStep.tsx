@@ -1,4 +1,6 @@
+import { Ionicons } from '@expo/vector-icons';
 import { cn } from 'heroui-native';
+import { useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -9,6 +11,8 @@ import {
   View,
 } from 'react-native';
 
+import type { TicketCurrency } from '@CeolX/shared';
+import { currencySymbol, TICKET_CURRENCIES } from '@CeolX/shared';
 import { AD_DESCRIPTION_MAX, AD_TITLE_MAX } from '@CeolX/shared/validators';
 
 import { FieldLabel } from './FieldLabel';
@@ -19,6 +23,8 @@ import { VenuePublishBlockedNotice } from '@/components/subscription/VenueSubscr
 type Props = {
   ticketPrice: string;
   onTicketPriceChange: (v: string) => void;
+  ticketCurrency: TicketCurrency;
+  onTicketCurrencyChange: (v: TicketCurrency) => void;
   ticketLink: string;
   onTicketLinkChange: (v: string) => void;
   adTitle: string;
@@ -47,6 +53,8 @@ type Props = {
 export function TicketAdsStep({
   ticketPrice,
   onTicketPriceChange,
+  ticketCurrency,
+  onTicketCurrencyChange,
   ticketLink,
   onTicketLinkChange,
   adTitle,
@@ -63,6 +71,8 @@ export function TicketAdsStep({
   isVenue,
   publishBlocked = false,
 }: Props) {
+  const [currencyOpen, setCurrencyOpen] = useState(false);
+
   return (
     <ScrollView
       className="flex-1"
@@ -74,7 +84,7 @@ export function TicketAdsStep({
       <View className="gap-1.5">
         <FieldLabel
           label="Ticket Price"
-          hint="Entry price per ticket in euro. Leave blank or 0 if your event is free."
+          hint="Entry price per ticket. Pick the currency you sell in. Leave blank or 0 if your event is free."
         />
         <View
           className={cn(
@@ -82,7 +92,22 @@ export function TicketAdsStep({
             errors.ticketPrice ? 'border-error' : 'border-gray-8'
           )}
         >
-          <Text className="mr-1 text-sm text-neutral-400">€</Text>
+          {/* Currency trigger — the list opens below the whole row (see next block) */}
+          <Pressable
+            className="mr-2 flex-row items-center gap-1 border-r border-gray-8 pr-2"
+            onPress={() => setCurrencyOpen((o) => !o)}
+            accessibilityRole="button"
+            accessibilityLabel={`Ticket currency, ${ticketCurrency}`}
+          >
+            <Text className="text-sm text-white">
+              {currencySymbol(ticketCurrency)} {ticketCurrency}
+            </Text>
+            <Ionicons
+              name={currencyOpen ? 'chevron-up' : 'chevron-down'}
+              size={14}
+              color="#8d8d8d"
+            />
+          </Pressable>
           <TextInput
             className="flex-1 text-[14px] text-white"
             placeholder="0.00"
@@ -92,7 +117,38 @@ export function TicketAdsStep({
             onChangeText={onTicketPriceChange}
           />
         </View>
-        {errors.ticketPrice && <Text className="text-xs text-error">{errors.ticketPrice}</Text>}
+        {currencyOpen && (
+          <View className="overflow-hidden rounded-lg border border-gray-8 bg-surface">
+            {TICKET_CURRENCIES.map((code, index) => (
+              <Pressable
+                key={code}
+                className={cn(
+                  'flex-row items-center gap-3 px-4 py-3 active:bg-white/5',
+                  index < TICKET_CURRENCIES.length - 1 && 'border-b border-gray-8/40',
+                  ticketCurrency === code && 'bg-[#C8FF2F]/10'
+                )}
+                onPress={() => {
+                  onTicketCurrencyChange(code);
+                  setCurrencyOpen(false);
+                }}
+                accessibilityRole="menuitem"
+              >
+                <Text
+                  className={cn(
+                    'flex-1 text-sm',
+                    ticketCurrency === code ? 'font-bold text-[#C8FF2F]' : 'text-white'
+                  )}
+                >
+                  {currencySymbol(code)} {code}
+                </Text>
+                {ticketCurrency === code && <Ionicons name="checkmark" size={16} color="#C8FF2F" />}
+              </Pressable>
+            ))}
+          </View>
+        )}
+        {(errors.ticketPrice || errors.ticketCurrency) && (
+          <Text className="text-xs text-error">{errors.ticketPrice || errors.ticketCurrency}</Text>
+        )}
       </View>
 
       {/* ── Ticket Link ── */}
