@@ -261,6 +261,52 @@ export function isHiddenFromViewer(
   return creatorOnly && event.createdBy !== viewerUserId;
 }
 
+/**
+ * The promotional detail an on-hold venue's event withholds (V-03 / D-52).
+ *
+ * One function rather than a `venueOnHold ? null :` ternary per field: the
+ * ticketCurrency column shipped unmasked precisely because adding a promotional
+ * field meant remembering to repeat the ternary. Anything added to this object is
+ * masked for every on-hold venue by construction, and `promotionalDetail` is pure
+ * so the invariant is unit-testable without mocking the byId query chain.
+ *
+ * Title, date and location deliberately stay outside this set — the client needs
+ * them to render a recognisable "TBC by venue" placeholder instead of an empty
+ * screen, which is what D-52 requires.
+ */
+export interface PromotionalDetailInput {
+  description: string | null;
+  ticketLink: string | null;
+  ticketPrice: number | null;
+  ticketCurrency: string | null;
+  adTitle: string | null;
+  adDescription: string | null;
+}
+
+export function promotionalDetail(
+  event: PromotionalDetailInput,
+  venueOnHold: boolean
+): PromotionalDetailInput {
+  if (venueOnHold) {
+    return {
+      description: null,
+      ticketLink: null,
+      ticketPrice: null,
+      ticketCurrency: null,
+      adTitle: null,
+      adDescription: null,
+    };
+  }
+  return {
+    description: event.description,
+    ticketLink: event.ticketLink ?? null,
+    ticketPrice: event.ticketPrice ?? null,
+    ticketCurrency: event.ticketCurrency,
+    adTitle: event.adTitle ?? null,
+    adDescription: event.adDescription ?? null,
+  };
+}
+
 export const byId = publicProcedure
   .input(z.object({ id: z.string().uuid() }))
   .query(async ({ input, ctx }) => {
@@ -536,7 +582,7 @@ export const byId = publicProcedure
        * for — does not.
        */
       venueOnHold,
-      description: venueOnHold ? null : event.description,
+      ...promotionalDetail(event, venueOnHold),
       dateStart: event.dateStart.toISOString(),
       dateEnd: event.dateEnd?.toISOString() ?? null,
       lat: parseFloat(event.lat),
@@ -545,11 +591,6 @@ export const byId = publicProcedure
       category: event.category,
       coverImage: event.coverImage ?? null,
       coverImageUrl: event.coverImage ?? null,
-      ticketLink: venueOnHold ? null : (event.ticketLink ?? null),
-      ticketPrice: venueOnHold ? null : (event.ticketPrice ?? null),
-      ticketCurrency: venueOnHold ? null : event.ticketCurrency,
-      adTitle: venueOnHold ? null : (event.adTitle ?? null),
-      adDescription: venueOnHold ? null : (event.adDescription ?? null),
       venueId: event.venueId ?? null,
       venueUserId: event.venue?.userId ?? null,
       collectionId: event.collectionId ?? null,

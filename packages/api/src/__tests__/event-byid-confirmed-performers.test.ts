@@ -24,6 +24,7 @@ import {
   isExternalInvitee,
   isHiddenFromViewer,
   isPendingPlatformInvite,
+  promotionalDetail,
   toUnregisteredCollaborators,
 } from '../routers/events/crud';
 
@@ -296,5 +297,41 @@ describe('isHiddenFromViewer', () => {
     expect(isHiddenFromViewer({ status: EventStatus.ARCHIVED, createdBy: CREATOR }, CREATOR)).toBe(
       false
     );
+  });
+});
+
+describe('promotionalDetail (V-03 / D-52)', () => {
+  const priced = {
+    description: 'Trad session upstairs',
+    ticketLink: 'https://tix.ie/e',
+    ticketPrice: 2550,
+    ticketCurrency: 'GBP',
+    adTitle: 'Two for one',
+    adDescription: 'Before 9pm',
+  };
+
+  it('serves the full promotional detail while the venue is in good standing', () => {
+    expect(promotionalDetail(priced, false)).toEqual(priced);
+  });
+
+  it('withholds EVERY promotional field while the venue is on hold', () => {
+    const masked = promotionalDetail(priced, true);
+
+    // Asserted exhaustively on purpose: a promotional field added to the payload
+    // but forgotten in the mask is exactly how ticketCurrency shipped unmasked.
+    expect(Object.values(masked).every((v) => v === null)).toBe(true);
+    expect(masked.ticketCurrency).toBeNull();
+  });
+
+  it('normalises absent optional fields to null rather than undefined', () => {
+    const bare = {
+      description: null,
+      ticketLink: null,
+      ticketPrice: null,
+      ticketCurrency: 'EUR',
+      adTitle: null,
+      adDescription: null,
+    };
+    expect(promotionalDetail(bare, false)).toEqual(bare);
   });
 });
