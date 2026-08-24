@@ -13,6 +13,7 @@ import {
 import type { ReactNode } from 'react';
 
 import type { AppRouter } from '@CeolX/api/routers/index';
+import { formatTicketPrice } from '@CeolX/shared';
 import { Badge } from '@CeolX/ui/components/badge';
 import { Button } from '@CeolX/ui/components/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@CeolX/ui/components/sheet';
@@ -72,12 +73,6 @@ function formatWhen(start: string | Date, end: string | Date | null): string {
   if (!end) return formatDateTime(start);
   // Same calendar day → show the date once with a time range feel via full datetimes.
   return `${formatDateTime(start)} → ${formatDateTime(end)}`;
-}
-
-function formatPrice(cents: number | null): string {
-  if (cents === null || cents === undefined) return '—';
-  if (cents === 0) return 'Free';
-  return `€${(cents / 100).toFixed(2)}`;
 }
 
 export function EventDetailSheet({
@@ -193,7 +188,7 @@ function DetailBody({
               </a>
             )}
           </KV>
-          <KV k="Ticket price">{formatPrice(event.ticketPrice)}</KV>
+          <KV k="Ticket price">{formatTicketPrice(event.ticketPrice, event.ticketCurrency, 2)}</KV>
           {event.ticketLink && (
             <KV k="Ticket link">
               <a
