@@ -1,6 +1,7 @@
 import {
   hasLiveBilling,
   VENUE_PUBLISH_BLOCKED_MESSAGE,
+  VENUE_PUBLISH_BLOCKED_REASON,
   type VenueSubscriptionStatus,
 } from '@CeolX/shared';
 
@@ -30,6 +31,14 @@ export type VenueSubscriptionStatusValue = VenueSubscriptionStatus;
  * old local name.
  */
 export const PUBLISH_BLOCKED_MESSAGE = VENUE_PUBLISH_BLOCKED_MESSAGE;
+
+/**
+ * Just the cause, for the in-form notice that carries its own action button.
+ *
+ * The notice must not say "open your profile": doing that from the event form's last step
+ * unmounted the form and lost everything the venue had typed.
+ */
+export const PUBLISH_BLOCKED_REASON = VENUE_PUBLISH_BLOCKED_REASON;
 
 /**
  * How often a screen that is *waiting* for activation re-checks `users.me`.

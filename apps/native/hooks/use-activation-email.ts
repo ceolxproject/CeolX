@@ -65,7 +65,7 @@ function useCooldown(seconds: number) {
 }
 
 /** Which surface asked, so the two are separable in the funnel. */
-export type ActivationEmailSource = 'onboarding' | 'profile';
+export type ActivationEmailSource = 'onboarding' | 'profile' | 'publish_blocked';
 
 interface UseActivationEmailOptions {
   source: ActivationEmailSource;

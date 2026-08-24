@@ -1,11 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
 import { useEffect, useRef } from 'react';
 import { ActivityIndicator, Alert, Pressable, Text, View } from 'react-native';
 
 import {
   ACTIVATION_POLL_MS,
-  PUBLISH_BLOCKED_MESSAGE as BLOCKED_MESSAGE,
+  PUBLISH_BLOCKED_REASON as BLOCKED_REASON,
 } from './venue-subscription-state.utils';
 
 import { useActivationEmail } from '@/hooks/use-activation-email';
@@ -233,6 +232,17 @@ export function VenuePastDueBanner() {
  * @param surface Which create flow was blocked, so the two are separable in the funnel.
  */
 export function VenuePublishBlockedNotice({ surface }: { surface: 'post' | 'event' }) {
+  // Requests the activation email in place rather than navigating anywhere.
+  //
+  // This used to open the profile. On the event form that was destructive: the notice sits
+  // on step 3 of 3, the form keeps no draft, and leaving unmounted it — so three steps of
+  // typing and an uploaded cover image were gone, and the device back button landed on the
+  // event list rather than the form (QA, 19/08/2026). Whichever way that navigation was
+  // written, push or replace, the venue still had to leave a form they had just filled in
+  // to reach a button that only sends an email. So the button comes here instead: the form
+  // survives, and a venue who then activates can publish the very event they were writing.
+  const activation = useActivationEmail({ source: 'publish_blocked', notify: false });
+
   // Fired here rather than at each call site: this component is the single point where
   // a venue is actually told publishing is blocked, so wiring it once cannot drift out
   // of step with the screens that render it.
@@ -243,19 +253,37 @@ export function VenuePublishBlockedNotice({ surface }: { surface: 'post' | 'even
     track(AnalyticsEvent.VENUE_PUBLISH_BLOCKED, { surface });
   }, [surface]);
 
+  const label = activation.error
+    ? activation.error
+    : activation.sent
+      ? 'Activation link sent — check your inbox to finish setting up.'
+      : `${BLOCKED_REASON} Tap to get an activation link by email.`;
+
   return (
     <Pressable
-      onPress={() => router.replace('/(app)/(tabs)/profile')}
+      disabled={activation.disabled}
+      onPress={activation.request}
       accessibilityRole="button"
-      accessibilityLabel={`${BLOCKED_MESSAGE} Opens your profile.`}
+      accessibilityState={{ disabled: activation.disabled }}
+      accessibilityLabel={label}
       className="flex-row items-center gap-2 rounded-xl bg-[#333335] px-3 py-2.5 active:opacity-60"
     >
-      <Ionicons name="lock-closed-outline" size={16} color="rgba(255,255,255,0.6)" />
-      <Text className="shrink text-xs leading-[18px] text-white/60 font-urbanist">
-        {BLOCKED_MESSAGE}
-      </Text>
-      {/* The affordance. Without it the row reads as static text and nobody taps it. */}
-      <Ionicons name="chevron-forward" size={16} color="#C8FF2F" />
+      <Ionicons
+        name={activation.sent ? 'mail-unread-outline' : 'lock-closed-outline'}
+        size={16}
+        color="rgba(255,255,255,0.6)"
+      />
+      <Text className="shrink text-xs leading-[18px] text-white/60 font-urbanist">{label}</Text>
+      {activation.isPending ? (
+        <ActivityIndicator size="small" color="#C8FF2F" />
+      ) : activation.remaining > 0 ? (
+        <Text className="text-xs font-bold text-white/40 font-urbanist">
+          {activation.remaining}s
+        </Text>
+      ) : (
+        /* The affordance. Without it the row reads as static text and nobody taps it. */
+        <Ionicons name="chevron-forward" size={16} color="#C8FF2F" />
+      )}
     </Pressable>
   );
 }

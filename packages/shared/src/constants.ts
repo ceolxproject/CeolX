@@ -172,5 +172,15 @@ export const ACTIVATION_RETURN_PATHS = {
  * that can always mint a fresh link, so that is where the copy sends them, and the client
  * makes the notice tappable so it is one tap rather than a hunt.
  */
-export const VENUE_PUBLISH_BLOCKED_MESSAGE =
-  'An active subscription is needed to publish. Open your profile to activate.';
+export const VENUE_PUBLISH_BLOCKED_REASON = 'An active subscription is needed to publish.';
+
+/**
+ * The full sentence for callers who cannot be handed a control — i.e. the server's
+ * `FORBIDDEN` message, where "tap here" is meaningless.
+ *
+ * The client deliberately uses the reason alone and supplies its own remedy: a button
+ * that emails the activation link without leaving the screen. Sending the venue to their
+ * profile from a half-filled event form destroyed the form (QA, 19/08/2026) — the event
+ * form keeps no draft, so three steps of typing and an uploaded cover went with it.
+ */
+export const VENUE_PUBLISH_BLOCKED_MESSAGE = `${VENUE_PUBLISH_BLOCKED_REASON} Open your profile to activate.`;

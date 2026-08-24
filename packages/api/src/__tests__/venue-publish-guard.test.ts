@@ -1,7 +1,7 @@
 import { TRPCError } from '@trpc/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { VENUE_PUBLISH_BLOCKED_MESSAGE } from '@CeolX/shared';
+import { VENUE_PUBLISH_BLOCKED_MESSAGE, VENUE_PUBLISH_BLOCKED_REASON } from '@CeolX/shared';
 
 const { mockSelectLimit, mockOnHoldVenueIds } = vi.hoisted(() => ({
   mockSelectLimit: vi.fn(),
@@ -80,6 +80,20 @@ describe('assertVenueMayPublish (V-14)', () => {
       // one side only.
       expect((err as TRPCError).message).toBe(VENUE_PUBLISH_BLOCKED_MESSAGE);
     }
+  });
+
+  it('keeps the reason free of any "go elsewhere" instruction', () => {
+    // The in-form notice renders the REASON beside its own email button, and must not tell
+    // the venue to open their profile. It used to navigate there, and on the event form's
+    // last step that unmounted a form with no draft — three steps of typing and an
+    // uploaded cover, gone, with the back button landing on the event list
+    // (QA, 19/08/2026).
+    expect(VENUE_PUBLISH_BLOCKED_REASON).toMatch(/subscription/i);
+    expect(VENUE_PUBLISH_BLOCKED_REASON).not.toMatch(/profile|email|inbox/i);
+
+    // The server's full message still needs somewhere to point, because an API caller
+    // cannot be handed a button.
+    expect(VENUE_PUBLISH_BLOCKED_MESSAGE.startsWith(VENUE_PUBLISH_BLOCKED_REASON)).toBe(true);
   });
 
   it('sends the venue to their profile, never back to their inbox', () => {
