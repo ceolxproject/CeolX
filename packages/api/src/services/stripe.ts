@@ -78,6 +78,24 @@ export function priceIdForInterval(interval: BillingInterval): string {
 }
 
 /**
+ * The inverse of `priceIdForInterval` — which of our two intervals a Price id is.
+ *
+ * Deliberately a local lookup rather than a Stripe fetch: it is called from the webhook
+ * while resolving a scheduled plan change, and a subscription schedule gives its phases
+ * as bare Price ids. Two configured ids answer the question without a network round trip
+ * on a path that already re-reads the subscription.
+ *
+ * Returns null for anything unrecognised — a legacy or hand-made Price — so the caller
+ * records "no pending change" rather than mislabelling one.
+ */
+export function intervalForPriceId(priceId: string | null | undefined): BillingInterval | null {
+  if (!priceId) return null;
+  if (priceId === env.STRIPE_PRICE_MONTHLY) return BillingInterval.MONTHLY;
+  if (priceId === env.STRIPE_PRICE_ANNUAL) return BillingInterval.ANNUAL;
+  return null;
+}
+
+/**
  * Verify a webhook signature and return the parsed event.
  *
  * Signature verification is the whole security model of the webhook endpoint: the
@@ -320,4 +338,43 @@ export async function createSubscriptionCheckoutSession(
   }
 
   return { url: session.url, sessionId: session.id };
+}
+
+/**
+ * What Stripe will actually charge next, and when.
+ *
+ * Preferred over `getPriceSummaries` wherever a figure is quoted **to a customer**,
+ * because the catalogue price is only correct while nothing is scheduled. Once plan
+ * switching was enabled (D-70) a deferred downgrade left `plan` reading `annual` while
+ * the next invoice was monthly — so the trial-ending email would have promised €199 and
+ * taken €19.99. A preview accounts for schedules, proration and discounts by construction,
+ * which no amount of local arithmetic can.
+ *
+ * Returns null rather than throwing when Stripe cannot preview (no upcoming invoice yet,
+ * a subscription in an odd state). Callers fall back to the catalogue, which is wrong only
+ * in the rare scheduled case and is better than sending nothing at all.
+ */
+export async function getNextInvoicePreview(
+  subscriptionId: string
+): Promise<{ formatted: string; interval: BillingInterval | null; periodEnd: Date | null } | null> {
+  const stripe = getStripeClient();
+  try {
+    const preview = await stripe.invoices.createPreview({ subscription: subscriptionId });
+    const line = preview.lines?.data?.[0];
+    const priceId =
+      typeof line?.pricing?.price_details?.price === 'string'
+        ? line.pricing.price_details.price
+        : null;
+    return {
+      formatted: new Intl.NumberFormat('en-IE', {
+        style: 'currency',
+        currency: (preview.currency || 'eur').toUpperCase(),
+      }).format((preview.amount_due ?? 0) / 100),
+      interval: intervalForPriceId(priceId),
+      periodEnd: preview.period_end ? new Date(preview.period_end * 1000) : null,
+    };
+  } catch (err) {
+    console.warn('[stripe] could not preview the next invoice for', subscriptionId, err);
+    return null;
+  }
 }

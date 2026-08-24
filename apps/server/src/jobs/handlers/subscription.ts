@@ -1,7 +1,7 @@
 import { and, eq, gt, isNull, lte } from 'drizzle-orm';
 
 import { buildActivationLinks } from '@CeolX/api/services/activation-links';
-import { getPriceSummaries } from '@CeolX/api/services/stripe';
+import { getNextInvoicePreview, getPriceSummaries } from '@CeolX/api/services/stripe';
 import { db } from '@CeolX/db';
 import { user } from '@CeolX/db/schema/auth';
 import { venueSubscriptions } from '@CeolX/db/schema/subscriptions';
@@ -109,6 +109,8 @@ export async function handleSubscriptionTrialEnding(
       trialEndsAt: venueSubscriptions.trialEndsAt,
       cancelAtPeriodEnd: venueSubscriptions.cancelAtPeriodEnd,
       plan: venueSubscriptions.plan,
+      // Needed to preview the real next invoice rather than pricing `plan`.
+      stripeSubscriptionId: venueSubscriptions.stripeSubscriptionId,
     })
     .from(venueSubscriptions)
     .innerJoin(venueProfiles, eq(venueProfiles.id, venueSubscriptions.venueId))
@@ -147,22 +149,35 @@ export async function handleSubscriptionTrialEnding(
 
   if (!account?.email) return;
 
-  // Read from Stripe, never from a local constant — see the sender's docblock.
+  // Ask Stripe what the next invoice actually is, rather than pricing our stored plan.
+  //
+  // `plan` stopped being a safe basis the moment plan switching was enabled (D-70): a
+  // deferred downgrade leaves the subscription on annual while the next charge is monthly,
+  // so pricing `plan` promised €199 and took €19.99 — a wrong figure in the one email
+  // whose whole purpose is preventing a chargeback. A preview accounts for the schedule.
+  //
+  // Falls back to the catalogue when the preview is unavailable: wrong only in the rare
+  // scheduled case, and far better than sending no warning at all.
+  const preview = row.stripeSubscriptionId
+    ? await getNextInvoicePreview(row.stripeSubscriptionId)
+    : null;
   const prices = await getPriceSummaries();
-  const summary = row.plan === 'annual' ? prices.annual : prices.monthly;
+  const fallback = row.plan === 'annual' ? prices.annual : prices.monthly;
+  const amount = preview?.formatted ?? fallback.formatted;
+  const interval = preview?.interval ?? row.plan;
 
   await sendTrialEndingEmail({
     to: account.email,
     venueName: row.venueName,
     userName: account.name ?? '',
-    amount: summary.formatted,
+    amount,
     chargeDate: new Intl.DateTimeFormat('en-IE', {
       day: 'numeric',
       month: 'long',
       year: 'numeric',
       timeZone: 'Europe/Dublin',
     }).format(row.trialEndsAt),
-    interval: row.plan === 'annual' ? 'annual' : 'monthly',
+    interval: interval === 'annual' ? 'annual' : 'monthly',
     // The Portal link is minted on demand and emailed separately (D-45); pointing
     // at the app keeps this email free of a URL that could go stale in six months.
     manageUrl: `${env.BETTER_AUTH_URL.replace(/\/$/, '')}/r?to=/profile`,

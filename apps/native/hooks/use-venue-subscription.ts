@@ -87,6 +87,7 @@ export function useVenueSubscription({ pollUntilActivated = false } = {}) {
     planSummary: planSummaryFor({
       status,
       plan: me?.venueProfile?.plan,
+      pendingPlan: me?.venueProfile?.pendingPlan,
       trialEndsAt: me?.venueProfile?.trialEndsAt,
       currentPeriodEnd: me?.venueProfile?.currentPeriodEnd,
       cancelAtPeriodEnd: me?.venueProfile?.cancelAtPeriodEnd ?? false,

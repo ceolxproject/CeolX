@@ -1,0 +1,1 @@
+ALTER TABLE "venue_subscriptions" ADD COLUMN "pending_plan" "billing_interval";

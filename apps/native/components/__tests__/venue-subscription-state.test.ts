@@ -216,6 +216,35 @@ describe('planSummaryFor', () => {
     ).toBe('Annual · renews 17 March 2027');
   });
 
+  it('announces a scheduled plan change instead of claiming the plan renews', () => {
+    // D-70 enabled plan switching, and Stripe defers a downgrade into a schedule: the
+    // subscription stays on annual while the next charge is monthly. Saying "Annual ·
+    // renews 23 February" there is untrue in the way that matters — the venue is about
+    // to be billed a different amount on a different cycle.
+    expect(
+      planSummaryFor({
+        ...base,
+        status: 'active',
+        plan: 'annual',
+        pendingPlan: 'monthly',
+        currentPeriodEnd: '2027-02-23T00:00:00.000Z',
+      })
+    ).toBe('Changes to monthly on 23 February 2027');
+  });
+
+  it('ignores a pending plan identical to the current one', () => {
+    // A schedule phase that keeps the same price is not a change worth announcing.
+    expect(
+      planSummaryFor({
+        ...base,
+        status: 'active',
+        plan: 'monthly',
+        pendingPlan: 'monthly',
+        currentPeriodEnd: '2027-03-17T00:00:00.000Z',
+      })
+    ).toBe('Monthly · renews 17 March 2027');
+  });
+
   it('says "cancels on" rather than "cancelled" while access remains', () => {
     // D-29: a venue who cancelled mid-period is still paying and still fully visible.
     // Calling that "cancelled" would be wrong while they still have access.

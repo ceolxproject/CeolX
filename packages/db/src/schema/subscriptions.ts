@@ -78,6 +78,21 @@ export const venueSubscriptions = pgTable(
     /** Cancelled but still inside the paid period (D-39) — access continues. */
     cancelAtPeriodEnd: boolean('cancel_at_period_end').notNull().default(false),
     /**
+     * The interval this subscription will switch to at the end of the current period,
+     * when a deferred plan change is pending. Null when nothing is scheduled.
+     *
+     * Needed because `plan` alone became a lie the moment plan switching was enabled
+     * (D-70): a downgrade is deferred by Stripe into a `subscription_schedule`, so `plan`
+     * keeps saying `annual` while the next charge will be monthly. That mattered most in
+     * the trial-ending email, which quoted `plan`'s catalogue price — a wrong figure in
+     * the one email whose whole job is preventing a chargeback (D-30).
+     *
+     * No companion date column: a Portal-initiated change takes effect at the phase
+     * boundary, which is the current period end, so `currentPeriodEnd` already answers
+     * "when". Written by the webhook only, from Stripe's schedule.
+     */
+    pendingPlan: billingIntervalEnum('pending_plan'),
+    /**
      * @deprecated Dunning moved to Stripe (D-33, revised 18/08/2026). Nothing reads or
      * writes this any more.
      *

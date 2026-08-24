@@ -90,6 +90,7 @@ export const usersRouter = router({
       plan: string | null;
       currentPeriodEnd: string | null;
       cancelAtPeriodEnd: boolean;
+      pendingPlan: string | null;
       /**
        * Whether the billing Portal can be requested at all.
        *
@@ -186,6 +187,9 @@ export const usersRouter = router({
           // Already cancelled but still inside the paid period (D-29). Distinct from
           // `cancelled`, which is after it has elapsed.
           cancelAtPeriodEnd: venueSubscriptions.cancelAtPeriodEnd,
+          // The interval a deferred change will switch to, so Settings can say "changes
+          // to monthly on …" instead of implying the current plan simply renews (D-70).
+          pendingPlan: venueSubscriptions.pendingPlan,
         })
         .from(venueProfiles)
         .leftJoin(venueSubscriptions, eq(venueSubscriptions.venueId, venueProfiles.id))
@@ -218,6 +222,7 @@ export const usersRouter = router({
           // never-subscribed and every seeded venue.
           plan: profile.plan ?? null,
           cancelAtPeriodEnd: profile.cancelAtPeriodEnd ?? false,
+          pendingPlan: profile.pendingPlan ?? null,
           followerCount,
           followingCount,
           socialLinks: socialLinksRecord,

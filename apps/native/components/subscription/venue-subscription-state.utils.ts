@@ -194,12 +194,15 @@ export function isActivated(status: VenueSubscriptionStatusValue | null | undefi
 export function planSummaryFor({
   status,
   plan,
+  pendingPlan,
   trialEndsAt,
   currentPeriodEnd,
   cancelAtPeriodEnd,
 }: {
   status: VenueSubscriptionStatusValue | null | undefined;
   plan: string | null | undefined;
+  /** Interval a deferred change switches to at period end, when one is scheduled. */
+  pendingPlan?: string | null;
   trialEndsAt: string | null | undefined;
   currentPeriodEnd: string | null | undefined;
   cancelAtPeriodEnd: boolean;
@@ -211,6 +214,15 @@ export function planSummaryFor({
   if (status === 'trialing') {
     // The trial end IS the first charge date, so it is the useful date here.
     return trialEnd ? `Free trial until ${trialEnd}` : 'Free trial';
+  }
+
+  // A scheduled switch outranks "renews": saying a plan renews when it is about to
+  // become a different plan is the same class of untruth as quoting the wrong amount,
+  // which is what made D-70 dangerous in the trial email.
+  if (pendingPlan && pendingPlan !== plan) {
+    const to = pendingPlan === 'annual' ? 'annual' : 'monthly';
+    const on = periodEnd ?? trialEnd;
+    return on ? `Changes to ${to} on ${on}` : `Changes to ${to} at the end of this period`;
   }
 
   if (cancelAtPeriodEnd) {

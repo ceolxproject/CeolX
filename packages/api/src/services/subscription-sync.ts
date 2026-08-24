@@ -14,7 +14,7 @@ import {
 } from '@CeolX/shared';
 
 import { markActivationTokenConsumed } from './activation-token';
-import { getStripeClient } from './stripe';
+import { getStripeClient, intervalForPriceId } from './stripe';
 
 // Subscription state machine (M8-T0 D-22). This module is the ONLY writer of
 // subscription state. Nothing else in the codebase may set
@@ -228,6 +228,8 @@ export async function syncSubscriptionFromStripe(
       currentPeriodEnd: toDate(item?.current_period_end),
       trialEndsAt,
       cancelAtPeriodEnd: subscription.cancel_at_period_end ?? false,
+      // Null when nothing is scheduled, which also clears a change the venue reverted.
+      pendingPlan: await resolvePendingPlan(stripe, subscription),
       updatedAt: new Date(),
     };
 
@@ -458,6 +460,52 @@ export async function blockBillingForCustomer(stripeCustomerId: string): Promise
       );
     }
   }
+}
+
+/**
+ * The interval a deferred plan change will switch to, or null when none is pending.
+ *
+ * Enabling plan switching (D-70) made `plan` alone insufficient. Stripe defers a
+ * downgrade into a `subscription_schedule` and leaves the subscription on its current
+ * price, so `plan` keeps reading `annual` while the next charge will be monthly. Read
+ * from the schedule's *next* phase rather than its last, because a schedule may hold more
+ * than two phases and only the next one is what the venue is about to be moved onto.
+ *
+ * Returns null for an unrecognised Price — see `intervalForPriceId` — so an unfamiliar
+ * schedule records "nothing pending" instead of a guess.
+ */
+async function resolvePendingPlan(
+  stripe: Stripe,
+  subscription: Stripe.Subscription
+): Promise<BillingInterval | null> {
+  const scheduleId = idOf(subscription.schedule);
+  if (!scheduleId) return null;
+
+  let schedule: Stripe.SubscriptionSchedule;
+  try {
+    schedule = await stripe.subscriptionSchedules.retrieve(scheduleId);
+  } catch (err) {
+    // Never fail the whole sync for this: the status and period are the load-bearing
+    // fields, and a missing pending-plan only costs a slightly stale Settings line.
+    console.warn('[subscription-sync] could not read schedule', scheduleId, err);
+    return null;
+  }
+
+  // A released or cancelled schedule is history, not a pending change.
+  if (schedule.status !== 'active' && schedule.status !== 'not_started') return null;
+
+  const nowSec = Math.floor(Date.now() / 1000);
+  const currentIdx = schedule.phases.findIndex(
+    (ph) => ph.start_date <= nowSec && (!ph.end_date || nowSec < ph.end_date)
+  );
+  const next = currentIdx >= 0 ? schedule.phases[currentIdx + 1] : schedule.phases[0];
+  if (!next) return null;
+
+  const pending = intervalForPriceId(idOf(next.items?.[0]?.price));
+  // A phase that keeps the current price is not a change worth surfacing.
+  return pending && pending !== intervalForPriceId(idOf(subscription.items.data[0]?.price?.id))
+    ? pending
+    : null;
 }
 
 /** Stripe sends related ids either expanded or as a bare string, depending on event. */
