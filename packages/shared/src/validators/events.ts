@@ -12,6 +12,10 @@ export const AD_TITLE_MAX = 100;
 export const AD_DESCRIPTION_MAX = 50;
 // Off-platform (unregistered) invitee name cap, surfaced in the Invite Artist form.
 export const UNREGISTERED_COLLABORATOR_NAME_MAX = 100;
+// Ticket price ceiling in cents (€1,000,000). Exists to keep a mistyped price a
+// validation error rather than a 500: ticket_price is a pg `integer`, so anything
+// past 2^31-1 cents failed at the INSERT instead of at the boundary.
+export const TICKET_PRICE_MAX_CENTS = 100_000_000;
 
 // Base shape — used for both create and update schemas
 const eventBaseShape = {
@@ -39,7 +43,7 @@ const eventBaseShape = {
   // survive validation so the server can write NULL. `.optional()` alone would
   // strip an undefined and reject a null, silently dropping the clear.
   ticketLink: z.string().url().optional().nullable(),
-  ticketPrice: z.number().int().min(0).optional().nullable(),
+  ticketPrice: z.number().int().min(0).max(TICKET_PRICE_MAX_CENTS).optional().nullable(),
   // Currency of ticketPrice. Not nullable — the column is NOT NULL DEFAULT 'EUR',
   // so an absent key means "leave as-is", never "clear it".
   ticketCurrency: z.enum(TICKET_CURRENCIES).optional(),

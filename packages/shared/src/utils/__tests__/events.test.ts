@@ -5,6 +5,7 @@ import {
   getEventStatusColour,
   formatCategory,
   formatTicketPrice,
+  toTicketCurrency,
 } from '../events.js';
 
 describe('getEventStatusLabel', () => {
@@ -60,5 +61,31 @@ describe('formatTicketPrice', () => {
   it('keeps the free / unknown cases', () => {
     expect(formatTicketPrice(0, 'USD')).toBe('Free');
     expect(formatTicketPrice(null, 'USD')).toBe('\u2014');
+  });
+});
+
+describe('toTicketCurrency', () => {
+  it('passes through the codes the app offers', () => {
+    expect(toTicketCurrency('EUR')).toBe('EUR');
+    expect(toTicketCurrency('GBP')).toBe('GBP');
+    expect(toTicketCurrency('USD')).toBe('USD');
+  });
+
+  it('falls back to the default for anything else', () => {
+    // Legacy rows (no column), raw SQL writes, and a currency we later retire all
+    // land here — a reader must never surface a code the app cannot render.
+    expect(toTicketCurrency(null)).toBe('EUR');
+    expect(toTicketCurrency(undefined)).toBe('EUR');
+    expect(toTicketCurrency('')).toBe('EUR');
+    expect(toTicketCurrency('JPY')).toBe('EUR');
+    expect(toTicketCurrency('eur')).toBe('EUR');
+  });
+});
+
+describe('formatTicketPrice — nonsensical amounts', () => {
+  it('reads a negative price as free instead of quoting a negative amount', () => {
+    // No DB CHECK backs ticket_price, so a bad backfill can leave one behind.
+    expect(formatTicketPrice(-500, 'GBP')).toBe('Free');
+    expect(formatTicketPrice(-1, 'USD')).toBe('Free');
   });
 });

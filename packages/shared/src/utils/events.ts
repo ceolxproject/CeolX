@@ -1,4 +1,9 @@
-import { DEFAULT_TICKET_CURRENCY, EventStatus, type TicketCurrency } from '../enums.js';
+import {
+  DEFAULT_TICKET_CURRENCY,
+  EventStatus,
+  TICKET_CURRENCIES,
+  type TicketCurrency,
+} from '../enums.js';
 
 /**
  * Statuses an event can hold while it is still a live, interactable target for
@@ -64,9 +69,22 @@ const CURRENCY_SYMBOLS: Record<TicketCurrency, string> = {
   USD: '$',
 };
 
+/**
+ * Narrow a stored currency code to one the app actually offers.
+ *
+ * Legacy rows predate the column and raw SQL can write anything, so every reader
+ * needs the same fallback — owning it here keeps the display helpers and the edit
+ * form from drifting apart on what "unknown currency" means.
+ */
+export function toTicketCurrency(currency?: string | null): TicketCurrency {
+  return TICKET_CURRENCIES.includes(currency as TicketCurrency)
+    ? (currency as TicketCurrency)
+    : DEFAULT_TICKET_CURRENCY;
+}
+
 /** Symbol for a stored currency code, falling back to EUR for legacy/unknown rows. */
 export function currencySymbol(currency?: string | null): string {
-  return CURRENCY_SYMBOLS[(currency ?? DEFAULT_TICKET_CURRENCY) as TicketCurrency] ?? '\u20ac';
+  return CURRENCY_SYMBOLS[toTicketCurrency(currency)];
 }
 
 /**
@@ -85,7 +103,10 @@ export function formatTicketPrice(
   decimals?: number
 ): string {
   if (cents === null || cents === undefined) return '—';
-  if (cents === 0) return 'Free';
+  // `<= 0`, not `=== 0`: there is no DB CHECK behind ticket_price, so a bad
+  // backfill or a write path that skips the validator can leave a negative here.
+  // Rendering that as '-£5.00' is worse than reading it as free.
+  if (cents <= 0) return 'Free';
   const places = decimals ?? (cents % 100 === 0 ? 0 : 2);
   return `${currencySymbol(currency)}${(cents / 100).toFixed(places)}`;
 }
