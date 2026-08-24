@@ -7,15 +7,17 @@ const DEFAULT_ENV = {
   STRIPE_PRICE_ANNUAL: 'price_annual_stub',
 };
 
-const { envState, mockSessionsCreate, StripeConstructor } = vi.hoisted(() => {
+const { envState, mockSessionsCreate, mockPortalCreate, StripeConstructor } = vi.hoisted(() => {
   const envState: Record<string, string | number | undefined> = {};
   const mockSessionsCreate = vi.fn();
+  const mockPortalCreate = vi.fn();
   // `this`-assignment so `new StripeConstructor(...)` populates the instance —
   // mockImplementation returning an object only works for plain calls, not `new`.
   const StripeConstructor = vi.fn(function (this: Record<string, unknown>) {
     this.checkout = { sessions: { create: mockSessionsCreate } };
+    this.billingPortal = { sessions: { create: mockPortalCreate } };
   });
-  return { envState, mockSessionsCreate, StripeConstructor };
+  return { envState, mockSessionsCreate, mockPortalCreate, StripeConstructor };
 });
 
 vi.mock('@CeolX/env/server', () => ({
@@ -33,6 +35,11 @@ beforeEach(() => {
   for (const key of Object.keys(envState)) delete envState[key];
   Object.assign(envState, DEFAULT_ENV);
   mockSessionsCreate.mockReset();
+  mockPortalCreate.mockReset();
+  mockPortalCreate.mockResolvedValue({
+    id: 'bps_test_1',
+    url: 'https://billing.stripe.com/p/session/test_1',
+  });
   mockSessionsCreate.mockResolvedValue({
     id: 'cs_test_1',
     url: 'https://checkout.stripe.com/c/pay/cs_test_1',
@@ -265,5 +272,33 @@ describe('createSubscriptionCheckoutSession', () => {
     await expect(createSubscriptionCheckoutSession(base)).rejects.toMatchObject({
       code: 'INTERNAL_SERVER_ERROR',
     });
+  });
+});
+
+describe('createBillingPortalSession', () => {
+  it('sends no return_url, so the Portal renders no link back into the app (D-71)', async () => {
+    // Asserted on the exact parameter object reaching the Stripe SDK, not on the
+    // service's own arguments. A caller-level assertion cannot see a `return_url`
+    // hardcoded inside the service, and that is the one place it would hide.
+    //
+    // Why it matters: any return_url makes Stripe render "← Return to CeolX" deep-linking
+    // into the app. The app is already careful never to surface a price or payment URL
+    // (D-16); a return path from the payment page undoes that from the far end and is
+    // exactly the round trip an App Review reader should not be able to draw. Confirmed
+    // by rendering the hosted page headless both ways — with a return_url it carries
+    // "Return to CeolX" and three ceolx.com links; without it, none.
+    const { createBillingPortalSession } = await import('../services/stripe.js');
+
+    await createBillingPortalSession('cus_1');
+
+    expect(mockPortalCreate).toHaveBeenCalledTimes(1);
+    expect(mockPortalCreate.mock.calls[0]?.[0]).toEqual({ customer: 'cus_1' });
+  });
+
+  it('fails loudly when Stripe returns a session with no url', async () => {
+    mockPortalCreate.mockResolvedValueOnce({ id: 'bps_test_2', url: null });
+    const { createBillingPortalSession } = await import('../services/stripe.js');
+
+    await expect(createBillingPortalSession('cus_1')).rejects.toBeInstanceOf(TRPCError);
   });
 });

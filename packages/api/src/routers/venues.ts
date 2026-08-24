@@ -128,11 +128,7 @@ export const venuesRouter = router({
     // one delayed email beats uncapped session creation.
     await recordPortalRequest(ctx.userId);
 
-    const origin = env.BETTER_AUTH_URL.replace(/\/$/, '');
-    const portalUrl = await createBillingPortalSession(
-      subscription.stripeCustomerId,
-      `${origin}/r?to=/profile`
-    );
+    const portalUrl = await createBillingPortalSession(subscription.stripeCustomerId);
 
     // The email IS the deliverable, so a send failure propagates rather than
     // leaving the venue watching an inbox that will never receive anything.

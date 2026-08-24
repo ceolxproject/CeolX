@@ -185,7 +185,11 @@ describe('venues.requestBillingPortal — the email', () => {
     prime();
     await createCaller(authedContext('venue')).venues.requestBillingPortal();
 
-    expect(mockCreatePortal).toHaveBeenCalledWith('cus_1', 'https://api.ceolx.com/r?to=/profile');
+    // Asserted on the whole argument list, not just the customer: a second argument
+    // would be a `return_url`, which makes Stripe render "← Return to CeolX" linking
+    // back into the app. D-71 keeps that round trip off the payment page entirely, and
+    // a matcher that ignored extra arguments would let it back in unnoticed.
+    expect(mockCreatePortal.mock.calls).toEqual([['cus_1']]);
     expect(mockSendManage).toHaveBeenCalledWith({
       to: 'venue@example.com',
       venueName: 'The Cobblestone',

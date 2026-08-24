@@ -141,13 +141,21 @@ export function constructWebhookEvent(
  * not here. It is environment-specific: test-mode and live-mode configurations are
  * separate objects, so configuring one does not configure the other.
  */
-export async function createBillingPortalSession(
-  stripeCustomerId: string,
-  returnUrl: string
-): Promise<string> {
+export async function createBillingPortalSession(stripeCustomerId: string): Promise<string> {
   const session = await getStripeClient().billingPortal.sessions.create({
     customer: stripeCustomerId,
-    return_url: returnUrl,
+    // No `return_url` — deliberate, and the reason there is no parameter for one (D-71).
+    //
+    // Passing one makes Stripe render a "← Return to CeolX" link that deep-links back
+    // into the app, and that round trip is exactly what an App Review reader should not
+    // be able to draw: the app is already careful never to show a price or a payment URL
+    // (D-16), and a return path from the payment page undoes that care from the far end.
+    // Verified by rendering the hosted page headless both ways — with a return_url the
+    // page carries "Return to CeolX" and three links to ceolx.com; without it, none at
+    // all. The venue closes the tab and reopens the app, which costs them nothing.
+    //
+    // The configuration's `default_return_url` would put the link back on its own, so it
+    // must stay unset in **both** modes — test and live are separate objects (M12-T3).
   });
 
   if (!session.url) {
