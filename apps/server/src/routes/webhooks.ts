@@ -11,7 +11,11 @@ import { posts } from '@CeolX/db/schema/social';
 import { venueProfiles } from '@CeolX/db/schema/users';
 import { sendPaymentConfirmationEmail } from '@CeolX/email';
 import { env } from '@CeolX/env/server';
-import { NotificationTrigger } from '@CeolX/shared';
+import {
+  NotificationTrigger,
+  VENUE_BILLING_RETURN_ROUTE,
+  buildAppRedirectUrl,
+} from '@CeolX/shared';
 
 import { routeJob } from '../jobs/handlers/index.js';
 import { verifyQStashSignature } from '../jobs/verify.js';
@@ -92,7 +96,7 @@ webhooksRoutes.post('/stripe', async (c) => {
           // Points at the app, not a Portal URL: Portal links are minted on demand and
           // emailed separately (D-45), and one baked in here would be stale by the time
           // an annual subscriber opened it.
-          manageUrl: `${env.BETTER_AUTH_URL.replace(/\/$/, '')}/r?to=/profile`,
+          manageUrl: buildAppRedirectUrl(env.BETTER_AUTH_URL, VENUE_BILLING_RETURN_ROUTE),
           ...(invoiceUrl ? { invoiceUrl } : {}),
         });
       },

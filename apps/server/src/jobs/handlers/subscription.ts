@@ -8,7 +8,7 @@ import { venueSubscriptions } from '@CeolX/db/schema/subscriptions';
 import { venueProfiles } from '@CeolX/db/schema/users';
 import { sendActivationReminderEmail, sendTrialEndingEmail } from '@CeolX/email';
 import { env } from '@CeolX/env/server';
-import { SubscriptionStatus } from '@CeolX/shared';
+import { SubscriptionStatus, VENUE_BILLING_RETURN_ROUTE, buildAppRedirectUrl } from '@CeolX/shared';
 
 import type { JobPayload } from '../types.js';
 
@@ -180,7 +180,7 @@ export async function handleSubscriptionTrialEnding(
     interval: interval === 'annual' ? 'annual' : 'monthly',
     // The Portal link is minted on demand and emailed separately (D-45); pointing
     // at the app keeps this email free of a URL that could go stale in six months.
-    manageUrl: `${env.BETTER_AUTH_URL.replace(/\/$/, '')}/r?to=/profile`,
+    manageUrl: buildAppRedirectUrl(env.BETTER_AUTH_URL, VENUE_BILLING_RETURN_ROUTE),
   });
 }
 
