@@ -12,7 +12,8 @@ import { normalizeOptionalUrl } from '@/utils/normalize-url';
 // Shared label style for both CTAs. 11px (down from 12px) with tighter tracking
 // — matches the design's 0.24px letter-spacing and lets "Request to Perform"
 // fit on one line. `adjustsFontSizeToFit` at the call sites is the safety net
-// for the longest labels (e.g. "Book Ticket FOR €1299").
+// for the longest labels (e.g. "Book Ticket FOR £1299.50" — the amount carries
+// whatever currency the creator priced in, so the label is not a fixed width).
 const ctaLabelClass = 'text-[11px] font-bold text-white font-urbanist tracking-wide uppercase';
 
 interface StickyBottomBarProps {

@@ -89,7 +89,7 @@ export function TicketAdsStep({
         <View
           className={cn(
             'flex-row items-center rounded-lg border bg-surface px-3 py-2.5',
-            errors.ticketPrice ? 'border-error' : 'border-gray-8'
+            errors.ticketPrice || errors.ticketCurrency ? 'border-error' : 'border-gray-8'
           )}
         >
           {/* Currency trigger — the list opens below the whole row (see next block) */}

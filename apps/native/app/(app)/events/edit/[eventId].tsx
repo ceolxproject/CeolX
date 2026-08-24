@@ -3,13 +3,9 @@ import { useState } from 'react';
 import { ActivityIndicator, Alert, KeyboardAvoidingView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import type { EventCategory, TicketCurrency } from '@CeolX/shared';
-import {
-  DEFAULT_TICKET_CURRENCY,
-  EventStatus,
-  TICKET_CURRENCIES,
-  UserRole,
-} from '@CeolX/shared/enums';
+import type { EventCategory } from '@CeolX/shared';
+import { toTicketCurrency } from '@CeolX/shared';
+import { EventStatus, UserRole } from '@CeolX/shared/enums';
 
 import { AppHeader } from '@/components/AppHeader';
 import { appToast } from '@/components/AppToast';
@@ -91,12 +87,13 @@ function EditEventForm({ event, eventId }: { event: LoadedEvent; eventId: string
       lng: event.lng,
       venueAddress: event.venueAddress ?? '',
       venueId: event.venueId ?? '',
-      ticketPrice: event.ticketPrice ? String(event.ticketPrice / 100) : '',
-      // A row written outside createEventSchema's z.enum (raw SQL, bad seed) could hold a
-      // currency this app doesn't offer — fall back rather than trust it into form state.
-      ticketCurrency: TICKET_CURRENCIES.includes(event.ticketCurrency as TicketCurrency)
-        ? (event.ticketCurrency as TicketCurrency)
-        : DEFAULT_TICKET_CURRENCY,
+      // A typeof check, not truthiness: a free event stores 0, and treating that as
+      // blank meant reopening and saving a free event silently cleared its price
+      // from 0 ("Free") to null (no price row at all).
+      ticketPrice: typeof event.ticketPrice === 'number' ? String(event.ticketPrice / 100) : '',
+      // A row written outside createEventSchema's z.enum (raw SQL, bad seed) could
+      // hold a currency this app doesn't offer — never trust it into form state.
+      ticketCurrency: toTicketCurrency(event.ticketCurrency),
       ticketLink: event.ticketLink ?? '',
       ticketQuantity: '',
       adTitle: event.adTitle ?? '',

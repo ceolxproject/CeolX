@@ -31,7 +31,7 @@ vi.mock('@/lib/analytics', () => ({
   track: vi.fn(),
 }));
 
-import { endTimeBeforeStartError } from '../use-event-form';
+import { endTimeBeforeStartError, ticketPriceError } from '../use-event-form';
 
 // A fixed event date — the helper anchors both times to it before comparing.
 const eventDate = new Date('2026-07-01T00:00:00.000Z');
@@ -73,5 +73,32 @@ describe('endTimeBeforeStartError', () => {
 
   it('is valid when the event date is not set yet', () => {
     expect(endTimeBeforeStartError(null, at(20, 0), at(17, 0))).toBeUndefined();
+  });
+});
+
+describe('ticketPriceError', () => {
+  it('accepts a blank price — the field is optional', () => {
+    expect(ticketPriceError('')).toBeUndefined();
+    expect(ticketPriceError('   ')).toBeUndefined();
+  });
+
+  it('accepts real amounts, whole or with cents', () => {
+    expect(ticketPriceError('0')).toBeUndefined();
+    expect(ticketPriceError('15')).toBeUndefined();
+    expect(ticketPriceError('25.50')).toBeUndefined();
+  });
+
+  it('rejects junk instead of silently discarding it', () => {
+    // The bug this guards: priceToCents returned undefined for these, and the
+    // payload sent that as "no price" — the typo vanished with no error shown.
+    expect(ticketPriceError('abc')).toBeTruthy();
+    expect(ticketPriceError('12abc')).toBeTruthy();
+    expect(ticketPriceError('-5')).toBeTruthy();
+    expect(ticketPriceError('1e999')).toBeTruthy();
+  });
+
+  it('rejects a price past the column ceiling rather than failing at INSERT', () => {
+    expect(ticketPriceError('999999999')).toBeTruthy();
+    expect(ticketPriceError('1000000')).toBeUndefined();
   });
 });

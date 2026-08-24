@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 
 import type { EventCategory, TicketCurrency } from '@CeolX/shared';
 import { DEFAULT_TICKET_CURRENCY, isValidCoordinate } from '@CeolX/shared';
-import { createEventSchema } from '@CeolX/shared/validators';
+import { createEventSchema, TICKET_PRICE_MAX_CENTS } from '@CeolX/shared/validators';
 
 import { appToast } from '@/components/AppToast';
 import type { ArtistResult } from '@/components/events/ArtistSearchRow';
@@ -160,9 +160,33 @@ export function endTimeBeforeStartError(
  */
 function priceToCents(value: string): number | undefined {
   if (!value.trim()) return undefined;
-  const parsed = parseFloat(value);
-  if (Number.isNaN(parsed) || parsed < 0) return undefined;
+  // Number, not parseFloat: parseFloat('12abc') is 12, so a typo silently became
+  // a real price. Both this and ticketPriceError read the string the same way, so
+  // the form can never block on a value this would have converted (or vice versa).
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed < 0) return undefined;
   return Math.round(parsed * 100);
+}
+
+/**
+ * Validate the ticket-price input. Blank is fine — the field is optional — but a
+ * non-empty value has to be a real, sane amount.
+ *
+ * Exists because priceToCents returns `undefined` for junk, and the submit payload
+ * cannot tell that apart from a deliberately blank field: 'abc' or '-5' was sent as
+ * "no price", silently discarding the typo. The ceiling keeps an over-long number a
+ * form error rather than a failed INSERT on a pg `integer` column.
+ *
+ * Exported for unit testing — and so the rule lives in one place instead of being
+ * restated inside the hook's closure.
+ */
+export function ticketPriceError(value: string): string | undefined {
+  const trimmed = value.trim();
+  if (!trimmed) return undefined;
+  const parsed = Number(trimmed);
+  if (!Number.isFinite(parsed) || parsed < 0) return 'Enter a valid price, or leave it blank';
+  if (Math.round(parsed * 100) > TICKET_PRICE_MAX_CENTS) return 'That price is too high';
+  return undefined;
 }
 
 /**
@@ -307,6 +331,8 @@ export function useEventForm(options?: UseEventFormOptions) {
           // Surfaced here (not just in the final schema) so the error renders
           // live under End Time on step 2 and blocks the step's Continue gate.
           return endDateTimeError(dateStart, startTime, dateEnd, endTime);
+        case 'ticketPrice':
+          return ticketPriceError(ticketPrice);
         case 'lat':
           // Map and feed are coordinate-driven, so an event needs a real pin.
           // A free-text address alone is not enough — the user must drop a pin
@@ -332,6 +358,7 @@ export function useEventForm(options?: UseEventFormOptions) {
       lng,
       venueId,
       coverImageUri,
+      ticketPrice,
     ]
   );
 
@@ -411,10 +438,12 @@ export function useEventForm(options?: UseEventFormOptions) {
     [validateFields]
   );
 
-  const validateStep3 = useCallback((): boolean => {
-    // All Step 3 fields are optional — always valid.
-    return true;
-  }, []);
+  // Every step 3 field is optional, but an entered price still has to be a
+  // number we can convert — see fieldError('ticketPrice').
+  const validateStep3 = useCallback(
+    (): boolean => validateFields(['ticketPrice']),
+    [validateFields]
+  );
 
   const validateCurrentStep = useCallback((): boolean => {
     switch (currentStep) {
