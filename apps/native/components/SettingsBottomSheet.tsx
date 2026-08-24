@@ -7,9 +7,12 @@ import {
 } from '@gorhom/bottom-sheet';
 import { useRouter } from 'expo-router';
 import { forwardRef, useCallback, useEffect, useState } from 'react';
-import { BackHandler, Pressable, Text, View } from 'react-native';
+import { ActivityIndicator, BackHandler, Pressable, Text, View } from 'react-native';
 
 import { DeleteAccountButton } from './DeleteAccountButton';
+
+import { useBillingPortal } from '@/hooks/use-billing-portal';
+import { useVenueSubscription } from '@/hooks/use-venue-subscription';
 
 interface SettingsBottomSheetProps {
   onChangePassword: () => void;
@@ -20,6 +23,8 @@ export const SettingsBottomSheet = forwardRef<BottomSheetModal, SettingsBottomSh
   ({ onChangePassword, onSignOut }, ref) => {
     const router = useRouter();
     const [isOpen, setIsOpen] = useState(false);
+    const subscription = useVenueSubscription();
+    const portal = useBillingPortal();
 
     const handleClose = useCallback(() => {
       if (ref && 'current' in ref) {
@@ -71,6 +76,48 @@ export const SettingsBottomSheet = forwardRef<BottomSheetModal, SettingsBottomSh
             </Pressable>
             <Text className="text-xl font-bold text-white font-urbanist">Settings</Text>
           </View>
+
+          {/* Manage Subscription — venues with billing only.
+              Cancel, switch plan, update the card and invoices all live on Stripe's
+              hosted Portal (D-45); the app may not link to it (D-16), so tapping emails
+              a fresh session link. `requestBillingPortal` shipped with M8-T4 and nothing
+              ever called it, so a subscribed venue had no way to cancel or even see which
+              plan they were on. Subtitle answers that without showing a price. */}
+          {subscription.canManageBilling ? (
+            <>
+              <Pressable
+                onPress={portal.request}
+                disabled={portal.disabled}
+                accessibilityRole="button"
+                accessibilityState={{ disabled: portal.disabled }}
+                className="flex-row items-center justify-between py-3 active:opacity-70"
+              >
+                <View className="flex-row items-center gap-2 shrink">
+                  <View className="w-8 h-8 rounded-full bg-[#C8FF2F] items-center justify-center">
+                    <Ionicons name="card-outline" size={16} color="#080808" />
+                  </View>
+                  <View className="shrink">
+                    <Text className="text-base text-white font-urbanist">Manage Subscription</Text>
+                    <Text className="text-xs text-[#8D8D8D] font-urbanist">
+                      {subscription.planSummary}
+                    </Text>
+                  </View>
+                </View>
+                {portal.isPending ? (
+                  <ActivityIndicator size="small" color="#C8FF2F" />
+                ) : portal.remaining > 0 ? (
+                  <Text className="text-xs font-bold text-[#8D8D8D] font-urbanist">
+                    {portal.remaining}s
+                  </Text>
+                ) : (
+                  <Ionicons name="chevron-forward" size={16} color="#8D8D8D" />
+                )}
+              </Pressable>
+
+              {/* Divider */}
+              <View className="h-px bg-[rgba(141,141,141,0.3)] my-1" />
+            </>
+          ) : null}
 
           {/* Change Password */}
           <Pressable

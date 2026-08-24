@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { z } from 'zod';
 
 import { db } from '@CeolX/db';
@@ -87,6 +87,17 @@ export const usersRouter = router({
       contactEmail: string | null;
       subscriptionStatus: string;
       trialEndsAt: string | null;
+      plan: string | null;
+      currentPeriodEnd: string | null;
+      cancelAtPeriodEnd: boolean;
+      /**
+       * Whether the billing Portal can be requested at all.
+       *
+       * Derived from the SAME condition `requestBillingPortal` guards on — the presence
+       * of a Stripe customer — so the settings row appears exactly when the request will
+       * succeed, and never invites a tap into a guaranteed PRECONDITION_FAILED.
+       */
+      hasBilling: boolean;
       /**
        * Resolved by the server, never derived on the client (M8 V-01/V-14).
        *
@@ -159,6 +170,22 @@ export const usersRouter = router({
           // Surfaced so the venue can see when the first charge lands. The trial
           // runs six months, so without this the date exists only in an email.
           trialEndsAt: venueSubscriptions.trialEndsAt,
+          // What the venue is actually paying for. Without these the app could not
+          // answer "which plan am I on and when does it renew" at all — the columns
+          // existed but never left the server, so a paying subscriber saw nothing.
+          //
+          // The plan interval and the renewal date are safe to show; the AMOUNT is not
+          // (D-16 — no price anywhere in the app), which is why unit_amount is absent.
+          plan: venueSubscriptions.plan,
+          currentPeriodEnd: venueSubscriptions.currentPeriodEnd,
+          // Derived in SQL so the Stripe customer id never leaves the database. It is a
+          // Stripe-side identifier with no use in the app — the Portal link is minted
+          // server-side (D-16, D-45) — and selecting it would put it on the wire via the
+          // `...profile` spread below.
+          hasBilling: sql<boolean>`${venueSubscriptions.stripeCustomerId} is not null`,
+          // Already cancelled but still inside the paid period (D-29). Distinct from
+          // `cancelled`, which is after it has elapsed.
+          cancelAtPeriodEnd: venueSubscriptions.cancelAtPeriodEnd,
         })
         .from(venueProfiles)
         .leftJoin(venueSubscriptions, eq(venueSubscriptions.venueId, venueProfiles.id))
@@ -186,6 +213,11 @@ export const usersRouter = router({
           lng: profile.lng ? Number(profile.lng) : null,
           // Serialised for the wire — the declared type is a string.
           trialEndsAt: profile.trialEndsAt?.toISOString() ?? null,
+          currentPeriodEnd: profile.currentPeriodEnd?.toISOString() ?? null,
+          // LEFT JOIN: null for a venue with no billing row at all, which is every
+          // never-subscribed and every seeded venue.
+          plan: profile.plan ?? null,
+          cancelAtPeriodEnd: profile.cancelAtPeriodEnd ?? false,
           followerCount,
           followingCount,
           socialLinks: socialLinksRecord,

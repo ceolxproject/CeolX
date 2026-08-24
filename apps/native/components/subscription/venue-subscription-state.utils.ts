@@ -76,6 +76,12 @@ export function venueStateFor({
   // Known gap: such a venue is hidden and told nothing. The proper surface is an
   // "under review, contact us" state, which is deferred with the rest of the chargeback
   // handling (D-62). Silence is the lesser wrong; a control that errors is worse.
+  //
+  // For the ordinary paying subscriber — by far the commoner reading of `active` — 'none'
+  // is now deliberate rather than an omission. Their plan and renewal date live on the
+  // **Manage Subscription** row in Settings (`planSummaryFor`), which keeps a healthy
+  // profile free of billing prose. QA reported the earlier state as "I cannot see my
+  // subscribed plan", and that is what the Settings row answers.
   if (status === 'active') return 'none' as const;
 
   // Two different truths, so two different states.
@@ -172,4 +178,67 @@ export function asVenueStatus(
 /** True when the venue's billing is live enough that no activation prompt applies. */
 export function isActivated(status: VenueSubscriptionStatusValue | null | undefined): boolean {
   return !!status && hasLiveBilling(status);
+}
+
+/**
+ * One line answering "which plan am I on, and what happens next".
+ *
+ * Deliberately carries **no amount**. D-16 forbids any price in the app, so the interval
+ * and the date are the most that can be said — which is still the whole question a venue
+ * was asking, because before this nothing about their plan was visible anywhere.
+ *
+ * `cancelAtPeriodEnd` is called out separately from `cancelled`: the first is still a
+ * paying, fully visible venue who has chosen to stop at the period end (D-29), and
+ * showing it as "cancelled" would be wrong while they still have access.
+ */
+export function planSummaryFor({
+  status,
+  plan,
+  trialEndsAt,
+  currentPeriodEnd,
+  cancelAtPeriodEnd,
+}: {
+  status: VenueSubscriptionStatusValue | null | undefined;
+  plan: string | null | undefined;
+  trialEndsAt: string | null | undefined;
+  currentPeriodEnd: string | null | undefined;
+  cancelAtPeriodEnd: boolean;
+}): string {
+  const interval = plan === 'annual' ? 'Annual' : plan === 'monthly' ? 'Monthly' : null;
+  const trialEnd = formatTrialEnd(trialEndsAt);
+  const periodEnd = formatTrialEnd(currentPeriodEnd);
+
+  if (status === 'trialing') {
+    // The trial end IS the first charge date, so it is the useful date here.
+    return trialEnd ? `Free trial until ${trialEnd}` : 'Free trial';
+  }
+
+  if (cancelAtPeriodEnd) {
+    return periodEnd ? `Cancels on ${periodEnd}` : 'Cancels at the end of this period';
+  }
+
+  if (status === 'past_due') return 'Payment failed — update your card';
+
+  if (status === 'active') {
+    if (interval && periodEnd) return `${interval} · renews ${periodEnd}`;
+    if (interval) return interval;
+    return 'Active';
+  }
+
+  // `cancelled` past its period end, or `inactive`. Reachable here only via the
+  // never-cleared Stripe customer id, which is what keeps the Portal (and invoice
+  // history) available to a venue who has stopped paying.
+  return 'No active subscription';
+}
+
+/**
+ * Whether the settings sheet should offer the billing Portal at all.
+ *
+ * Keyed on having a Stripe customer, not on being currently paid: a lapsed venue still
+ * needs their invoices, and a cancelling one still needs to be able to resubscribe. The
+ * server refuses with PRECONDITION_FAILED when no customer exists, so hiding the row in
+ * that case is what stops the venue tapping into a guaranteed error.
+ */
+export function canManageBilling(hasStripeCustomer: boolean): boolean {
+  return hasStripeCustomer;
 }

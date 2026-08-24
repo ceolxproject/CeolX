@@ -1,7 +1,9 @@
 import {
   ACTIVATION_POLL_MS,
   asVenueStatus,
+  canManageBilling,
   isActivated,
+  planSummaryFor,
   venueStateFor,
 } from '@/components/subscription/venue-subscription-state.utils';
 import { useMe } from '@/hooks/use-me';
@@ -77,5 +79,17 @@ export function useVenueSubscription({ pollUntilActivated = false } = {}) {
      * activated.
      */
     activated: isActivated(status),
+    /**
+     * Whether the settings sheet offers the billing Portal, and the one line describing
+     * the plan. Both live here so the sheet renders no billing logic of its own.
+     */
+    canManageBilling: canManageBilling(me?.venueProfile?.hasBilling ?? false),
+    planSummary: planSummaryFor({
+      status,
+      plan: me?.venueProfile?.plan,
+      trialEndsAt: me?.venueProfile?.trialEndsAt,
+      currentPeriodEnd: me?.venueProfile?.currentPeriodEnd,
+      cancelAtPeriodEnd: me?.venueProfile?.cancelAtPeriodEnd ?? false,
+    }),
   };
 }

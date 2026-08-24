@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 
 import {
   activationPanelFor,
+  canManageBilling,
+  planSummaryFor,
   asVenueStatus,
   formatTrialEnd,
   isActivated,
@@ -173,5 +175,98 @@ describe('asVenueStatus', () => {
 
   it('passes a real status through untouched', () => {
     expect(asVenueStatus('trialing')).toBe('trialing');
+  });
+});
+
+/**
+ * The one line in Settings answering "which plan am I on, and what happens next".
+ *
+ * Before this existed a paying subscriber saw nothing at all about their subscription —
+ * `venueStateFor` collapses `active` to 'none', and the plan columns never left the
+ * server. QA reported it as "I cannot see my subscribed plan".
+ *
+ * Every case asserts NO amount appears: D-16 forbids any price in the app, and this
+ * string is the most likely place for one to creep in later.
+ */
+describe('planSummaryFor', () => {
+  const base = {
+    plan: 'monthly' as string | null,
+    trialEndsAt: null as string | null,
+    currentPeriodEnd: null as string | null,
+    cancelAtPeriodEnd: false,
+  };
+
+  it('shows the first-charge date while trialing', () => {
+    expect(
+      planSummaryFor({ ...base, status: 'trialing', trialEndsAt: '2027-02-17T00:00:00.000Z' })
+    ).toBe('Free trial until 17 February 2027');
+  });
+
+  it('shows interval and renewal date when active', () => {
+    expect(
+      planSummaryFor({ ...base, status: 'active', currentPeriodEnd: '2027-03-17T00:00:00.000Z' })
+    ).toBe('Monthly · renews 17 March 2027');
+    expect(
+      planSummaryFor({
+        ...base,
+        status: 'active',
+        plan: 'annual',
+        currentPeriodEnd: '2027-03-17T00:00:00.000Z',
+      })
+    ).toBe('Annual · renews 17 March 2027');
+  });
+
+  it('says "cancels on" rather than "cancelled" while access remains', () => {
+    // D-29: a venue who cancelled mid-period is still paying and still fully visible.
+    // Calling that "cancelled" would be wrong while they still have access.
+    expect(
+      planSummaryFor({
+        ...base,
+        status: 'active',
+        cancelAtPeriodEnd: true,
+        currentPeriodEnd: '2027-03-17T00:00:00.000Z',
+      })
+    ).toBe('Cancels on 17 March 2027');
+  });
+
+  it('names the problem when past due', () => {
+    expect(planSummaryFor({ ...base, status: 'past_due' })).toBe(
+      'Payment failed — update your card'
+    );
+  });
+
+  it('degrades without dates rather than printing "Invalid Date"', () => {
+    // Every seeded venue has no billing row, so null dates are the normal case.
+    expect(planSummaryFor({ ...base, status: 'trialing' })).toBe('Free trial');
+    expect(planSummaryFor({ ...base, status: 'active', plan: null })).toBe('Active');
+    expect(planSummaryFor({ ...base, status: 'inactive', plan: null })).toBe(
+      'No active subscription'
+    );
+  });
+
+  it('never contains a price', () => {
+    const all = (['trialing', 'active', 'past_due', 'cancelled', 'inactive'] as const).flatMap(
+      (status) => [
+        planSummaryFor({ ...base, status, currentPeriodEnd: '2027-03-17T00:00:00.000Z' }),
+        planSummaryFor({ ...base, status, cancelAtPeriodEnd: true }),
+      ]
+    );
+    for (const line of all) {
+      expect(line).not.toMatch(/[€$£]|\d+\.\d{2}|19\.99|199/);
+    }
+  });
+});
+
+describe('canManageBilling', () => {
+  it('offers the Portal whenever a Stripe customer exists, paid or not', () => {
+    // A lapsed venue still needs their invoices, and a returning one still needs to
+    // resubscribe — so this keys on having a customer, not on being currently active.
+    expect(canManageBilling(true)).toBe(true);
+  });
+
+  it('hides the row with no customer, because the server would refuse it', () => {
+    // requestBillingPortal throws PRECONDITION_FAILED with no stripeCustomerId. Showing
+    // the row anyway would invite a tap into a guaranteed error.
+    expect(canManageBilling(false)).toBe(false);
   });
 });
