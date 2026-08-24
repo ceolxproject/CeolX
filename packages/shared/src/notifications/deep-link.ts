@@ -12,6 +12,21 @@
 /** Path segment of the HTTPS redirect bridge route (mounted at `/{REDIRECT_BRIDGE_PATH}`). */
 export const REDIRECT_BRIDGE_PATH = 'r';
 
+/**
+ * Where a venue is sent back to from anything billing-related.
+ *
+ * Used by the "Manage subscription" CTA in the trial-ending (D-30) and
+ * payment-confirmation emails, and as the Stripe Customer Portal's `return_url` — the
+ * "← Return to CeolX" link on that page.
+ *
+ * A named constant rather than three `/r?to=/profile` literals, because the literals
+ * bypassed the allowlist coupling test below: that test walks
+ * `NOTIFICATION_TRIGGERS.routeTemplate`, and these URLs are built by hand outside the
+ * trigger matrix. All three rendered "This link is no longer valid or has expired" —
+ * wording that invites the venue to request a fresh link and reach the same page.
+ */
+export const VENUE_BILLING_RETURN_ROUTE = '/profile';
+
 // Routes a notification CTA may legitimately deep-link to. Accept both the
 // fully-qualified Expo Router path and the bare form the app remaps. Extend
 // this list as more notification emails gain CTAs (e.g. event detail).
@@ -19,6 +34,11 @@ const ALLOWED_ROUTE_PATTERNS: readonly RegExp[] = [
   /^\/(?:\(app\)\/\(tabs\)\/)?bookings\/[A-Za-z0-9_-]+$/,
   // Welcome email CTA — the Discover home feed (ONB-01).
   /^\/(?:\(app\)\/\(tabs\)\/)?discover$/,
+  // Billing CTAs: the "Manage subscription" link in the trial-ending (D-30) and
+  // payment-confirmation emails, and the Stripe Portal's own "Return to CeolX".
+  // Omitting it made all three render "This link is no longer valid or has expired" —
+  // wording that invites the venue to request a fresh link and get the same page.
+  /^\/(?:\(app\)\/\(tabs\)\/)?profile$/,
 ];
 
 /** True when `route` is a known, safe in-app destination for an email CTA. */

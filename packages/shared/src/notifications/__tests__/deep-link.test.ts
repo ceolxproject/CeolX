@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import { buildAppRedirectUrl, isAllowedDeepLinkRoute } from '../deep-link.js';
+import {
+  VENUE_BILLING_RETURN_ROUTE,
+  buildAppRedirectUrl,
+  isAllowedDeepLinkRoute,
+} from '../deep-link.js';
 import { NOTIFICATION_TRIGGERS, NotificationTrigger } from '../triggers.js';
 
 describe('isAllowedDeepLinkRoute', () => {
@@ -15,6 +19,18 @@ describe('isAllowedDeepLinkRoute', () => {
   it('allows the Discover home feed (welcome email CTA), both forms', () => {
     expect(isAllowedDeepLinkRoute('/(app)/(tabs)/discover')).toBe(true);
     expect(isAllowedDeepLinkRoute('/discover')).toBe(true);
+  });
+
+  it('allows the venue billing return route, both forms', () => {
+    expect(isAllowedDeepLinkRoute('/(app)/(tabs)/profile')).toBe(true);
+    expect(isAllowedDeepLinkRoute('/profile')).toBe(true);
+  });
+
+  it('allows the route the billing CTAs actually send', () => {
+    // The pin. The suite below walks NOTIFICATION_TRIGGERS, and the billing URLs are
+    // built outside the trigger matrix — which is how all three shipped pointing at a
+    // route the bridge rejected with "This link is no longer valid or has expired".
+    expect(isAllowedDeepLinkRoute(VENUE_BILLING_RETURN_ROUTE)).toBe(true);
   });
 
   it('rejects unknown routes and junk', () => {
