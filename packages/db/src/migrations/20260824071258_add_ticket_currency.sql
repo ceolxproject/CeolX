@@ -1,1 +1,0 @@
-ALTER TABLE "events" ADD COLUMN "ticket_currency" varchar(3) DEFAULT 'EUR' NOT NULL;

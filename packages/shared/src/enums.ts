@@ -90,8 +90,6 @@ export const BillingInterval = {
 
 // Ticket price currencies offered on the event form. EUR is the default — CeolX
 // is Irish-first — but events are also listed in the UK and the US.
-// Stored as a plain 3-letter code (varchar), not a pg enum: adding a fourth
-// currency should be a code change, not an ALTER TYPE.
 export const TICKET_CURRENCIES = ['EUR', 'GBP', 'USD'] as const;
 export type TicketCurrency = (typeof TICKET_CURRENCIES)[number];
 export const DEFAULT_TICKET_CURRENCY: TicketCurrency = 'EUR';

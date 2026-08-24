@@ -7,12 +7,14 @@ import {
   BOOKING_DIRECTIONS,
   SUBSCRIPTION_STATUSES,
   BILLING_INTERVALS,
+  TICKET_CURRENCIES,
   PLATFORMS,
   SOCIAL_PLATFORMS,
 } from '@CeolX/shared';
 
 export const userRoleEnum = pgEnum('user_role', USER_ROLES);
 export const eventStatusEnum = pgEnum('event_status', EVENT_STATUSES);
+export const ticketCurrencyEnum = pgEnum('ticket_currency', TICKET_CURRENCIES);
 export const bookingStatusEnum = pgEnum('booking_status', BOOKING_STATUSES);
 export const bookingDirectionEnum = pgEnum('booking_direction', BOOKING_DIRECTIONS);
 export const subscriptionStatusEnum = pgEnum('subscription_status', SUBSCRIPTION_STATUSES);
