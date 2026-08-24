@@ -131,9 +131,17 @@ export const AnalyticsEvent = {
   // Creation
   EVENT_CREATED: 'event_created',
   ARTIST_INVITE_SENT: 'artist_invite_sent',
+  POST_CREATED: 'post_created',
   // Engagement
   POST_LIKED: 'post_liked',
   CONTENT_SHARED: 'content_shared',
+  EVENT_SAVED: 'event_saved',
+  ADD_TO_CALENDAR: 'add_to_calendar',
+  PROFILE_FOLLOWED: 'profile_followed',
+  TICKET_LINK_CLICKED: 'ticket_link_clicked',
+  NOTIFICATION_OPENED: 'notification_opened',
+  // Friction
+  GUEST_GATE_HIT: 'guest_gate_hit',
   // Booking
   PERFORMANCE_REQUEST_SENT: 'performance_request_sent',
   BOOKING_RESPONDED: 'booking_responded',
@@ -200,12 +208,43 @@ export function resetAnalytics(): void {
   safely('reset', () => posthog?.reset());
 }
 
+// ── Search terms ─────────────────────────────────────────────────────
+
+const SEARCH_TERM_MAX = 80;
+
+/**
+ * Search terms ARE captured (decision 06/08/2026, superseding the earlier rule
+ * that only `has_results` could leave the device). "What are people searching
+ * for" is the question the empty-result flag cannot answer: knowing 40% of
+ * searches fail is useless without knowing what they were for.
+ *
+ * Normalised first — lowercased, whitespace-collapsed, length-capped — so the
+ * property aggregates into a term rather than storing a verbatim transcript of
+ * someone's typing. This is the county / artist / category search box, not a
+ * free-text field about the user.
+ */
+export function normaliseSearchTerm(term: string): string {
+  return term.trim().toLowerCase().replace(/\s+/g, ' ').slice(0, SEARCH_TERM_MAX);
+}
+
 // ── Screen tracking ──────────────────────────────────────────────────
 
 // Path segments that are record ids rather than route names: uuid, cuid/nanoid-ish
 // (long opaque alphanumeric), or plain numeric.
 const ID_SEGMENT =
   /^(?:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|[0-9]+|[A-Za-z0-9_-]{16,})$/;
+
+// Segments whose child is always a record identifier, however short it looks.
+// The regex above only catches opaque ids, so a username slug (`/u/nxnw`) or a
+// seeded id (`/artist/seed_artist`) sailed through it and became its own screen
+// row — a personal identifier in analytics, which the no-PII rule forbids.
+// Each of these has only a dynamic child in app/(app)/ — `artist/[artistId]`,
+// `u/[username]`, and so on — so anything under them is a record, never a route.
+const ID_PARENT = new Set(['u', 'artist', 'venue', 'event', 'events', 'post', 'bookings']);
+
+// …except these two, the only static children under an ID_PARENT
+// (`events/create.tsx` and `events/edit/`), which must survive as themselves.
+const STATIC_CHILD = new Set(['create', 'edit']);
 
 /**
  * Collapse record ids out of a pathname so PostHog's screen list stays readable
@@ -215,10 +254,15 @@ const ID_SEGMENT =
  * screen report becomes thousands of one-visit rows instead of one funnel step.
  */
 export function collapseRoute(pathname: string): string {
+  const segments = pathname.split('/');
   return (
-    pathname
-      .split('/')
-      .map((segment) => (ID_SEGMENT.test(segment) ? '[id]' : segment))
+    segments
+      .map((segment, i) => {
+        if (ID_SEGMENT.test(segment)) return '[id]';
+        const parent = segments[i - 1];
+        if (parent && ID_PARENT.has(parent) && !STATIC_CHILD.has(segment)) return '[id]';
+        return segment;
+      })
       .join('/') || '/'
   );
 }

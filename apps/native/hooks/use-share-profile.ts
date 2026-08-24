@@ -15,6 +15,9 @@ export function useShareProfile() {
     try {
       await shareLink(
         'profile',
+        // No id — the caller only has the username, which is a personal
+        // identifier and must not become an analytics property.
+        null,
         url,
         `Check out ${displayName} on CeolX`,
         'Check out this profile on CeolX'

@@ -67,10 +67,11 @@ describe('shareLink analytics', () => {
   it('records the outcome and target on ios', async () => {
     shareMock.mockResolvedValue({ action: 'sharedAction', activityType: 'com.apple.UIKit.copy' });
 
-    await shareLink('post', URL, 'caption', TITLE);
+    await shareLink('post', 'post-1', URL, 'caption', TITLE);
 
     expect(trackMock).toHaveBeenCalledWith('content_shared', {
       type: 'post',
+      content_id: 'post-1',
       completed: true,
       target: 'com.apple.UIKit.copy',
     });
@@ -79,10 +80,11 @@ describe('shareLink analytics', () => {
   it('records a dismissal on ios', async () => {
     shareMock.mockResolvedValue({ action: 'dismissedAction' });
 
-    await shareLink('event', URL, 'caption', TITLE);
+    await shareLink('event', 'event-1', URL, 'caption', TITLE);
 
     expect(trackMock).toHaveBeenCalledWith('content_shared', {
       type: 'event',
+      content_id: 'event-1',
       completed: false,
       target: null,
     });
@@ -97,19 +99,34 @@ describe('shareLink analytics', () => {
     platform.OS = 'android';
     shareMock.mockResolvedValue({ action: 'sharedAction' });
 
-    await shareLink('profile', URL, 'caption', TITLE);
+    await shareLink('profile', null, URL, 'caption', TITLE);
 
     expect(trackMock).toHaveBeenCalledWith('content_shared', {
       type: 'profile',
+      content_id: null,
       completed: null,
       target: null,
     });
   });
 
+  /**
+   * A username is a personal identifier, so profile shares carry no content_id at
+   * all — the same rule that keeps usernames out of collapsed screen names.
+   */
+  it('never sends an identifier for a profile share', async () => {
+    shareMock.mockResolvedValue({ action: 'sharedAction' });
+
+    await shareLink('profile', null, 'https://ceolx.com/u/nxnw', 'caption', TITLE);
+
+    const properties = trackMock.mock.calls[0]?.[1] as Record<string, unknown>;
+    expect(properties.content_id).toBeNull();
+    expect(JSON.stringify(properties)).not.toContain('nxnw');
+  });
+
   it('does not record anything when the share sheet throws', async () => {
     shareMock.mockRejectedValue(new Error('no sheet'));
 
-    await expect(shareLink('post', URL, 'caption', TITLE)).rejects.toThrow();
+    await expect(shareLink('post', 'post-1', URL, 'caption', TITLE)).rejects.toThrow();
     expect(trackMock).not.toHaveBeenCalled();
   });
 });

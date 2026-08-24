@@ -17,7 +17,7 @@ export function useSharePost() {
   return useCallback(async (postId: string, caption: string) => {
     const url = shareUrlFor(`/post/${postId}`);
     try {
-      await shareLink('post', url, caption, 'Check out this post on CeolX');
+      await shareLink('post', postId, url, caption, 'Check out this post on CeolX');
     } catch {
       appToast.error('Unable to share', 'Please try again.');
     }

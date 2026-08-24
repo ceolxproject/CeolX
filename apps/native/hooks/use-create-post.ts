@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import type { CreatePostInput } from '@CeolX/shared/validators';
 
+import { AnalyticsEvent, track } from '@/lib/analytics';
 import { trpc } from '@/utils/trpc';
 
 export function useCreatePost() {
@@ -10,7 +11,10 @@ export function useCreatePost() {
 
   return useMutation({
     ...mutationOptions,
-    onSuccess: async () => {
+    onSuccess: async (_data, variables) => {
+      // media_type carries the enum, not the URL — which kind of post people
+      // actually make is the question; the caption never leaves the device.
+      track(AnalyticsEvent.POST_CREATED, { media_type: variables.mediaType });
       // Invalidate any cached posts queries: my posts, user posts, feed.
       await queryClient.invalidateQueries({ queryKey: [['posts']] });
     },

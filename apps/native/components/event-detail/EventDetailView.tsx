@@ -29,6 +29,7 @@ import { useGpsRegion } from '@/hooks/use-gps-region';
 import { useRequestToPerform } from '@/hooks/use-request-to-perform';
 import { useSaveHandler } from '@/hooks/use-save-handler';
 import { useShareEvent } from '@/hooks/use-share-event';
+import { AnalyticsEvent, track } from '@/lib/analytics';
 import type { EventDetailData } from '@/types/event-detail';
 
 interface EventDetailViewProps {
@@ -107,6 +108,10 @@ export function EventDetailView({
         location: event.venueAddress ?? `${event.lat},${event.lng}`,
       });
       appToast.success('Added to calendar');
+      // Only on success — a permission denial is a different event (the user
+      // wanted the event and the OS stopped them), and counting it as intent
+      // would inflate the number that matters.
+      track(AnalyticsEvent.ADD_TO_CALENDAR, { event_id: event.id });
       setCalendarAdded(true);
     } catch (err) {
       if (err instanceof Error && err.message === CALENDAR_PERMISSION_DENIED) {

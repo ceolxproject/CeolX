@@ -14,6 +14,13 @@ vi.mock('@/hooks/use-track-ticket-click', () => ({
 }));
 
 vi.mock('expo-web-browser', () => ({ openBrowserAsync }));
+// analytics.ts imports @sentry/react-native, which re-exports the real
+// react-native and fails to parse under vitest. Mocked here so the ticket-click
+// PostHog capture doesn't drag it into a component test.
+vi.mock('@/lib/analytics', () => ({
+  track: vi.fn(),
+  AnalyticsEvent: { TICKET_LINK_CLICKED: 'ticket_link_clicked' },
+}));
 
 vi.mock('@/components/AppToast', () => ({
   appToast: { success: vi.fn(), error: toastError, info: vi.fn(), warning: vi.fn() },

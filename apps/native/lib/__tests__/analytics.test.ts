@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 
 // posthog-react-native pulls in native deps that don't resolve under vitest, and
-// the client is a no-op in tests anyway (no key). Only collapseRoute is under
-// test here — it is the one piece with real branching logic.
+// the client is a no-op in tests anyway (no key). Only the two pure helpers are
+// under test here — they are the pieces with real branching logic.
 vi.mock('posthog-react-native', () => ({ default: vi.fn() }));
 // Same reason: @sentry/react-native re-exports react-native, whose index.js uses
 // Flow's `import typeof` syntax that vite cannot parse. analytics.ts imports Sentry
@@ -37,10 +37,32 @@ describe('collapseRoute', () => {
 
   it('keeps short readable segments that are not ids', () => {
     // Regression guard: an over-eager pattern would eat real route names and
-    // every screen would report as /[id].
-    expect(collapseRoute('/artist/profile')).toBe('/artist/profile');
-    expect(collapseRoute('/venue/edit')).toBe('/venue/edit');
+    // every screen would report as /[id]. These are the real static routes that
+    // sit next to, or under, a dynamic segment.
+    expect(collapseRoute('/create/post')).toBe('/create/post');
+    expect(collapseRoute('/profile/edit')).toBe('/profile/edit');
+    expect(collapseRoute('/profile/followers')).toBe('/profile/followers');
+    expect(collapseRoute('/events/create')).toBe('/events/create');
     expect(collapseRoute('/create')).toBe('/create');
+  });
+
+  /**
+   * The regex alone only catches opaque ids, so short slugs leaked through and
+   * became their own screen rows — `/u/nxnw`, `/artist/seed_artist` were both live
+   * in PostHog. A username is a personal identifier, so this is the no-PII rule,
+   * not just a tidiness one.
+   */
+  it('collapses short slugs under a parent whose child is always a record', () => {
+    expect(collapseRoute('/u/nxnw')).toBe('/u/[id]');
+    expect(collapseRoute('/artist/seed_artist')).toBe('/artist/[id]');
+    expect(collapseRoute('/venue/demo_venue_test')).toBe('/venue/[id]');
+    expect(collapseRoute('/map/event/abc')).toBe('/map/event/[id]');
+  });
+
+  it('still collapses the id under a static child', () => {
+    expect(collapseRoute('/events/edit/0d5f8a1e-4c2b-4f7a-9b3d-1e2f3a4b5c6d')).toBe(
+      '/events/edit/[id]'
+    );
   });
 
   it('never returns an empty string', () => {

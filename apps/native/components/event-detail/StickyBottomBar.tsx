@@ -7,6 +7,7 @@ import { formatTicketPrice } from '@CeolX/shared';
 
 import { appToast } from '@/components/AppToast';
 import { useTrackTicketClick } from '@/hooks/use-track-ticket-click';
+import { AnalyticsEvent, track } from '@/lib/analytics';
 import { normalizeOptionalUrl } from '@/utils/normalize-url';
 
 // Shared label style for both CTAs. 11px (down from 12px) with tighter tracking
@@ -77,7 +78,11 @@ export function StickyBottomBar({
     if (!bookableUrl) return;
     // Fire-and-forget click tracking before opening the external URL.
     // Failures are silent — analytics must not block the user from buying tickets.
+    // Two sinks by design: the mutation increments events.ticket_clicks for the
+    // creator's own analytics screen, and the PostHog event is what makes the tap
+    // joinable to a funnel (discover → detail → ticket) that the counter can't answer.
     trackClick.mutate({ id: eventId });
+    track(AnalyticsEvent.TICKET_LINK_CLICKED, { event_id: eventId });
     try {
       // In-app browser keeps the user inside CeolX during the purchase flow.
       await WebBrowser.openBrowserAsync(bookableUrl);

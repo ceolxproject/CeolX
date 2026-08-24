@@ -22,6 +22,13 @@ vi.mock('expo-router', () => ({ router: { push: routerPushMock, replace: vi.fn()
 vi.mock('@/components/AppToast', () => ({ appToast: { info: vi.fn(), error: vi.fn() } }));
 vi.mock('@/contexts/auth-context', () => ({ useAuth: () => useAuthMock() }));
 vi.mock('@/hooks/use-follow', () => ({ useFollow: () => ({ mutate: mutateMock }) }));
+// use-guest-gate now records guest_gate_hit, and analytics.ts imports
+// @sentry/react-native, which re-exports the real react-native and fails to parse
+// under vitest. Mocked so the gate stays unit-testable.
+vi.mock('@/lib/analytics', () => ({
+  track: vi.fn(),
+  AnalyticsEvent: { GUEST_GATE_HIT: 'guest_gate_hit' },
+}));
 
 import { useProfileFollowHandler } from '../use-profile-follow-handler';
 

@@ -5,6 +5,7 @@ import { Platform } from 'react-native';
 import type { AppRouter } from '@CeolX/api/routers/index';
 import { env } from '@CeolX/env/native';
 
+import { AnalyticsEvent, track } from '@/lib/analytics';
 import { authClient } from '@/lib/auth-client';
 
 const trpcClient = createTRPCClient<AppRouter>({
@@ -39,6 +40,11 @@ export function useFollow() {
         return trpcClient.follows.unfollow.mutate({ followeeId });
       }
       return trpcClient.follows.follow.mutate({ followeeId });
+    },
+    // `followed: false` is an unfollow. Both directions are recorded because the
+    // interesting number is net follow growth, which a follow-only event can't give.
+    onSuccess: (_data, { isFollowing }) => {
+      track(AnalyticsEvent.PROFILE_FOLLOWED, { followed: !isFollowing });
     },
     onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: [['artists', 'byId']] });

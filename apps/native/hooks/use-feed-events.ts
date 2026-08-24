@@ -6,7 +6,7 @@ import { MAP_DEBOUNCE_MS } from '@CeolX/shared';
 
 import { mergePaginatedEvents } from './merge-paginated-events';
 
-import { AnalyticsEvent, track } from '@/lib/analytics';
+import { AnalyticsEvent, normaliseSearchTerm, track } from '@/lib/analytics';
 import { trpc } from '@/utils/trpc';
 
 const FEED_PAGE_SIZE = 20;
@@ -95,9 +95,9 @@ export function useFeedEvents({ lat, lng, enabled = true }: UseFeedEventsOpts) {
 
   // Search is live-as-you-type, so the only sane place to record it is once a
   // settled query has come back — keyed on the trimmed term, not on keystrokes,
-  // which would emit an event per character. The term itself is never sent (it is
-  // user-typed free text); only whether it found anything, which is the actual
-  // question: are people searching for things CeolX does not have?
+  // which would emit an event per character. The normalised term goes with it
+  // (decision 06/08/2026): `has_results` alone says how often search fails but
+  // never what people wanted, which is the question worth answering.
   const settledQuery = searchQuery.trim();
   // Keyed on term + filters so changing a filter still counts as a new search, but
   // paginating the same one does not. See shouldReportSearch above for why.
@@ -115,6 +115,7 @@ export function useFeedEvents({ lat, lng, enabled = true }: UseFeedEventsOpts) {
     if (!report || !data) return;
     reportedSearchRef.current = searchKey;
     track(AnalyticsEvent.SEARCH_PERFORMED, {
+      term: normaliseSearchTerm(settledQuery),
       has_results: data.totalCount > 0,
       filter_type: category ? 'category' : date ? 'date' : 'none',
     });

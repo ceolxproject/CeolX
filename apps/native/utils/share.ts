@@ -54,6 +54,7 @@ export type ShareKind = 'post' | 'event' | 'profile';
  */
 export async function shareLink(
   kind: ShareKind,
+  contentId: string | null,
   url: string,
   caption: string,
   title: string
@@ -64,6 +65,11 @@ export async function shareLink(
 
   track(AnalyticsEvent.CONTENT_SHARED, {
     type: kind,
+    // Which event or post was shared — without it the share count can only ever
+    // be a total, never "the most-shared event", which is the question asked of
+    // it. Null for profiles on purpose: the only handle a caller has there is the
+    // username, and a username is a personal identifier, not a record id.
+    content_id: contentId,
     completed: knowsOutcome ? shared : null,
     target: knowsOutcome && shared ? (result.activityType ?? null) : null,
   });

@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 
 import { appToast } from '@/components/AppToast';
 import { useAuth } from '@/contexts/auth-context';
+import { AnalyticsEvent, track } from '@/lib/analytics';
 
 /**
  * A guest ("Skip sign-in") has no session, so any auth-only action or screen
@@ -18,6 +19,11 @@ export function useGuestGate() {
   const { isAuthenticated } = useAuth();
 
   const promptSignIn = (title = 'Sign in to continue') => {
+    // How often the signup wall blocks a guest mid-action, and on which action.
+    // `prompt` is our own static copy passed by the caller, never user input —
+    // it identifies the gate (follow, followers list, …) without a new argument
+    // at every call site.
+    track(AnalyticsEvent.GUEST_GATE_HIT, { prompt: title });
     appToast.info(title, 'Log in or create an account to continue.');
     router.push('/(auth)/sign-in');
   };

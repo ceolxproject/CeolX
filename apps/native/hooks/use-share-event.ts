@@ -21,6 +21,7 @@ export function useShareEvent() {
     try {
       await shareLink(
         'event',
+        eventId,
         url,
         `Check out ${title} on CeolX\n${dateLabel}`,
         'Check out this event on CeolX'

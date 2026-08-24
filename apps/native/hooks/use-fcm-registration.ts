@@ -5,6 +5,7 @@ import { useEffect, useRef } from 'react';
 import { Platform } from 'react-native';
 
 import { useAuth } from '@/contexts/auth-context';
+import { AnalyticsEvent, collapseRoute, track } from '@/lib/analytics';
 import { requestNotificationPermission } from '@/lib/fcm-permission';
 import { resolveNotificationRoute } from '@/lib/notification-route';
 import { trpc } from '@/utils/trpc';
@@ -43,6 +44,15 @@ Notifications.setNotificationHandler({
 function navigateFromRemoteData(data: unknown): void {
   if (typeof data !== 'object' || data === null) return;
   const route = (data as Record<string, unknown>)[FCM_DATA_ROUTE_KEY];
+  // Every tap path (foreground, background, cold start) funnels through here, so
+  // this is the one place push engagement can be measured. `persona` is the enum
+  // the payload already carries; the route is collapsed rather than sent raw so a
+  // deep link to /u/<username> can't smuggle an identifier into the property.
+  const persona = (data as Record<string, unknown>).persona;
+  track(AnalyticsEvent.NOTIFICATION_OPENED, {
+    persona: typeof persona === 'string' ? persona : null,
+    route: typeof route === 'string' ? collapseRoute(route) : null,
+  });
   if (typeof route === 'string' && route.startsWith('/')) {
     // Normalise to a real screen — legacy/bare server routes would otherwise
     // hit +not-found ("Page Not Found"). Asana 1215279003641211.

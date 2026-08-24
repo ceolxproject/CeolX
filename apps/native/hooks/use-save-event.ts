@@ -12,6 +12,7 @@ import {
   type SaveOptimisticSnapshot,
 } from './save-event-cache';
 
+import { AnalyticsEvent, track } from '@/lib/analytics';
 import { authClient } from '@/lib/auth-client';
 
 // Use a standalone tRPC client for mutations (the proxy from trpc.ts is for queryOptions only)
@@ -60,6 +61,12 @@ export function useSaveEvent() {
     },
     onError: (_error, _variables, snapshot) => {
       if (snapshot) rollbackSaveOptimisticUpdate(queryClient, snapshot);
+    },
+    // Saving is intent without a ticket click — the strongest signal we have for
+    // an event a user cares about but hasn't committed to. Unsaves are recorded
+    // too so the saved-list total can be reconciled.
+    onSuccess: (_data, { saved }) => {
+      track(AnalyticsEvent.EVENT_SAVED, { saved });
     },
     onSettled: () => {
       invalidateSaveQueries(queryClient);
