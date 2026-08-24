@@ -486,3 +486,18 @@ test:
 
 Adaptive Pricing needs no Dashboard action — D-68 disables it per-Session in code, which is
 deliberate, so leaving the account toggle on is harmless.
+
+### Live-mode Portal configuration (D-70)
+
+The Portal configuration is per-mode. Test mode is set; **live mode still starts from Stripe's
+defaults**, which means plan switching is off and — the dangerous one — `trial_update_behavior`
+is `end_trial`, under which a venue switching plan mid-trial silently loses the rest of a
+six-month trial and starts paying.
+
+- [ ] `features[subscription_update][enabled]=true`
+- [ ] `default_allowed_updates=[price]`
+- [ ] `proration_behavior=none` (no refunds — Q5)
+- [ ] `trial_update_behavior=continue_trial` ← **do not skip**
+- [ ] `schedule_at_period_end.conditions=[decreasing_item_amount, shortening_interval]`
+
+`products` needs no setting; Stripe derives the switchable prices from the catalogue.
