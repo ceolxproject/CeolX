@@ -501,3 +501,18 @@ six-month trial and starts paying.
 - [ ] `schedule_at_period_end.conditions=[decreasing_item_amount, shortening_interval]`
 
 `products` needs no setting; Stripe derives the switchable prices from the catalogue.
+
+Set in test mode 24/08/2026 and also needed live — the venue-facing polish on this page:
+
+- [ ] `business_profile[privacy_policy_url]=https://ceolx.com/privacy`
+- [ ] `business_profile[terms_of_service_url]=https://ceolx.com/terms` — without these the
+      footer links are **Stripe's** own terms, not CeolX's, on a page billing an Irish business
+- [ ] `features[customer_update][allowed_updates]=[tax_id, name, address]` (D-61 asked for
+      `tax_id`; `name` and `address` are what make the invoice show the venue's registered
+      company details). `email` is deliberately excluded so the billing address cannot drift
+      away from the CeolX account email
+- [ ] **Branding — Dashboard, not API** (Settings → Branding): icon, logo, brand and accent
+      colour are all unset, which is why the page renders with a placeholder square and
+      Stripe's default blue. This is the largest visible improvement available and the only
+      one that is account-level rather than per-mode, so **verify whether it applies to test
+      and live together before assuming a test-mode change is safe**.
