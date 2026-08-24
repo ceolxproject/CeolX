@@ -498,6 +498,10 @@ six-month trial and starts paying.
 - [ ] `default_allowed_updates=[price]`
 - [ ] `proration_behavior=none` (no refunds — Q5)
 - [ ] `trial_update_behavior=continue_trial` ← **do not skip**
+- [ ] `default_return_url` **stays unset** — setting it makes the Portal render
+      "← Return to CeolX" linking back into the app, which D-71 removed for App Review
+      reasons. It is per-mode, so a live-mode value would reinstate the link even with the
+      session sending none
 - [ ] `schedule_at_period_end.conditions=[decreasing_item_amount, shortening_interval]`
 
 `products` needs no setting; Stripe derives the switchable prices from the catalogue.
