@@ -1,4 +1,4 @@
-import { EventStatus } from '../enums.js';
+import { DEFAULT_TICKET_CURRENCY, EventStatus, type TicketCurrency } from '../enums.js';
 
 /**
  * Statuses an event can hold while it is still a live, interactable target for
@@ -56,4 +56,36 @@ export function truncateText(text: string, maxLength: number): string {
   const lastSpace = text.lastIndexOf(' ', maxLength);
   if (lastSpace === -1) return text.slice(0, maxLength) + '…';
   return text.slice(0, lastSpace) + '…';
+}
+
+const CURRENCY_SYMBOLS: Record<TicketCurrency, string> = {
+  EUR: '\u20ac',
+  GBP: '\u00a3',
+  USD: '$',
+};
+
+/** Symbol for a stored currency code, falling back to EUR for legacy/unknown rows. */
+export function currencySymbol(currency?: string | null): string {
+  return CURRENCY_SYMBOLS[(currency ?? DEFAULT_TICKET_CURRENCY) as TicketCurrency] ?? '\u20ac';
+}
+
+/**
+ * Ticket price for display. Cents in, symbol + amount out, with the currency the
+ * creator picked on the event form — every price surface (event detail, sticky
+ * book button, admin sheet) reads it from here so a GBP event never renders as €.
+ *
+ * Cents are shown only when the price actually has them: a £25.50 ticket must not
+ * read as £26 (what a flat toFixed(0) did — it misquoted the price to the fan),
+ * while a £15 ticket stays £15 rather than the noisier £15.00. Pass `decimals` to
+ * force a fixed width, as the admin sheet does.
+ */
+export function formatTicketPrice(
+  cents: number | null | undefined,
+  currency?: string | null,
+  decimals?: number
+): string {
+  if (cents === null || cents === undefined) return '—';
+  if (cents === 0) return 'Free';
+  const places = decimals ?? (cents % 100 === 0 ? 0 : 2);
+  return `${currencySymbol(currency)}${(cents / 100).toFixed(places)}`;
 }

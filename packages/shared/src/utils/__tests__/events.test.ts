@@ -1,6 +1,11 @@
 import { describe, it, expect } from 'vitest';
 
-import { getEventStatusLabel, getEventStatusColour, formatCategory } from '../events.js';
+import {
+  getEventStatusLabel,
+  getEventStatusColour,
+  formatCategory,
+  formatTicketPrice,
+} from '../events.js';
 
 describe('getEventStatusLabel', () => {
   it('returns human-readable labels', () => {
@@ -27,5 +32,33 @@ describe('formatCategory', () => {
     expect(formatCategory('trad_session')).toBe('Trad Session');
     expect(formatCategory('Traditional')).toBe('Traditional');
     expect(formatCategory('folk_music_event')).toBe('Folk Music Event');
+  });
+});
+
+describe('formatTicketPrice', () => {
+  it('renders the picked currency symbol', () => {
+    expect(formatTicketPrice(1500, 'EUR')).toBe('\u20ac15');
+    expect(formatTicketPrice(1500, 'GBP')).toBe('\u00a315');
+    expect(formatTicketPrice(1500, 'USD')).toBe('$15');
+    expect(formatTicketPrice(1550, 'GBP', 2)).toBe('\u00a315.50');
+  });
+
+  it('shows cents only when the price has them', () => {
+    // A 25.50 ticket must not read as 26 — that misquotes the price to the fan.
+    expect(formatTicketPrice(2550, 'GBP')).toBe('\u00a325.50');
+    expect(formatTicketPrice(1999, 'EUR')).toBe('\u20ac19.99');
+    expect(formatTicketPrice(1500, 'GBP')).toBe('\u00a315');
+    // An explicit width still wins (admin sheet always shows cents).
+    expect(formatTicketPrice(1500, 'GBP', 2)).toBe('\u00a315.00');
+  });
+
+  it('falls back to euro for legacy rows with no currency', () => {
+    expect(formatTicketPrice(1500, null)).toBe('\u20ac15');
+    expect(formatTicketPrice(1500, 'XYZ')).toBe('\u20ac15');
+  });
+
+  it('keeps the free / unknown cases', () => {
+    expect(formatTicketPrice(0, 'USD')).toBe('Free');
+    expect(formatTicketPrice(null, 'USD')).toBe('\u2014');
   });
 });

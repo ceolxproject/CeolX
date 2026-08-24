@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { EVENT_CATEGORIES } from '../enums.js';
+import { EVENT_CATEGORIES, TICKET_CURRENCIES } from '../enums.js';
 import { isValidCoordinate } from '../utils/geo.js';
 
 // Field length limits (characters). Exported so the mobile UI caps inputs with
@@ -40,6 +40,9 @@ const eventBaseShape = {
   // strip an undefined and reject a null, silently dropping the clear.
   ticketLink: z.string().url().optional().nullable(),
   ticketPrice: z.number().int().min(0).optional().nullable(),
+  // Currency of ticketPrice. Not nullable — the column is NOT NULL DEFAULT 'EUR',
+  // so an absent key means "leave as-is", never "clear it".
+  ticketCurrency: z.enum(TICKET_CURRENCIES).optional(),
   collectionId: z.string().uuid().optional(),
   // Confirmed collaborators are no longer set at create/edit time. A venue
   // performer becomes confirmed only by accepting a pending invite (see
