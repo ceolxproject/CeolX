@@ -4,16 +4,34 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 const VENUE_USER_ID = 'venue-user-1';
 const VENUE_ID = 'venue-profile-1';
 
-const { mockSelectLimit, mockDb, mockCreateSession, envState } = vi.hoisted(() => {
+const {
+  mockSelectLimit,
+  mockUpdateSet,
+  mockUpdateReturning,
+  mockDb,
+  mockCreateSession,
+  mockRetrieveSession,
+  mockExpireSession,
+  envState,
+} = vi.hoisted(() => {
   const mockSelectLimit = vi.fn();
+  const mockUpdateReturning = vi.fn();
+  const mockUpdateSet = vi.fn(() => ({
+    where: vi.fn(() => ({ returning: mockUpdateReturning })),
+  }));
   return {
     mockSelectLimit,
+    mockUpdateSet,
+    mockUpdateReturning,
     mockDb: {
       select: vi.fn(() => ({
         from: vi.fn(() => ({ where: vi.fn(() => ({ limit: mockSelectLimit })) })),
       })),
+      update: vi.fn(() => ({ set: mockUpdateSet })),
     } as Record<string, unknown>,
     mockCreateSession: vi.fn(),
+    mockRetrieveSession: vi.fn(),
+    mockExpireSession: vi.fn(),
     envState: {
       BETTER_AUTH_URL: 'https://api.ceolx.com',
       STRIPE_TRIAL_DAYS: 183,
@@ -27,7 +45,11 @@ vi.mock('@CeolX/env/server', () => ({
     return envState;
   },
 }));
-vi.mock('../services/stripe', () => ({ createSubscriptionCheckoutSession: mockCreateSession }));
+vi.mock('../services/stripe', () => ({
+  createSubscriptionCheckoutSession: mockCreateSession,
+  retrieveCheckoutSession: mockRetrieveSession,
+  expireCheckoutSession: mockExpireSession,
+}));
 
 import * as stripeModule from '../routers/stripe';
 import { buildCheckoutSessionForVenue } from '../routers/stripe';
@@ -45,7 +67,9 @@ async function expectCode(promise: Promise<unknown>, code: TRPCError['code']) {
 beforeEach(() => {
   vi.clearAllMocks();
   mockSelectLimit.mockResolvedValue([]);
+  mockUpdateReturning.mockResolvedValue([{ id: 'token-1' }]);
   mockCreateSession.mockResolvedValue({ url: 'https://checkout.stripe.com/x', sessionId: 'cs_1' });
+  mockRetrieveSession.mockResolvedValue(null);
 });
 
 afterEach(() => {
@@ -178,5 +202,135 @@ describe('no tRPC checkout surface (D-16)', () => {
     });
 
     expect(mockCreateSession).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('buildCheckoutSessionForVenue — one payable session per activation token (D-49)', () => {
+  const TOKEN_ID = 'token-1';
+
+  const base = {
+    userId: VENUE_USER_ID,
+    venueId: VENUE_ID,
+    email: 'venue@example.com',
+    interval: 'monthly' as const,
+    activationTokenId: TOKEN_ID,
+  };
+
+  /** Queue the profile row, the subscription row and the token row, in read order. */
+  function withStoredSession(sessionId: string | null) {
+    mockSelectLimit
+      .mockResolvedValueOnce([{ id: VENUE_ID, subscriptionStatus: 'inactive' }])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([{ sessionId }]);
+  }
+
+  it('records the session against the token on a first click', async () => {
+    withStoredSession(null);
+
+    await buildCheckoutSessionForVenue(base);
+
+    expect(mockCreateSession).toHaveBeenCalledTimes(1);
+    expect(mockUpdateSet).toHaveBeenCalledWith({ checkoutSessionId: 'cs_1' });
+  });
+
+  it('returns the same session for a repeat click on the same plan', async () => {
+    // A double-tap, an impatient reload and a second device all reach here. Before this
+    // guard each one minted its own Stripe Customer, subscription and six-month trial.
+    withStoredSession('cs_existing');
+    mockRetrieveSession.mockResolvedValueOnce({
+      id: 'cs_existing',
+      url: 'https://checkout.stripe.com/existing',
+      status: 'open',
+      interval: 'monthly',
+    });
+
+    const result = await buildCheckoutSessionForVenue(base);
+
+    expect(result).toEqual({
+      url: 'https://checkout.stripe.com/existing',
+      sessionId: 'cs_existing',
+    });
+    expect(mockCreateSession).not.toHaveBeenCalled();
+    expect(mockExpireSession).not.toHaveBeenCalled();
+  });
+
+  it('closes the abandoned page and opens the new one when the venue switches plan', async () => {
+    // The activation email carries both plans behind one token and D-63 keeps that
+    // choice open, so this is a supported flow — not an abuse to be refused. What must
+    // not survive is the first page staying payable alongside the second.
+    withStoredSession('cs_monthly');
+    mockRetrieveSession.mockResolvedValueOnce({
+      id: 'cs_monthly',
+      url: 'https://checkout.stripe.com/monthly',
+      status: 'open',
+      interval: 'monthly',
+    });
+
+    const result = await buildCheckoutSessionForVenue({ ...base, interval: 'annual' });
+
+    expect(mockExpireSession).toHaveBeenCalledWith('cs_monthly');
+    expect(mockCreateSession).toHaveBeenCalledWith(expect.objectContaining({ interval: 'annual' }));
+    expect(result.sessionId).toBe('cs_1');
+  });
+
+  it('CONFLICTs once the token’s session has been paid, before any webhook arrives', async () => {
+    // This is the window the profile-status guard cannot see: payment has happened but
+    // nothing has written it down yet. Answering CONFLICT keeps the reply the same as it
+    // will be a second later instead of offering a second payment page.
+    withStoredSession('cs_paid');
+    mockRetrieveSession.mockResolvedValueOnce({
+      id: 'cs_paid',
+      url: null,
+      status: 'complete',
+      interval: 'monthly',
+    });
+
+    await expectCode(buildCheckoutSessionForVenue(base), 'CONFLICT');
+    expect(mockCreateSession).not.toHaveBeenCalled();
+  });
+
+  it('mints a fresh session when Stripe no longer knows the stored one', async () => {
+    // A stored id from a rotated key or another account. Stripe cannot see it, so nobody
+    // can pay it, and refusing checkout over it would strand a venue who owes us money.
+    withStoredSession('cs_gone');
+    mockRetrieveSession.mockResolvedValueOnce(null);
+
+    await buildCheckoutSessionForVenue(base);
+
+    expect(mockCreateSession).toHaveBeenCalledTimes(1);
+  });
+
+  it('abandons its own session and defers to the winner when the claim is lost', async () => {
+    // Two requests got past the read together. Exactly one may end up recorded, and the
+    // loser's session must not be left payable — that is the two-subscriptions bug in
+    // miniature, just with a much narrower window.
+    withStoredSession(null);
+    mockUpdateReturning.mockResolvedValueOnce([]);
+    mockSelectLimit.mockResolvedValueOnce([{ sessionId: 'cs_winner' }]);
+    mockRetrieveSession.mockResolvedValueOnce({
+      id: 'cs_winner',
+      url: 'https://checkout.stripe.com/winner',
+      status: 'open',
+      interval: 'monthly',
+    });
+
+    const result = await buildCheckoutSessionForVenue(base);
+
+    expect(mockExpireSession).toHaveBeenCalledWith('cs_1');
+    expect(result.sessionId).toBe('cs_winner');
+  });
+
+  it('reads no token row and claims nothing when there is no token', async () => {
+    // The authenticated path has no token to enforce against. It is unreachable today
+    // (D-16 removed the tRPC surface), so this pins that it stays harmless rather than
+    // reading a row that does not exist.
+    mockSelectLimit
+      .mockResolvedValueOnce([{ id: VENUE_ID, subscriptionStatus: 'inactive' }])
+      .mockResolvedValueOnce([]);
+
+    await buildCheckoutSessionForVenue({ ...base, activationTokenId: undefined });
+
+    expect(mockRetrieveSession).not.toHaveBeenCalled();
+    expect(mockUpdateSet).not.toHaveBeenCalled();
   });
 });

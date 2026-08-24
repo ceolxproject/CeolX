@@ -378,3 +378,67 @@ export async function getNextInvoicePreview(
     return null;
   }
 }
+
+/** A Checkout Session as this flow needs it — enough to decide whether to reuse it. */
+export interface ExistingCheckoutSession {
+  id: string;
+  /** Null once the session is no longer payable; Stripe drops the url on completion. */
+  url: string | null;
+  status: Stripe.Checkout.Session.Status | null;
+  /** Which plan the venue was looking at, read back from the line item's Price. */
+  interval: BillingInterval | null;
+}
+
+/**
+ * Look up a Checkout Session we previously created.
+ *
+ * `line_items` is expanded because the interval is the deciding factor for whether
+ * the session can be reused: the activation email offers both plans behind one token
+ * (D-08, D-63), so a stored session may be for the plan the venue has since changed
+ * their mind about. Reading it back from the Price beats storing the interval a second
+ * time and letting the two disagree.
+ *
+ * Returns null when Stripe has no such session — a stored id from a rotated key or a
+ * different account. The caller then mints a fresh one, which is the safe direction:
+ * a session Stripe cannot see is a session nobody can pay.
+ */
+export async function retrieveCheckoutSession(
+  sessionId: string
+): Promise<ExistingCheckoutSession | null> {
+  const stripe = getStripeClient();
+  try {
+    const session = await stripe.checkout.sessions.retrieve(sessionId, {
+      expand: ['line_items'],
+    });
+    const priceId = session.line_items?.data?.[0]?.price?.id ?? null;
+    return {
+      id: session.id,
+      url: session.url,
+      status: session.status,
+      interval: intervalForPriceId(priceId),
+    };
+  } catch (err) {
+    console.warn('[stripe] could not retrieve checkout session', sessionId, err);
+    return null;
+  }
+}
+
+/**
+ * Close a Checkout Session so it can never be paid.
+ *
+ * Used when a venue returns to their activation email and picks the other plan: the
+ * page they abandoned must stop being payable, or the two links behind one token could
+ * both be completed and produce two subscriptions.
+ *
+ * Failure is logged and swallowed. The caller's next step is minting the session the
+ * venue actually asked for, and blocking that on this cleanup would turn a Stripe
+ * hiccup into a venue who cannot pay at all.
+ */
+export async function expireCheckoutSession(sessionId: string): Promise<void> {
+  const stripe = getStripeClient();
+  try {
+    await stripe.checkout.sessions.expire(sessionId);
+  } catch (err) {
+    console.warn('[stripe] could not expire checkout session', sessionId, err);
+  }
+}
