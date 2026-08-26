@@ -5,6 +5,7 @@ import { db } from '@CeolX/db';
 import { user } from '@CeolX/db/schema/auth';
 import { venueSubscriptions } from '@CeolX/db/schema/subscriptions';
 import { artistProfiles, venueProfiles } from '@CeolX/db/schema/users';
+import { env } from '@CeolX/env/server';
 import { UserRole } from '@CeolX/shared';
 import { updateAccountSchema } from '@CeolX/shared/validators';
 
@@ -91,6 +92,15 @@ export const usersRouter = router({
       currentPeriodEnd: string | null;
       cancelAtPeriodEnd: boolean;
       pendingPlan: string | null;
+      /**
+       * The date the past-due holding block promises, or null when not past due.
+       *
+       * Resolved server-side from `past_due_since` + `VENUE_GRACE_DAYS` rather than
+       * computed in the app: the grace length is a server setting, and a client that
+       * did the arithmetic itself would keep showing the old date after it changed
+       * until the next app release.
+       */
+      hideAt: string | null;
       /**
        * Whether the billing Portal can be requested at all.
        *
@@ -187,6 +197,7 @@ export const usersRouter = router({
           // Already cancelled but still inside the paid period (D-29). Distinct from
           // `cancelled`, which is after it has elapsed.
           cancelAtPeriodEnd: venueSubscriptions.cancelAtPeriodEnd,
+          pastDueSince: venueSubscriptions.pastDueSince,
           // The interval a deferred change will switch to, so Settings can say "changes
           // to monthly on …" instead of implying the current plan simply renews (D-70).
           pendingPlan: venueSubscriptions.pendingPlan,
@@ -223,6 +234,14 @@ export const usersRouter = router({
           plan: profile.plan ?? null,
           cancelAtPeriodEnd: profile.cancelAtPeriodEnd ?? false,
           pendingPlan: profile.pendingPlan ?? null,
+          // Null unless the venue is actually past due — `past_due_since` is cleared on
+          // every other status, so this cannot leave a stale deadline on screen after a
+          // payment recovers.
+          hideAt: profile.pastDueSince
+            ? new Date(
+                profile.pastDueSince.getTime() + env.VENUE_GRACE_DAYS * 86_400_000
+              ).toISOString()
+            : null,
           followerCount,
           followingCount,
           socialLinks: socialLinksRecord,

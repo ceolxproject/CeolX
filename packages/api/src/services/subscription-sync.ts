@@ -5,6 +5,7 @@ import { db } from '@CeolX/db';
 import { events } from '@CeolX/db/schema/events';
 import { venueSubscriptions } from '@CeolX/db/schema/subscriptions';
 import { venueProfiles } from '@CeolX/db/schema/users';
+import { env } from '@CeolX/env/server';
 import {
   BillingInterval,
   EventStatus,
@@ -14,6 +15,11 @@ import {
 } from '@CeolX/shared';
 
 import { markActivationTokenConsumed } from './activation-token';
+import {
+  ServerAnalyticsEvent,
+  captureServerEvent,
+  type ServerAnalyticsEventName,
+} from './analytics';
 import { getStripeClient, intervalForPriceId } from './stripe';
 
 // Subscription state machine (M8-T0 D-22). This module is the ONLY writer of
@@ -116,6 +122,26 @@ export interface LinkedArtistNotice {
   venueName: string;
 }
 
+/**
+ * Which of the three venue-facing billing pushes to send.
+ *
+ * Named by what happened rather than by trigger id so this package stays clear of
+ * the notification registry — the route maps these onto triggers and owns the copy,
+ * the same split as `confirmPayment`.
+ */
+export type VenueBillingNoticeKind = 'payment_failed' | 'hidden' | 'restored';
+
+export interface VenueBillingNotice {
+  venueId: string;
+  kind: VenueBillingNoticeKind;
+  /**
+   * The date the holding block promises, for `payment_failed` only. Null elsewhere,
+   * and null when the grace origin is somehow missing — the route then omits the
+   * date rather than printing "Invalid Date" into a push.
+   */
+  hideAt: Date | null;
+}
+
 export interface SyncHooks {
   /**
    * Tell an artist their linked venue has gone on hold (V-06 / A-20).
@@ -124,6 +150,15 @@ export interface SyncHooks {
    * owns the query — it knows the schema — and the hook owns delivery.
    */
   notifyLinkedArtist?: (notice: LinkedArtistNotice) => Promise<void>;
+  /**
+   * Tell the venue itself that its billing state changed (M8 dunning story §9).
+   *
+   * Three moments, each fired strictly on a transition: the charge failed, the
+   * profile went dark, the profile came back. Nothing fires on a redelivered webhook
+   * or on Stripe's second and third retry, which would otherwise turn one failed
+   * card into a week of identical notifications.
+   */
+  notifyVenue?: (notice: VenueBillingNotice) => Promise<void>;
   /**
    * Confirm a real payment to the venue (D-64).
    *
@@ -181,90 +216,128 @@ export async function syncSubscriptionFromStripe(
   const trialEnd = toDate(subscription.trial_end);
   const item = subscription.items.data[0];
 
-  let previousStatus: VenueSubscriptionStatus | null = null;
+  // Returned from the transaction rather than assigned into outer `let`s.
+  //
+  // The analytics and notification fan-out below both need "what changed", and
+  // re-reading afterwards would race against the write we just made — so it has to
+  // come out of the transaction. Returning it also keeps the types honest: a `let`
+  // assigned only inside a callback narrows to its initialiser at every use site,
+  // so `graceStartedAt` typed as `Date | null` was `never` by the time it was read.
+  const { previousStatus, previousPlan, previousCancelAtPeriodEnd, ownerUserId, graceStartedAt } =
+    await db.transaction(async (tx) => {
+      const [existing] = await tx
+        .select({
+          id: venueSubscriptions.id,
+          trialEndsAt: venueSubscriptions.trialEndsAt,
+          plan: venueSubscriptions.plan,
+          pastDueSince: venueSubscriptions.pastDueSince,
+          cancelAtPeriodEnd: venueSubscriptions.cancelAtPeriodEnd,
+        })
+        .from(venueSubscriptions)
+        .where(eq(venueSubscriptions.venueId, venueId))
+        .limit(1);
 
-  await db.transaction(async (tx) => {
-    const [existing] = await tx
-      .select({
-        id: venueSubscriptions.id,
-        trialEndsAt: venueSubscriptions.trialEndsAt,
-        plan: venueSubscriptions.plan,
-      })
-      .from(venueSubscriptions)
-      .where(eq(venueSubscriptions.venueId, venueId))
-      .limit(1);
+      // trial_ends_at is write-once-ish: it is the record that this account has
+      // consumed its one trial (D-42) and must survive a cancellation. Only ever
+      // move it forward from null, never clear it.
+      const trialEndsAt = existing?.trialEndsAt ?? trialEnd;
 
-    // trial_ends_at is write-once-ish: it is the record that this account has
-    // consumed its one trial (D-42) and must survive a cancellation. Only ever
-    // move it forward from null, never clear it.
-    const trialEndsAt = existing?.trialEndsAt ?? trialEnd;
+      // Origin of the displayed grace window.
+      //
+      // Dunning itself is still Stripe's (D-33, revised 18/08/2026) — nothing here hides
+      // anyone, and there is no grace-evaluation job. This timestamp exists only so the
+      // past-due holding block can name the date the client asked for, which needs a
+      // start and a length, and Stripe exposes neither: `next_payment_attempt` is the
+      // NEXT retry, never the last, so there is nothing to read back.
+      //
+      // Sticky while past_due and cleared on any other status, so a venue who fails,
+      // recovers, and fails again months later gets a fresh window rather than inheriting
+      // the first one's — which would show a date already in the past.
+      const pastDueSince =
+        status === SubscriptionStatus.PAST_DUE ? (existing?.pastDueSince ?? new Date()) : null;
 
-    // No past-due bookkeeping. Dunning is Stripe's (D-33, revised 18/08/2026): its
-    // retry schedule decides how long to chase the charge and cancels when it gives up,
-    // so `past_due` simply means "still collectable" and `cancelled` means "not". We
-    // used to stamp an origin here and hide the venue 7 days later, on our own clock,
-    // which could disagree with whether Stripe was still retrying at all.
+      // No interval from Stripe and none stored is a genuine anomaly: a subscription
+      // whose price has no recurring block. Throwing returns 500, so Stripe retries and
+      // the failure is visible, rather than writing a plausible-looking wrong plan.
+      const resolvedPlan = interval ?? existing?.plan;
+      if (!resolvedPlan) {
+        throw new Error(
+          `[subscription-sync] ${subscription.id} has no billing interval and no stored plan — refusing to guess`
+        );
+      }
 
-    // No interval from Stripe and none stored is a genuine anomaly: a subscription
-    // whose price has no recurring block. Throwing returns 500, so Stripe retries and
-    // the failure is visible, rather than writing a plausible-looking wrong plan.
-    const resolvedPlan = interval ?? existing?.plan;
-    if (!resolvedPlan) {
-      throw new Error(
-        `[subscription-sync] ${subscription.id} has no billing interval and no stored plan — refusing to guess`
-      );
-    }
-
-    const row = {
-      venueId,
-      stripeCustomerId: idOf(subscription.customer),
-      stripeSubscriptionId: subscription.id,
-      // The stored interval, not a hardcoded default. Defaulting to monthly here
-      // relabels an annual subscriber, and `handleSubscriptionTrialEnding` then quotes
-      // them €19.99 seven days before we take €199 — the exact chargeback that
-      // handler's own docblock warns about.
-      plan: resolvedPlan,
-      currentPeriodStart: toDate(item?.current_period_start),
-      currentPeriodEnd: toDate(item?.current_period_end),
-      trialEndsAt,
-      cancelAtPeriodEnd: subscription.cancel_at_period_end ?? false,
-      // Null when nothing is scheduled, which also clears a change the venue reverted.
-      pendingPlan: await resolvePendingPlan(stripe, subscription),
-      updatedAt: new Date(),
-    };
-
-    // Upsert on the unique venue_id rather than branching on the SELECT above.
-    //
-    // The read and the write are separate statements under READ COMMITTED, so two
-    // concurrent first-time events for the same venue both saw no row and both
-    // INSERTed — one of them dying on the unique violation. Stripe fans out
-    // `customer.subscription.created` and `invoice.paid` at essentially the same
-    // instant, and there is deliberately no processed-event table to serialise them,
-    // so this is a live race rather than a theoretical one.
-    //
-    // `existing` is still read above because the write-once trial date and the
-    // grace-window origin depend on the prior row; it is no longer what decides
-    // insert-vs-update.
-    await tx
-      .insert(venueSubscriptions)
-      .values(row)
-      .onConflictDoUpdate({ target: venueSubscriptions.venueId, set: row });
-
-    const [profileBefore] = await tx
-      .select({ subscriptionStatus: venueProfiles.subscriptionStatus })
-      .from(venueProfiles)
-      .where(eq(venueProfiles.id, venueId))
-      .limit(1);
-    previousStatus = profileBefore?.subscriptionStatus ?? null;
-
-    await tx
-      .update(venueProfiles)
-      .set({
-        subscriptionStatus: status,
-        stripeCustomerId: row.stripeCustomerId,
+      const row = {
+        venueId,
+        stripeCustomerId: idOf(subscription.customer),
+        stripeSubscriptionId: subscription.id,
+        // The stored interval, not a hardcoded default. Defaulting to monthly here
+        // relabels an annual subscriber, and `handleSubscriptionTrialEnding` then quotes
+        // them €19.99 seven days before we take €199 — the exact chargeback that
+        // handler's own docblock warns about.
+        plan: resolvedPlan,
+        currentPeriodStart: toDate(item?.current_period_start),
+        currentPeriodEnd: toDate(item?.current_period_end),
+        trialEndsAt,
+        cancelAtPeriodEnd: subscription.cancel_at_period_end ?? false,
+        // Null when nothing is scheduled, which also clears a change the venue reverted.
+        pendingPlan: await resolvePendingPlan(stripe, subscription),
+        pastDueSince,
         updatedAt: new Date(),
-      })
-      .where(eq(venueProfiles.id, venueId));
+      };
+
+      // Upsert on the unique venue_id rather than branching on the SELECT above.
+      //
+      // The read and the write are separate statements under READ COMMITTED, so two
+      // concurrent first-time events for the same venue both saw no row and both
+      // INSERTed — one of them dying on the unique violation. Stripe fans out
+      // `customer.subscription.created` and `invoice.paid` at essentially the same
+      // instant, and there is deliberately no processed-event table to serialise them,
+      // so this is a live race rather than a theoretical one.
+      //
+      // `existing` is still read above because the write-once trial date and the
+      // grace-window origin depend on the prior row; it is no longer what decides
+      // insert-vs-update.
+      await tx
+        .insert(venueSubscriptions)
+        .values(row)
+        .onConflictDoUpdate({ target: venueSubscriptions.venueId, set: row });
+
+      const [profileBefore] = await tx
+        .select({
+          subscriptionStatus: venueProfiles.subscriptionStatus,
+          userId: venueProfiles.userId,
+        })
+        .from(venueProfiles)
+        .where(eq(venueProfiles.id, venueId))
+        .limit(1);
+
+      await tx
+        .update(venueProfiles)
+        .set({
+          subscriptionStatus: status,
+          stripeCustomerId: row.stripeCustomerId,
+          updatedAt: new Date(),
+        })
+        .where(eq(venueProfiles.id, venueId));
+
+      return {
+        previousStatus: profileBefore?.subscriptionStatus ?? null,
+        ownerUserId: profileBefore?.userId ?? null,
+        previousPlan: existing?.plan ?? null,
+        previousCancelAtPeriodEnd: existing?.cancelAtPeriodEnd ?? false,
+        graceStartedAt: pastDueSince,
+      };
+    });
+
+  emitTransitionAnalytics({
+    ownerUserId,
+    venueId,
+    from: previousStatus,
+    to: status,
+    previousPlan,
+    plan: interval ?? previousPlan,
+    previousCancelAtPeriodEnd,
+    cancelAtPeriodEnd: subscription.cancel_at_period_end ?? false,
   });
 
   // A-20 / V-06: when a venue goes on hold, tell the artists whose events name it.
@@ -282,6 +355,38 @@ export async function syncSubscriptionFromStripe(
       // billing state is the important part.
       console.error('[subscription-sync] could not notify linked artists:', err);
     });
+  }
+
+  // The venue's own three pushes. Same transition-only discipline as above, and the
+  // same swallow-and-log: a push that cannot be delivered must never 500 the webhook
+  // and make Stripe redeliver a subscription event we have already applied.
+  if (hooks.notifyVenue && previousStatus !== status) {
+    const kind: VenueBillingNoticeKind | null =
+      status === SubscriptionStatus.PAST_DUE
+        ? 'payment_failed'
+        : wasVisible && nowHidden
+          ? 'hidden'
+          : // Restored covers any return to visibility, not just from `cancelled`:
+            // a venue whose retry succeeds inside the window was never hidden and
+            // gets nothing, because `wasVisible` was already true.
+            !wasVisible && !nowHidden && previousStatus !== null
+            ? 'restored'
+            : null;
+
+    if (kind) {
+      await hooks
+        .notifyVenue({
+          venueId,
+          kind,
+          hideAt:
+            kind === 'payment_failed' && graceStartedAt
+              ? new Date(graceStartedAt.getTime() + env.VENUE_GRACE_DAYS * 86_400_000)
+              : null,
+        })
+        .catch((err: unknown) => {
+          console.error('[subscription-sync] could not notify the venue:', err);
+        });
+    }
   }
 
   // The trial-ending warning is sent by the daily `subscription.trial-ending-sweep`
@@ -338,6 +443,118 @@ export async function cancelSubscriptionForUser(userId: string): Promise<boolean
     const code = (err as { code?: string; statusCode?: number })?.code;
     if (code === 'resource_missing') return true;
     throw err;
+  }
+}
+
+interface TransitionAnalyticsInput {
+  ownerUserId: string | null;
+  venueId: string;
+  from: VenueSubscriptionStatus | null;
+  to: VenueSubscriptionStatus;
+  previousPlan: Interval | null;
+  plan: Interval | null;
+  previousCancelAtPeriodEnd: boolean;
+  cancelAtPeriodEnd: boolean;
+}
+
+/**
+ * Emit the subscription funnel to PostHog (M8 §9).
+ *
+ * Every one of these is a *transition*, never a state. Firing on the state instead
+ * would emit `subscription_past_due` on each of Stripe's retries and turn one failure
+ * into four, which is the kind of thing nobody notices until a funnel is being read
+ * in a board meeting.
+ *
+ * A no-op without an owner user id. PostHog's `distinct_id` has to be the same value
+ * the app calls `identify()` with, and a venue-profile id would create a second,
+ * unjoinable person for every venue — worse than no event at all.
+ *
+ * Deliberately not awaited by the caller: `captureServerEvent` is fire-and-forget, so
+ * a slow or unreachable PostHog cannot delay a webhook response into Stripe's timeout.
+ */
+function emitTransitionAnalytics({
+  ownerUserId,
+  venueId,
+  from,
+  to,
+  previousPlan,
+  plan,
+  previousCancelAtPeriodEnd,
+  cancelAtPeriodEnd,
+}: TransitionAnalyticsInput): void {
+  if (!ownerUserId) return;
+
+  const base = { venue_id: venueId, from: from ?? 'none', to, plan: plan ?? null };
+  const emit = (event: ServerAnalyticsEventName, extra: Record<string, string | number> = {}) =>
+    captureServerEvent(event, ownerUserId, { ...base, ...extra });
+
+  const wasPaying = from === SubscriptionStatus.TRIALING || from === SubscriptionStatus.ACTIVE;
+
+  // Status transitions. `from === to` is the common case on a redelivered webhook or an
+  // unrelated field change, and must stay silent.
+  if (from !== to) {
+    if (to === SubscriptionStatus.TRIALING || to === SubscriptionStatus.ACTIVE) {
+      // First time this account has had live billing — the end of the activation funnel.
+      if (!wasPaying && from !== SubscriptionStatus.PAST_DUE) {
+        emit(ServerAnalyticsEvent.SUBSCRIPTION_ACTIVATED);
+      }
+      // Recovery outranks conversion: past_due → active is a rescued payment, not a
+      // new customer, and counting it as one inflates acquisition.
+      if (from === SubscriptionStatus.PAST_DUE) {
+        emit(ServerAnalyticsEvent.PAYMENT_RECOVERED);
+      }
+      if (from === SubscriptionStatus.TRIALING && to === SubscriptionStatus.ACTIVE) {
+        emit(ServerAnalyticsEvent.TRIAL_CONVERTED);
+      }
+    }
+
+    if (to === SubscriptionStatus.PAST_DUE) {
+      emit(ServerAnalyticsEvent.SUBSCRIPTION_PAST_DUE);
+      // The same failure, split by what it cost us: a trial that never converted is an
+      // acquisition loss, a renewal that failed is a retention one.
+      if (from === SubscriptionStatus.TRIALING) {
+        emit(ServerAnalyticsEvent.TRIAL_CONVERSION_FAILED);
+      } else if (from === SubscriptionStatus.ACTIVE) {
+        emit(ServerAnalyticsEvent.RENEWAL_FAILED);
+      }
+    }
+
+    if (to === SubscriptionStatus.CANCELLED) {
+      if (from === SubscriptionStatus.TRIALING) {
+        emit(ServerAnalyticsEvent.TRIAL_CONVERSION_FAILED);
+      }
+      // Only a venue that had something to lose. inactive → cancelled is bookkeeping.
+      if (wasPaying || from === SubscriptionStatus.PAST_DUE) {
+        emit(ServerAnalyticsEvent.VENUE_HIDDEN_NONPAYMENT);
+      }
+    }
+
+    // V-01…V-11: the content rules follow visibility, so these two mark the moment the
+    // whole per-surface matrix flips. Derived from the same predicate the matrix reads,
+    // so the event cannot claim a hide the queries did not perform.
+    const wasHidden = from === null || isHiddenStatus(from);
+    const nowHidden = isHiddenStatus(to);
+    if (!wasHidden && nowHidden) emit(ServerAnalyticsEvent.VENUE_CONTENT_HIDDEN);
+    if (wasHidden && !nowHidden && from !== null) {
+      emit(ServerAnalyticsEvent.VENUE_CONTENT_RESTORED);
+    }
+  }
+
+  // Portal-originated changes. Independent of status — a plan switch or a scheduled
+  // cancellation leaves the venue exactly as active as it was.
+  if (previousPlan && plan && previousPlan !== plan) {
+    emit(
+      plan === BillingInterval.ANNUAL
+        ? ServerAnalyticsEvent.PLAN_UPGRADED
+        : ServerAnalyticsEvent.PLAN_DOWNGRADED,
+      { from_plan: previousPlan, to_plan: plan }
+    );
+  }
+
+  // Edge only. Without it every subsequent webhook for a cancelling venue re-reports
+  // the cancellation for the rest of their paid period.
+  if (!previousCancelAtPeriodEnd && cancelAtPeriodEnd) {
+    emit(ServerAnalyticsEvent.SUBSCRIPTION_CANCELLED_BY_USER);
   }
 }
 
@@ -612,6 +829,18 @@ export async function handleStripeSubscriptionEvent(
           }
         );
       }
+
+      // A steady-state renewal is the one paid transition the state machine cannot see:
+      // active → active changes no status, so `emitTransitionAnalytics` stays silent and
+      // this is the only place the event can come from. `billing_reason` is Stripe's own
+      // discriminator — `subscription_cycle` is a renewal, while `subscription_create` is
+      // the first charge (already counted as trial_converted or subscription_activated)
+      // and `subscription_update` is a proration from a plan switch.
+      if (customerId && invoice.billing_reason === 'subscription_cycle') {
+        await captureRenewal(customerId, invoice).catch((err: unknown) => {
+          console.warn('[subscription-sync] could not record renewal analytics:', err);
+        });
+      }
       return;
     }
 
@@ -625,6 +854,36 @@ export async function handleStripeSubscriptionEvent(
     default:
       return;
   }
+}
+
+/**
+ * Record a successful renewal charge (M8 §9).
+ *
+ * Resolves the owning user from the Stripe customer, because PostHog's `distinct_id`
+ * must match what the app identifies with — see `captureServerEvent`.
+ */
+async function captureRenewal(stripeCustomerId: string, invoice: Stripe.Invoice): Promise<void> {
+  const [row] = await db
+    .select({
+      userId: venueProfiles.userId,
+      venueId: venueProfiles.id,
+      plan: venueSubscriptions.plan,
+    })
+    .from(venueSubscriptions)
+    .innerJoin(venueProfiles, eq(venueProfiles.id, venueSubscriptions.venueId))
+    .where(eq(venueSubscriptions.stripeCustomerId, stripeCustomerId))
+    .limit(1);
+
+  if (!row) return;
+
+  captureServerEvent(ServerAnalyticsEvent.RENEWAL_SUCCEEDED, row.userId, {
+    venue_id: row.venueId,
+    plan: row.plan,
+    // Minor units, as Stripe reports them — no local rounding, and comparable across
+    // currencies if CeolX ever prices outside euro.
+    amount: invoice.amount_paid ?? 0,
+    currency: (invoice.currency ?? 'eur').toUpperCase(),
+  });
 }
 
 /**

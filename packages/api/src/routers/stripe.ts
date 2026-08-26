@@ -7,6 +7,7 @@ import { venueProfiles } from '@CeolX/db/schema/users';
 import { env } from '@CeolX/env/server';
 import { ACTIVATION_RETURN_PATHS, hasLiveBilling, type BillingInterval } from '@CeolX/shared';
 
+import { ServerAnalyticsEvent, captureServerEvent } from '../services/analytics';
 import {
   createSubscriptionCheckoutSession,
   expireCheckoutSession,
@@ -144,6 +145,15 @@ export async function buildCheckoutSessionForVenue({
     activationTokenId,
     successUrl: `${origin}${ACTIVATION_RETURN_PATHS.complete}`,
     cancelUrl: `${origin}${ACTIVATION_RETURN_PATHS.cancelled}`,
+  });
+
+  captureServerEvent(ServerAnalyticsEvent.CHECKOUT_SESSION_CREATED, userId, {
+    venue_id: profile.id,
+    interval,
+    // The single most important number in the funnel: whether this venue is getting
+    // the six-month trial or paying from day one because they already used it (D-42).
+    trial_days: trialDays,
+    from_email_link: Boolean(activationTokenId),
   });
 
   if (!activationTokenId) return created;
