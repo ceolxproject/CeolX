@@ -1,6 +1,7 @@
-import { and, eq, gt, isNull, lte } from 'drizzle-orm';
+import { and, eq, gt, isNull, lt, lte, or } from 'drizzle-orm';
 
 import { buildActivationLinks } from '@CeolX/api/services/activation-links';
+import { ServerAnalyticsEvent, captureServerEvent } from '@CeolX/api/services/analytics';
 import { getNextInvoicePreview, getPriceSummaries } from '@CeolX/api/services/stripe';
 import { db } from '@CeolX/db';
 import { user } from '@CeolX/db/schema/auth';
@@ -8,8 +9,14 @@ import { venueSubscriptions } from '@CeolX/db/schema/subscriptions';
 import { venueProfiles } from '@CeolX/db/schema/users';
 import { sendActivationReminderEmail, sendTrialEndingEmail } from '@CeolX/email';
 import { env } from '@CeolX/env/server';
-import { SubscriptionStatus, VENUE_BILLING_RETURN_ROUTE, buildAppRedirectUrl } from '@CeolX/shared';
+import {
+  NotificationTrigger,
+  SubscriptionStatus,
+  VENUE_BILLING_RETURN_ROUTE,
+  buildAppRedirectUrl,
+} from '@CeolX/shared';
 
+import { dispatchNotification } from '../../services/notifications-dispatcher.js';
 import type { JobPayload } from '../types.js';
 
 /**
@@ -65,6 +72,41 @@ export async function handleSubscriptionActivationReminder(
     .limit(1);
 
   if (!account?.email) return;
+
+  // Claim this nudge before sending it.
+  //
+  // QStash is at-least-once, and the status check above does not cover a redelivery:
+  // the venue is still `inactive`, which is exactly who this email is for, so a second
+  // delivery of the same job used to send the same nudge twice. The AC is explicit —
+  // "none duplicated on a job re-run".
+  //
+  // `lt(attempt)` rather than equality, so a stale redelivery of nudge 1 arriving after
+  // nudge 2 has gone out is also dropped rather than re-sending an older message.
+  //
+  // Conditional UPDATE, so two concurrent deliveries cannot both pass the same read.
+  // Stamped BEFORE the send, which trades one direction of failure for the other: a
+  // Postmark blip now loses that nudge instead of risking a duplicate. That is the
+  // direction the AC asks for, and there are two more nudges behind it.
+  const [claimed] = await db
+    .update(venueProfiles)
+    .set({ activationReminderLastAttempt: attempt })
+    .where(
+      and(
+        eq(venueProfiles.id, profile.id),
+        or(
+          isNull(venueProfiles.activationReminderLastAttempt),
+          lt(venueProfiles.activationReminderLastAttempt, attempt)
+        )
+      )
+    )
+    .returning({ id: venueProfiles.id });
+
+  if (!claimed) {
+    console.warn(
+      `[subscription] activation reminder ${attempt} skipped for ${userId} — already sent`
+    );
+    return;
+  }
 
   // Fresh token per reminder: by the second nudge the original is days expired.
   const links = await buildActivationLinks(userId);
@@ -166,21 +208,46 @@ export async function handleSubscriptionTrialEnding(
   const amount = preview?.formatted ?? fallback.formatted;
   const interval = preview?.interval ?? row.plan;
 
+  const chargeDate = new Intl.DateTimeFormat('en-IE', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+    timeZone: 'Europe/Dublin',
+  }).format(row.trialEndsAt);
+
   await sendTrialEndingEmail({
     to: account.email,
     venueName: row.venueName,
     userName: account.name ?? '',
     amount,
-    chargeDate: new Intl.DateTimeFormat('en-IE', {
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric',
-      timeZone: 'Europe/Dublin',
-    }).format(row.trialEndsAt),
+    chargeDate,
     interval: interval === 'annual' ? 'annual' : 'monthly',
     // The Portal link is minted on demand and emailed separately (D-45); pointing
     // at the app keeps this email free of a URL that could go stale in six months.
     manageUrl: buildAppRedirectUrl(env.BETTER_AUTH_URL, VENUE_BILLING_RETURN_ROUTE),
+  });
+
+  // Push alongside the email, carrying the same amount and date (M8 trial story §9).
+  //
+  // Both surfaces, not one: six months is long enough that the venue has forgotten
+  // signing up, and an unannounced debit is how chargebacks start (D-30). The email
+  // is the record; the push is the one they will actually see.
+  //
+  // Deliberately after the email and non-fatal. The email is the deliverable — a push
+  // failure must not lose it, and must not stop the sweep stamping its sent marker,
+  // which would re-send the email tomorrow.
+  await dispatchNotification({
+    trigger: NotificationTrigger.TRIAL_ENDING_TO_VENUE,
+    recipientUserId: row.userId,
+    vars: { amount, chargeDate },
+  }).catch((err: unknown) => {
+    console.error('[subscription] trial-ending push failed:', err);
+  });
+
+  captureServerEvent(ServerAnalyticsEvent.TRIAL_REMINDER_SENT, row.userId, {
+    venue_id: payload.venueId,
+    plan: interval,
+    days_ahead: daysUntilCharge,
   });
 }
 

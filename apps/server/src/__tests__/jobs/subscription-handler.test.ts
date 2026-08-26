@@ -5,6 +5,7 @@ const VENUE_ID = '550e8400-e29b-41d4-a716-446655440000';
 
 const {
   mockSelectLimit,
+  mockReminderClaim,
   mockBuildLinks,
   mockGetPrices,
   mockSendReminder,
@@ -12,6 +13,9 @@ const {
   envState,
 } = vi.hoisted(() => ({
   mockSelectLimit: vi.fn(),
+  // The conditional UPDATE that claims one nudge. Returns a row on a first delivery
+  // and [] when this attempt (or a later one) has already been sent.
+  mockReminderClaim: vi.fn(),
   mockBuildLinks: vi.fn(),
   mockGetPrices: vi.fn(),
   mockSendReminder: vi.fn(),
@@ -29,6 +33,9 @@ vi.mock('@CeolX/db', () => ({
         where: vi.fn(() => ({ limit: mockSelectLimit })),
         innerJoin: vi.fn(() => ({ where: vi.fn(() => ({ limit: mockSelectLimit })) })),
       })),
+    })),
+    update: vi.fn(() => ({
+      set: vi.fn(() => ({ where: vi.fn(() => ({ returning: mockReminderClaim })) })),
     })),
   },
 }));
@@ -52,6 +59,7 @@ import {
 beforeEach(() => {
   vi.clearAllMocks();
   mockSelectLimit.mockResolvedValue([]);
+  mockReminderClaim.mockResolvedValue([{ id: VENUE_ID }]);
   mockBuildLinks.mockResolvedValue({
     monthlyUrl: 'https://api.ceolx.com/activate?token=fresh&plan=monthly',
     annualUrl: 'https://api.ceolx.com/activate?token=fresh&plan=annual',
@@ -150,6 +158,32 @@ describe('handleSubscriptionActivationReminder', () => {
     expect(mockSendReminder).toHaveBeenCalledWith(
       expect.objectContaining({ monthlyPrice: undefined, annualPrice: undefined })
     );
+  });
+
+  it('sends nothing on a re-delivery of a nudge already sent', async () => {
+    // QStash is at-least-once, and the status guard above does not cover this: a venue
+    // still `inactive` is exactly who the nudge is for, so a second delivery used to
+    // send the same email again. The claim losing means someone else already sent it.
+    prime();
+    mockReminderClaim.mockResolvedValue([]);
+
+    await handleSubscriptionActivationReminder({ userId: USER_ID, attempt: 1 });
+
+    expect(mockSendReminder).not.toHaveBeenCalled();
+    // No token minted either — a fresh one would silently invalidate the link the
+    // venue is holding from the delivery that did go out (D-18).
+    expect(mockBuildLinks).not.toHaveBeenCalled();
+  });
+
+  it('claims the nudge before sending, so a failed send cannot be retried into a duplicate', async () => {
+    prime();
+    await handleSubscriptionActivationReminder({ userId: USER_ID, attempt: 2 });
+
+    // Ordering is the substance: stamped first, sent second. The reverse would let a
+    // crash between the two produce a second email on redelivery.
+    const claimOrder = mockReminderClaim.mock.invocationCallOrder[0];
+    const sendOrder = mockSendReminder.mock.invocationCallOrder[0];
+    expect(claimOrder).toBeLessThan(sendOrder);
   });
 });
 
