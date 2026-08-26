@@ -279,6 +279,23 @@ export default function VenueActivationScreen() {
             </Text>
           </Pressable>
 
+          {/* Refresh Status — the §8 secondary action, matching the profile prompt.
+              This screen already polls (`pollUntilActivated`), so it is the affordance
+              rather than the mechanism: a venue who paid on a laptop cannot tell that
+              anything is being checked, and force-quitting is the alternative. */}
+          <Pressable
+            className={`py-3 ${subscription.isRefreshing ? 'opacity-40' : ''}`}
+            onPress={subscription.refresh}
+            disabled={subscription.isRefreshing}
+            accessibilityRole="button"
+            accessibilityLabel="Refresh status"
+            accessibilityState={{ disabled: subscription.isRefreshing }}
+          >
+            <Text className="text-white/60 text-sm font-semibold text-center">
+              {subscription.isRefreshing ? 'Checking…' : 'Refresh status'}
+            </Text>
+          </Pressable>
+
           {/* Both words on purpose — Gmail files it under Spam, Outlook under Junk. */}
           <Text className="text-white/40 text-xs text-center mb-4">
             Still nothing? Check your spam or junk folder.

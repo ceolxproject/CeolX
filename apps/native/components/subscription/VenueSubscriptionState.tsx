@@ -5,9 +5,11 @@ import { ActivityIndicator, Alert, Pressable, Text, View } from 'react-native';
 import {
   ACTIVATION_POLL_MS,
   PUBLISH_BLOCKED_REASON as BLOCKED_REASON,
+  formatTrialEnd,
 } from './venue-subscription-state.utils';
 
 import { useActivationEmail } from '@/hooks/use-activation-email';
+import { useBillingPortal } from '@/hooks/use-billing-portal';
 import { useMe } from '@/hooks/use-me';
 import { AnalyticsEvent, track } from '@/lib/analytics';
 
@@ -68,7 +70,7 @@ export function VenueActivationPrompt({
   // subscription, so the poll starts when the wait starts and stops the moment the state
   // changes and this unmounts. Shares the `users.me` cache entry, so it costs one small
   // request per interval and nothing else re-fetches.
-  useMe({ refetchInterval: ACTIVATION_POLL_MS });
+  const me = useMe({ refetchInterval: ACTIVATION_POLL_MS });
 
   // Funnel entry. Fired on mount rather than on render, so re-renders from the cooldown
   // ticking every second do not each count as another impression.
@@ -134,6 +136,33 @@ export function VenueActivationPrompt({
           </Text>
         )}
       </Pressable>
+
+      {/* Refresh Status — the story's §8 secondary action, shown once an email is out.
+          The screen already polls every 10s, so this is not the mechanism that makes
+          activation appear; it is the affordance. A venue who has just paid in a browser
+          on another device has no way of knowing anything is being checked, and will
+          otherwise sit there or force-quit. Hidden before the first send, when there is
+          nothing to refresh toward. */}
+      {activation.sent && (
+        <Pressable
+          onPress={() => void me.refetch()}
+          disabled={me.isFetching}
+          accessibilityRole="button"
+          accessibilityLabel="Refresh status"
+          accessibilityState={{ disabled: me.isFetching }}
+          hitSlop={8}
+          className="flex-row items-center gap-1.5 self-start active:opacity-60"
+        >
+          {me.isFetching ? (
+            <ActivityIndicator size="small" color="#8D8D8D" />
+          ) : (
+            <Ionicons name="refresh-outline" size={13} color="#8D8D8D" />
+          )}
+          <Text className="text-xs font-bold uppercase tracking-[0.5px] text-[#8D8D8D] font-urbanist">
+            {me.isFetching ? 'Checking…' : 'Refresh status'}
+          </Text>
+        </Pressable>
+      )}
     </View>
   );
 }
@@ -193,15 +222,12 @@ export function VenueTrialBadge({ trialEndsAt }: TrialBadgeProps) {
 }
 
 /**
- * `past_due`, still inside the grace window (D-57 phase one).
+ * `past_due`, on the venue's own profile — the quiet half of the past-due state.
  *
- * A banner, not a block, and deliberately not a badge either — this is the one
- * informational state with money at stake, so it stays at full weight while the trial
- * notice steps back.
- *
- * The grace period exists precisely to absorb the card that merely expired, so freezing
- * the account here would defeat its purpose — that was the argument put to the client and
- * accepted.
+ * A banner, not a block, because the profile screen is where the venue goes to FIX the
+ * problem: Settings → Manage Subscription is two taps from here, and covering that with
+ * an overlay would trap them. The holding block lives on the map tab instead
+ * (`VenuePastDueHoldingBlock`), which is what the client asked for on 15 Aug.
  */
 export function VenuePastDueBanner() {
   return (
@@ -211,6 +237,93 @@ export function VenuePastDueBanner() {
         Your last payment didn&apos;t go through. Your profile is still live for now — check the
         email from us to update your card.
       </Text>
+    </View>
+  );
+}
+
+/**
+ * `past_due` — the holding block over the map (client decision, 15 Aug 2026).
+ *
+ * "I think if we could have a holding block on the home screen with the active map in
+ * the background but the account is frozen to use." The map renders behind it and keeps
+ * animating; this sits on top and swallows every touch, so the tab is genuinely frozen
+ * rather than merely covered.
+ *
+ * Scope of the freeze — the story left this open (§10) and it contradicts its own rule
+ * 13, which says a lapsed venue may still view content, edit its profile and fix payment.
+ * Resolved as: the MAP tab only. Discover, Bookings and Profile stay usable, so rule 13
+ * holds and the venue always has a route to billing. Freezing everything would leave the
+ * fix-payment path behind the very block complaining about payment — the trap §10 warns
+ * about in as many words. Confirm with Pratiksha before widening it.
+ *
+ * `inset-0`, not `h-full w-full`: over a flex-sized parent the latter collapses to 0×0
+ * and the overlay silently never appears.
+ *
+ * No payment UI and no URL (D-16) — the button emails a Stripe link, exactly like every
+ * other billing action in the app.
+ */
+export function VenuePastDueHoldingBlock({ hideAt }: { hideAt: string | null }) {
+  const portal = useBillingPortal();
+
+  // Absent only if `past_due_since` is somehow missing. Better a block with no date than
+  // one reading "hidden on Invalid Date" — and the sentence still works without it.
+  const hideDate = hideAt ? formatTrialEnd(hideAt) : null;
+
+  return (
+    <View
+      // Not `pointerEvents="box-none"` — swallowing touches IS the freeze. The map keeps
+      // rendering behind, which is the point of the client's "active map in the background".
+      accessibilityViewIsModal
+      className="absolute inset-0 items-center justify-center bg-black/70 px-6"
+    >
+      <View className="w-full max-w-[340px] rounded-2xl bg-[#1C1C1E] px-5 py-6 gap-3">
+        <View className="h-10 w-10 items-center justify-center rounded-full bg-[#3A2A15]">
+          <Ionicons name="alert-circle-outline" size={22} color="#F5A524" />
+        </View>
+
+        <Text className="text-lg font-bold text-white font-urbanist">
+          Your payment didn&apos;t go through
+        </Text>
+
+        <Text className="text-sm leading-[21px] text-white/60 font-urbanist">
+          {hideDate
+            ? `We couldn't take your subscription payment. Your profile stays visible until ${hideDate} — after that it's hidden until payment succeeds.`
+            : "We couldn't take your subscription payment. Your profile stays visible for now — after that it's hidden until payment succeeds."}{' '}
+          Nothing is deleted.
+        </Text>
+
+        <Pressable
+          disabled={portal.disabled}
+          onPress={portal.request}
+          accessibilityRole="button"
+          accessibilityState={{ disabled: portal.disabled }}
+          className={`mt-1 items-center rounded-full px-4 py-3 ${
+            portal.disabled ? 'bg-white/10' : 'bg-[#C8FF2F]'
+          }`}
+        >
+          {portal.isPending ? (
+            <ActivityIndicator size="small" color="#000" />
+          ) : (
+            <Text
+              className={`text-xs font-bold uppercase tracking-[0.5px] font-urbanist ${
+                portal.disabled ? 'text-white/40' : 'text-black'
+              }`}
+            >
+              {portal.remaining > 0
+                ? `Resend in ${portal.remaining}s`
+                : portal.sent
+                  ? 'Resend billing link'
+                  : 'Email me a billing link'}
+            </Text>
+          )}
+        </Pressable>
+
+        <Text className="text-center text-[11px] leading-4 text-white/40 font-urbanist">
+          {portal.sent
+            ? 'Check your inbox — the link opens your billing page.'
+            : 'We’ll email a secure link to update your card.'}
+        </Text>
+      </View>
     </View>
   );
 }

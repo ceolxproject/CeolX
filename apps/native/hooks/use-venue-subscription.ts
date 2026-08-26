@@ -41,7 +41,7 @@ export function useVenueSubscription({ pollUntilActivated = false } = {}) {
   // the moment billing goes live. The previous shape mirrored that into a `useState` +
   // `useEffect` in the screen, which meant two sources of truth for one fact and a second
   // `useMe` observer alongside it.
-  const { data: me } = useMe({
+  const meQuery = useMe({
     refetchInterval: pollUntilActivated
       ? (query) =>
           isActivated(asVenueStatus(query.state.data?.venueProfile?.subscriptionStatus))
@@ -50,6 +50,7 @@ export function useVenueSubscription({ pollUntilActivated = false } = {}) {
       : false,
   });
 
+  const me = meQuery.data;
   const status = asVenueStatus(me?.venueProfile?.subscriptionStatus);
 
   // Default to "not on hold" until `me` resolves: the alternative flashes a false
@@ -58,8 +59,26 @@ export function useVenueSubscription({ pollUntilActivated = false } = {}) {
   const onHold = me?.venueProfile?.onHold ?? false;
 
   return {
+    /**
+     * Re-check subscription state on demand — the §8 "Refresh Status" action.
+     *
+     * The waiting surfaces poll already, so this is not what makes activation appear.
+     * It exists because the venue cannot see that polling is happening: payment
+     * completes in a browser, often on another device, and without a visible control
+     * the honest options are to wait blindly or force-quit the app.
+     */
+    refresh: () => void meQuery.refetch(),
+    isRefreshing: meQuery.isFetching,
     status,
     trialEndsAt: me?.venueProfile?.trialEndsAt ?? null,
+    /**
+     * The date the past-due holding block promises, already resolved by the server.
+     *
+     * Never derived here. The grace length is a server setting, so a client doing its
+     * own arithmetic would keep showing the old deadline after it changed until the
+     * next store release — and this is the one date in the app with money behind it.
+     */
+    hideAt: me?.venueProfile?.hideAt ?? null,
     onHold,
     /**
      * Which surface to render: activate | activate_grace | trial | past_due | none.

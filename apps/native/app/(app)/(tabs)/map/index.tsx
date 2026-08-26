@@ -33,6 +33,7 @@ import { MapOverlappingEventsSheet } from '@/components/MapOverlappingEventsShee
 import { MapRecenterButton } from '@/components/MapRecenterButton';
 import { MapSearchBar } from '@/components/MapSearchBar';
 import { PlaceSuggestionsDropdown } from '@/components/PlaceSuggestionsDropdown';
+import { VenuePastDueHoldingBlock } from '@/components/subscription/VenueSubscriptionState';
 import { TAB_BAR_HEIGHT } from '@/constants/layout';
 import {
   MAP_HEADER_HEIGHT,
@@ -55,6 +56,7 @@ import { useMapEvents } from '@/hooks/use-map-events';
 import { useMapEdgePointers } from '@/hooks/use-map-pointers';
 import { usePlaceSearch } from '@/hooks/use-place-search';
 import { useVenueFallback } from '@/hooks/use-venue-fallback';
+import { useVenueSubscription } from '@/hooks/use-venue-subscription';
 import { getDeviceLocation } from '@/utils/device-location';
 import { resolveFeedLocation } from '@/utils/feed-location';
 import type { FeedLocation } from '@/utils/feed-location';
@@ -97,6 +99,10 @@ export default function MapScreen() {
   // Shared with the Feed tab — a manual place pick on either screen syncs here.
   const { override, overrideKind, setOverride, clearOverride } = useLocationOverride();
   const venueFallback = useVenueFallback();
+  // Drives the past-due holding block below. Returns `state: 'none'` for every
+  // non-venue persona and every healthy venue, so this costs one cached `users.me`
+  // read and renders nothing for almost everyone.
+  const venueSubscription = useVenueSubscription();
   const { initialRegion, gpsPermissionGranted, locationSource, placeLabel, mapKey } = useGpsRegion(
     promptState === 'done',
     venueFallback
@@ -484,6 +490,15 @@ export default function MapScreen() {
 
       {overlapEvents && (
         <MapOverlappingEventsSheet events={overlapEvents} onClose={() => setOverlapEvents(null)} />
+      )}
+
+      {/* Past-due holding block (client decision, 15 Aug 2026).
+          Last of the absolute children so it sits above every other overlay — a venue
+          must not be able to reach the filter sheet or an event pin from behind it.
+          Owner-only by construction: `useVenueSubscription` reads the signed-in
+          account's own billing state, so no other persona can ever render it. */}
+      {venueSubscription.state === 'past_due' && (
+        <VenuePastDueHoldingBlock hideAt={venueSubscription.hideAt} />
       )}
 
       <FilterSheet
