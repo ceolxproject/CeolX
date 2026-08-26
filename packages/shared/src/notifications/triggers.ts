@@ -46,6 +46,13 @@ export const NotificationTrigger = {
   ADDED_AS_COLLABORATOR_TO_ARTIST: 'added_as_collaborator_to_artist',
   EVENT_HOSTED_AT_VENUE_TO_VENUE: 'event_hosted_at_venue_to_venue',
   VENUE_ON_HOLD_TO_LINKED_ARTIST: 'venue_on_hold_to_linked_artist',
+  // M8 — the four venue-facing billing pushes. Every one of them is about the
+  // venue's OWN money, so unlike A-20 above they name the problem plainly: this is
+  // the account holder, not a third party, and vagueness here just delays the fix.
+  TRIAL_ENDING_TO_VENUE: 'trial_ending_to_venue',
+  PAYMENT_FAILED_TO_VENUE: 'payment_failed_to_venue',
+  VENUE_HIDDEN_TO_VENUE: 'venue_hidden_to_venue',
+  VENUE_RESTORED_TO_VENUE: 'venue_restored_to_venue',
   EVENT_REMOVED_BY_ADMIN_TO_ARTIST: 'event_removed_by_admin_to_artist',
   EVENT_REMOVED_BY_ADMIN_TO_VENUE: 'event_removed_by_admin_to_venue',
   EVENT_RESUBMITTED_TO_ARTIST: 'event_resubmitted_to_artist',
@@ -108,6 +115,12 @@ export type NotificationType =
   | 'saved_event_removed'
   // M8: a venue an artist is linked to has gone on hold (A-20).
   | 'venue_on_hold'
+  // M8: the venue's own billing lifecycle — trial ending, charge failed, hidden,
+  // restored. Off-matrix; the M7-T0 matrix predates subscriptions.
+  | 'trial_ending'
+  | 'payment_failed'
+  | 'venue_hidden'
+  | 'venue_restored'
   | 'welcome';
 
 export interface TriggerDefinition {
@@ -423,6 +436,97 @@ export const NOTIFICATION_TRIGGERS: Record<NotificationTrigger, TriggerDefinitio
     inApp: {
       title: 'Venue profile on hold',
       body: '{venueName}\'s profile is on hold, so it won\'t appear on your event "{eventTitle}". Your event is still live — you may want to check in with them.',
+    },
+    email: null,
+  },
+  // ───────────────────────────────────────────────────────────────────────────
+  // M8 venue billing pushes.
+  //
+  // No matrixRef: the M7-T0 matrix predates subscriptions and has no rows for
+  // these. Flagged for Pratiksha's next matrix pass rather than invented into an
+  // existing row's id.
+  //
+  // All four route to the venue's own profile, which is where the past-due block,
+  // the trial badge and the Settings → Manage Subscription row all live. None of
+  // them carries a payment URL: D-16 forbids one anywhere the app can render it,
+  // and a push body is exactly that.
+  //
+  // Email is null on all four on purpose — each already has its own Postmark
+  // template or Stripe's own dunning mail behind it, and a second copy of the
+  // same message is how a billing warning starts reading as spam.
+  // ───────────────────────────────────────────────────────────────────────────
+
+  // Paired with the trial-ending email (D-30), same amount and same date. Six
+  // months after sign-up the venue has forgotten subscribing, so the figures are
+  // in the body rather than behind a tap.
+  [NotificationTrigger.TRIAL_ENDING_TO_VENUE]: {
+    matrixRef: 'off-matrix-trial-ending',
+    type: 'trial_ending',
+    persona: 'venue',
+    routeTemplate: '/(app)/(tabs)/profile',
+    push: {
+      title: 'Your free trial ends soon',
+      body: "We'll charge {amount} on {chargeDate}. No action needed — your profile stays live.",
+    },
+    inApp: {
+      title: 'Your free trial ends soon',
+      body: 'Your CeolX subscription starts on {chargeDate} at {amount}. Your card is already saved, so there is nothing to do. Manage your subscription from Settings.',
+    },
+    email: null,
+  },
+
+  // Sent once, on entry to past_due. `hideDate` is the same figure the holding
+  // block shows, from the same source, so the two cannot state different days.
+  [NotificationTrigger.PAYMENT_FAILED_TO_VENUE]: {
+    matrixRef: 'off-matrix-payment-failed',
+    type: 'payment_failed',
+    persona: 'venue',
+    routeTemplate: '/(app)/(tabs)/profile',
+    push: {
+      title: 'Your payment didn’t go through',
+      body: 'Update your card by {hideDate} to keep {venueName} visible on CeolX.',
+    },
+    inApp: {
+      title: 'Your payment didn’t go through',
+      body: "We couldn't take your subscription payment. {venueName} stays visible until {hideDate}. Open Settings → Manage Subscription and we'll email you a secure link to update your card.",
+    },
+    email: null,
+  },
+
+  // The venue is now actually hidden. Deliberately says nothing is lost: the whole
+  // design is reversible (V-12), and a venue who believes their events are gone
+  // is a venue who rebuilds them by hand or churns.
+  [NotificationTrigger.VENUE_HIDDEN_TO_VENUE]: {
+    matrixRef: 'off-matrix-venue-hidden',
+    type: 'venue_hidden',
+    persona: 'venue',
+    routeTemplate: '/(app)/(tabs)/profile',
+    push: {
+      title: 'Your profile is no longer visible',
+      body: '{venueName} is hidden until your subscription is active. Nothing has been deleted.',
+    },
+    inApp: {
+      title: 'Your profile is no longer visible',
+      body: '{venueName} is hidden from the map, search and the feed until your subscription is active again. Your events, posts and collections are all still here and come straight back when you resubscribe.',
+    },
+    email: null,
+  },
+
+  // The recovery half. Worth its own push: the venue has no other way to learn a
+  // retry succeeded, and the alternative is them checking the app on and off for
+  // days after paying.
+  [NotificationTrigger.VENUE_RESTORED_TO_VENUE]: {
+    matrixRef: 'off-matrix-venue-restored',
+    type: 'venue_restored',
+    persona: 'venue',
+    routeTemplate: '/(app)/(tabs)/profile',
+    push: {
+      title: "You're live again",
+      body: '{venueName} is back on CeolX, with everything exactly as you left it.',
+    },
+    inApp: {
+      title: "You're live again",
+      body: 'Your payment went through and {venueName} is visible again on the map, in search and in the feed. Your events, posts and collections were restored automatically.',
     },
     email: null,
   },
