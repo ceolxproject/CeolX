@@ -1,0 +1,1 @@
+ALTER TABLE "venue_profiles" ADD COLUMN "activation_reminder_last_attempt" integer;

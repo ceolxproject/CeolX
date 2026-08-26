@@ -2,6 +2,7 @@ import { relations } from 'drizzle-orm';
 import {
   boolean,
   index,
+  integer,
   numeric,
   pgTable,
   text,
@@ -86,6 +87,40 @@ export const venueProfiles = pgTable('venue_profiles', {
    */
   isActive: boolean('is_active').default(false),
   stripeCustomerId: varchar('stripe_customer_id', { length: 255 }), // set when Stripe customer is created
+  /**
+   * When the three activation nudges were queued (D-26), or null if they never were.
+   *
+   * The idempotency key for the reminder schedule. `venues.requestActivation` used to
+   * queue all three on EVERY call, and the job only re-checks subscription status —
+   * which is still `inactive` for exactly the venue the reminders are aimed at. So a
+   * venue tapping Activate Profile three times over a few days received nine reminder
+   * emails, against an AC that says exactly three.
+   *
+   * Lives here rather than on `venue_subscriptions` because that row does not exist
+   * until the Stripe webhook creates it, and a venue who never activates — the entire
+   * population these reminders target — never gets one.
+   *
+   * Not cleared on activation: the job already no-ops for an activated venue, and
+   * keeping the stamp means a venue who activates, cancels and comes back is not
+   * re-enrolled in a nudge sequence aimed at people who have never subscribed.
+   */
+  activationRemindersQueuedAt: timestamp('activation_reminders_queued_at', {
+    withTimezone: true,
+  }),
+  /**
+   * Highest activation nudge already sent (1, 2 or 3), or null if none has been.
+   *
+   * Delivery-side idempotency, and distinct from the column above: that one stops the
+   * three jobs being QUEUED twice, this one stops a single queued job being ACTED ON
+   * twice. QStash is at-least-once, and the handler's status guard is no help here —
+   * a venue still `inactive` is precisely who the nudge is aimed at, so a redelivered
+   * job sailed straight through it and sent the same email again.
+   *
+   * A number rather than three booleans or a timestamp: the attempts are ordered, so
+   * one comparison covers both "already sent this one" and "a later one has since gone
+   * out, making this delivery stale".
+   */
+  activationReminderLastAttempt: integer('activation_reminder_last_attempt'),
   // `is_active` removed in M8-T1 (D-14). It duplicated subscription_status while
   // meaning the exact opposite of artist_profiles.is_active ("persona switched
   // away", default true) in tables that get joined together — a find-and-replace

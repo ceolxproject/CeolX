@@ -1,0 +1,1 @@
+ALTER TABLE "venue_profiles" ADD COLUMN "activation_reminders_queued_at" timestamp with time zone;
