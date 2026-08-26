@@ -315,11 +315,18 @@ export async function createSubscriptionCheckoutSession(
     // Mirrored onto the subscription as well: the webhook reads the subscription,
     // not the session (M8-T3), so metadata set only on the session is invisible
     // to it.
-    metadata: { userId: params.userId, venueId: params.venueId },
+    //
+    // `accountType` is a constant — only venues ever hold a subscription, so nothing
+    // reads it and `venueId` already implies it. It is here because the AC asks for
+    // "user ID plus account type in metadata" and a tester inspecting the session in
+    // the Stripe Dashboard should find what the criterion promises. It also gives that
+    // Dashboard view a persona without a CeolX lookup.
+    metadata: { userId: params.userId, venueId: params.venueId, accountType: 'venue' },
     subscription_data: {
       metadata: {
         userId: params.userId,
         venueId: params.venueId,
+        accountType: 'venue',
         ...(params.activationTokenId ? { activationTokenId: params.activationTokenId } : {}),
       },
       ...(params.trialDays === null

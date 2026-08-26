@@ -186,14 +186,20 @@ describe('createSubscriptionCheckoutSession', () => {
     await createSubscriptionCheckoutSession(base);
     expect(argOf()).toMatchObject({
       client_reference_id: 'user_1',
-      metadata: { userId: 'user_1', venueId: 'venue_1' },
+      metadata: { userId: 'user_1', venueId: 'venue_1', accountType: 'venue' },
     });
   });
 
   it('mirrors metadata onto the subscription, which is what the webhook reads', async () => {
     const { createSubscriptionCheckoutSession } = await import('../services/stripe.js');
     await createSubscriptionCheckoutSession(base);
-    expect(argOf().subscription_data?.metadata).toEqual({ userId: 'user_1', venueId: 'venue_1' });
+    expect(argOf().subscription_data?.metadata).toEqual({
+      userId: 'user_1',
+      venueId: 'venue_1',
+      // Constant, and nothing reads it — carried because the AC promises a tester
+      // inspecting the session will find the account type there (TC-05).
+      accountType: 'venue',
+    });
   });
 
   it('prefills the email only when there is no existing customer', async () => {
