@@ -8,6 +8,7 @@ const VENUE_ID = 'venue-profile-1';
 
 const {
   mockSelectLimit,
+  mockReminderClaim,
   mockDb,
   mockSendVenueActivation,
   mockBuildLinks,
@@ -17,13 +18,21 @@ const {
   envState,
 } = vi.hoisted(() => {
   const mockSelectLimit = vi.fn();
+  // The conditional UPDATE that claims the one-and-only reminder schedule (D-26).
+  // Returns the claimed row on a first request and [] when another call already
+  // took it — which is the entire mechanism under test for "exactly three".
+  const mockReminderClaim = vi.fn(() => Promise.resolve([{ id: VENUE_ID }]));
   const mockDb: Record<string, unknown> = {
     select: vi.fn(() => ({
       from: vi.fn(() => ({ where: vi.fn(() => ({ limit: mockSelectLimit })) })),
     })),
+    update: vi.fn(() => ({
+      set: vi.fn(() => ({ where: vi.fn(() => ({ returning: mockReminderClaim })) })),
+    })),
   };
   return {
     mockSelectLimit,
+    mockReminderClaim,
     mockDb,
     mockSendVenueActivation: vi.fn(),
     mockBuildLinks: vi.fn(),
@@ -319,5 +328,27 @@ describe('venues.requestActivation — reminder scheduling (D-26)', () => {
       .venues.requestActivation()
       .catch(() => {});
     expect(mockScheduleReminder).not.toHaveBeenCalled();
+  });
+
+  it('queues the three nudges ONCE, however many times Activate Profile is tapped', async () => {
+    // The regression this guard exists for. Every tap used to queue another set, and
+    // the job's own status re-check does not catch it: the venue is still `inactive`,
+    // which is exactly the state the reminders are aimed at. Three taps meant nine
+    // emails against an AC that says exactly three.
+    //
+    // The second request loses the conditional UPDATE — `activation_reminders_queued_at`
+    // is no longer null — so `returning()` comes back empty.
+    primeLookups();
+    await createCaller(authedContext('venue')).venues.requestActivation();
+    expect(mockScheduleReminder).toHaveBeenCalledTimes(3);
+
+    mockReminderClaim.mockResolvedValueOnce([]);
+    primeLookups();
+    await createCaller(authedContext('venue')).venues.requestActivation();
+
+    // Still three. The second activation email itself DID send — losing the claim
+    // must not cost the venue the link they asked for, only the duplicate nudges.
+    expect(mockScheduleReminder).toHaveBeenCalledTimes(3);
+    expect(mockSendVenueActivation).toHaveBeenCalledTimes(2);
   });
 });

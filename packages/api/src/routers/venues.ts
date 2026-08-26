@@ -1,5 +1,5 @@
 import { TRPCError } from '@trpc/server';
-import { and, eq, or } from 'drizzle-orm';
+import { and, eq, isNull, or } from 'drizzle-orm';
 import { z } from 'zod';
 
 import { db } from '@CeolX/db';
@@ -20,6 +20,7 @@ import {
   millisSinceNewestActivationToken,
   revokeActivationToken,
 } from '../services/activation-token';
+import { ServerAnalyticsEvent, captureServerEvent } from '../services/analytics';
 import { millisSinceNewestPortalRequest, recordPortalRequest } from '../services/portal-throttle';
 import { createBillingPortalSession, getPriceSummaries } from '../services/stripe';
 import { onHoldVenueIds } from '../services/venue-gate';
@@ -139,6 +140,10 @@ export const venuesRouter = router({
       portalUrl,
     });
 
+    captureServerEvent(ServerAnalyticsEvent.PORTAL_SESSION_REQUESTED, ctx.userId, {
+      venue_id: profile.id,
+    });
+
     // Never returns the URL — see D-16.
     return { sentTo: account.email };
   }),
@@ -189,6 +194,14 @@ export const venuesRouter = router({
         message: 'This account is under billing review. Please contact support.',
       });
     }
+
+    // Top of the activation funnel — logged before the cooldown so a venue hammering
+    // the button still registers intent, which is exactly the signal that tells us the
+    // emailed-link flow is confusing people.
+    captureServerEvent(ServerAnalyticsEvent.ACTIVATION_STARTED, ctx.userId, {
+      venue_id: profile.id,
+      status: profile.subscriptionStatus,
+    });
 
     const sinceLast = await millisSinceNewestActivationToken(ctx.userId);
     if (sinceLast !== null && sinceLast < ACTIVATION_EMAIL_COOLDOWN_MS) {
@@ -242,23 +255,48 @@ export const venuesRouter = router({
       throw err;
     }
 
-    // Schedule the three nudges (D-26). Each carries only the user id and
-    // re-checks state before sending, so a venue who activates in the next hour
-    // gets none of them. Fire-and-forget: the activation email is already away, and
-    // failing the mutation because a reminder could not be queued would tell the
-    // venue their email did not send when it did.
-    await Promise.all(
-      ACTIVATION_REMINDER_DELAYS.map((delay, index) =>
-        ctx
-          .scheduleActivationReminder(ctx.userId, (index + 1) as 1 | 2 | 3, delay)
-          .catch((err: unknown) => {
-            console.warn(
-              `[venues.requestActivation] could not queue reminder ${index + 1}:`,
-              err instanceof Error ? `${err.name}: ${err.message}` : err
-            );
-          })
+    captureServerEvent(ServerAnalyticsEvent.ACTIVATION_EMAIL_SENT, ctx.userId, {
+      venue_id: profile.id,
+      // Which surface asked. The onboarding hand-off sends automatically; a later
+      // request means the venue came back on their own, which is a different funnel.
+      priced: prices !== null,
+    });
+
+    // Schedule the three nudges (D-26), ONCE per account.
+    //
+    // Each carries only the user id and re-checks state before sending, so a venue who
+    // activates in the next hour gets none of them. That guard covers a job re-run — it
+    // does not cover the job being QUEUED again, which is what every further tap of
+    // Activate Profile used to do: three more nudges, all of which still passed the
+    // `status === inactive` check and sent. Nine emails against an AC that says three.
+    //
+    // Claimed with a conditional UPDATE rather than an if-then-write, so two taps racing
+    // past the same read cannot both queue a set.
+    const [claimed] = await db
+      .update(venueProfiles)
+      .set({ activationRemindersQueuedAt: new Date() })
+      .where(
+        and(eq(venueProfiles.id, profile.id), isNull(venueProfiles.activationRemindersQueuedAt))
       )
-    );
+      .returning({ id: venueProfiles.id });
+
+    // Fire-and-forget: the activation email is already away, and failing the mutation
+    // because a reminder could not be queued would tell the venue their email did not
+    // send when it did.
+    if (claimed) {
+      await Promise.all(
+        ACTIVATION_REMINDER_DELAYS.map((delay, index) =>
+          ctx
+            .scheduleActivationReminder(ctx.userId, (index + 1) as 1 | 2 | 3, delay)
+            .catch((err: unknown) => {
+              console.warn(
+                `[venues.requestActivation] could not queue reminder ${index + 1}:`,
+                err instanceof Error ? `${err.name}: ${err.message}` : err
+              );
+            })
+        )
+      );
+    }
 
     // Never returns the token or the URLs — the app must not be able to surface a
     // payment link even accidentally (D-16).
