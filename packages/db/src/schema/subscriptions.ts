@@ -93,18 +93,25 @@ export const venueSubscriptions = pgTable(
      */
     pendingPlan: billingIntervalEnum('pending_plan'),
     /**
-     * @deprecated Dunning moved to Stripe (D-33, revised 18/08/2026). Nothing reads or
-     * writes this any more.
+     * When the current run of failed charges began — the start of the window the
+     * past-due holding block counts down.
      *
-     * It used to record the first failed charge so we could hide the venue seven days
-     * later on our own clock. That duplicated Stripe's retry schedule and could disagree
-     * with it — we might hide a venue Stripe was still successfully chasing, or keep one
-     * visible after Stripe had given up. Stripe's schedule now owns the window and
-     * cancels when it expires, so `past_due` means "still collectable" and needs no date.
+     * Was deprecated on 18/08/2026 when dunning moved to Stripe, and is live again for
+     * a narrower job. It no longer HIDES anyone: Stripe's retry schedule still owns
+     * that, giving up and cancelling on its own clock, and `cancelled` is what takes a
+     * venue dark. This column exists only so the block can name the date the client
+     * asked for, which needs a start and a length — and Stripe publishes neither.
+     * `invoice.next_payment_attempt` is the next retry, never the last.
      *
-     * Retained for one release for the same expand/contract reason as the columns above.
-     * Follow-up PR:
-     *   ALTER TABLE venue_subscriptions DROP COLUMN past_due_since;
+     * That makes the failure mode benign: a wrong value shows a wrong date rather than
+     * hiding a paying customer, which is why the earlier version was removed.
+     *
+     * Sticky while `past_due`, cleared on any other status (see `syncSubscriptionFromStripe`),
+     * so a venue who fails, recovers, and fails again months later starts a fresh window
+     * instead of inheriting one whose date has already passed.
+     *
+     * Paired with `env.VENUE_GRACE_DAYS`, which must mirror the Stripe Dashboard's retry
+     * window — see that variable's note.
      */
     pastDueSince: timestamp('past_due_since', { withTimezone: true }),
     /**
