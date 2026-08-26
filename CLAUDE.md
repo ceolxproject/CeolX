@@ -27,7 +27,7 @@ Only fall back to Grep/Glob/Read when the graph doesn't cover what you need (e.g
 
 ## What is CeolX?
 
-CeolX is a **location-aware Irish music discovery platform** built for **Chongie Entertainment Services, Ireland**.
+CeolX is a **location-aware Irish music discovery platform** built for **Chongie CeolX Entertainment Limited** (Achill, Co. Mayo, Ireland) — the legal entity on record for the Google Play developer account. Earlier docs said "Chongie Entertainment Services"; that name is not the registered entity.
 
 - **Mobile app**: iOS & Android (React Native + Expo)
 - **Admin dashboard**: Web (React + Vite + TanStack Router)
