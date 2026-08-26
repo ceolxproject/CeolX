@@ -98,9 +98,25 @@ export const env = createEnv({
     // change it without a deploy; it applies to new checkouts only and never
     // shortens or extends a trial already running.
     STRIPE_TRIAL_DAYS: z.coerce.number().int().positive().default(183),
-    // Days a failed payment keeps the profile visible before it is hidden
-    // (D-33). Zero is a legitimate setting if the client prefers strictness,
-    // hence nonnegative rather than positive.
+    /**
+     * Days a failed payment keeps the profile visible — the date the past-due
+     * holding block promises the venue.
+     *
+     * DISPLAY ONLY. Stripe still decides when a venue actually goes dark: its retry
+     * schedule gives up and cancels, and `cancelled` is what hides them (D-33,
+     * revised 18/08/2026). Nothing here hides anyone, so a wrong value shows a wrong
+     * date rather than hiding a paying customer — which is the safe direction.
+     *
+     * ⚠️ This MUST equal the Stripe Dashboard's retry window
+     * (Billing → Manage failed payments → "Cancel the subscription after N days").
+     * They are two independent settings and nothing enforces equality: Stripe exposes
+     * no "when I will give up" field, so a divergence is silent and shows up only as a
+     * venue disappearing on a different day from the one we promised. Test and live
+     * mode are separate Dashboard objects — check both when changing this.
+     *
+     * Zero is legitimate if the client ever prefers strictness, hence nonnegative.
+     */
+    VENUE_GRACE_DAYS: z.coerce.number().int().nonnegative().default(7),
     // One-time activation link lifetime (D-17 fixes the window at 30–60 min).
     ACTIVATION_TOKEN_TTL_MINUTES: z.coerce.number().int().min(30).max(60).default(45),
     // Venue visibility kill switch (M8-T0 O-08). Defaults to 'false' so merging
@@ -108,6 +124,13 @@ export const env = createEnv({
     // and enabling this before the back-fill runs would hide all of them at
     // once — while the app has been promising them advance notice.
     VENUE_GATE_ENABLED: z.enum(['true', 'false']).default('false'),
+    // PostHog, server side (M8 §9 analytics). The subscription funnel is mostly
+    // invisible to the app — the venue pays in a browser, and every transition after
+    // that arrives on a Stripe webhook — so these events can only be emitted here.
+    // Optional: unset means capture is a no-op, which is what keeps tests and a
+    // bare local server working without an analytics project.
+    POSTHOG_KEY: z.string().optional(),
+    POSTHOG_HOST: z.url().default('https://eu.i.posthog.com'),
     // Firebase Cloud Messaging — used by apps/server/src/lib/firebase-admin
     // and the notification.push QStash handler. Optional so the server boots
     // in dev/test without push set up; getMessaging() throws on first use.
