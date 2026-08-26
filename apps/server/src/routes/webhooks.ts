@@ -4,7 +4,10 @@ import { Hono } from 'hono';
 
 import { verifyAndUnwrap } from '@CeolX/api/services/mux';
 import { constructWebhookEvent } from '@CeolX/api/services/stripe';
-import { handleStripeSubscriptionEvent } from '@CeolX/api/services/subscription-sync';
+import {
+  handleStripeSubscriptionEvent,
+  type VenueBillingNoticeKind,
+} from '@CeolX/api/services/subscription-sync';
 import { db } from '@CeolX/db';
 import { user } from '@CeolX/db/schema/auth';
 import { posts } from '@CeolX/db/schema/social';
@@ -23,6 +26,18 @@ import { logPostmarkEvent, parsePostmarkEvent } from '../lib/postmark-webhook.js
 import { dispatchNotification } from '../services/notifications-dispatcher.js';
 
 const webhooksRoutes = new Hono<{ Variables: { rawBody: string } }>();
+
+/**
+ * What the state machine calls each billing moment → the trigger that carries its copy.
+ *
+ * A lookup rather than a switch so adding a fourth kind is a type error here until it
+ * is given copy, instead of silently sending nothing.
+ */
+const VENUE_BILLING_TRIGGERS: Record<VenueBillingNoticeKind, NotificationTrigger> = {
+  payment_failed: NotificationTrigger.PAYMENT_FAILED_TO_VENUE,
+  hidden: NotificationTrigger.VENUE_HIDDEN_TO_VENUE,
+  restored: NotificationTrigger.VENUE_RESTORED_TO_VENUE,
+};
 
 /**
  * Stripe webhook — the ONLY writer of venue subscription state (M8-T0 D-22).
@@ -105,6 +120,35 @@ webhooksRoutes.post('/stripe', async (c) => {
           trigger: NotificationTrigger.VENUE_ON_HOLD_TO_LINKED_ARTIST,
           recipientUserId: artistUserId,
           vars: { eventId, eventTitle, venueName },
+        });
+      },
+      // The venue's own billing pushes. The lookup lives here rather than in
+      // packages/api for the same reason as the receipt above: that package owns the
+      // state machine, this one owns delivery and copy.
+      notifyVenue: async ({ venueId, kind, hideAt }) => {
+        const [row] = await db
+          .select({ venueName: venueProfiles.venueName, userId: venueProfiles.userId })
+          .from(venueProfiles)
+          .where(eq(venueProfiles.id, venueId))
+          .limit(1);
+
+        if (!row) return;
+
+        // Same formatter and timezone as the trial-ending email, so a venue reading
+        // both never sees the deadline rendered two different ways.
+        const hideDate = hideAt
+          ? new Intl.DateTimeFormat('en-IE', {
+              day: 'numeric',
+              month: 'long',
+              year: 'numeric',
+              timeZone: 'Europe/Dublin',
+            }).format(hideAt)
+          : 'the date in your email';
+
+        await dispatchNotification({
+          trigger: VENUE_BILLING_TRIGGERS[kind],
+          recipientUserId: row.userId,
+          vars: { venueName: row.venueName, hideDate },
         });
       },
     });

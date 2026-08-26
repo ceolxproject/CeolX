@@ -3,6 +3,7 @@ import { Hono, type Context } from 'hono';
 
 import { buildCheckoutSessionForVenue } from '@CeolX/api/routers/stripe';
 import { resolveActivationToken } from '@CeolX/api/services/activation-token';
+import { ServerAnalyticsEvent, captureServerEvent } from '@CeolX/api/services/analytics';
 import { db } from '@CeolX/db';
 import { user } from '@CeolX/db/schema/auth';
 import { venueProfiles } from '@CeolX/db/schema/users';
@@ -27,6 +28,14 @@ import { activateQuerySchema } from '@CeolX/shared/validators';
  */
 
 const activateRoute = new Hono();
+
+/**
+ * Bucket for activation failures that cannot be tied to an account.
+ *
+ * A malformed or superseded token resolves to no user, and inventing one per request
+ * would spray single-event people across the project and make the funnel unreadable.
+ */
+const ANONYMOUS_DISTINCT_ID = 'anonymous-activation';
 
 function escapeHtml(s: string): string {
   return s
@@ -116,6 +125,25 @@ activateRoute.get('/activate', async (c) => {
   try {
     const resolution = await resolveActivationToken(parsed.data.token);
 
+    // The funnel step between "we emailed a link" and "Stripe rendered a checkout".
+    //
+    // A failure here has no user to attribute to — `resolveActivationToken` returns a
+    // bare status for expired and invalid tokens by design, and `invalid` has no row at
+    // all. Rather than widen that union (and the four tests that assert its exact shape)
+    // for an analytics nicety, failures are bucketed anonymously and carry the reason.
+    // The question these answer is "how many opens fail, and why", which is a count —
+    // only the successful open needs to join to a person, and it does.
+    if (resolution.status === 'valid') {
+      captureServerEvent(ServerAnalyticsEvent.ACTIVATION_LINK_OPENED, resolution.userId, {
+        plan: parsed.data.plan,
+      });
+    } else {
+      captureServerEvent(ServerAnalyticsEvent.ACTIVATION_FAILED, ANONYMOUS_DISTINCT_ID, {
+        reason: resolution.status,
+        plan: parsed.data.plan,
+      });
+    }
+
     if (resolution.status === 'expired') {
       return page(
         c,
@@ -191,6 +219,19 @@ activateRoute.get('/activate', async (c) => {
     // Reported as success rather than an error: from their side, there is nothing
     // wrong — they are already paying.
     const code = (err as { code?: string })?.code;
+    // Recorded as failures too — a venue who reaches Stripe and is turned away is a
+    // drop-off whatever the reason, and `already_subscribed` vs `billing_blocked` is
+    // the difference between a harmless double-click and an account nobody can rescue.
+    captureServerEvent(ServerAnalyticsEvent.ACTIVATION_FAILED, ANONYMOUS_DISTINCT_ID, {
+      reason:
+        code === 'CONFLICT'
+          ? 'already_subscribed'
+          : code === 'FORBIDDEN'
+            ? 'billing_blocked'
+            : 'error',
+      plan: parsed.data.plan,
+    });
+
     if (code === 'CONFLICT') {
       return page(
         c,
