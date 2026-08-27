@@ -97,7 +97,7 @@ export const SettingsBottomSheet = forwardRef<BottomSheetModal, SettingsBottomSh
                     <Ionicons name="card-outline" size={16} color="#080808" />
                   </View>
                   <View className="shrink">
-                    <Text className="text-base text-white font-urbanist">Manage Subscription</Text>
+                    <Text className="text-base text-white font-urbanist">Manage Account</Text>
                     <Text className="text-xs text-[#8D8D8D] font-urbanist">
                       {subscription.planSummary}
                     </Text>
