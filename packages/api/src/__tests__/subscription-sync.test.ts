@@ -508,3 +508,49 @@ describe('dunning is delegated to Stripe (D-33, revised 18/08/2026)', () => {
     expect(mockInsertValues).not.toHaveBeenCalled();
   });
 });
+
+describe('venue billing notices fire on the right transition only', () => {
+  const notifyVenue = vi.fn();
+
+  // Re-armed per test, not at declaration: the suite's `afterEach` calls
+  // `restoreAllMocks`, which strips the resolved value and leaves the hook returning
+  // undefined — the sync then throws on `.catch` rather than failing the assertion.
+  beforeEach(() => {
+    notifyVenue.mockReset();
+    notifyVenue.mockResolvedValue(undefined);
+  });
+
+  /** Existing billing row, then the profile row carrying the PREVIOUS status. */
+  function primeFrom(previousStatus: string) {
+    mockSelectLimit
+      .mockResolvedValueOnce([
+        {
+          id: 'row1',
+          trialEndsAt: null,
+          pastDueSince: null,
+          plan: 'monthly',
+          cancelAtPeriodEnd: false,
+        },
+      ])
+      .mockResolvedValueOnce([{ subscriptionStatus: previousStatus, userId: 'user_1' }]);
+  }
+
+  it('stays silent when a brand-new venue activates for the first time', async () => {
+    // `inactive` → trialing is a FIRST activation, not a restoration — the venue has
+    // never been live. This shipped as "you're live again, everything exactly as you
+    // left it" to every new subscriber, because `inactive` is both the starting state
+    // and a hidden one. The activation story is explicit that success sends no push:
+    // the venue is already in the app watching for it.
+    primeFrom('inactive');
+    await syncSubscriptionFromStripe(SUB_ID, { notifyVenue });
+    expect(notifyVenue).not.toHaveBeenCalled();
+  });
+
+  it('sends restored only when the venue comes back from cancelled', async () => {
+    // `cancelled` is where a hide actually lands once Stripe gives up retrying, so it
+    // is the only state a restoration can come back from.
+    primeFrom('cancelled');
+    await syncSubscriptionFromStripe(SUB_ID, { notifyVenue });
+    expect(notifyVenue).toHaveBeenCalledWith(expect.objectContaining({ kind: 'restored' }));
+  });
+});

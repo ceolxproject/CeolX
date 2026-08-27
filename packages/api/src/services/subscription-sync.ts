@@ -366,10 +366,14 @@ export async function syncSubscriptionFromStripe(
         ? 'payment_failed'
         : wasVisible && nowHidden
           ? 'hidden'
-          : // Restored covers any return to visibility, not just from `cancelled`:
-            // a venue whose retry succeeds inside the window was never hidden and
-            // gets nothing, because `wasVisible` was already true.
-            !wasVisible && !nowHidden && previousStatus !== null
+          : // Restored means coming back from a hide, which is `cancelled` — the state a
+            // venue lands in once Stripe gives up retrying. Deliberately NOT "any return
+            // to visibility": `inactive` is also the state every venue STARTS in, so the
+            // looser reading sent "you're live again, everything as you left it" to every
+            // venue completing their first ever checkout. They were never live before, and
+            // the activation story is explicit that success sends no push at all — the
+            // venue is already in the app watching for it.
+            previousStatus === SubscriptionStatus.CANCELLED && !nowHidden
             ? 'restored'
             : null;
 
@@ -532,10 +536,15 @@ function emitTransitionAnalytics({
     // V-01…V-11: the content rules follow visibility, so these two mark the moment the
     // whole per-surface matrix flips. Derived from the same predicate the matrix reads,
     // so the event cannot claim a hide the queries did not perform.
-    const wasHidden = from === null || isHiddenStatus(from);
     const nowHidden = isHiddenStatus(to);
-    if (!wasHidden && nowHidden) emit(ServerAnalyticsEvent.VENUE_CONTENT_HIDDEN);
-    if (wasHidden && !nowHidden && from !== null) {
+    if (from !== null && !isHiddenStatus(from) && nowHidden) {
+      emit(ServerAnalyticsEvent.VENUE_CONTENT_HIDDEN);
+    }
+    // Paired with the event above, so the two balance: restored counts a venue coming
+    // back from `cancelled`, the state a hide actually lands in. A first activation is
+    // `inactive` → visible, which is not a restoration — it is `subscription_activated`,
+    // and counting it here would leave every new venue as an unmatched "restored".
+    if (from === SubscriptionStatus.CANCELLED && !nowHidden) {
       emit(ServerAnalyticsEvent.VENUE_CONTENT_RESTORED);
     }
   }
