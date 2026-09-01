@@ -11,7 +11,7 @@ import { BasicDetailsStep } from '@/components/events/BasicDetailsStep';
 import { DateVenueStep } from '@/components/events/DateVenueStep';
 import { StepIndicator } from '@/components/events/StepIndicator';
 import { TicketAdsStep } from '@/components/events/TicketAdsStep';
-import { PUBLISH_BLOCKED_MESSAGE } from '@/components/subscription/VenueSubscriptionState';
+import { VenuePublishBlockedNotice } from '@/components/subscription/VenueSubscriptionState';
 import { useEventForm } from '@/hooks/use-event-form';
 import { useMe } from '@/hooks/use-me';
 import { useVenueSubscription } from '@/hooks/use-venue-subscription';
@@ -24,10 +24,6 @@ export default function CreateEventScreen() {
   const subscription = useVenueSubscription();
   const [showManualAddress, setShowManualAddress] = useState(false);
 
-  // V-14. This screen previously had no subscription awareness at all: the interim
-  // free-access notice was removed and nothing replaced it, so an on-hold venue filled
-  // all three steps, tapped CREATE EVENT, and the server's FORBIDDEN was the first and
-  // only signal. Editing an existing event is a separate screen and stays allowed.
   const publishBlocked = isVenue && !subscription.mayPublish;
 
   const form = useEventForm({
@@ -51,17 +47,12 @@ export default function CreateEventScreen() {
     return () => clearTimeout(timer);
   }, [form.coverImageUri]);
 
-  // Guarded rather than relying on the disabled button alone — the button is
-  // presentation, and the server refuses this too (`assertVenueMayPublish`).
-  const handleSubmit = () => {
-    if (publishBlocked) {
-      appToast.error(PUBLISH_BLOCKED_MESSAGE);
-      return;
-    }
-    // Fire-and-forget, matching how form.handleSubmit was previously passed straight
-    // through as onSubmit — errors surface via the form hook's own toast.
-    void form.handleSubmit();
-  };
+  // The blocked venue is told at the top and chooses to leave — it is never moved for it.
+  // Auto-redirecting on mount was rejected (client, 01/09/2026): a screen that opens and
+  // instantly throws you elsewhere reads as a crash, and the venue never learns why. So
+  // the notice explains, and the tap is the hand-off. Nothing can be lost on the way out,
+  // because the form below is locked until the subscription is live.
+  const handleActivatePress = () => router.replace('/(app)/(tabs)/profile');
 
   const handleBackPress = () => {
     Alert.alert('Leave without saving?', 'Your event details will be lost.', [
@@ -77,6 +68,14 @@ export default function CreateEventScreen() {
     >
       <AppHeader leading="back" onBack={handleBackPress} title="Create New Event" />
 
+      {/* Above the step indicator, so it is the first thing read on every step rather than
+          a surprise above the CREATE EVENT button on the last one. */}
+      {publishBlocked && (
+        <View className="px-5 pb-3">
+          <VenuePublishBlockedNotice surface="event" onPress={handleActivatePress} />
+        </View>
+      )}
+
       {/* Step indicator */}
       <View className="px-5">
         <StepIndicator currentStep={form.currentStep} />
@@ -88,7 +87,18 @@ export default function CreateEventScreen() {
           of the form and the dropdown results below them disappear behind
           the keyboard — the activity's adjustResize alone scrolls the
           focused input into view but doesn't lift the content below it. */}
-      <KeyboardAvoidingView behavior="padding" style={{ flex: 1, marginTop: 8 }}>
+      {/* Locked, not hidden, while the subscription is not live: the venue sees the form it
+          is about to get, and the notice above is the only live control. `pointerEvents`
+          rather than a `disabled` prop on each field — there are two dozen of them across
+          three steps, and one missed field is a form that half works. The a11y pair mutes
+          the same subtree for screen readers, which opacity alone does not. */}
+      <KeyboardAvoidingView
+        behavior="padding"
+        style={{ flex: 1, marginTop: 8, opacity: publishBlocked ? 0.4 : 1 }}
+        pointerEvents={publishBlocked ? 'none' : 'auto'}
+        accessibilityElementsHidden={publishBlocked}
+        importantForAccessibility={publishBlocked ? 'no-hide-descendants' : 'auto'}
+      >
         {form.currentStep === 1 && (
           <BasicDetailsStep
             key={coverRefreshKey}
@@ -167,12 +177,11 @@ export default function CreateEventScreen() {
             shareToFeed={form.shareToFeed}
             onShareToFeedChange={form.setShareToFeed}
             errors={form.errors}
-            onSubmit={handleSubmit}
+            onSubmit={() => void form.handleSubmit()}
             onBack={form.goBack}
             isPending={form.isPending}
             isEditing={false}
             isVenue={isVenue}
-            publishBlocked={publishBlocked}
           />
         )}
       </KeyboardAvoidingView>
