@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 
 import { appToast } from '@/components/AppToast';
 import { AnalyticsEvent, track } from '@/lib/analytics';
-import { trpc } from '@/utils/trpc';
+import { queryClient, trpc } from '@/utils/trpc';
 
 /**
  * Requesting the venue activation email (M8-T0 D-16, D-26).
@@ -119,6 +119,21 @@ export function useActivationEmail({
           if (notify) appToast.info('Email already sent — please check your inbox.');
           return;
         }
+        // CONFLICT — the server sees live billing on this venue, so it is the app that is
+        // wrong, not the venue. Activation completes in a browser (D-16) and nothing pushes
+        // the result back, so a screen mounted across that moment keeps a `users.me` from
+        // before the webhook: the create button stays dim while the server reports the
+        // subscription is already active (QA, 01/09/2026). Showing that sentence as an error
+        // left the venue holding a message saying they had paid and no control that worked.
+        // Refetching is the remedy — the gate re-resolves and the blocked surface releases
+        // itself.
+        if (err.data?.code === 'CONFLICT') {
+          setError(null);
+          void queryClient.invalidateQueries({ queryKey: trpc.users.me.queryKey() });
+          if (notify) appToast.info('Your subscription is already active.');
+          return;
+        }
+
         const message = err.message || 'Could not send the activation email';
         setError(message);
         if (notify) appToast.error(message);
