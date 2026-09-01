@@ -344,7 +344,23 @@ export function VenuePastDueHoldingBlock({ hideAt }: { hideAt: string | null }) 
  *
  * @param surface Which create flow was blocked, so the two are separable in the funnel.
  */
-export function VenuePublishBlockedNotice({ surface }: { surface: 'post' | 'event' }) {
+export function VenuePublishBlockedNotice({
+  surface,
+  onPress,
+}: {
+  surface: 'post' | 'event';
+  /**
+   * Override the tap.
+   *
+   * Given by the event form, which hands off to the profile rather than emailing from
+   * here. That is safe there and only there: the notice sits at the top of step 1, so the
+   * venue reads it before typing anything and leaving costs nothing — which is what makes
+   * the hand-off a choice rather than the ambush it was on step 3.
+   *
+   * Omitted on the post composer, which stays put and requests the email in place.
+   */
+  onPress?: () => void;
+}) {
   // Requests the activation email in place rather than navigating anywhere.
   //
   // This used to open the profile. On the event form that was destructive: the notice sits
@@ -366,30 +382,35 @@ export function VenuePublishBlockedNotice({ surface }: { surface: 'post' | 'even
     track(AnalyticsEvent.VENUE_PUBLISH_BLOCKED, { surface });
   }, [surface]);
 
-  const label = activation.error
-    ? activation.error
-    : activation.sent
-      ? 'Activation link sent — check your inbox to finish setting up.'
-      : `${BLOCKED_REASON} Tap to get an activation link by email.`;
+  const label = onPress
+    ? `${BLOCKED_REASON} Tap to activate on your profile.`
+    : activation.error
+      ? activation.error
+      : activation.sent
+        ? 'Activation link sent — check your inbox to finish setting up.'
+        : `${BLOCKED_REASON} Tap to get an activation link by email.`;
+
+  // A hand-off has nothing to throttle, so the cooldown only disables the email variant.
+  const disabled = onPress ? false : activation.disabled;
 
   return (
     <Pressable
-      disabled={activation.disabled}
-      onPress={activation.request}
+      disabled={disabled}
+      onPress={onPress ?? activation.request}
       accessibilityRole="button"
-      accessibilityState={{ disabled: activation.disabled }}
+      accessibilityState={{ disabled }}
       accessibilityLabel={label}
       className="flex-row items-center gap-2 rounded-xl bg-[#333335] px-3 py-2.5 active:opacity-60"
     >
       <Ionicons
-        name={activation.sent ? 'mail-unread-outline' : 'lock-closed-outline'}
+        name={!onPress && activation.sent ? 'mail-unread-outline' : 'lock-closed-outline'}
         size={16}
         color="rgba(255,255,255,0.6)"
       />
       <Text className="shrink text-xs leading-[18px] text-white/60 font-urbanist">{label}</Text>
-      {activation.isPending ? (
+      {!onPress && activation.isPending ? (
         <ActivityIndicator size="small" color="#C8FF2F" />
-      ) : activation.remaining > 0 ? (
+      ) : !onPress && activation.remaining > 0 ? (
         <Text className="text-xs font-bold text-white/40 font-urbanist">
           {activation.remaining}s
         </Text>
